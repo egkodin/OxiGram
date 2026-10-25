@@ -1,0 +1,16 @@
+[package]
+name = "style-gen"
+description = "Generates crates/style from Telegram Desktop's palette and style files"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true

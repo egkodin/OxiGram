@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  checks:
+    name: fmt, schema, dependencies
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --all --check
+      - run: scripts/check-td-schema.sh
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny,cargo-audit
+      - run: cargo deny check
+      - run: cargo audit
+      # Informational: duplicated crates, most of them from gpui's tree.
+      - run: cargo tree --workspace --duplicates --edges normal
+
+  build:
+    name: clippy, test, build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            tdlib_jobs: 2
+          - os: ubuntu-24.04
+            tdlib_jobs: 4
+          - os: windows-2025
+            tdlib_jobs: 4
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system packages (Linux)
+        if: runner.os == 'Linux'
+        # TDLib's build tools, plus the libraries gpui links (Zed's script/linux).
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gperf zlib1g-dev libssl-dev \
+            libasound2-dev libfontconfig-dev libglib2.0-dev libva-dev libvulkan1 \
+            libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev libzstd-dev
+      - name: Install system packages (macOS)
+        if: runner.os == 'macOS'
+        run: brew install gperf ninja openssl@3
+      - name: Install system packages (Windows)
+        if: runner.os == 'Windows'
+        # `cygpath -m` gives C:/style paths that both bash and CMake accept.
+        run: |
+          vcpkg_root="$(cygpath -m "$VCPKG_INSTALLATION_ROOT")"
+          echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
+          "$vcpkg_root/vcpkg.exe" install gperf:x64-windows openssl:x64-windows zlib:x64-windows
+
+      - name: Cache TDLib
+        id: tdlib-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/rgram
+          key: tdlib-${{ runner.os }}-${{ hashFiles('tdlib/COMMIT', 'scripts/build-tdlib.sh') }}
+      - name: Build TDLib
+        if: steps.tdlib-cache.outputs.cache-hit != 'true'
+        run: TD_BUILD_JOBS=${{ matrix.tdlib_jobs }} scripts/build-tdlib.sh
+
+      - uses: Swatinem/rust-cache@v2
+      # `--all-features` includes `runtime-shaders`, so macOS runners need no
+      # Metal toolchain.
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - run: cargo test --workspace --all-features
+      - run: cargo build --workspace --all-features
+      - run: cargo doc --workspace --all-features --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings

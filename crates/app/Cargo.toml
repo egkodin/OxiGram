@@ -1,0 +1,27 @@
+[package]
+name = "rgram"
+description = "rgram, an unofficial Telegram desktop client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Compile gpui's Metal shaders at run time, so macOS builds need no Metal
+# toolchain. CI uses it; release builds keep the precompiled shaders.
+runtime-shaders = ["gpui_platform/runtime_shaders"]
+
+[dependencies]
+anyhow.workspace = true
+futures.workspace = true
+gpui.workspace = true
+gpui_platform.workspace = true
+style.workspace = true
+td-api.workspace = true
+tg.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[lints]
+workspace = true
