@@ -172,6 +172,11 @@ fn scenarios() -> Vec<Scenario> {
                     MouseButton::Right,
                     FIRST_MAIN_MENU_ROW,
                 ),
+                ("32-folder-menu", MouseButton::Right, WORK_TAB),
+                ("33-folder-remove", MouseButton::Left, SECOND_TAB_MENU_ITEM),
+                ("34-folder-kept", MouseButton::Left, CHAT_AREA),
+                ("35-all-chats-menu", MouseButton::Right, ALL_CHATS_TAB),
+                ("36-menu-closed", MouseButton::Left, CHAT_AREA),
             ],
             drags: vec![
                 ("29-drag-pinned", MARIA_ROW, SAVED_ROW),
@@ -207,6 +212,11 @@ const CONTACTS_ROW: (f32, f32) = (100.0, 287.0);
 const OUTSIDE_BOX: (f32, f32) = (30.0, 300.0);
 const FAMILY_TAB: (f32, f32) = (172.0, 70.0);
 const ALL_CHATS_TAB: (f32, f32) = (25.0, 70.0);
+const WORK_TAB: (f32, f32) = (105.0, 70.0);
+/// The second item of a menu opened on [`WORK_TAB`].
+const SECOND_TAB_MENU_ITEM: (f32, f32) = (155.0, 130.0);
+/// Empty space beside the list; a click there closes menus and boxes.
+const CHAT_AREA: (f32, f32) = (600.0, 450.0);
 /// The archive row sits under the folder tabs; in the archive, which has no
 /// tabs, its first chat sits higher.
 const ARCHIVE_ROW: (f32, f32) = (150.0, 118.0);

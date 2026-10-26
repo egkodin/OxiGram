@@ -77,6 +77,8 @@ pub struct Draft {
 pub struct Folder {
     pub id: FolderId,
     pub name: FormattedText,
+    /// Removing it also turns off the invite links the user made.
+    pub has_my_invite_links: bool,
 }
 
 impl Chat {
@@ -218,6 +220,7 @@ impl From<td_api::types::ChatFolderInfo> for Folder {
         Self {
             id: FolderId(folder.id),
             name: FormattedText::from(*folder.name.text),
+            has_my_invite_links: folder.has_my_invite_links,
         }
     }
 }

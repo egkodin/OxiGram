@@ -6,14 +6,14 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::{BlockList, MessageSender, MessageSource};
 use td_api::functions::{
-    AddChatToList, DeleteChatHistory, GetChat, LeaveChat, ReadAllChatMentions,
+    AddChatToList, DeleteChatFolder, DeleteChatHistory, GetChat, LeaveChat, ReadAllChatMentions,
     ReadAllChatReactions, SetChatNotificationSettings, SetMessageSenderBlockList, SetPinnedChats,
     ToggleChatIsMarkedAsUnread, ToggleChatIsPinned, ViewMessages,
 };
 use td_api::types::{BlockListMain, MessageSenderUser, MessageSourceChatList};
 
 use crate::chat::ChatList;
-use crate::ids::{ChatId, MessageId, UserId};
+use crate::ids::{ChatId, FolderId, MessageId, UserId};
 use crate::session::{RequestError, Session};
 
 /// TDLib mutes for good past a year (`mute_for` in seconds).
@@ -56,6 +56,20 @@ pub(crate) fn done(result: Result<td_api::types::Ok, tg::TdError>) -> Result<(),
 }
 
 impl Session {
+    /// Removes a folder; its chats stay (`RemoveChatFilter`).
+    // shortcut: never leaves the folder's shared chats; the leave-chats box for shared folders comes with folder settings in M6.
+    pub fn delete_folder(
+        &self,
+        folder: FolderId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&DeleteChatFolder {
+                chat_folder_id: folder.0,
+                leave_chat_ids: Vec::new(),
+            })
+            .map(done)
+    }
+
     pub fn set_chat_pinned(
         &self,
         list: ChatList,

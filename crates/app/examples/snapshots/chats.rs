@@ -141,6 +141,12 @@ pub(crate) fn events() -> Vec<Event> {
     );
     maria.unread_count = 2;
     maria.positions[0].is_pinned = true;
+    // Work holds the two unread chats its tab counts, so its menu offers Mark as read.
+    maria.positions.push(Position {
+        list: ChatList::Folder(FolderId(1)),
+        order: 2,
+        is_pinned: false,
+    });
 
     let italic = FormattedText {
         text: "on my way, see you soon".to_owned(),
@@ -263,6 +269,11 @@ pub(crate) fn events() -> Vec<Event> {
     );
     team.last_read_outbox = MessageId(79);
     team.is_marked_as_unread = true;
+    team.positions.push(Position {
+        list: ChatList::Folder(FolderId(1)),
+        order: 1,
+        is_pinned: false,
+    });
 
     let scam = chat(
         6,
@@ -377,6 +388,7 @@ pub(crate) fn events() -> Vec<Event> {
             .map(|(id, name)| Folder {
                 id: FolderId(id),
                 name: FormattedText::plain(name),
+                has_my_invite_links: false,
             })
             .collect(),
     )));

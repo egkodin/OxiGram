@@ -1,8 +1,11 @@
 //! The folder tabs above the list (`ChatsFiltersTabs` with
 //! `chatsFiltersTabs`): "All chats" and each folder, with unread counters.
 
+use std::rc::Rc;
+
 use gpui::{
-    AnyElement, Context, IntoElement, ParentElement, SharedString, Styled, div, prelude::*,
+    AnyElement, Context, IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point,
+    SharedString, Styled, Window, div, prelude::*,
 };
 use i18n::key;
 use model::chat::ChatList;
@@ -54,11 +57,16 @@ pub(super) struct Tab {
     pub is_active: bool,
 }
 
+/// What a right click on a tab does, given the tab's index.
+pub(super) type OnTabMenu =
+    Rc<dyn Fn(&mut Dialogs, usize, Point<Pixels>, &mut Window, &mut Context<Dialogs>)>;
+
 /// A row of tabs with the active one underlined (`Ui::SettingsSlider` with
 /// `dialogsSearchTabs`); `on_click` gets the clicked tab's index.
 pub(super) fn tab_strip(
     id: &'static str,
     tabs: Vec<Tab>,
+    on_menu: Option<OnTabMenu>,
     cx: &mut Context<Dialogs>,
     on_click: impl Fn(&mut Dialogs, usize, &mut Context<Dialogs>) + Clone + 'static,
 ) -> AnyElement {
@@ -76,6 +84,7 @@ pub(super) fn tab_strip(
                     st.label_fg
                 };
                 let on_click = on_click.clone();
+                let on_menu = on_menu.clone();
                 div()
                     .id((id, index))
                     .relative()
@@ -112,6 +121,14 @@ pub(super) fn tab_strip(
                         )
                     })
                     .on_click(cx.listener(move |this, _, _, cx| on_click(this, index, cx)))
+                    .when_some(on_menu, |tab, on_menu| {
+                        tab.on_mouse_down(
+                            MouseButton::Right,
+                            cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                                on_menu(this, index, event.position, window, cx);
+                            }),
+                        )
+                    })
                     .into_any_element()
             })
             .collect();
@@ -157,9 +174,16 @@ impl Dialogs {
                 is_active: self.list == list,
             })
             .collect();
+        let menu_lists = lists.clone();
+        let on_menu: OnTabMenu = Rc::new(move |this, index, position, window, cx| {
+            if let Some(list) = menu_lists.get(index) {
+                this.show_folder_menu(*list, position, window, cx);
+            }
+        });
         Some(tab_strip(
             "folder-tab",
             shown,
+            Some(on_menu),
             cx,
             move |this, index, cx| {
                 if let Some(list) = lists.get(index) {

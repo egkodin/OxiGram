@@ -165,7 +165,7 @@ impl Dialogs {
                 is_active: tab == active,
             })
             .collect();
-        let strip = tab_strip("suggestions-tab", tabs, cx, |this, index, cx| {
+        let strip = tab_strip("suggestions-tab", tabs, None, cx, |this, index, cx| {
             if let Some(tab) = TABS.get(index) {
                 this.open_suggestions_tab(*tab, cx);
             }

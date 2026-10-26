@@ -32,6 +32,8 @@
 - Suggestion tabs (Chats, Channels, Apps) on the shared tab strip; group
   member and channel subscriber counts folded from `updateBasicGroup` /
   `updateSupergroup` (`ChatKind` now carries the group ids).
+- Folder tab context menu (`dialogs::folder_menu`): Mark as read and Remove
+  with tdesktop's confirmations; All chats offers Mark all chats as read.
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -43,10 +45,10 @@
 
 - `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
   `cargo test` green.
-- Snapshots 11-31 (`cargo run -p rgram --example snapshots`): chat list with
+- Snapshots 11-36 (`cargo run -p rgram --example snapshots`): chat list with
   folder tabs, main menu, night mode, contacts box, folder switch, archive,
   chat and archive context menus, collapsed archive, archive in the main
-  menu, pinned drag; compared by eye with tdesktop's style and layout code.
+  menu, pinned drag, folder tab menus; compared by eye with tdesktop's style and layout code.
 
 ### Not verified
 
@@ -61,7 +63,7 @@
 
 ### Next steps
 
-1. Folder tab context menu and tab reordering, chat preview (peek); search
+1. Tab reordering, chat preview (peek); search
    in one chat, by sender and hashtags wait for the chat view (M3) as their
    entry point.
 2. The narrow list's folder sidebar and search button.

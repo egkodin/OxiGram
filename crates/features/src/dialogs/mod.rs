@@ -4,6 +4,7 @@
 mod action;
 mod archive;
 mod date;
+mod folder_menu;
 mod menu;
 mod pinned;
 mod preview;
