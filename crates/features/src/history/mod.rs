@@ -7,6 +7,7 @@ mod bubble;
 mod headers;
 mod jump;
 mod layout;
+mod selection;
 mod service;
 mod sync;
 mod text;
@@ -23,8 +24,9 @@ use std::sync::Arc;
 
 use chrono::Local;
 use gpui::{
-    AnyElement, App, Context, Entity, EventEmitter, IntoElement, ListAlignment, ListState,
-    ParentElement, Render, SharedString, Styled, Subscription, Window, div, list, px,
+    AnyElement, App, Context, Entity, EventEmitter, FocusHandle, InteractiveElement as _,
+    IntoElement, ListAlignment, ListState, ParentElement, Render, SharedString, Styled,
+    Subscription, Window, div, list, px,
 };
 use model::chat::ChatKind;
 use model::history::Page;
@@ -92,6 +94,9 @@ pub(crate) struct HistoryView {
     is_down_shown: bool,
     /// Counts reloads, so a page asked for before one is dropped.
     generation: u64,
+    selection: selection::Selection,
+    drag: Option<selection::Drag>,
+    focus: FocusHandle,
     _subscription: Subscription,
 }
 
@@ -104,7 +109,14 @@ impl std::fmt::Debug for HistoryView {
 }
 
 impl HistoryView {
-    pub(crate) fn new(store: Entity<Store>, chat: ChatId, cx: &mut Context<Self>) -> Self {
+    /// `focus` is the window's main view, which takes keys such as Ctrl+C
+    /// once the chat is clicked.
+    pub(crate) fn new(
+        store: Entity<Store>,
+        chat: ChatId,
+        focus: FocusHandle,
+        cx: &mut Context<Self>,
+    ) -> Self {
         store.update(cx, |store, cx| store.open_chat(chat, cx));
         cx.on_release(move |this, cx| {
             this.store
@@ -139,6 +151,9 @@ impl HistoryView {
             returns: Vec::new(),
             is_down_shown: false,
             generation: 0,
+            selection: selection::Selection::None,
+            drag: None,
+            focus,
             _subscription: subscription,
         };
         let page = view.first_page(cx);
@@ -284,9 +299,19 @@ impl HistoryView {
                 on_reply: self.on_reply(&message, cx),
                 forward,
                 has_unread_bar,
+                is_selected: self.selection.is_message_selected(message.id),
+                selected_text: self.selection.text_range(message.id),
+                on_pointer: self.on_pointer_at(index, cx),
             },
             cx,
         )
+    }
+
+    fn on_pointer_at(&self, index: usize, cx: &Context<Self>) -> selection::OnPointer {
+        let weak = cx.weak_entity();
+        Rc::new(move |pointer, _, cx| {
+            let _ = weak.update(cx, |this, cx| this.on_pointer(index, pointer, cx));
+        })
     }
 
     /// Whether the unread bar goes over item `index`.
@@ -480,14 +505,26 @@ impl Render for HistoryView {
             });
             on_back
         });
-        let bar = top_bar::top_bar(self.store.read(cx).state(), self.chat, on_back, cx);
+        let bar = if self.selection.selected_count() > 0 {
+            let weak = cx.weak_entity();
+            top_bar::selection_bar(
+                move |_, _, cx| {
+                    let _ = weak.update(cx, |this, cx| this.clear_selection(cx));
+                },
+                cx,
+            )
+        } else {
+            top_bar::top_bar(self.store.read(cx).state(), self.chat, on_back, cx)
+        };
         let weak = cx.weak_entity();
+        let focus = self.focus.clone();
         // shortcut: a plain color instead of the chat wallpaper, which comes with backgrounds in M6.
         div()
             .size_full()
             .flex()
             .flex_col()
             .bg(color(cx, ColorRef::Palette(ColorId::WindowBgOver)))
+            .capture_any_mouse_down(move |_, window, cx| focus.focus(window, cx))
             .child(bar)
             .child(
                 div()

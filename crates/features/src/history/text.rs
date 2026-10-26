@@ -36,11 +36,25 @@ pub(crate) enum Link {
 
 /// The colors text runs take.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct Palette {
+pub(super) struct Colors {
     pub fg: Hsla,
     pub link: Hsla,
     pub mono: Hsla,
     pub spoiler: Hsla,
+}
+
+/// How a paragraph's runs look.
+#[derive(Debug, Clone)]
+pub(super) struct Look<'a> {
+    pub font: &'a gpui::Font,
+    pub mono_family: &'a str,
+    pub colors: Colors,
+    /// The colors of selected text, over `select_bg`.
+    pub selected_colors: Colors,
+    pub select_bg: Hsla,
+    pub is_spoiler_revealed: bool,
+    /// The selected part of the text, in its byte offsets.
+    pub selected: Option<Range<usize>>,
 }
 
 /// Splits `text` at its code blocks and quotes; text between them, with
@@ -109,22 +123,15 @@ fn is_link(kind: &EntityKind) -> bool {
 
 /// The runs for `range` of `text`, styled by the entities over each piece.
 /// Unrevealed spoilers are blocks of the spoiler color.
-pub(super) fn runs(
-    text: &FormattedText,
-    range: Range<usize>,
-    font: &gpui::Font,
-    mono_family: &str,
-    palette: Palette,
-    is_spoiler_revealed: bool,
-) -> Vec<TextRun> {
+pub(super) fn runs(text: &FormattedText, range: Range<usize>, look: &Look<'_>) -> Vec<TextRun> {
+    let selected = look.selected.clone().unwrap_or_default();
     let mut cuts = vec![range.start, range.end];
-    for entity in &text.entities {
-        for cut in [entity.range.start, entity.range.end] {
-            if range.contains(&cut) {
-                cuts.push(cut);
-            }
-        }
-    }
+    let bounds = text
+        .entities
+        .iter()
+        .flat_map(|entity| [entity.range.start, entity.range.end])
+        .chain([selected.start, selected.end]);
+    cuts.extend(bounds.filter(|cut| range.contains(cut)));
     cuts.sort_unstable();
     cuts.dedup();
     cuts.windows(2)
@@ -135,14 +142,8 @@ pub(super) fn runs(
                 .iter()
                 .filter(|entity| entity.range.start <= piece.start && piece.end <= entity.range.end)
                 .map(|entity| &entity.kind);
-            run(
-                piece.len(),
-                covering,
-                font,
-                mono_family,
-                palette,
-                is_spoiler_revealed,
-            )
+            let is_selected = selected.start <= piece.start && piece.end <= selected.end;
+            run(piece.len(), covering, look, is_selected)
         })
         .collect()
 }
@@ -150,16 +151,19 @@ pub(super) fn runs(
 fn run<'a>(
     len: usize,
     kinds: impl Iterator<Item = &'a EntityKind>,
-    font: &gpui::Font,
-    mono_family: &str,
-    palette: Palette,
-    is_spoiler_revealed: bool,
+    look: &Look<'_>,
+    is_selected: bool,
 ) -> TextRun {
+    let colors = if is_selected {
+        look.selected_colors
+    } else {
+        look.colors
+    };
     let mut run = TextRun {
         len,
-        font: font.clone(),
-        color: palette.fg,
-        background_color: None,
+        font: look.font.clone(),
+        color: colors.fg,
+        background_color: is_selected.then_some(look.select_bg),
         underline: None,
         strikethrough: None,
     };
@@ -181,18 +185,18 @@ fn run<'a>(
                 });
             }
             EntityKind::Code | EntityKind::Pre { .. } => {
-                run.font.family = mono_family.to_owned().into();
-                run.color = palette.mono;
+                run.font.family = look.mono_family.to_owned().into();
+                run.color = colors.mono;
             }
-            EntityKind::Spoiler => is_hidden = !is_spoiler_revealed,
-            kind if is_link(kind) => run.color = palette.link,
+            EntityKind::Spoiler => is_hidden = !look.is_spoiler_revealed,
+            kind if is_link(kind) => run.color = colors.link,
             _ => {}
         }
     }
     // shortcut: a hidden spoiler is a solid block; the particle animation comes with M8 polish.
     if is_hidden {
-        run.color = palette.spoiler;
-        run.background_color = Some(palette.spoiler);
+        run.color = colors.spoiler;
+        run.background_color = Some(colors.spoiler);
     }
     run
 }
@@ -289,26 +293,45 @@ mod tests {
         );
     }
 
+    fn look(font: &gpui::Font, selected: Option<Range<usize>>) -> Look<'_> {
+        let colors = Colors {
+            fg: Hsla::default(),
+            link: Hsla::default(),
+            mono: Hsla::default(),
+            spoiler: Hsla::default(),
+        };
+        Look {
+            font,
+            mono_family: "Menlo",
+            colors,
+            selected_colors: colors,
+            select_bg: Hsla::white(),
+            is_spoiler_revealed: false,
+            selected,
+        }
+    }
+
+    #[test]
+    fn selection_cuts_runs_and_tints_its_part() {
+        let message = text("plain text", &[]);
+        let font = gpui::font("Open Sans");
+        let runs = runs(&message, 0..10, &look(&font, Some(2..7)));
+        assert_eq!(
+            runs.iter().map(|run| run.len).collect::<Vec<_>>(),
+            [2, 5, 3]
+        );
+        assert_eq!(runs[1].background_color, Some(Hsla::white()));
+        assert_eq!(runs[2].background_color, None);
+    }
+
     #[test]
     fn nested_entities_combine_in_each_piece() {
         let message = text(
             "bold and italic",
             &[(0..15, EntityKind::Bold), (9..15, EntityKind::Italic)],
         );
-        let palette = Palette {
-            fg: Hsla::default(),
-            link: Hsla::default(),
-            mono: Hsla::default(),
-            spoiler: Hsla::default(),
-        };
-        let runs = runs(
-            &message,
-            0..15,
-            &gpui::font("Open Sans"),
-            "Menlo",
-            palette,
-            false,
-        );
+        let font = gpui::font("Open Sans");
+        let runs = runs(&message, 0..15, &look(&font, None));
         assert_eq!(runs.iter().map(|run| run.len).collect::<Vec<_>>(), [9, 6]);
         assert_eq!(runs[0].font.weight, FontWeight::SEMIBOLD);
         assert_eq!(runs[0].font.style, FontStyle::Normal);

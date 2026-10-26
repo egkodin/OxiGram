@@ -150,9 +150,9 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Jump buttons to unread mentions and unread reactions | M3 | todo | |
 | history | Jump to a date with the calendar | M3 | todo | |
 | history | Highlight of the message jumped to | M3 | todo | |
-| history | Text selection and copy within and across messages | M3 | todo | |
+| history | Text selection and copy within and across messages | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 46/47); not verified: no API credentials, so no live chat; copying to the clipboard not checked by eye; drag selects within one message, across messages selects messages as tdesktop does; no double-click word selection or autoscroll while dragging |
 | history | Keyboard text selection | M8 | todo | |
-| history | Multi-message selection: forward, delete, copy, download | M3 | todo | |
+| history | Multi-message selection: forward, delete, copy, download | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 46/47); not verified: no API credentials, so no live chat; copying to the clipboard not checked by eye; drag or Ctrl/Cmd+click selects, Ctrl/Cmd+C copies, Escape and Cancel clear; forward, delete and download come with M4/M5 |
 | history | Message context menu with all actions for the message type | M3 | todo | |
 | history | Read date of outgoing messages ("read at") and who-read in small groups | M3 | todo | |
 | history | Pinned message bar with multiple pins, cycling and unpin | M3 | todo | |

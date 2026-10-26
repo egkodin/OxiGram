@@ -2,12 +2,13 @@
 //! day, then the message in its bubble.
 
 use gpui::{
-    AnyElement, App, BoxShadow, ClickEvent, Div, IntoElement, ParentElement, SharedString, Styled,
-    Window, div, point, prelude::FluentBuilder as _, px,
+    AnyElement, App, BoxShadow, ClickEvent, Div, InteractiveElement as _, IntoElement, MouseButton,
+    ParentElement, SharedString, Styled, Window, div, point, prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::message::{Content, Message, Sending};
 use model::text::FormattedText;
+use std::ops::Range;
 use std::rc::Rc;
 use style::chat::{
     BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PHOTO_LEFT, HISTORY_VIEWS_SPACE,
@@ -16,8 +17,10 @@ use style::chat::{
     MSG_SERVICE_MARGIN, MSG_SERVICE_PADDING, MSG_SHADOW,
 };
 use style::chat_style::{
-    HISTORY_BUBBLE_TAIL_IN_LEFT, HISTORY_BUBBLE_TAIL_OUT_RIGHT, HISTORY_RECEIVED_ICON,
-    HISTORY_SENT_ICON, HISTORY_VIEWS_IN_ICON, HISTORY_VIEWS_OUT_ICON,
+    HISTORY_BUBBLE_TAIL_IN_LEFT, HISTORY_BUBBLE_TAIL_IN_LEFT_SELECTED,
+    HISTORY_BUBBLE_TAIL_OUT_RIGHT, HISTORY_BUBBLE_TAIL_OUT_RIGHT_SELECTED, HISTORY_RECEIVED_ICON,
+    HISTORY_RECEIVED_SELECTED_ICON, HISTORY_SENT_ICON, HISTORY_SENT_SELECTED_ICON,
+    HISTORY_VIEWS_IN_ICON, HISTORY_VIEWS_OUT_ICON,
 };
 use style::dialogs::HISTORY_SENDING_ICON;
 use style::{ColorId, ColorRef};
@@ -25,6 +28,7 @@ use ui::{Userpic, UserpicSource, color, font, font_height, icon, icon_size, peer
 
 use super::body::{self, Body, OnLink};
 use super::headers::{self, Reply};
+use super::selection::{OnPointer, Pointer};
 use super::{layout, unread};
 use crate::lang::{strings, tr};
 use crate::px_of;
@@ -62,6 +66,10 @@ pub(super) struct Item<'a> {
     /// "Forwarded from ..." for forwarded messages.
     pub forward: Option<String>,
     pub has_unread_bar: bool,
+    pub is_selected: bool,
+    /// The selected part of the text.
+    pub selected_text: Option<Range<usize>>,
+    pub on_pointer: OnPointer,
 }
 
 /// What a click on part of a message does.
@@ -94,8 +102,29 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
             this.child(service_pill(text, cx))
         })
         .when(item.has_unread_bar, |this| this.child(unread::bar(cx)))
-        .child(message_row(&item, cx))
+        .child(with_pointer(message_row(&item, cx), &item.on_pointer))
         .into_any_element()
+}
+
+/// Presses, drags and releases over the row that the text did not take.
+fn with_pointer(row: Div, on_pointer: &OnPointer) -> Div {
+    let (on_press, on_move, on_release) =
+        (on_pointer.clone(), on_pointer.clone(), on_pointer.clone());
+    row.on_mouse_down(MouseButton::Left, move |_, window, cx| {
+        on_press(Pointer::PressRow, window, cx);
+    })
+    .on_mouse_move(move |event, window, cx| {
+        let pointer = if event.pressed_button == Some(MouseButton::Left) {
+            Pointer::Drag(None)
+        } else {
+            Pointer::Hover
+        };
+        on_move(pointer, window, cx);
+    })
+    .on_mouse_up(MouseButton::Left, move |event, window, cx| {
+        let is_toggle = event.modifiers.secondary(cx);
+        on_release(Pointer::Release { is_toggle }, window, cx);
+    })
 }
 
 /// A service message: its pill under the day's badge; hidden ones leave
@@ -183,10 +212,17 @@ fn message_row(item: &Item<'_>, cx: &App) -> Div {
                 .bottom(px_of(MSG_MARGIN.bottom))
                 .child(Userpic::new(px_of(MSG_PHOTO_SIZE), author.userpic.clone()))
         });
+    let overlay = item.is_selected.then(|| {
+        div()
+            .absolute()
+            .inset_0()
+            .bg(color(cx, palette(ColorId::MsgSelectOverlay)))
+    });
     div()
         .relative()
         .flex()
         .when(out, |this| this.justify_end())
+        .children(overlay)
         .pt(px_of(top))
         .pb(px_of(MSG_MARGIN.bottom))
         .pl(left)
@@ -196,18 +232,27 @@ fn message_row(item: &Item<'_>, cx: &App) -> Div {
 }
 
 fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
-    let (bg, shadow, fg) = if out {
-        (
+    let (bg, shadow, fg) = match (out, item.is_selected) {
+        (true, false) => (
             ColorId::MsgOutBg,
             ColorId::MsgOutShadow,
             ColorId::HistoryTextOutFg,
-        )
-    } else {
-        (
+        ),
+        (true, true) => (
+            ColorId::MsgOutBgSelected,
+            ColorId::MsgOutShadowSelected,
+            ColorId::HistoryTextOutFgSelected,
+        ),
+        (false, false) => (
             ColorId::MsgInBg,
             ColorId::MsgInShadow,
             ColorId::HistoryTextInFg,
-        )
+        ),
+        (false, true) => (
+            ColorId::MsgInBgSelected,
+            ColorId::MsgInShadowSelected,
+            ColorId::HistoryTextInFgSelected,
+        ),
     };
     let (large, small) = (px_of(BUBBLE_RADIUS_LARGE), px_of(BUBBLE_RADIUS_SMALL));
     let top = if item.run.is_attached_to_previous {
@@ -229,10 +274,11 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
         (false, false) => (top, large, bottom, large),
     };
     let tail = has_tail.then(|| {
-        let tail = if out {
-            HISTORY_BUBBLE_TAIL_OUT_RIGHT
-        } else {
-            HISTORY_BUBBLE_TAIL_IN_LEFT
+        let tail = match (out, item.is_selected) {
+            (true, false) => HISTORY_BUBBLE_TAIL_OUT_RIGHT,
+            (true, true) => HISTORY_BUBBLE_TAIL_OUT_RIGHT_SELECTED,
+            (false, false) => HISTORY_BUBBLE_TAIL_IN_LEFT,
+            (false, true) => HISTORY_BUBBLE_TAIL_IN_LEFT_SELECTED,
         };
         let width = icon_size(tail).width;
         div()
@@ -381,26 +427,32 @@ fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
             id: ("message", item.message.id.0 as u64).into(),
             text,
             is_out: out,
+            is_selected: item.is_selected,
+            selected: item.selected_text.clone(),
             quote,
             is_spoiler_revealed: item.is_spoiler_revealed,
             room,
             on_link: item.on_link.clone(),
+            on_pointer: item.on_pointer.clone(),
         },
         cx,
     )
 }
 
 fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
-    let date_fg = if out {
-        ColorId::MsgOutDateFg
-    } else {
-        ColorId::MsgInDateFg
+    let date_fg = match (out, item.is_selected) {
+        (true, false) => ColorId::MsgOutDateFg,
+        (true, true) => ColorId::MsgOutDateFgSelected,
+        (false, false) => ColorId::MsgInDateFg,
+        (false, true) => ColorId::MsgInDateFgSelected,
     };
     // shortcut: a failed message shows the sending clock; the red failed mark comes with sending in M4.
-    let state = out.then_some(match item.message.sending {
-        Some(Sending::Pending | Sending::Failed) => HISTORY_SENDING_ICON,
-        None if item.is_read => HISTORY_RECEIVED_ICON,
-        None => HISTORY_SENT_ICON,
+    let state = out.then_some(match (item.message.sending, item.is_selected) {
+        (Some(Sending::Pending | Sending::Failed), _) => HISTORY_SENDING_ICON,
+        (None, false) if item.is_read => HISTORY_RECEIVED_ICON,
+        (None, true) if item.is_read => HISTORY_RECEIVED_SELECTED_ICON,
+        (None, false) => HISTORY_SENT_ICON,
+        (None, true) => HISTORY_SENT_SELECTED_ICON,
     });
     div()
         .absolute()

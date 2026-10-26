@@ -2,19 +2,24 @@
 //! blocks (`Ui::Text::String::draw` with `st::messageTextStyle`), with
 //! clickable links.
 
+use std::ops::Range;
 use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Div, ElementId, Hsla, InteractiveElement as _, InteractiveText, IntoElement,
-    ParentElement, Styled, StyledText, TextRun, Window, div,
+    MouseButton, ParentElement, Styled, StyledText, TextRun, Window, div,
 };
 use model::text::FormattedText;
 use style::basic::QuoteStyle;
-use style::chat::{MESSAGE_TEXT_STYLE, MSG_FONT};
+use style::chat::{
+    IN_TEXT_PALETTE, IN_TEXT_PALETTE_SELECTED, MESSAGE_TEXT_STYLE, MSG_FONT, OUT_TEXT_PALETTE,
+    OUT_TEXT_PALETTE_SELECTED,
+};
 use style::{ColorId, ColorRef};
 use ui::{color, font};
 
-use super::text::{self, BlockKind, Link, Palette};
+use super::selection::{OnPointer, Pointer};
+use super::text::{self, BlockKind, Colors, Link, Look};
 use crate::px_of;
 
 /// What a click on a link does.
@@ -40,82 +45,115 @@ pub(super) struct Body<'a> {
     pub id: ElementId,
     pub text: &'a FormattedText,
     pub is_out: bool,
+    /// The whole message is selected, so it takes the selected colors.
+    pub is_selected: bool,
+    /// The selected part of the text.
+    pub selected: Option<Range<usize>>,
     /// The quote color: the sender's name color in incoming messages.
     pub quote: ColorId,
     pub is_spoiler_revealed: bool,
     /// Transparent text after the last line that leaves room for the time.
     pub room: String,
     pub on_link: OnLink,
+    pub on_pointer: OnPointer,
 }
 
-fn palette(body: &Body<'_>, cx: &App) -> Palette {
-    let (fg, link, mono, spoiler) = if body.is_out {
-        (
-            ColorId::HistoryTextOutFg,
-            ColorId::HistoryLinkOutFg,
-            ColorId::MsgOutMonoFg,
-            ColorId::MsgOutDateFg,
-        )
-    } else {
-        (
-            ColorId::HistoryTextInFg,
-            ColorId::HistoryLinkInFg,
-            ColorId::MsgInMonoFg,
-            ColorId::MsgInDateFg,
-        )
+fn look<'a>(body: &Body<'_>, font: &'a gpui::Font, cx: &App) -> Look<'a> {
+    let (palette, fg) = match (body.is_out, body.is_selected) {
+        (false, false) => (&IN_TEXT_PALETTE, ColorId::HistoryTextInFg),
+        (false, true) => (&IN_TEXT_PALETTE_SELECTED, ColorId::HistoryTextInFgSelected),
+        (true, false) => (&OUT_TEXT_PALETTE, ColorId::HistoryTextOutFg),
+        (true, true) => (
+            &OUT_TEXT_PALETTE_SELECTED,
+            ColorId::HistoryTextOutFgSelected,
+        ),
     };
-    let get = |id| color(cx, ColorRef::Palette(id));
-    Palette {
-        fg: get(fg),
-        link: get(link),
-        mono: get(mono),
-        spoiler: get(spoiler),
+    let get = |color_ref| color(cx, color_ref);
+    Look {
+        font,
+        mono_family: MONO_FAMILY,
+        colors: Colors {
+            fg: get(ColorRef::Palette(fg)),
+            link: get(palette.link_fg),
+            mono: get(palette.mono_fg),
+            spoiler: get(palette.spoiler_fg),
+        },
+        selected_colors: Colors {
+            fg: get(palette.select_fg),
+            link: get(palette.select_link_fg),
+            mono: get(palette.select_mono_fg),
+            spoiler: get(palette.select_spoiler_fg),
+        },
+        select_bg: get(palette.select_bg),
+        is_spoiler_revealed: body.is_spoiler_revealed,
+        selected: body.selected.clone(),
     }
 }
 
-/// One paragraph's styled text, links clickable.
+/// One paragraph's styled text, links clickable; presses and drags over
+/// it report where in the text they are.
 fn paragraph(
     body: &Body<'_>,
     index: usize,
-    range: std::ops::Range<usize>,
+    range: Range<usize>,
     room: Option<&str>,
-    colors: Palette,
+    look: &Look<'_>,
 ) -> AnyElement {
-    let base = font(MSG_FONT);
-    let mut runs = text::runs(
-        body.text,
-        range.clone(),
-        &base,
-        MONO_FAMILY,
-        colors,
-        body.is_spoiler_revealed,
-    );
+    let mut runs = text::runs(body.text, range.clone(), look);
     let mut shown = body.text.text[range.clone()].to_owned();
     if let Some(room) = room {
         shown.push_str(room);
-        runs.push(TextRun {
-            len: room.len(),
-            font: base,
-            color: Hsla::transparent_black(),
-            background_color: None,
-            underline: None,
-            strikethrough: None,
-        });
+        runs.push(transparent_run(room.len()));
     }
     let styled = StyledText::new(shown).with_runs(runs);
-    let links = text::links(body.text, range, body.is_spoiler_revealed);
-    if links.is_empty() {
-        return styled.into_any_element();
-    }
-    let (ranges, targets): (Vec<_>, Vec<_>) = links.into_iter().unzip();
-    let on_link = body.on_link.clone();
-    InteractiveText::new(("paragraph", index), styled)
-        .on_click(ranges, move |index, window, cx| {
-            if let Some(link) = targets.get(index) {
-                on_link(link.clone(), window, cx);
+    let layout = styled.layout().clone();
+    let links = text::links(body.text, range.clone(), body.is_spoiler_revealed);
+    let content = if links.is_empty() {
+        styled.into_any_element()
+    } else {
+        let (ranges, targets): (Vec<_>, Vec<_>) = links.into_iter().unzip();
+        let on_link = body.on_link.clone();
+        InteractiveText::new(("paragraph", index), styled)
+            .on_click(ranges, move |index, window, cx| {
+                if let Some(link) = targets.get(index) {
+                    on_link(link.clone(), window, cx);
+                }
+            })
+            .into_any_element()
+    };
+    let offset_at = move |position| {
+        let index = layout
+            .index_for_position(position)
+            .unwrap_or_else(|nearest| nearest);
+        range.start + index.min(range.len())
+    };
+    let offset_at = Rc::new(offset_at);
+    let (on_press, on_drag) = (body.on_pointer.clone(), body.on_pointer.clone());
+    let drag_offset = offset_at.clone();
+    div()
+        .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+            on_press(Pointer::PressText(offset_at(event.position)), window, cx);
+            cx.stop_propagation();
+        })
+        .on_mouse_move(move |event, window, cx| {
+            if event.pressed_button == Some(MouseButton::Left) {
+                on_drag(Pointer::Drag(Some(drag_offset(event.position))), window, cx);
+                cx.stop_propagation();
             }
         })
+        .child(content)
         .into_any_element()
+}
+
+fn transparent_run(len: usize) -> TextRun {
+    TextRun {
+        len,
+        font: font(MSG_FONT),
+        color: Hsla::transparent_black(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    }
 }
 
 /// A quote or code block: tinted, rounded, a line on the left.
@@ -145,7 +183,9 @@ fn tinted(st: &QuoteStyle, tint: Hsla, header: Option<AnyElement>, content: AnyE
 }
 
 pub(super) fn element(body: Body<'_>, cx: &App) -> AnyElement {
-    let colors = palette(&body, cx);
+    let base = font(MSG_FONT);
+    let look = look(&body, &base, cx);
+    let mono = look.colors.mono;
     let blocks = text::blocks(body.text);
     let ends_in_text = blocks
         .last()
@@ -157,7 +197,7 @@ pub(super) fn element(body: Body<'_>, cx: &App) -> AnyElement {
         .enumerate()
         .map(|(index, block)| {
             let room = (ends_in_text && index == last).then_some(body.room.as_str());
-            let content = paragraph(&body, index, block.range.clone(), room, colors);
+            let content = paragraph(&body, index, block.range.clone(), room, &look);
             match &block.kind {
                 BlockKind::Text => content,
                 BlockKind::Quote => {
@@ -168,12 +208,12 @@ pub(super) fn element(body: Body<'_>, cx: &App) -> AnyElement {
                     let header = language.as_ref().map(|language| {
                         div()
                             .h(px_of(style.pre.header))
-                            .text_color(colors.mono.opacity(HEADER_OPACITY))
+                            .text_color(mono.opacity(HEADER_OPACITY))
                             .font_weight(gpui::FontWeight::SEMIBOLD)
                             .child(language.clone())
                             .into_any_element()
                     });
-                    tinted(&style.pre, colors.mono, header, content).into_any_element()
+                    tinted(&style.pre, mono, header, content).into_any_element()
                 }
             }
         })
@@ -194,13 +234,6 @@ pub(super) fn element(body: Body<'_>, cx: &App) -> AnyElement {
 /// Transparent text as tall as a line, as wide as the time.
 fn room_line(room: &str) -> AnyElement {
     StyledText::new(room.to_owned())
-        .with_runs(vec![TextRun {
-            len: room.len(),
-            font: font(MSG_FONT),
-            color: Hsla::transparent_black(),
-            background_color: None,
-            underline: None,
-            strikethrough: None,
-        }])
+        .with_runs(vec![transparent_run(room.len())])
         .into_any_element()
 }

@@ -222,7 +222,15 @@ fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: history::histories(),
             steps: vec![("41-chat-list", auth(State::Ready))],
-            drags: Vec::new(),
+            // In Maria Garcia's chat, which the last click opens.
+            drags: vec![
+                ("46-history-text-selection", (330.0, 299.0), (440.0, 299.0)),
+                (
+                    "47-history-message-selection",
+                    (400.0, 299.0),
+                    (650.0, 382.0),
+                ),
+            ],
         },
         Scenario {
             setup: chats::events(),

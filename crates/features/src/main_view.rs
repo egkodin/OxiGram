@@ -33,12 +33,15 @@ use crate::main_menu::{MainMenu, MenuAction};
 use crate::settings;
 use crate::{Layers, Store, px_of};
 
-actions!(main_view, [CancelSearch]);
+actions!(main_view, [CancelSearch, CopySelection]);
 
 const CONTEXT: &str = "MainView";
 
 pub(crate) fn bind_keys(cx: &mut App) {
-    cx.bind_keys([KeyBinding::new("escape", CancelSearch, Some(CONTEXT))]);
+    cx.bind_keys([
+        KeyBinding::new("escape", CancelSearch, Some(CONTEXT)),
+        KeyBinding::new(ui::secondary!("c"), CopySelection, Some(CONTEXT)),
+    ]);
 }
 
 pub struct MainView {
@@ -116,7 +119,8 @@ impl MainView {
             return;
         }
         let store = self.store.clone();
-        let history = cx.new(|cx| HistoryView::new(store, chat, cx));
+        let focus = self.focus.clone();
+        let history = cx.new(|cx| HistoryView::new(store, chat, focus, cx));
         self._history_subscription =
             Some(
                 cx.subscribe_in(&history, window, |this, _, event, window, cx| match event {
@@ -156,6 +160,13 @@ impl MainView {
     /// Escape: clears the search, else leaves the archive.
     fn cancel_search(&mut self, _: &CancelSearch, window: &mut Window, cx: &mut Context<Self>) {
         let is_search_focused = self.search.read(cx).focus_handle(cx).is_focused(window);
+        // Escape drops a selection before it closes the chat.
+        if let Some(history) = &self.history
+            && !is_search_focused
+            && history.update(cx, |history, cx| history.clear_selection(cx))
+        {
+            return;
+        }
         if self.history.is_some() && !is_search_focused {
             self.close_chat(cx);
         } else if self.search.read(cx).text().is_empty() {
@@ -165,6 +176,13 @@ impl MainView {
                 .update(cx, |dialogs, cx| dialogs.open_list(ChatList::Main, cx));
         } else {
             self.clear_search(cx);
+        }
+    }
+
+    /// Ctrl+C (Cmd+C on macOS) over the chat copies what is selected in it.
+    fn copy_selection(&mut self, _: &CopySelection, _: &mut Window, cx: &mut Context<Self>) {
+        if let Some(history) = &self.history {
+            history.update(cx, |history, cx| history.copy_selection(cx));
         }
     }
 
@@ -432,6 +450,7 @@ impl Render for MainView {
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .on_action(cx.listener(Self::cancel_search))
+            .on_action(cx.listener(Self::copy_selection))
             .size_full()
             .flex()
             .children(sidebar);

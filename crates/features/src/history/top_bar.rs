@@ -16,11 +16,11 @@ use style::chat::{
 };
 use style::dialogs::DIALOGS_TEXT_FONT;
 use style::info::{
-    HISTORY_TOP_BAR_BACK, TOP_BAR_ARROW_PADDING, TOP_BAR_HEIGHT, TOP_BAR_INFO_BUTTON,
-    TOP_BAR_NAME_RIGHT_PADDING,
+    HISTORY_TOP_BAR_BACK, TOP_BAR_ACTION_SKIP, TOP_BAR_ARROW_PADDING, TOP_BAR_CLEAR_BUTTON,
+    TOP_BAR_HEIGHT, TOP_BAR_INFO_BUTTON, TOP_BAR_NAME_RIGHT_PADDING,
 };
 use style::{ColorId, ColorRef, Font};
-use ui::{IconButton, Userpic, UserpicSource, color, font, font_height};
+use ui::{IconButton, RoundButton, Userpic, UserpicSource, color, font, font_height};
 
 use crate::dialogs::{action_text, photo_userpic};
 use crate::lang::strings;
@@ -143,5 +143,31 @@ pub(super) fn top_bar(
         }))
         .children(userpic)
         .child(lines)
+        .into_any_element()
+}
+
+/// The bar while messages are selected (`TopBarWidget::showSelected`).
+// shortcut: no Forward and Delete buttons, which also show the count; they come with forwarding and deleting in M4.
+pub(super) fn selection_bar(
+    on_cancel: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+    cx: &App,
+) -> AnyElement {
+    div()
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_end()
+        .h(px_of(TOP_BAR_HEIGHT))
+        .pr(px_of(TOP_BAR_ACTION_SKIP))
+        .bg(color(cx, ColorRef::Palette(ColorId::TopBarBg)))
+        .child(
+            RoundButton::new(
+                "history-selection-clear",
+                &TOP_BAR_CLEAR_BUTTON,
+                strings(cx).text(key::lng_selected_clear).to_owned(),
+            )
+            .uppercase()
+            .on_click(on_cancel),
+        )
         .into_any_element()
 }
