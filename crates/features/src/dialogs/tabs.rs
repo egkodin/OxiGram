@@ -4,8 +4,8 @@
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, Context, IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point,
-    SharedString, Styled, Window, div, prelude::*,
+    AnyElement, AppContext as _, Context, Div, IntoElement, MouseButton, MouseDownEvent,
+    ParentElement, Pixels, Point, Render, SharedString, Stateful, Styled, Window, div, prelude::*,
 };
 use i18n::key;
 use model::chat::ChatList;
@@ -15,6 +15,8 @@ use style::{ColorId, ColorRef};
 use ui::{color, font, font_height};
 
 use super::Dialogs;
+use super::menu::send;
+use super::pinned::reordered;
 use super::row::{Lit, unread_badge};
 use crate::lang::tr;
 use crate::px_of;
@@ -55,92 +57,161 @@ pub(super) struct Tab {
     pub label: SharedString,
     pub counter: Option<(SharedString, bool)>,
     pub is_active: bool,
+    /// Whether it can be dragged and dropped onto (`addPinnedInterval`).
+    pub is_movable: bool,
 }
 
 /// What a right click on a tab does, given the tab's index.
 pub(super) type OnTabMenu =
     Rc<dyn Fn(&mut Dialogs, usize, Point<Pixels>, &mut Window, &mut Context<Dialogs>)>;
 
+/// What dropping the tab at the first index onto the second does.
+pub(super) type OnTabDrop = Rc<dyn Fn(&mut Dialogs, usize, usize, &mut Context<Dialogs>)>;
+
+/// The menu and drag handlers of a [`tab_strip`] that has them.
+#[derive(Clone)]
+pub(super) struct TabEvents {
+    pub menu: OnTabMenu,
+    pub drop: OnTabDrop,
+}
+
+/// The tab being dragged.
+#[derive(Debug, Clone)]
+struct DraggedTab {
+    index: usize,
+    label: SharedString,
+}
+
+/// The dragged tab's name following the pointer.
+// shortcut: the other tabs do not slide aside as in `ChatsFiltersTabsReorder`; upgrade with the list animations in M8.
+struct TabGhost(SharedString);
+
+impl Render for TabGhost {
+    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let st = &CHATS_FILTERS_TABS;
+        let label_font = st.label_style.font;
+        div()
+            .px(px_of(st.strict_skip) / 2.0)
+            .pt(px_of(st.label_top))
+            .h(px_of(st.height))
+            .whitespace_nowrap()
+            .font(font(label_font))
+            .text_size(px_of(label_font.size))
+            .line_height(font_height(label_font))
+            .text_color(color(cx, st.label_fg_active))
+            .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
+            .child(self.0.clone())
+    }
+}
+
 /// A row of tabs with the active one underlined (`Ui::SettingsSlider` with
 /// `dialogsSearchTabs`); `on_click` gets the clicked tab's index.
 pub(super) fn tab_strip(
     id: &'static str,
     tabs: Vec<Tab>,
-    on_menu: Option<OnTabMenu>,
+    events: Option<TabEvents>,
     cx: &mut Context<Dialogs>,
     on_click: impl Fn(&mut Dialogs, usize, &mut Context<Dialogs>) + Clone + 'static,
 ) -> AnyElement {
-    let st = &CHATS_FILTERS_TABS;
-    let label_font = st.label_style.font;
-    let half_skip = px_of(st.strict_skip) / 2.0;
-    let bar_overhang = px_of(st.bar_stroke) / 2.0;
-    let sections: Vec<AnyElement> =
-        tabs.into_iter()
-            .enumerate()
-            .map(|(index, tab)| {
-                let fg = if tab.is_active {
-                    st.label_fg_active
-                } else {
-                    st.label_fg
-                };
-                let on_click = on_click.clone();
-                let on_menu = on_menu.clone();
-                div()
-                    .id((id, index))
-                    .relative()
-                    .flex_none()
-                    .h(px_of(st.height))
-                    .px(half_skip)
-                    .pt(px_of(st.label_top))
-                    .overflow_hidden()
-                    .child(
-                        div()
-                            .flex()
-                            .items_start()
-                            .gap(gpui::px(UNREAD_SKIP))
-                            .whitespace_nowrap()
-                            .font(font(label_font))
-                            .text_size(px_of(label_font.size))
-                            .line_height(font_height(label_font))
-                            .text_color(color(cx, fg))
-                            .child(tab.label)
-                            .children(tab.counter.map(|(text, is_muted)| {
-                                unread_badge(text, is_muted, Lit::Normal, cx)
-                            })),
-                    )
-                    .when(tab.is_active, |tab| {
-                        tab.child(
-                            div()
-                                .absolute()
-                                .left(half_skip - bar_overhang)
-                                .right(half_skip - bar_overhang)
-                                .top(px_of(st.bar_top))
-                                .h(px_of(st.bar_stroke))
-                                .rounded(px_of(st.bar_radius))
-                                .bg(color(cx, st.bar_fg_active)),
-                        )
-                    })
-                    .on_click(cx.listener(move |this, _, _, cx| on_click(this, index, cx)))
-                    .when_some(on_menu, |tab, on_menu| {
-                        tab.on_mouse_down(
-                            MouseButton::Right,
-                            cx.listener(move |this, event: &MouseDownEvent, window, cx| {
-                                on_menu(this, index, event.position, window, cx);
-                            }),
-                        )
-                    })
-                    .into_any_element()
-            })
-            .collect();
+    let sections: Vec<AnyElement> = tabs
+        .into_iter()
+        .enumerate()
+        .map(|(index, tab)| {
+            let on_click = on_click.clone();
+            section(id, index, tab, cx)
+                .on_click(cx.listener(move |this, _, _, cx| on_click(this, index, cx)))
+                .when_some(events.clone(), |section, events| {
+                    with_events(section, index, events, cx)
+                })
+                .into_any_element()
+        })
+        .collect();
     div()
         .id(id)
         .flex()
         .flex_none()
-        .px(px_of(st.padding))
+        .px(px_of(CHATS_FILTERS_TABS.padding))
         .overflow_x_scroll()
         .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
         .children(sections)
         .into_any_element()
+}
+
+fn section(id: &'static str, index: usize, tab: Tab, cx: &mut Context<Dialogs>) -> Stateful<Div> {
+    let st = &CHATS_FILTERS_TABS;
+    let label_font = st.label_style.font;
+    let half_skip = px_of(st.strict_skip) / 2.0;
+    let bar_overhang = px_of(st.bar_stroke) / 2.0;
+    let fg = if tab.is_active {
+        st.label_fg_active
+    } else {
+        st.label_fg
+    };
+    let dragged = tab.is_movable.then(|| DraggedTab {
+        index,
+        label: tab.label.clone(),
+    });
+    div()
+        .id((id, index))
+        .relative()
+        .flex_none()
+        .h(px_of(st.height))
+        .px(half_skip)
+        .pt(px_of(st.label_top))
+        .overflow_hidden()
+        .child(
+            div()
+                .flex()
+                .items_start()
+                .gap(gpui::px(UNREAD_SKIP))
+                .whitespace_nowrap()
+                .font(font(label_font))
+                .text_size(px_of(label_font.size))
+                .line_height(font_height(label_font))
+                .text_color(color(cx, fg))
+                .child(tab.label)
+                .children(
+                    tab.counter
+                        .map(|(text, is_muted)| unread_badge(text, is_muted, Lit::Normal, cx)),
+                ),
+        )
+        .when(tab.is_active, |tab| {
+            tab.child(
+                div()
+                    .absolute()
+                    .left(half_skip - bar_overhang)
+                    .right(half_skip - bar_overhang)
+                    .top(px_of(st.bar_top))
+                    .h(px_of(st.bar_stroke))
+                    .rounded(px_of(st.bar_radius))
+                    .bg(color(cx, st.bar_fg_active)),
+            )
+        })
+        .when_some(dragged, |tab, dragged| {
+            tab.on_drag(dragged, |dragged, _, _, cx| {
+                cx.new(|_| TabGhost(dragged.label.clone()))
+            })
+        })
+}
+
+/// Adds the context menu and, for a movable tab, dropping another onto it.
+fn with_events(
+    section: Stateful<Div>,
+    index: usize,
+    events: TabEvents,
+    cx: &mut Context<Dialogs>,
+) -> Stateful<Div> {
+    let TabEvents { menu, drop } = events;
+    section
+        .on_mouse_down(
+            MouseButton::Right,
+            cx.listener(move |this, event: &MouseDownEvent, window, cx| {
+                menu(this, index, event.position, window, cx);
+            }),
+        )
+        .on_drop(cx.listener(move |this, dragged: &DraggedTab, _, cx| {
+            drop(this, dragged.index, index, cx);
+        }))
 }
 
 impl Dialogs {
@@ -172,18 +243,22 @@ impl Dialogs {
                 },
                 counter: counter(chats.unread(list)),
                 is_active: self.list == list,
+                is_movable: list != ChatList::Main,
             })
             .collect();
         let menu_lists = lists.clone();
-        let on_menu: OnTabMenu = Rc::new(move |this, index, position, window, cx| {
-            if let Some(list) = menu_lists.get(index) {
-                this.show_folder_menu(*list, position, window, cx);
-            }
-        });
+        let events = TabEvents {
+            menu: Rc::new(move |this, index, position, window, cx| {
+                if let Some(list) = menu_lists.get(index) {
+                    this.show_folder_menu(*list, position, window, cx);
+                }
+            }),
+            drop: Rc::new(|this, from, to, cx| this.drop_tab(from, to, cx)),
+        };
         Some(tab_strip(
             "folder-tab",
             shown,
-            Some(on_menu),
+            Some(events),
             cx,
             move |this, index, cx| {
                 if let Some(list) = lists.get(index) {
@@ -191,6 +266,26 @@ impl Dialogs {
                 }
             },
         ))
+    }
+}
+
+impl Dialogs {
+    /// Moves the folder of tab `from` to where tab `to` is
+    /// (`ChatsFiltersTabs` `applyReorder`).
+    fn drop_tab(&mut self, from: usize, to: usize, cx: &mut Context<Self>) {
+        let chats = &self.store.read(cx).state().chats;
+        let lists = tabs(chats);
+        let (Some(ChatList::Folder(moved)), Some(ChatList::Folder(target))) =
+            (lists.get(from), lists.get(to))
+        else {
+            return;
+        };
+        let folders: Vec<_> = chats.folders().iter().map(|folder| folder.id).collect();
+        let Some(order) = reordered(&folders, *moved, *target) else {
+            return;
+        };
+        let task = self.store.read(cx).session().reorder_folders(&order);
+        send(task, "reorder folders", cx);
     }
 }
 

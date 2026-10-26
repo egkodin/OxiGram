@@ -7,8 +7,9 @@ use futures::FutureExt as _;
 use td_api::enums::{BlockList, MessageSender, MessageSource};
 use td_api::functions::{
     AddChatToList, DeleteChatFolder, DeleteChatHistory, GetChat, LeaveChat, ReadAllChatMentions,
-    ReadAllChatReactions, SetChatNotificationSettings, SetMessageSenderBlockList, SetPinnedChats,
-    ToggleChatIsMarkedAsUnread, ToggleChatIsPinned, ViewMessages,
+    ReadAllChatReactions, ReorderChatFolders, SetChatNotificationSettings,
+    SetMessageSenderBlockList, SetPinnedChats, ToggleChatIsMarkedAsUnread, ToggleChatIsPinned,
+    ViewMessages,
 };
 use td_api::types::{BlockListMain, MessageSenderUser, MessageSourceChatList};
 
@@ -66,6 +67,20 @@ impl Session {
             .request(&DeleteChatFolder {
                 chat_folder_id: folder.0,
                 leave_chat_ids: Vec::new(),
+            })
+            .map(done)
+    }
+
+    /// Saves the folders' order; "All chats" stays first.
+    // shortcut: always puts the main list first; moving it is Premium (`main_chat_list_position`), M13.
+    pub fn reorder_folders(
+        &self,
+        order: &[FolderId],
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&ReorderChatFolders {
+                chat_folder_ids: order.iter().map(|folder| folder.0).collect(),
+                main_chat_list_position: 0,
             })
             .map(done)
     }

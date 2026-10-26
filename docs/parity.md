@@ -108,7 +108,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | folders | Folder tabs on top or in a left sidebar, with unread counts | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); tabs on top with counters (grey when all unread chats are muted); no left sidebar; not verified: no API credentials yet, so no live account |
 | folders | "All chats" tab and its position | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); "All" always first; TDLib's main_chat_list_position ignored; not verified: no API credentials yet, so no live account |
 | folders | Folder tab context menu: edit, mark as read, add chats, delete | M2 | in progress | snapshots 32-36: Mark as read (asks past 1000 unread), Remove with tdesktop's confirmation (delete wording for folders with invite links), All chats' Mark all chats as read; Edit folder, Edit folders and Add chats wait for the folder editor (M6); the shared-folder leave-chats box is missing; not verified: no API credentials yet, so no live account |
-| folders | Reorder folders by dragging tabs | M2 | todo | |
+| folders | Reorder folders by dragging tabs | M2 | in progress | snapshot 37 (the dragged tab follows the pointer); dropping on a folder tab sends `reorderChatFolders`; "All chats" stays first (moving it is Premium, M13); the other tabs do not slide aside; not verified: no API credentials yet, so no live account |
 | folders | Folder editor: name with emoji, icon, included and excluded chat types and chats | M6 | todo | |
 | folders | Folder color and folder tags on chat rows (Premium) | M13 | todo | |
 | folders | Recommended folders | M6 | todo | |

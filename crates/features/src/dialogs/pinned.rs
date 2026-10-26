@@ -19,17 +19,17 @@ impl Render for DragGhost {
     }
 }
 
-/// `pinned` with `moved` placed where `target` is, or `None` when that
-/// changes nothing or either is not pinned.
-pub(super) fn reordered(pinned: &[ChatId], moved: ChatId, target: ChatId) -> Option<Vec<ChatId>> {
-    let from = pinned.iter().position(|chat| *chat == moved)?;
-    let to = pinned.iter().position(|chat| *chat == target)?;
+/// `order` with `moved` placed where `target` is, or `None` when that
+/// changes nothing or either is missing.
+pub(super) fn reordered<T: Copy + PartialEq>(order: &[T], moved: T, target: T) -> Option<Vec<T>> {
+    let from = order.iter().position(|item| *item == moved)?;
+    let to = order.iter().position(|item| *item == target)?;
     if from == to {
         return None;
     }
-    let mut order = pinned.to_vec();
-    let chat = order.remove(from);
-    order.insert(to, chat);
+    let mut order = order.to_vec();
+    let item = order.remove(from);
+    order.insert(to, item);
     Some(order)
 }
 

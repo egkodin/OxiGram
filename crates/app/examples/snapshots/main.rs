@@ -182,6 +182,7 @@ fn scenarios() -> Vec<Scenario> {
                 ("29-drag-pinned", MARIA_ROW, SAVED_ROW),
                 ("30-narrow-list", COLUMN_EDGE, (60.0, 300.0)),
                 ("31-wide-list", NARROW_COLUMN_EDGE, COLUMN_EDGE),
+                ("37-drag-tab", WORK_TAB, CHANNELS_TAB),
             ],
             steps: vec![("20-pinned-chats", auth(State::Ready))],
         },
@@ -213,6 +214,7 @@ const OUTSIDE_BOX: (f32, f32) = (30.0, 300.0);
 const FAMILY_TAB: (f32, f32) = (172.0, 70.0);
 const ALL_CHATS_TAB: (f32, f32) = (25.0, 70.0);
 const WORK_TAB: (f32, f32) = (105.0, 70.0);
+const CHANNELS_TAB: (f32, f32) = (240.0, 70.0);
 /// The second item of a menu opened on [`WORK_TAB`].
 const SECOND_TAB_MENU_ITEM: (f32, f32) = (155.0, 130.0);
 /// Empty space beside the list; a click there closes menus and boxes.

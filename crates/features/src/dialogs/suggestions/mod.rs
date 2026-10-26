@@ -163,6 +163,7 @@ impl Dialogs {
                 ),
                 counter: None,
                 is_active: tab == active,
+                is_movable: false,
             })
             .collect();
         let strip = tab_strip("suggestions-tab", tabs, None, cx, |this, index, cx| {
