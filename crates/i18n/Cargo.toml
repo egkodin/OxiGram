@@ -1,0 +1,10 @@
+[package]
+name = "i18n"
+description = "Interface strings: tdesktop's English strings and language packs from TDLib"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

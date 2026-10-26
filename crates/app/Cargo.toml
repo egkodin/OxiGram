@@ -13,15 +13,27 @@ runtime-shaders = ["gpui_platform/runtime_shaders"]
 
 [dependencies]
 anyhow.workspace = true
+features.workspace = true
 futures.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
+i18n.workspace = true
+model.workspace = true
 style.workspace = true
 td-api.workspace = true
+# Direct dependency so build.rs receives DEP_TDJSON_RUNTIME_DIR.
+td-sys.workspace = true
 tg.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
+ui.workspace = true
+
+[dev-dependencies]
+# `Window::render_to_image` for examples/snapshots.rs; dev-only, so release
+# builds keep gpui without test support.
+gpui_platform = { workspace = true, features = ["test-support"] }
+image.workspace = true
 
 [lints]
 workspace = true

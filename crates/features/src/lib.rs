@@ -1,0 +1,42 @@
+//! rgram's screens. Each follows a Telegram Desktop screen and reads the
+//! model through the [`Store`]; none of them sees a TDLib type.
+
+pub mod boxes;
+mod connecting;
+mod intro;
+pub mod lang;
+pub mod layers;
+mod main_view;
+mod root;
+pub mod store;
+
+use gpui::{App, Pixels, px};
+
+pub use lang::Lang;
+pub use layers::Layers;
+pub use root::Root;
+pub use store::{Store, StoreEvent};
+
+/// Installs the screens' globals and key bindings. Call after `ui::init`.
+pub fn init(cx: &mut App) {
+    cx.set_global(Lang::default());
+    layers::bind_keys(cx);
+    boxes::bind_keys(cx);
+    intro::bind_keys(cx);
+}
+
+/// A style length in window pixels.
+pub(crate) fn px_of(value: style::Px) -> Pixels {
+    #[expect(clippy::cast_precision_loss, reason = "style sizes are small")]
+    px(value.0 as f32)
+}
+
+/// Focuses a focusable view.
+pub(crate) fn focus<V: gpui::Focusable>(
+    view: &gpui::Entity<V>,
+    window: &mut gpui::Window,
+    cx: &mut App,
+) {
+    let handle = view.read(cx).focus_handle(cx);
+    handle.focus(window, cx);
+}

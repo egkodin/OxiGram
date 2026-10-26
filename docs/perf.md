@@ -15,8 +15,8 @@ Release build, macOS Apple Silicon, account with ~500 chats.
 | RSS after scrolling 10 media-heavy chats and returning | < 250 MB, no growth in a soak test | — | M5 |
 | History scroll frame time, p99 | < 8 ms (120 Hz) | 7.68 ms (spike scene, 160 Hz) | on track |
 | Opening a chat to first messages (TDLib cache) | < 100 ms | — | M3 |
-| Idle with no animations | ~0 % CPU, zero redraws | 1.2 % CPU (empty window) | **over** |
-| Release binary size without TDLib | < 30 MB | 9.7 MB | ok |
+| Idle with no animations | ~0 % CPU, zero redraws | 0.0 % CPU, no redraws (empty window) | ok |
+| Release binary size without TDLib | < 30 MB | 17.0 MB | ok |
 
 ## Measuring memory on macOS
 
@@ -51,9 +51,47 @@ serde code are the likely cause; that has not been measured yet.
 A `sample` of the idle process shows the `CVDisplayLink` thread running and
 posting to the main queue: gpui appears to keep the display link going for a
 visible window even when nothing redraws, so the app wakes on every refresh
-(160 Hz here). The gpui spike idled at the same 1.2–1.35 %. M1, which brings the
-first real screen and the baseline, has to stop the display link while no window
-is dirty, or record why the target cannot be met.
+(160 Hz here). The gpui spike idled at the same 1.2–1.35 %. Fixed in M1
+([ADR 0005](adr/0005-gpui-macos-idle-patch.md)).
+
+## M1: idle display link
+
+The same machine and method as M0, after the gpui_macos patch from ADR 0005.
+Three runs.
+
+| Metric | M0 | M1 |
+|---|---|---|
+| Idle CPU (10 s of `ps` CPU time) | 1.2 % | 0.0 % (below the 0.1 % `ps` resolves, all runs) |
+| Idle wakeups (`top -stats idlew`) | not measured | 22–26 per 5 s |
+| Redraws while idle | every refresh | none: the link parks 0.2 s after the last frame |
+| Frame after an idle period | next refresh | 9–10 ms after the change (`frame-wake` example) |
+| Physical footprint, idle | 46.6 MB | 47.1 MB (46.9–47.3) |
+| Physical footprint, peak | 99.7 MB | 100.1 MB (100.0–100.3) |
+| Release binary | 9,713,104 bytes | 9,713,248 bytes |
+
+The remaining wakeups are not attributed yet. TDLib's own threads and the
+receive thread, which waits in `td_receive` with a timeout, are the likely
+sources; none of them reaches the window.
+
+## M1: sign-in code, notice screen
+
+The same machine and method, after the sign-in code landed, started without
+API credentials (so the window shows the startup notice and TDLib gets no
+parameters). Three runs. Cold start to the chat list and idle on a signed-in
+account need credentials and are not measured yet.
+
+| Metric | Value |
+|---|---|
+| Release binary, without `libtdjson` | 17.0 MB (17,011,552 bytes) |
+| Idle CPU (10 s of `ps` CPU time) | 0.0–0.1 % (0.00–0.01 s per 10 s) |
+| Physical footprint, idle | 48.0 MB (47.9–48.0) |
+| Physical footprint, peak | 101.0 MB |
+| RSS, idle | 100.8 MB |
+
+The binary grew by 7.3 MB: the bundled fonts (0.9 MB), the icon masks
+(4.6 MB, embedded with `include_bytes!`) and the sign-in code. Packaging (M8)
+can move the icons next to the binary if size becomes a concern; the target is
+30 MB.
 
 ## How to measure
 
@@ -61,5 +99,7 @@ is dirty, or record why the target cannot be met.
   [ADR 0002](adr/0002-gui.md). From M3 the history view gets the same automatic
   scroll run against real chats.
 - Idle: start the release binary, wait 5 s, then take the CPU time from
-  `ps -o time= -p <pid>` at the start and end of 10 s, and the footprint from
-  `vmmap --summary <pid>`.
+  `ps -o time= -p <pid>` at the start and end of 10 s, the footprint from
+  `vmmap --summary <pid>`, and idle wakeups from
+  `top -l 3 -s 5 -pid <pid> -stats pid,cpu,idlew`.
+- Redraws after idle: the `frame-wake` example (ADR 0005).

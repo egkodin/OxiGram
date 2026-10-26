@@ -44,6 +44,8 @@ case "$(uname -s)" in
     cmake_args+=(
       -G Ninja
       -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)"
+      # Static OpenSSL: the dylib must not depend on Homebrew at run time.
+      -DOPENSSL_USE_STATIC_LIBS=TRUE
       -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
       -DCMAKE_INSTALL_NAME_DIR=@rpath
     )

@@ -1,0 +1,123 @@
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -1,3 +1,4 @@
++// Modified by rgram: the display link parks while idle; see "rgram patch" below and ADR 0005.
+ use crate::{
+     BoolExt, MacDisplay, NSRange, NSStringExt, TISCopyCurrentKeyboardInputSource,
+     TISGetInputSourceProperty, WindowFrameSource, events::platform_input_from_native,
+@@ -694,7 +695,17 @@
+     accesskit_adapter: Option<accesskit_macos::SubclassingAdapter>,
+     // The parent window if this window is a sheet (Dialog kind)
+     sheet_parent: Option<*mut AnyObject>,
++    // rgram patch (ADR 0005): the display link is parked after
++    // IDLE_FRAMES_BEFORE_PARKING frame requests that drew nothing, and the
++    // frame waker restarts it when gpui has a frame to draw.
++    drew_since_step: bool,
++    frames_without_draw: u32,
++    display_link_parked: bool,
+ }
++
++/// rgram patch (ADR 0005): about a quarter second at 120 Hz, so a pause
++/// between keystrokes does not unsubscribe and resubscribe the display link.
++const IDLE_FRAMES_BEFORE_PARKING: u32 = 30;
+ 
+ impl MacWindowState {
+     fn move_traffic_light(&mut self) {
+@@ -816,6 +827,8 @@
+ 
+     fn start_display_link(&mut self) {
+         self.stop_display_link();
++        self.display_link_parked = false;
++        self.frames_without_draw = 0;
+         if !self
+             .native_window()
+             .occlusionState()
+@@ -841,6 +854,29 @@
+         }
+     }
+ 
++    /// rgram patch (ADR 0005): runs after each display-link frame request.
++    fn park_display_link_if_idle(&mut self) {
++        if std::mem::take(&mut self.drew_since_step) {
++            self.frames_without_draw = 0;
++            return;
++        }
++        self.frames_without_draw = self.frames_without_draw.saturating_add(1);
++        if self.frames_without_draw >= IDLE_FRAMES_BEFORE_PARKING && !self.display_link_parked {
++            self.stop_display_link();
++            self.display_link_parked = true;
++            log::trace!("display link parked");
++        }
++    }
++
++    /// rgram patch (ADR 0005): called by the frame waker on new frame demand.
++    fn unpark_display_link(&mut self) {
++        self.frames_without_draw = 0;
++        if self.display_link_parked {
++            self.start_display_link();
++            log::trace!("display link resumed");
++        }
++    }
++
+     fn is_maximized(&self) -> bool {
+         fn rect_to_size(rect: NSRect) -> Size<Pixels> {
+             let NSSize { width, height } = rect.size;
+@@ -1121,6 +1157,9 @@
+                 closed: Arc::new(AtomicBool::new(false)),
+                 accesskit_adapter: None,
+                 sheet_parent: None,
++                drew_since_step: false,
++                frames_without_draw: 0,
++                display_link_parked: false,
+             }));
+             let mut window = Self(state, marker);
+ 
+@@ -2099,6 +2138,37 @@
+     fn draw(&self, scene: &gpui::Scene) {
+         let mut this = self.0.lock();
+         this.renderer.draw(scene);
++        this.drew_since_step = true;
++    }
++
++    fn frame_waker(&self) -> Option<Rc<dyn Fn()>> {
++        // rgram patch (ADR 0005): restarts a display link parked while idle.
++        let state = Arc::downgrade(&self.0);
++        let (executor, closed) = {
++            let this = self.0.lock();
++            (this.foreground_executor.clone(), this.closed.clone())
++        };
++        Some(Rc::new(move || {
++            if closed.load(Ordering::Acquire) {
++                return;
++            }
++            let Some(state) = state.upgrade() else {
++                return;
++            };
++            if let Some(mut lock) = state.try_lock() {
++                lock.unpark_display_link();
++                return;
++            }
++            // The lock is held further up this thread's stack: retry once it unwinds.
++            let closed = closed.clone();
++            executor
++                .spawn(async move {
++                    if !closed.load(Ordering::Acquire) {
++                        state.lock().unpark_display_link();
++                    }
++                })
++                .detach();
++        }))
+     }
+ 
+     fn sprite_atlas(&self) -> Arc<dyn PlatformAtlas> {
+@@ -3362,7 +3432,9 @@
+             signal_source,
+             ..Default::default()
+         });
+-        window_state.lock().request_frame_callback = Some(callback);
++        let mut lock = window_state.lock();
++        lock.request_frame_callback = Some(callback);
++        lock.park_display_link_if_idle();
+     }
+ }
+ 

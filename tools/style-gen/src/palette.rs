@@ -33,6 +33,11 @@ pub(crate) fn generate(source: &str, provenance: &str) -> anyhow::Result<String>
     emit(&entries, &colors, provenance)
 }
 
+/// The color names, in palette order; style files refer to them.
+pub(crate) fn names(source: &str) -> anyhow::Result<Vec<String>> {
+    Ok(parse(source)?.into_iter().map(|entry| entry.name).collect())
+}
+
 fn parse(source: &str) -> anyhow::Result<Vec<Entry>> {
     let mut entries = Vec::new();
     for (index, line) in source.lines().enumerate() {
@@ -156,8 +161,39 @@ fn emit(
         )?;
     }
     writeln!(out, "    }};")?;
+    writeln!(out)?;
+    writeln!(out, "    /// The color `id` names.")?;
+    writeln!(out, "    #[must_use]")?;
+    writeln!(out, "    pub const fn get(&self, id: ColorId) -> Color {{")?;
+    writeln!(out, "        match id {{")?;
+    for entry in entries {
+        writeln!(
+            out,
+            "            ColorId::{} => self.{},",
+            pascal_case(&entry.name),
+            snake_case(&entry.name)
+        )?;
+    }
+    writeln!(out, "        }}")?;
+    writeln!(out, "    }}")?;
+    writeln!(out, "}}")?;
+    writeln!(out)?;
+    writeln!(
+        out,
+        "/// Names a palette color; style values refer to colors by it, so themes apply."
+    )?;
+    writeln!(out, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]")?;
+    writeln!(out, "pub enum ColorId {{")?;
+    for entry in entries {
+        writeln!(out, "    {},", pascal_case(&entry.name))?;
+    }
     writeln!(out, "}}")?;
     Ok(out)
+}
+
+/// `windowBg` → `WindowBg`.
+fn pascal_case(name: &str) -> String {
+    crate::style::emit::pascal_case(name)
 }
 
 /// `windowBgOver` → `window_bg_over`.

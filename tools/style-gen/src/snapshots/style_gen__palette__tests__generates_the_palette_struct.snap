@@ -30,4 +30,24 @@ impl Palette {
         shadow_fg: Color::rgba(0x00, 0x00, 0x00, 0x18),
         history_peer1_userpic_bg2: Color::rgba(0xd4, 0x52, 0x46, 0xff),
     };
+
+    /// The color `id` names.
+    #[must_use]
+    pub const fn get(&self, id: ColorId) -> Color {
+        match id {
+            ColorId::WindowBg => self.window_bg,
+            ColorId::WindowFgOver => self.window_fg_over,
+            ColorId::ShadowFg => self.shadow_fg,
+            ColorId::HistoryPeer1UserpicBg2 => self.history_peer1_userpic_bg2,
+        }
+    }
+}
+
+/// Names a palette color; style values refer to colors by it, so themes apply.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ColorId {
+    WindowBg,
+    WindowFgOver,
+    ShadowFg,
+    HistoryPeer1UserpicBg2,
 }

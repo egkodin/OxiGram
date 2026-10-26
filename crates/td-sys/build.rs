@@ -1,8 +1,9 @@
 //! Links `tdjson` from the directory `scripts/build-tdlib.sh` installs into.
 //!
 //! The runtime library is also copied into `OUT_DIR`, which Cargo adds to the
-//! dynamic library search path for `cargo run` and `cargo test`. Packaged builds
-//! bundle the library next to the executable instead (M8).
+//! dynamic library search path for `cargo run` and `cargo test`. That directory
+//! is published as `DEP_TDJSON_RUNTIME_DIR`, so the app's build script can put
+//! the library next to the executable.
 
 use std::env;
 use std::fs;
@@ -57,6 +58,7 @@ fn run() -> Result<(), String> {
         link_or_copy(&file, &runtime_dir.join(name))?;
     }
     println!("cargo::rustc-link-search=native={}", runtime_dir.display());
+    println!("cargo::metadata=runtime_dir={}", runtime_dir.display());
     Ok(())
 }
 

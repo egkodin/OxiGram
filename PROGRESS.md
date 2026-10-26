@@ -1,5 +1,76 @@
 # Progress
 
+## M1: Sign-in (in progress; blocked on API credentials for the live run)
+
+### Done (code, checks green)
+
+- `model`: authorization states and actions (`auth`), connection state,
+  terms updates, suggested language, `Session` requests; `Secret` keeps phone
+  numbers, codes and passwords out of `Debug` and logs.
+- `i18n`: English strings generated from tdesktop's `lang.strings` by
+  `tools/lang-gen`, plurals, rgram's own strings; `features::lang` loads and
+  switches TDLib language packs.
+- `style`: tdesktop `.style` files exported by `tools/style-gen` (basic,
+  widgets, intro, window, layers, boxes and more) and their icons.
+- `ui`: FlatLabel, InputField with correctors, RoundButton, LinkButton,
+  IconButton, Checkbox, QrCode, InfiniteRadial, BoxFrame, ripples, animations.
+- `features`: the intro (start, QR, phone with country box, code, password
+  with recovery and account reset, sign-up with photo, login email, terms box),
+  error boxes (banned number, Premium required, flood), the box layer, the
+  connecting pill, a signed-in placeholder with log out, terms updates after
+  sign-in, and `Root` choosing the screen by authorization state.
+- `app`: per-OS data directory (`RGRAM_DATA_DIR` overrides it, test DC gets
+  its own), `RGRAM_TEST_DC=1`, TDLib parameters on request, language pack on
+  start, a new client after `authorizationStateClosed` (log out, QR to phone),
+  close TDLib before quitting, localized Quit menu.
+- `cargo run -p rgram --example snapshots`: renders each sign-in screen with a
+  preset state to `target/snapshots/*.png` through gpui's `render_to_image`,
+  offline (TDLib never gets parameters).
+
+### Verified (macOS arm64, this machine)
+
+- `cargo fmt --all`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo test --workspace`, `cargo deny check`, `cargo audit` (the same six
+  allowed unmaintained warnings as M0).
+- The debug binary starts without credentials, shows the notice, idles at
+  0.0 % CPU; the `secondary-*` key bindings crashed gpui at startup and were
+  fixed.
+- Snapshots of start, QR, phone, code, password, sign-up and email screens,
+  the Premium-required box, the signed-in placeholder and the terms-update box
+  with its age check,
+  compared by eye with tdesktop's layout code (no tdesktop screenshots: running
+  Telegram Desktop needs a download the owner has not approved). Fixed from
+  them: labels ignored their font size and line height (all text was 16 px),
+  the phone placeholder drew under the number pattern, the email field had
+  the wrong style and overlapped its description, and a sign-in state that
+  arrived before the intro existed was never handled.
+
+### Not verified
+
+- Every live sign-in flow, staying signed in, log out and terms updates:
+  `RGRAM_API_ID` / `RGRAM_API_HASH` are not set. Rows in `docs/parity.md` say
+  which ones only have snapshots.
+- The country box, the sign-up terms box, the banned-number and reset boxes,
+  and animations: the snapshot example does not open them yet.
+- Quitting through Cmd-Q with TDLib closing first: this shell cannot send key
+  presses to the app (no accessibility permission).
+- Linux and Windows runs of the new code (CI not run for it).
+
+### Next steps
+
+1. With credentials: sign in on the production DC (the owner types the code
+   and 2FA password), restart to check the session survives, log out; record
+   cold start and idle footprint in `docs/perf.md`; mark the parity rows.
+2. Add the remaining box scenarios to the snapshot example (country box,
+   banned-number box).
+3. Start M2 (chat list) on the same pattern: model events, store state, and
+   snapshot scenarios with preset chats.
+
+### Open questions for the owner
+
+- API credentials (asked once; still missing).
+- Permission to download Telegram Desktop for screenshot comparison.
+
 ## M0: Foundation (done locally; CI not run yet)
 
 ### Done
