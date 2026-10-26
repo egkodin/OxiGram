@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::Context as _;
+use features::settings::FoldersPlacement;
 use features::{Root, Store};
 use gpui::{
     AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, Modifiers, MouseButton,
@@ -38,6 +39,8 @@ struct Scenario {
     /// Then drags from one point to another, saved before the button is let
     /// go; the release drops on the target.
     drags: Vec<(&'static str, WindowPoint, WindowPoint)>,
+    /// Set before the window opens; it stays for later windows.
+    folders: FoldersPlacement,
 }
 
 fn auth(state: State) -> Event {
@@ -59,12 +62,14 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
         },
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![(
                 "02-qr",
                 auth(State::WaitQrScan {
@@ -77,6 +82,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![
                 ("04-code", code()),
                 ("03-phone", auth(State::WaitPhoneNumber)),
@@ -86,6 +92,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![(
                 "05-password",
                 auth(State::WaitPassword(Password {
@@ -101,6 +108,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![(
                 "06-signup",
                 auth(State::WaitRegistration {
@@ -118,12 +126,14 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
         },
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![(
                 "08-premium-required",
                 auth(State::WaitPremiumPurchase {
@@ -135,6 +145,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            folders: FoldersPlacement::Sidebar,
             steps: vec![
                 ("09-signed-in", auth(State::Ready)),
                 (
@@ -184,6 +195,7 @@ fn scenarios() -> Vec<Scenario> {
                 ("31-wide-list", NARROW_COLUMN_EDGE, COLUMN_EDGE),
                 ("37-drag-tab", WORK_TAB, CHANNELS_TAB),
             ],
+            folders: FoldersPlacement::Top,
             steps: vec![("20-pinned-chats", auth(State::Ready))],
         },
         // Last: the night mode it switches on stays for later windows.
@@ -194,12 +206,19 @@ fn scenarios() -> Vec<Scenario> {
                 ("13-night-menu", MouseButton::Left, NIGHT_MODE_ROW),
                 ("14-night-contacts", MouseButton::Left, CONTACTS_ROW),
                 ("15-night-chat-list", MouseButton::Left, OUTSIDE_BOX),
-                ("16-night-folder", MouseButton::Left, FAMILY_TAB),
-                ("17-night-all-chats", MouseButton::Left, ALL_CHATS_TAB),
-                ("18-night-archive", MouseButton::Left, ARCHIVE_ROW),
+                ("16-night-folder", MouseButton::Left, FAMILY_BUTTON),
+                ("17-night-all-chats", MouseButton::Left, ALL_CHATS_BUTTON),
+                ("38-night-sidebar-menu", MouseButton::Right, WORK_BUTTON),
+                ("39-night-menu-closed", MouseButton::Left, CHAT_AREA),
+                ("18-night-archive", MouseButton::Left, SIDEBAR_ARCHIVE_ROW),
                 ("19-night-chat-menu", MouseButton::Right, FIRST_ARCHIVED),
             ],
-            drags: Vec::new(),
+            drags: vec![(
+                "40-night-narrow-sidebar",
+                SIDEBAR_COLUMN_EDGE,
+                (100.0, 300.0),
+            )],
+            folders: FoldersPlacement::Sidebar,
             steps: vec![("11-chat-list", auth(State::Ready))],
         },
     ]
@@ -211,7 +230,14 @@ const MENU_BUTTON: (f32, f32) = (27.0, 27.0);
 const NIGHT_MODE_ROW: (f32, f32) = (100.0, 447.0);
 const CONTACTS_ROW: (f32, f32) = (100.0, 287.0);
 const OUTSIDE_BOX: (f32, f32) = (30.0, 300.0);
-const FAMILY_TAB: (f32, f32) = (172.0, 70.0);
+/// The sidebar's folder buttons under its main menu button, and the archive
+/// row beside it, at the top of the list.
+const ALL_CHATS_BUTTON: (f32, f32) = (36.0, 85.0);
+const FAMILY_BUTTON: (f32, f32) = (36.0, 209.0);
+const WORK_BUTTON: (f32, f32) = (36.0, 147.0);
+/// The list's right edge beside the sidebar: 72 + 5/14 of the 728 left.
+const SIDEBAR_COLUMN_EDGE: (f32, f32) = (332.0, 300.0);
+const SIDEBAR_ARCHIVE_ROW: (f32, f32) = (220.0, 85.0);
 const ALL_CHATS_TAB: (f32, f32) = (25.0, 70.0);
 const WORK_TAB: (f32, f32) = (105.0, 70.0);
 const CHANNELS_TAB: (f32, f32) = (240.0, 70.0);
@@ -279,6 +305,8 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
         let Some((first_name, first)) = steps.next() else {
             continue;
         };
+        let folders = scenario.folders;
+        cx.update(|cx| features::settings::set_folders_placement(folders, cx));
         let store = cx.new(|cx| {
             let mut store = Store::new(session.clone(), Environment::Production);
             for event in setup {

@@ -38,6 +38,9 @@
   first.
 - Toasts (`features::toast`, shown through `Layers::show_toast`), first
   used for the archive's "moved to the main menu" note.
+- The folders sidebar (`dialogs::sidebar`), tdesktop's default when the
+  window has room, with the main menu button; the narrow list shows a
+  search button beside it. `settings::FoldersPlacement` keeps tabs on top.
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -49,7 +52,7 @@
 
 - `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
   `cargo test` green.
-- Snapshots 11-37 (`cargo run -p rgram --example snapshots`): chat list with
+- Snapshots 11-40 (`cargo run -p rgram --example snapshots`): chat list with
   folder tabs, main menu, night mode, contacts box, folder switch, archive,
   chat and archive context menus, collapsed archive, archive in the main
   menu, pinned drag, folder tab menus; compared by eye with tdesktop's style and layout code.
@@ -67,10 +70,9 @@
 
 ### Next steps
 
-1. Chat preview (peek); search
-   in one chat, by sender and hashtags wait for the chat view (M3) as their
-   entry point.
-2. The narrow list's folder sidebar and search button.
+1. Remaining M2 rows: hashtag search; chat preview (peek), search in one
+   chat and by sender wait for the chat view (M3) as their entry point.
+2. M3: the chat view.
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)
 

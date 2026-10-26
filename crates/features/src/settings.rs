@@ -8,6 +8,16 @@ use serde::{Deserialize, Serialize};
 use style::Palette;
 use ui::Theme;
 
+/// Where the folders show (`chatFiltersHorizontal`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FoldersPlacement {
+    /// A column left of the chat list, when the window is wide enough.
+    #[default]
+    Sidebar,
+    /// Tabs above the chat list.
+    Top,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 struct Values {
@@ -20,6 +30,7 @@ struct Values {
     /// (`dialogsWidthRatio`).
     // shortcut: one ratio; tdesktop keeps another for when no chat is open, which matters once chats open in M3.
     dialogs_width_ratio: f32,
+    folders_placement: FoldersPlacement,
 }
 
 impl Default for Values {
@@ -29,6 +40,7 @@ impl Default for Values {
             archive_collapsed: false,
             archive_in_main_menu: false,
             dialogs_width_ratio: crate::columns::DEFAULT_RATIO,
+            folders_placement: FoldersPlacement::Sidebar,
         }
     }
 }
@@ -89,6 +101,17 @@ pub(crate) fn is_archive_in_main_menu(cx: &App) -> bool {
 
 pub(crate) fn set_archive_in_main_menu(in_menu: bool, cx: &mut App) {
     change(cx, |values| values.archive_in_main_menu = in_menu);
+    cx.refresh_windows();
+}
+
+#[must_use]
+pub fn folders_placement(cx: &App) -> FoldersPlacement {
+    values(cx).map_or_else(FoldersPlacement::default, |values| values.folders_placement)
+}
+
+// shortcut: no switch in the UI until the folders settings page (M6); snapshots set it.
+pub fn set_folders_placement(placement: FoldersPlacement, cx: &mut App) {
+    change(cx, |values| values.folders_placement = placement);
     cx.refresh_windows();
 }
 
@@ -163,6 +186,7 @@ mod tests {
             archive_collapsed: true,
             archive_in_main_menu: false,
             dialogs_width_ratio: 0.0,
+            folders_placement: FoldersPlacement::Top,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

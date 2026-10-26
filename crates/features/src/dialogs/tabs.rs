@@ -41,7 +41,7 @@ pub(super) fn counter(unread: Unread) -> Option<(SharedString, bool)> {
 
 /// The tabs in order: the main list first, then the folders.
 // shortcut: "All chats" always leads; TDLib's `main_chat_list_position` (Premium) is ignored until M13.
-fn tabs(chats: &Chats) -> Vec<ChatList> {
+pub(super) fn tabs(chats: &Chats) -> Vec<ChatList> {
     std::iter::once(ChatList::Main)
         .chain(
             chats
@@ -77,14 +77,14 @@ pub(super) struct TabEvents {
 
 /// The tab being dragged.
 #[derive(Debug, Clone)]
-struct DraggedTab {
-    index: usize,
-    label: SharedString,
+pub(super) struct DraggedTab {
+    pub index: usize,
+    pub label: SharedString,
 }
 
 /// The dragged tab's name following the pointer.
 // shortcut: the other tabs do not slide aside as in `ChatsFiltersTabsReorder`; upgrade with the list animations in M8.
-struct TabGhost(SharedString);
+pub(super) struct TabGhost(pub SharedString);
 
 impl Render for TabGhost {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -215,10 +215,14 @@ fn with_events(
 }
 
 impl Dialogs {
-    /// The folder tabs, shown while there are folders and the list is not
-    /// the archive, a search or the search suggestions.
-    pub(super) fn tabs_strip(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+    /// The folder tabs, shown while there are folders, the sidebar is not
+    /// shown and the list is not the archive, a search or the search
+    /// suggestions.
+    pub(super) fn tabs_strip(&self, window: &Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let chats = &self.store.read(cx).state().chats;
+        if super::is_sidebar_shown(chats, window, cx) {
+            return None;
+        }
         // shortcut: the narrow list drops the tabs; tdesktop's folder icons sidebar is a later M2 step.
         if chats.folders().is_empty()
             || self.list == ChatList::Archive
@@ -272,7 +276,7 @@ impl Dialogs {
 impl Dialogs {
     /// Moves the folder of tab `from` to where tab `to` is
     /// (`ChatsFiltersTabs` `applyReorder`).
-    fn drop_tab(&mut self, from: usize, to: usize, cx: &mut Context<Self>) {
+    pub(super) fn drop_tab(&mut self, from: usize, to: usize, cx: &mut Context<Self>) {
         let chats = &self.store.read(cx).state().chats;
         let lists = tabs(chats);
         let (Some(ChatList::Folder(moved)), Some(ChatList::Folder(target))) =

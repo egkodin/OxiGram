@@ -10,8 +10,11 @@ mod pinned;
 mod preview;
 mod row;
 mod search;
+mod sidebar;
 mod suggestions;
 mod tabs;
+
+pub(crate) use self::sidebar::{OnMainMenu, is_sidebar_shown};
 
 use std::collections::HashSet;
 use std::ops::Range;
@@ -501,7 +504,7 @@ impl Render for Dialogs {
             .size_full()
             .flex()
             .flex_col()
-            .children(self.tabs_strip(cx))
+            .children(self.tabs_strip(window, cx))
             .child(div().flex_1().min_h_0().child(self.body(cx)))
             .children(self.menu_overlay())
     }

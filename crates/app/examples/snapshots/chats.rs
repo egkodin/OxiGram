@@ -383,14 +383,19 @@ pub(crate) fn events() -> Vec<Event> {
         },
     }));
     events.push(Event::Chats(Change::Folders(
-        [(1, "Work"), (2, "Family"), (3, "Channels")]
-            .into_iter()
-            .map(|(id, name)| Folder {
-                id: FolderId(id),
-                name: FormattedText::plain(name),
-                has_my_invite_links: false,
-            })
-            .collect(),
+        [
+            (1, "Work", "Work"),
+            (2, "Family", "Home"),
+            (3, "Channels", "Channels"),
+        ]
+        .into_iter()
+        .map(|(id, name, icon)| Folder {
+            id: FolderId(id),
+            name: FormattedText::plain(name),
+            has_my_invite_links: false,
+            icon: icon.to_owned(),
+        })
+        .collect(),
     )));
     for (list, chats, unmuted_chats) in [
         (ChatList::Main, 4, 3),

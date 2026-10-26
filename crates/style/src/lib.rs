@@ -12,6 +12,8 @@ pub mod chat_helpers;
 pub mod country_select_box;
 pub mod dialogs;
 pub mod dialogs_layout;
+pub mod dialogs_widget;
+pub mod filter_icons;
 mod icons;
 pub mod info;
 pub mod intro;

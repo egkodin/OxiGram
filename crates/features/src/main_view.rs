@@ -16,14 +16,16 @@ use style::dialogs::{
     DIALOGS_CANCEL_SEARCH, DIALOGS_FILTER, DIALOGS_FILTER_PADDING, DIALOGS_FILTER_SKIP,
     DIALOGS_MENU_TOGGLE,
 };
+use style::dialogs_widget::DIALOGS_SEARCH_FOR_NARROW_FILTERS;
 use style::info::{HISTORY_TOP_BAR_BACK, TOP_BAR_HEIGHT};
+use style::window::WINDOW_FILTERS_WIDTH;
 use style::window_main_menu::MAIN_MENU_WIDTH;
 use style::{ColorId, ColorRef};
 use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_height};
 
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
-use crate::dialogs::Dialogs;
+use crate::dialogs::{Dialogs, OnMainMenu, is_sidebar_shown};
 use crate::lang::tr;
 use crate::main_menu::{MainMenu, MenuAction};
 use crate::settings;
@@ -154,6 +156,16 @@ impl MainView {
         });
     }
 
+    /// The narrow list's search button: the list widens back and the field
+    /// takes focus.
+    // shortcut: restores the default width for good; tdesktop keeps the list narrow and shows the search over it.
+    fn search_from_narrow(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        settings::set_dialogs_width_ratio(columns::DEFAULT_RATIO, cx);
+        settings::save_now(cx);
+        crate::focus(&self.search, window, cx);
+        cx.notify();
+    }
+
     fn confirm_logout(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let store = self.store.clone();
         let action: boxes::Callback = Rc::new(move |_, cx| {
@@ -205,21 +217,36 @@ impl MainView {
     }
 
     /// The menu button and the search field (`Dialogs::Widget` top).
-    fn top_bar(&self, layout: columns::Layout, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn top_bar(
+        &self,
+        layout: columns::Layout,
+        folders: Folders,
+        cx: &mut Context<Self>,
+    ) -> gpui::AnyElement {
         let entity = cx.entity();
         if layout == columns::Layout::Narrow {
-            // shortcut: no search button under the menu toggle; widen the list to search.
+            // With the sidebar the menu button is there; a search button takes its place.
+            let button = match folders {
+                Folders::Sidebar => {
+                    IconButton::new("narrow-search", &DIALOGS_SEARCH_FOR_NARROW_FILTERS).on_click(
+                        move |_, window, cx| {
+                            entity.update(cx, |this, cx| this.search_from_narrow(window, cx));
+                        },
+                    )
+                }
+                Folders::Tabs => IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE).on_click(
+                    move |_, window, cx| {
+                        entity.update(cx, |this, cx| this.open_menu(window, cx));
+                    },
+                ),
+            };
             return div()
                 .flex_none()
                 .flex()
                 .justify_center()
                 .h(px_of(TOP_BAR_HEIGHT))
                 .pt(px_of(DIALOGS_FILTER_PADDING.y))
-                .child(IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE).on_click(
-                    move |_, window, cx| {
-                        entity.update(cx, |this, cx| this.open_menu(window, cx));
-                    },
-                ))
+                .child(button)
                 .into_any_element();
         }
         if self.dialogs.read(cx).list() == ChatList::Archive {
@@ -229,25 +256,31 @@ impl MainView {
         let field_top = (px_of(TOP_BAR_HEIGHT) - px_of(DIALOGS_FILTER.height_min)) / 2.0;
         let is_searching = !self.search.read(cx).text().is_empty();
         let clear = cx.entity();
-        div()
-            .flex_none()
-            .flex()
-            .h(px_of(TOP_BAR_HEIGHT))
-            .pl(padding)
-            .pr(px_of(DIALOGS_FILTER_SKIP) + padding)
-            .child(div().pt(px_of(DIALOGS_FILTER_PADDING.y)).child(
+        let toggle = (folders == Folders::Tabs).then(|| {
+            div().pt(px_of(DIALOGS_FILTER_PADDING.y)).mr(padding).child(
                 IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE).on_click(
                     move |_, window, cx| {
                         entity.update(cx, |this, cx| this.open_menu(window, cx));
                     },
                 ),
-            ))
+            )
+        });
+        let left = match folders {
+            Folders::Sidebar => px_of(DIALOGS_FILTER_SKIP) + padding,
+            Folders::Tabs => padding,
+        };
+        div()
+            .flex_none()
+            .flex()
+            .h(px_of(TOP_BAR_HEIGHT))
+            .pl(left)
+            .pr(px_of(DIALOGS_FILTER_SKIP) + padding)
+            .children(toggle)
             .child(
                 div()
                     .relative()
                     .flex_1()
                     .min_w_0()
-                    .ml(padding)
                     .mt(field_top)
                     .child(self.search.clone())
                     .when(is_searching, |this| {
@@ -301,7 +334,24 @@ impl Focusable for MainView {
 
 impl Render for MainView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let width = f32::from(window.viewport_size().width);
+        let folders = if is_sidebar_shown(&self.store.read(cx).state().chats, window, cx) {
+            Folders::Sidebar
+        } else {
+            Folders::Tabs
+        };
+        let sidebar = (folders == Folders::Sidebar).then(|| {
+            let entity = cx.entity();
+            let on_main_menu: OnMainMenu = Rc::new(move |window, cx| {
+                entity.update(cx, |this, cx| this.open_menu(window, cx));
+            });
+            self.dialogs
+                .update(cx, |dialogs, cx| dialogs.sidebar(on_main_menu, cx))
+        });
+        let left = match folders {
+            Folders::Sidebar => f32::from(px_of(WINDOW_FILTERS_WIDTH)),
+            Folders::Tabs => 0.0,
+        };
+        let width = f32::from(window.viewport_size().width) - left;
         let layout = columns::layout(width, settings::dialogs_width_ratio(cx));
         let list_width = px(layout.list_width(width));
         let list = div()
@@ -311,46 +361,58 @@ impl Render for MainView {
             .flex()
             .flex_col()
             .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
-            .child(self.top_bar(layout, cx))
+            .child(self.top_bar(layout, folders, cx))
             .child(div().flex_1().min_h_0().child(self.dialogs.clone()));
+        let columns = div().relative().flex_1().h_full().flex().child(list);
         let root = div()
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .on_action(cx.listener(Self::cancel_search))
-            .relative()
             .size_full()
             .flex()
-            .child(list);
+            .children(sidebar);
         if layout == columns::Layout::OneColumn {
             // shortcut: the list alone; opening a chat over it comes with the history in M3.
-            return root;
+            return root.child(columns);
         }
         let handle_width = px_of(HISTORY_RESIZE_WIDTH);
         root.on_drag_move(
             cx.listener(move |_, event: &DragMoveEvent<ColumnResize>, _, cx| {
-                let left = f32::from(event.event.position.x);
-                settings::set_dialogs_width_ratio(columns::ratio_for_drag(left, width), cx);
+                let edge = f32::from(event.event.position.x) - left;
+                settings::set_dialogs_width_ratio(columns::ratio_for_drag(edge, width), cx);
                 cx.notify();
             }),
         )
         .on_drop(cx.listener(|_, _: &ColumnResize, _, cx| settings::save_now(cx)))
         .child(
-            div()
-                .w(px(1.0))
-                .h_full()
-                .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
-        )
-        .child(Self::empty_history(cx))
-        .child(
-            div()
-                .id("column-resize")
-                .absolute()
-                .top_0()
-                .h_full()
-                .left(list_width - handle_width / 2.0)
-                .w(handle_width)
-                .cursor_col_resize()
-                .on_drag(ColumnResize, |_, _, _, cx| cx.new(|_| ResizeGhost)),
+            columns
+                .child(
+                    div()
+                        .w(px(1.0))
+                        .h_full()
+                        .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
+                )
+                .child(Self::empty_history(cx))
+                .child(
+                    div()
+                        .id("column-resize")
+                        .absolute()
+                        .top_0()
+                        .h_full()
+                        .left(list_width - handle_width / 2.0)
+                        .w(handle_width)
+                        .cursor_col_resize()
+                        .on_drag(ColumnResize, |_, _, _, cx| cx.new(|_| ResizeGhost)),
+                ),
         )
     }
+}
+
+/// Where the folders show in this frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Folders {
+    /// The sidebar, which has the main menu button.
+    Sidebar,
+    /// Tabs above the list, or no folders at all; the list has the button.
+    Tabs,
 }

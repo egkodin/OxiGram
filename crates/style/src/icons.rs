@@ -438,6 +438,16 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/dialogs/dialogs_forum@2x.png")),
             x3: Some(include_bytes!("../icons/dialogs/dialogs_forum@3x.png")),
         },
+        "dialogs/dialogs_lock_off" => IconFiles::Png {
+            x1: include_bytes!("../icons/dialogs/dialogs_lock_off.png"),
+            x2: Some(include_bytes!("../icons/dialogs/dialogs_lock_off@2x.png")),
+            x3: Some(include_bytes!("../icons/dialogs/dialogs_lock_off@3x.png")),
+        },
+        "dialogs/dialogs_lock_on" => IconFiles::Png {
+            x1: include_bytes!("../icons/dialogs/dialogs_lock_on.png"),
+            x2: Some(include_bytes!("../icons/dialogs/dialogs_lock_on@2x.png")),
+            x3: Some(include_bytes!("../icons/dialogs/dialogs_lock_on@3x.png")),
+        },
         "dialogs/dialogs_menu" => IconFiles::Png {
             x1: include_bytes!("../icons/dialogs/dialogs_menu.png"),
             x2: Some(include_bytes!("../icons/dialogs/dialogs_menu@2x.png")),
@@ -663,6 +673,151 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/folders/folder_new_chats@2x.png")),
             x3: Some(include_bytes!("../icons/folders/folder_new_chats@3x.png")),
         },
+        "folders/folders_airplane" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_airplane.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_airplane@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_airplane@3x.png")),
+        },
+        "folders/folders_all" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_all.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_all@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_all@3x.png")),
+        },
+        "folders/folders_book" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_book.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_book@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_book@3x.png")),
+        },
+        "folders/folders_bots" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_bots.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_bots@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_bots@3x.png")),
+        },
+        "folders/folders_cat" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_cat.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_cat@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_cat@3x.png")),
+        },
+        "folders/folders_channels" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_channels.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_channels@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_channels@3x.png")),
+        },
+        "folders/folders_crown" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_crown.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_crown@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_crown@3x.png")),
+        },
+        "folders/folders_custom" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_custom.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_custom@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_custom@3x.png")),
+        },
+        "folders/folders_edit" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_edit.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_edit@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_edit@3x.png")),
+        },
+        "folders/folders_favorite" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_favorite.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_favorite@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_favorite@3x.png")),
+        },
+        "folders/folders_flower" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_flower.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_flower@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_flower@3x.png")),
+        },
+        "folders/folders_game" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_game.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_game@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_game@3x.png")),
+        },
+        "folders/folders_group" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_group.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_group@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_group@3x.png")),
+        },
+        "folders/folders_home" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_home.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_home@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_home@3x.png")),
+        },
+        "folders/folders_light" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_light.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_light@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_light@3x.png")),
+        },
+        "folders/folders_like" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_like.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_like@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_like@3x.png")),
+        },
+        "folders/folders_love" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_love.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_love@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_love@3x.png")),
+        },
+        "folders/folders_mask" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_mask.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_mask@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_mask@3x.png")),
+        },
+        "folders/folders_money" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_money.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_money@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_money@3x.png")),
+        },
+        "folders/folders_note" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_note.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_note@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_note@3x.png")),
+        },
+        "folders/folders_palette" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_palette.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_palette@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_palette@3x.png")),
+        },
+        "folders/folders_party" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_party.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_party@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_party@3x.png")),
+        },
+        "folders/folders_poo" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_poo.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_poo@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_poo@3x.png")),
+        },
+        "folders/folders_private" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_private.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_private@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_private@3x.png")),
+        },
+        "folders/folders_setup" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_setup.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_setup@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_setup@3x.png")),
+        },
+        "folders/folders_sport" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_sport.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_sport@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_sport@3x.png")),
+        },
+        "folders/folders_study" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_study.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_study@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_study@3x.png")),
+        },
+        "folders/folders_trade" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_trade.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_trade@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_trade@3x.png")),
+        },
+        "folders/folders_travel" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_travel.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_travel@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_travel@3x.png")),
+        },
         "folders/folders_type_archived" => IconFiles::Png {
             x1: include_bytes!("../icons/folders/folders_type_archived.png"),
             x2: Some(include_bytes!(
@@ -723,6 +878,138 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/folders/folders_type_read@2x.png")),
             x3: Some(include_bytes!("../icons/folders/folders_type_read@3x.png")),
         },
+        "folders/folders_unmuted" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_unmuted.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_unmuted@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_unmuted@3x.png")),
+        },
+        "folders/folders_unread" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_unread.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_unread@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_unread@3x.png")),
+        },
+        "folders/folders_work" => IconFiles::Png {
+            x1: include_bytes!("../icons/folders/folders_work.png"),
+            x2: Some(include_bytes!("../icons/folders/folders_work@2x.png")),
+            x3: Some(include_bytes!("../icons/folders/folders_work@3x.png")),
+        },
+        "folders/svg/folders_airplane" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_airplane.svg"))
+        }
+        "folders/svg/folders_all" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_all.svg"))
+        }
+        "folders/svg/folders_book" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_book.svg"))
+        }
+        "folders/svg/folders_bots" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_bots.svg"))
+        }
+        "folders/svg/folders_cat" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_cat.svg"))
+        }
+        "folders/svg/folders_channels" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_channels.svg"))
+        }
+        "folders/svg/folders_crown" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_crown.svg"))
+        }
+        "folders/svg/folders_custom" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_custom.svg"))
+        }
+        "folders/svg/folders_edit" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_edit.svg"))
+        }
+        "folders/svg/folders_favorite" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_favorite.svg"))
+        }
+        "folders/svg/folders_flower" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_flower.svg"))
+        }
+        "folders/svg/folders_game" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_game.svg"))
+        }
+        "folders/svg/folders_group" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_group.svg"))
+        }
+        "folders/svg/folders_home" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_home.svg"))
+        }
+        "folders/svg/folders_light" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_light.svg"))
+        }
+        "folders/svg/folders_like" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_like.svg"))
+        }
+        "folders/svg/folders_love" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_love.svg"))
+        }
+        "folders/svg/folders_mask" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_mask.svg"))
+        }
+        "folders/svg/folders_money" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_money.svg"))
+        }
+        "folders/svg/folders_note" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_note.svg"))
+        }
+        "folders/svg/folders_palette" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_palette.svg"))
+        }
+        "folders/svg/folders_party" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_party.svg"))
+        }
+        "folders/svg/folders_private" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_private.svg"))
+        }
+        "folders/svg/folders_setup" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_setup.svg"))
+        }
+        "folders/svg/folders_sport" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_sport.svg"))
+        }
+        "folders/svg/folders_study" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_study.svg"))
+        }
+        "folders/svg/folders_trade" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_trade.svg"))
+        }
+        "folders/svg/folders_travel" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_travel.svg"))
+        }
+        "folders/svg/folders_unmuted" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_unmuted.svg"))
+        }
+        "folders/svg/folders_unread" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_unread.svg"))
+        }
+        "folders/svg/folders_work" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/folders_work.svg"))
+        }
+        "folders/svg/section_chat" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_chat.svg"))
+        }
+        "folders/svg/section_folders" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_folders.svg"))
+        }
+        "folders/svg/section_info" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_info.svg"))
+        }
+        "folders/svg/section_language" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_language.svg"))
+        }
+        "folders/svg/section_notifications" => IconFiles::Svg(include_bytes!(
+            "../icons/folders/svg/section_notifications.svg"
+        )),
+        "folders/svg/section_privacy" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_privacy.svg"))
+        }
+        "folders/svg/section_settings" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_settings.svg"))
+        }
+        "folders/svg/section_stickers" => {
+            IconFiles::Svg(include_bytes!("../icons/folders/svg/section_stickers.svg"))
+        }
         "fragment" => IconFiles::Png {
             x1: include_bytes!("../icons/fragment.png"),
             x2: Some(include_bytes!("../icons/fragment@2x.png")),
@@ -1038,6 +1325,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/inline_button_web.png"),
             x2: Some(include_bytes!("../icons/inline_button_web@2x.png")),
             x3: Some(include_bytes!("../icons/inline_button_web@3x.png")),
+        },
+        "install_update" => IconFiles::Png {
+            x1: include_bytes!("../icons/install_update.png"),
+            x2: Some(include_bytes!("../icons/install_update@2x.png")),
+            x3: Some(include_bytes!("../icons/install_update@3x.png")),
         },
         "intro_country_dropdown" => IconFiles::Png {
             x1: include_bytes!("../icons/intro_country_dropdown.png"),
