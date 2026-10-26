@@ -41,6 +41,8 @@
 - The folders sidebar (`dialogs::sidebar`), tdesktop's default when the
   window has room, with the main menu button; the narrow list shows a
   search button beside it. `settings::FoldersPlacement` keeps tabs on top.
+- Recently searched hashtags over the search results (`hashtags`,
+  `dialogs::hashtag_results`).
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -70,8 +72,8 @@
 
 ### Next steps
 
-1. Remaining M2 rows: hashtag search; chat preview (peek), search in one
-   chat and by sender wait for the chat view (M3) as their entry point.
+1. Remaining M2 rows: chat preview (peek), search in one chat and by
+   sender wait for the chat view (M3) as their entry point.
 2. M3: the chat view.
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)

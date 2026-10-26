@@ -31,6 +31,9 @@ struct Values {
     // shortcut: one ratio; tdesktop keeps another for when no chat is open, which matters once chats open in M3.
     dialogs_width_ratio: f32,
     folders_placement: FoldersPlacement,
+    /// Hashtags searched for, most used first (`cRecentSearchHashtags`).
+    // shortcut: app-wide; tdesktop keeps them per account, which matters once accounts switch in M8.
+    recent_search_hashtags: crate::hashtags::Recent,
 }
 
 impl Default for Values {
@@ -41,6 +44,7 @@ impl Default for Values {
             archive_in_main_menu: false,
             dialogs_width_ratio: crate::columns::DEFAULT_RATIO,
             folders_placement: FoldersPlacement::Sidebar,
+            recent_search_hashtags: Vec::new(),
         }
     }
 }
@@ -115,6 +119,31 @@ pub fn set_folders_placement(placement: FoldersPlacement, cx: &mut App) {
     cx.refresh_windows();
 }
 
+pub(crate) fn recent_search_hashtags(cx: &App) -> crate::hashtags::Recent {
+    values(cx).map_or_else(Vec::new, |values| values.recent_search_hashtags.clone())
+}
+
+/// Counts a use of each hashtag in `text` (`saveRecentSearchHashtags`).
+pub(crate) fn save_search_hashtags(text: &str, cx: &mut App) {
+    let tags = crate::hashtags::tags_in(text);
+    if tags.is_empty() {
+        return;
+    }
+    change(cx, |values| {
+        for tag in &tags {
+            crate::hashtags::increment(&mut values.recent_search_hashtags, tag);
+        }
+    });
+}
+
+pub(crate) fn remove_search_hashtag(tag: &str, cx: &mut App) {
+    change(cx, |values| {
+        values
+            .recent_search_hashtags
+            .retain(|(known, _)| known != tag);
+    });
+}
+
 pub(crate) fn dialogs_width_ratio(cx: &App) -> f32 {
     values(cx).map_or(crate::columns::DEFAULT_RATIO, |values| {
         values.dialogs_width_ratio
@@ -187,6 +216,7 @@ mod tests {
             archive_in_main_menu: false,
             dialogs_width_ratio: 0.0,
             folders_placement: FoldersPlacement::Top,
+            recent_search_hashtags: vec![("rust".to_owned(), 2)],
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

@@ -32,6 +32,8 @@ const OVERDRAW: f32 = 200.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Entry {
+    /// An index into [`Search::hashtags`].
+    Hashtag(usize),
     Chat(ChatId),
     GlobalBar,
     Global(ChatId),
@@ -50,6 +52,8 @@ pub(super) enum Messages {
 
 pub(super) struct Search {
     pub query: String,
+    /// Recent hashtags that continue the query.
+    pub hashtags: Vec<String>,
     /// The message filter the found messages passed.
     pub filter: MessageFilter,
     chats: Vec<ChatId>,
@@ -66,6 +70,7 @@ impl Search {
     pub fn new(query: String, filter: MessageFilter) -> Self {
         Self {
             query,
+            hashtags: Vec::new(),
             filter,
             chats: Vec::new(),
             global: Vec::new(),
@@ -76,6 +81,11 @@ impl Search {
             entries: Vec::new(),
             list: ListState::new(0, ListAlignment::Top, px(OVERDRAW)),
         }
+    }
+
+    pub fn set_hashtags(&mut self, hashtags: Vec<String>) {
+        self.hashtags = hashtags;
+        self.rebuild();
     }
 
     /// Known chats, local ones first; repeats are dropped.
@@ -124,6 +134,7 @@ impl Search {
     /// scroll position survives results arriving.
     fn rebuild(&mut self) {
         let entries = entries(
+            self.hashtags.len(),
             &self.chats,
             &self.global,
             self.messages.len(),
@@ -158,7 +169,8 @@ impl Dialogs {
         {
             return;
         }
-        let search = Search::new(query.to_owned(), self.message_filter);
+        let mut search = Search::new(query.to_owned(), self.message_filter);
+        search.set_hashtags(super::hashtag_results::hashtags_for(query, cx));
         let weak = cx.entity().downgrade();
         search.list.set_scroll_handler(move |event, _, cx| {
             if event.visible_range.end + PRELOAD_ROWS >= event.count {
@@ -349,6 +361,7 @@ impl Dialogs {
             return div().into_any_element();
         };
         match entry {
+            Entry::Hashtag(index) => self.hashtag_row(index, cx),
             Entry::Chat(chat) => self.row_element(RowKey::Chat(chat), chat, None, cx),
             Entry::Global(chat) => self.row_element(RowKey::Global(chat), chat, None, cx),
             Entry::Message(found) => {
@@ -448,15 +461,17 @@ pub(super) fn bar(text: String, link: Option<AnyElement>, cx: &App) -> AnyElemen
         .into_any_element()
 }
 
-/// The rows in order: the messages bar shows once there are messages or
-/// the search for them found none.
+/// The rows in order: recent hashtags, then chats; the messages bar shows
+/// once there are messages or the search for them found none.
 fn entries(
+    hashtags: usize,
     chats: &[ChatId],
     global: &[ChatId],
     messages: usize,
     messages_complete: bool,
 ) -> Vec<Entry> {
-    let mut entries: Vec<Entry> = chats.iter().copied().map(Entry::Chat).collect();
+    let mut entries: Vec<Entry> = (0..hashtags).map(Entry::Hashtag).collect();
+    entries.extend(chats.iter().copied().map(Entry::Chat));
     if !global.is_empty() {
         entries.push(Entry::GlobalBar);
         entries.extend(global.iter().copied().map(Entry::Global));
@@ -477,7 +492,7 @@ mod tests {
         let chats = [ChatId(1)];
         let global = [ChatId(2)];
         assert_eq!(
-            entries(&chats, &global, 1, false),
+            entries(0, &chats, &global, 1, false),
             [
                 Entry::Chat(ChatId(1)),
                 Entry::GlobalBar,
@@ -486,8 +501,12 @@ mod tests {
                 Entry::Message(0),
             ]
         );
-        assert_eq!(entries(&chats, &[], 0, false), [Entry::Chat(ChatId(1))]);
-        assert_eq!(entries(&[], &[], 0, true), [Entry::MessagesBar]);
+        assert_eq!(entries(0, &chats, &[], 0, false), [Entry::Chat(ChatId(1))]);
+        assert_eq!(entries(0, &[], &[], 0, true), [Entry::MessagesBar]);
+        assert_eq!(
+            entries(2, &chats, &[], 0, false),
+            [Entry::Hashtag(0), Entry::Hashtag(1), Entry::Chat(ChatId(1))]
+        );
     }
 
     #[test]

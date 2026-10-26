@@ -1,11 +1,19 @@
 //! The archive's row in the main list (`Data::Folder`): the names of its
 //! latest chats, the unread ones highlighted.
 
+use chrono::{DateTime, Local};
+use gpui::{AnyElement, Context, ParentElement, SharedString, Styled, div};
 use i18n::{Strings, key};
+use model::State;
 use model::chat::{Chat, ChatList};
 use model::chats::Chats;
+use style::{ColorId, ColorRef};
+use ui::{UserpicSource, color};
 
 use super::preview::{Preview, Span, SpanKind};
+use super::row::{self, Badges, Lit, NarrowRow, Row, RowText};
+use super::{Dialogs, RowKey, date_text};
+use crate::lang::strings;
 
 /// Chat names the row lists (`kShowChatNamesCount`).
 const NAMES: usize = 8;
@@ -126,6 +134,109 @@ pub(super) fn date(chats: &Chats) -> Option<i32> {
         .first()
         .and_then(|chat| chat.last_message.as_ref())
         .map(|message| message.date)
+}
+
+impl Dialogs {
+    pub(super) fn archive_element(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let lit = if self.hovered == Some(RowKey::Archive) {
+            Lit::Over
+        } else {
+            Lit::Normal
+        };
+        let row = archive_row(self.store.read(cx).state(), strings(cx), lit, &Local::now());
+        let open = |this: &mut Self, cx: &mut Context<Self>| this.open_list(ChatList::Archive, cx);
+        if self.narrow {
+            return self.wrap_row(RowKey::Archive, NarrowRow(row), cx, open);
+        }
+        self.wrap_row(RowKey::Archive, row, cx, open)
+    }
+
+    /// The collapsed archive (`PaintCollapsedRow`): its name and a muted
+    /// counter of unread chats.
+    pub(super) fn archive_bar(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let is_hovered = self.hovered == Some(RowKey::Archive);
+        let unread = self
+            .store
+            .read(cx)
+            .state()
+            .chats
+            .unread(ChatList::Archive)
+            .chats;
+        let bg = if is_hovered {
+            ColorId::DialogsBgOver
+        } else {
+            ColorId::DialogsBg
+        };
+        if self.narrow {
+            // The archive's userpic, small and centered.
+            let size = crate::px_of(style::dialogs::DIALOGS_UNREAD_HEIGHT);
+            let bar = div()
+                .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
+                .w_full()
+                .bg(color(cx, ColorRef::Palette(bg)))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(ui::Userpic::new(size, UserpicSource::Archive));
+            return self.wrap_row(RowKey::Archive, bar, cx, |this, cx| {
+                this.open_list(ChatList::Archive, cx);
+            });
+        }
+        let bar =
+            div()
+                .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
+                .w_full()
+                .bg(color(cx, ColorRef::Palette(bg)))
+                .flex()
+                .items_center()
+                .pl(crate::px_of(style::dialogs::DIALOGS_TOP_BAR_LEFT_PADDING))
+                .pr(crate::px_of(
+                    style::dialogs::DEFAULT_DIALOG_ROW.padding.right,
+                ))
+                .child(
+                    div()
+                        .flex_1()
+                        .font(ui::font(style::basic::SEMIBOLD_FONT))
+                        .text_size(crate::px_of(style::basic::SEMIBOLD_FONT.size))
+                        .text_color(color(cx, ColorRef::Palette(ColorId::DialogsNameFg)))
+                        .child(crate::lang::tr(cx, key::lng_archived_name)),
+                )
+                .children((unread > 0).then(|| {
+                    row::unread_badge(unread.to_string().into(), true, row::Lit::Normal, cx)
+                }));
+        self.wrap_row(RowKey::Archive, bar, cx, |this, cx| {
+            this.open_list(ChatList::Archive, cx);
+        })
+    }
+}
+
+/// The archive folder's row: its latest chats' names, and how many of
+/// them are unread in a muted badge.
+fn archive_row(state: &State, strings: &Strings, lit: Lit, now: &DateTime<Local>) -> Row {
+    let chats = &state.chats;
+    let unread = chats.unread(ChatList::Archive).chats;
+    Row {
+        userpic: UserpicSource::Archive,
+        is_online: false,
+        name: strings.text(key::lng_archived_name).into(),
+        type_icon: None,
+        name_badge: None,
+        scam_text: SharedString::default(),
+        date: date(chats).map(|date| date_text(strings, date, now)),
+        send_state: None,
+        text: RowText::Message {
+            preview: preview(strings, chats),
+            thumbnail: None,
+        },
+        badges: Badges {
+            unread: (unread > 0).then(|| unread.to_string().into()),
+            is_muted: true,
+            has_mention: false,
+            has_reaction: false,
+        },
+        is_pinned: false,
+        lit,
+    }
 }
 
 #[cfg(test)]

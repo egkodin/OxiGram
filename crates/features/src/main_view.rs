@@ -25,7 +25,7 @@ use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_heig
 
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
-use crate::dialogs::{Dialogs, OnMainMenu, is_sidebar_shown};
+use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, is_sidebar_shown};
 use crate::lang::tr;
 use crate::main_menu::{MainMenu, MenuAction};
 use crate::settings;
@@ -45,7 +45,7 @@ pub struct MainView {
     dialogs: Entity<Dialogs>,
     search: Entity<InputField>,
     focus: FocusHandle,
-    _subscriptions: [Subscription; 2],
+    _subscriptions: [Subscription; 3],
 }
 
 impl std::fmt::Debug for MainView {
@@ -82,13 +82,18 @@ impl MainView {
             InputEvent::Submitted | InputEvent::BackspaceAtStart => {}
         });
         let observe_dialogs = cx.observe(&dialogs, |_, _, cx| cx.notify());
+        // `Widget::completeHashtag`: the field's change starts the search.
+        let complete = cx.subscribe(&dialogs, |this, _, CompleteQuery(text), cx| {
+            this.search
+                .update(cx, |search, cx| search.set_text(text, None, cx));
+        });
         Self {
             store,
             layers,
             dialogs,
             search,
             focus,
-            _subscriptions: [subscription, observe_dialogs],
+            _subscriptions: [subscription, observe_dialogs, complete],
         }
     }
 

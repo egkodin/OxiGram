@@ -5,6 +5,7 @@ mod action;
 mod archive;
 mod date;
 mod folder_menu;
+mod hashtag_results;
 mod menu;
 mod pinned;
 mod preview;
@@ -14,6 +15,7 @@ mod sidebar;
 mod suggestions;
 mod tabs;
 
+pub(crate) use self::hashtag_results::CompleteQuery;
 pub(crate) use self::sidebar::{OnMainMenu, is_sidebar_shown};
 
 use std::collections::HashSet;
@@ -81,6 +83,8 @@ enum RowKey {
     Chat(ChatId),
     Global(ChatId),
     Found(usize),
+    /// A recent hashtag over the search results.
+    Hashtag(usize),
     /// In the frequent contacts strip.
     Top(ChatId),
     /// In a suggestions list.
@@ -94,6 +98,7 @@ impl RowKey {
             Self::Chat(chat) => ("dialog", u64::from_ne_bytes(chat.0.to_ne_bytes())),
             Self::Global(chat) => ("global", u64::from_ne_bytes(chat.0.to_ne_bytes())),
             Self::Found(index) => ("found", index as u64),
+            Self::Hashtag(index) => ("hashtag", index as u64),
             Self::Top(chat) => ("top", u64::from_ne_bytes(chat.0.to_ne_bytes())),
             Self::Suggested(chat) => ("suggested", u64::from_ne_bytes(chat.0.to_ne_bytes())),
         };
@@ -298,78 +303,6 @@ impl Dialogs {
         rows
     }
 
-    fn archive_element(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let lit = if self.hovered == Some(RowKey::Archive) {
-            Lit::Over
-        } else {
-            Lit::Normal
-        };
-        let row = archive_row(self.store.read(cx).state(), strings(cx), lit, &Local::now());
-        let open = |this: &mut Self, cx: &mut Context<Self>| this.open_list(ChatList::Archive, cx);
-        if self.narrow {
-            return self.wrap_row(RowKey::Archive, NarrowRow(row), cx, open);
-        }
-        self.wrap_row(RowKey::Archive, row, cx, open)
-    }
-
-    /// The collapsed archive (`PaintCollapsedRow`): its name and a muted
-    /// counter of unread chats.
-    fn archive_bar(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let is_hovered = self.hovered == Some(RowKey::Archive);
-        let unread = self
-            .store
-            .read(cx)
-            .state()
-            .chats
-            .unread(ChatList::Archive)
-            .chats;
-        let bg = if is_hovered {
-            ColorId::DialogsBgOver
-        } else {
-            ColorId::DialogsBg
-        };
-        if self.narrow {
-            // The archive's userpic, small and centered.
-            let size = crate::px_of(style::dialogs::DIALOGS_UNREAD_HEIGHT);
-            let bar = div()
-                .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
-                .w_full()
-                .bg(color(cx, ColorRef::Palette(bg)))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(ui::Userpic::new(size, UserpicSource::Archive));
-            return self.wrap_row(RowKey::Archive, bar, cx, |this, cx| {
-                this.open_list(ChatList::Archive, cx);
-            });
-        }
-        let bar =
-            div()
-                .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
-                .w_full()
-                .bg(color(cx, ColorRef::Palette(bg)))
-                .flex()
-                .items_center()
-                .pl(crate::px_of(style::dialogs::DIALOGS_TOP_BAR_LEFT_PADDING))
-                .pr(crate::px_of(
-                    style::dialogs::DEFAULT_DIALOG_ROW.padding.right,
-                ))
-                .child(
-                    div()
-                        .flex_1()
-                        .font(ui::font(style::basic::SEMIBOLD_FONT))
-                        .text_size(crate::px_of(style::basic::SEMIBOLD_FONT.size))
-                        .text_color(color(cx, ColorRef::Palette(ColorId::DialogsNameFg)))
-                        .child(crate::lang::tr(cx, key::lng_archived_name)),
-                )
-                .children((unread > 0).then(|| {
-                    row::unread_badge(unread.to_string().into(), true, row::Lit::Normal, cx)
-                }));
-        self.wrap_row(RowKey::Archive, bar, cx, |this, cx| {
-            this.open_list(ChatList::Archive, cx);
-        })
-    }
-
     /// Row `key` for chat `id`, showing `found` instead of the last message
     /// when given, with its hover and click handlers.
     fn row_element(
@@ -400,9 +333,13 @@ impl Dialogs {
         // Chats picked from search results join the recent searches.
         let is_found_chat = matches!(key, RowKey::Global(_))
             || (matches!(key, RowKey::Chat(_)) && self.search.is_some());
+        let is_found_message = matches!(key, RowKey::Found(_));
         let choose = move |this: &mut Self, cx: &mut Context<Self>| {
             if is_found_chat {
                 this.remember_found(id, cx);
+            }
+            if is_found_message {
+                this.save_found_hashtags(cx);
             }
             this.select(id, cx);
         };
@@ -488,6 +425,7 @@ fn chat_of(key: RowKey) -> Option<ChatId> {
         RowKey::Archive
         | RowKey::Global(_)
         | RowKey::Found(_)
+        | RowKey::Hashtag(_)
         | RowKey::Top(_)
         | RowKey::Suggested(_) => None,
     }
@@ -696,35 +634,6 @@ fn build_row(
         },
         download,
     )
-}
-
-/// The archive folder's row: its latest chats' names, and how many of
-/// them are unread in a muted badge.
-fn archive_row(state: &State, strings: &Strings, lit: Lit, now: &DateTime<Local>) -> Row {
-    let chats = &state.chats;
-    let unread = chats.unread(ChatList::Archive).chats;
-    Row {
-        userpic: UserpicSource::Archive,
-        is_online: false,
-        name: strings.text(key::lng_archived_name).into(),
-        type_icon: None,
-        name_badge: None,
-        scam_text: SharedString::default(),
-        date: archive::date(chats).map(|date| date_text(strings, date, now)),
-        send_state: None,
-        text: RowText::Message {
-            preview: archive::preview(strings, chats),
-            thumbnail: None,
-        },
-        badges: Badges {
-            unread: (unread > 0).then(|| unread.to_string().into()),
-            is_muted: true,
-            has_mention: false,
-            has_reaction: false,
-        },
-        is_pinned: false,
-        lit,
-    }
 }
 
 fn empty_row(lit: Lit) -> Row {
