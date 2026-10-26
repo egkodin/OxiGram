@@ -145,7 +145,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Large single emoji and animated emoji | M5 | todo | |
 | history | Emoji interactions (click an animated emoji, see the partner's) | M5 | todo | |
 | history | Link previews: small or large media, above or below the text | M3 | todo | |
-| history | Loading history upward and downward without scroll jumps | M3 | in progress | unit tests (model history, list splices); not verified live: no API credentials yet |
+| history | Loading history upward and downward without scroll jumps | M3 | in progress | unit tests (model history, list splices); `scripts/history-perf.sh`: adding 50 older messages near the top of a 10,000-message history changes no history pixel (3 runs); not verified live: no API credentials yet, and loading newer pages is not measured |
 | history | Scroll-to-bottom button with unread counter | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 44/45); not verified: no API credentials, so no live chat; no show/hide animation, badge 20 px instead of 22 |
 | history | Jump buttons to unread mentions and unread reactions | M3 | todo | |
 | history | Jump to a date with the calendar | M3 | todo | |

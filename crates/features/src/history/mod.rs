@@ -127,10 +127,15 @@ impl HistoryView {
         let list = ListState::new(0, ListAlignment::Bottom, px(OVERDRAW));
         let weak = cx.weak_entity();
         list.set_scroll_handler(move |_, _, cx| {
-            // The view is gone once its chat closed; nothing to load then.
-            let _ = weak.update(cx, |this, cx| {
-                this.preload(cx);
-                this.update_down_button(cx);
+            // Deferred: the list calls this with its state borrowed, and
+            // both steps read it.
+            let weak = weak.clone();
+            cx.defer(move |cx| {
+                // The view is gone once its chat closed; nothing to load then.
+                let _ = weak.update(cx, |this, cx| {
+                    this.preload(cx);
+                    this.update_down_button(cx);
+                });
             });
         });
         let mut view = Self {

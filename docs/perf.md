@@ -13,7 +13,7 @@ Release build, macOS Apple Silicon, account with ~500 chats.
 | Cold start to interactive chat list (database present) | < 800 ms | — | M1 |
 | Idle RSS on the chat list | < 150 MB | — | M1; re-base on footprint (below) |
 | RSS after scrolling 10 media-heavy chats and returning | < 250 MB, no growth in a soak test | — | M5 |
-| History scroll frame time, p99 | < 8 ms (120 Hz) | 7.68 ms (spike scene, 160 Hz) | on track |
+| History scroll frame time, p99 | < 8 ms (120 Hz) | 5.44 ms frame build, no dropped refreshes (10,000 synthetic messages, 120 Hz) | ok; real chats not measured |
 | Opening a chat to first messages (TDLib cache) | < 100 ms | — | M3 |
 | Idle with no animations | ~0 % CPU, zero redraws | 0.0 % CPU, no redraws (empty window) | ok |
 | Release binary size without TDLib | < 30 MB | 17.0 MB | ok |
@@ -93,11 +93,40 @@ The binary grew by 7.3 MB: the bundled fonts (0.9 MB), the icon masks
 can move the icons next to the binary if size becomes a concern; the target is
 30 MB.
 
+## M3: history scroll
+
+Mac mini, Apple M4, macOS 27.0.1, external 4K display at 120 Hz with 2×
+scaling (the display ran at 160 Hz in the spike). `scripts/history-perf.sh`
+runs the `history-perf` example (release build): Hiking Club from the snapshot
+fixtures with 10,000 generated messages (fixed seed; 4 authors in runs, 1 to
+160 words with bold, italic, monospace and link spans, Cyrillic and emoji,
+every 15th a reply), 1000×800 window kept on top. After opening the chat and
+2 s of warm-up it scrolls towards older messages at 3,000 px/s for 60 s,
+driven per frame on the wheel path. TDLib gets no parameters, so nothing goes
+online and no page loads during the run. Three runs; medians, ranges in
+parentheses.
+
+| Metric | Value |
+|---|---|
+| Frame build, p50 (gpui draw and present, `ZED_MEASUREMENTS=1`) | 3.53 ms (3.47–3.59) |
+| Frame build, p99 | 5.44 ms (5.39–5.44) |
+| Frame build, max | 9.31 ms (8.57–9.95); one frame over 8 ms per run |
+| Draw-to-draw interval, p50 / p99 / max | 8.33 / 10.31 / 10.50 ms (10.37–10.60) |
+| Late frames (interval over 1.5 refresh periods) | 0 of 7,200 in every run |
+| Scrolled | 180,000 px per run |
+| History pixels changed by adding 50 older messages near the top | 0 in every run |
+
+The p99 interval above one refresh period is callback jitter: no interval
+reaches two periods, so no refresh was dropped. The run found a crash on the
+first wheel event: the list calls its scroll handler with its state borrowed,
+and the handler read the list again; the handler now defers its work. Not
+measured: CPU, memory under scrolling (M5), real chats and their page loads.
+
 ## How to measure
 
 - Frame timing and memory under scrolling: the spike method in
-  [ADR 0002](adr/0002-gui.md). From M3 the history view gets the same automatic
-  scroll run against real chats.
+  [ADR 0002](adr/0002-gui.md). The history view: `scripts/history-perf.sh`
+  (below); the same run against real chats waits for API credentials.
 - Idle: start the release binary, wait 5 s, then take the CPU time from
   `ps -o time= -p <pid>` at the start and end of 10 s, the footprint from
   `vmmap --summary <pid>`, and idle wakeups from

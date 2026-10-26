@@ -1,5 +1,66 @@
 # Progress
 
+## M3: Chat history (in progress; the done-criterion run passed)
+
+### Done (code, checks green)
+
+- `features::history`: the virtualized, bottom-aligned history with
+  tdesktop's bubbles, tails, grouping, userpics and sender colors, date
+  badges, service messages, outgoing states, edited marks, views and
+  signatures; reply and forward headers; entities (bold, italic, underline,
+  strikethrough, code, pre, block quotes, links, hidden links with a
+  confirmation, mentions, hashtags, spoilers); loading pages up and down by
+  splicing the list (`sync`), so the scroll anchor stays put.
+- Opening at the first unread message under the unread bar, jumps to a
+  replied message and back, the scroll-down button with the unread counter
+  (`jump`, `unread`).
+- Text selection inside a message, message selection by dragging or
+  Ctrl/Cmd+click, Ctrl/Cmd+C copy, Escape and the selection bar's Cancel
+  (`selection`).
+- `history-perf` example and `scripts/history-perf.sh`: the M3 frame-budget
+  and no-jump check on 10,000 generated messages (`docs/perf.md`). It found a
+  crash on the first wheel scroll (the scroll handler read the list while the
+  list held its own state); fixed by deferring the handler's work.
+
+### Verified (macOS arm64, this machine)
+
+- `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
+  `cargo test --workspace` green.
+- Snapshots 41-47 compared by eye with tdesktop's style and layout code.
+- `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
+  no dropped refreshes over 60 s of scrolling, and adding 50 older messages
+  near the top changes no history pixel.
+
+### Not verified
+
+- Everything live (API credentials still missing): real pages from TDLib,
+  opening time from the TDLib cache, marking messages read.
+- Clipboard contents after copy: the checks do not write the user's
+  clipboard.
+
+### Half done
+
+- Many M3 rows in `docs/parity.md` are still todo: title bar buttons and
+  chat menu, message context menu, pinned bar, link previews, jumps to
+  mentions and reactions, the calendar, the jump highlight, read dates,
+  comments, Saved Messages sublists, sponsored messages, protected content.
+- Forward and Delete on the selection bar wait for M4 (sending) and the
+  message context menu.
+
+### Next steps
+
+1. The message context menu (reply, copy, copy link, select, delete with
+   tdesktop's confirmations; actions on the account stay behind the owner's
+   say-so) and the chat menu in the title bar.
+2. The pinned message bar and the jump highlight (`HistoryView::highlight`).
+3. Link previews (small and large, above or below the text) and the
+   unsupported message notice.
+
+### Open questions for the owner
+
+- API credentials (asked once; still missing).
+- Permission to download Telegram Desktop for screenshot comparison.
+
 ## M2: Chat list (in progress; checkpoint committed)
 
 ### Done (code, checks green)
