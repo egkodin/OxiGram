@@ -95,6 +95,13 @@ impl State {
         }
     }
 
+    /// Empties an open chat's history before a jump loads another part.
+    pub fn clear_history(&mut self, chat: ChatId) {
+        if let Some(history) = self.histories.get_mut(&chat) {
+            history.clear_messages();
+        }
+    }
+
     /// Keeps a message that `chat`'s history points at.
     pub fn add_reference(&mut self, chat: ChatId, message: Message) {
         if let Some(history) = self.histories.get_mut(&chat) {

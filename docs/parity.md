@@ -126,12 +126,12 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Bubbles with tails, grouping by sender and time, userpics in groups | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no wide-window mode |
 | history | Sender names in peer colors, admin and member titles | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no admin and member titles |
 | history | Date separators, sticky date on scroll | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no sticky date on scroll |
-| history | Unread messages separator and jump to first unread | M3 | todo | |
+| history | Unread messages separator and jump to first unread | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/44/45); not verified: no API credentials, so no live chat; opens around the last read message; does not mark messages read (viewMessages) yet |
 | history | Service messages for every action type | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; common actions only, others hidden |
 | history | Outgoing state: clock, sent, read, failed with retry | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; failed shows the clock, no retry |
 | history | Edited mark, channel views, forwards count, post signatures | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; no forwards count yet |
 | history | Forwarded header (user, channel, hidden sender, saved from) | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; no "saved from" yet |
-| history | Reply header with quote, jump to replied message and back | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; replied messages fetched with getMessage; no jump yet |
+| history | Reply header with quote, jump to replied message and back | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/44/45); not verified: no API credentials, so no live chat; replied messages fetched with getMessage; click jumps, the down button returns; no highlight flash |
 | history | Reply to a message in another chat, reply to a story | M3 | todo | |
 | history | "via @bot" label | M3 | todo | |
 | history | Entities: bold, italic, underline, strikethrough, code, pre | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; underline, strikethrough and pre not in the fixtures |
@@ -146,7 +146,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Emoji interactions (click an animated emoji, see the partner's) | M5 | todo | |
 | history | Link previews: small or large media, above or below the text | M3 | todo | |
 | history | Loading history upward and downward without scroll jumps | M3 | in progress | unit tests (model history, list splices); not verified live: no API credentials yet |
-| history | Scroll-to-bottom button with unread counter | M3 | todo | |
+| history | Scroll-to-bottom button with unread counter | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 44/45); not verified: no API credentials, so no live chat; no show/hide animation, badge 20 px instead of 22 |
 | history | Jump buttons to unread mentions and unread reactions | M3 | todo | |
 | history | Jump to a date with the calendar | M3 | todo | |
 | history | Highlight of the message jumped to | M3 | todo | |

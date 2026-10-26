@@ -113,6 +113,14 @@ impl History {
             .or_else(|| self.message(id).filter(|message| message.chat == chat))
     }
 
+    /// Drops the loaded run, keeping references, so a page elsewhere can
+    /// start a new one.
+    pub fn clear_messages(&mut self) {
+        self.messages.clear();
+        self.older = Edge::More;
+        self.newer = Edge::More;
+    }
+
     pub fn add_reference(&mut self, message: Message) {
         self.references
             .insert((message.chat, message.id), Arc::new(message));

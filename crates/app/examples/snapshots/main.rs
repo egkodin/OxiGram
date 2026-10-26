@@ -215,6 +215,8 @@ fn scenarios() -> Vec<Scenario> {
             setup: chats::events(),
             clicks: vec![
                 ("42-history-group", MouseButton::Left, HIKING_ROW),
+                ("44-history-reply-jump", MouseButton::Left, GROUP_REPLY),
+                ("45-history-reply-return", MouseButton::Left, DOWN_BUTTON),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             folders: FoldersPlacement::Top,
@@ -288,6 +290,9 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 const HIKING_ROW: (f32, f32) = (150.0, 366.0);
+/// The reply box of "Can't wait to see them" in Hiking Club.
+const GROUP_REPLY: (f32, f32) = (670.0, 328.0);
+const DOWN_BUTTON: (f32, f32) = (761.0, 565.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {

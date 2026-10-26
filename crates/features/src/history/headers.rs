@@ -1,7 +1,10 @@
 //! The lines over a message's text: what it replies to (`Reply`) and where
 //! it was forwarded from (`HistoryMessageForwarded`).
 
-use gpui::{AnyElement, App, IntoElement, ParentElement, SharedString, Styled, div};
+use gpui::{
+    AnyElement, App, ElementId, InteractiveElement as _, IntoElement, ParentElement, SharedString,
+    StatefulInteractiveElement as _, Styled, div, prelude::FluentBuilder as _,
+};
 use i18n::{Strings, key};
 use model::chats::Chats;
 use model::message::{Forward, Message, Origin, ReplyTo};
@@ -12,6 +15,7 @@ use style::chat::{
 use style::{ColorRef, Font};
 use ui::{color, font, font_height};
 
+use super::bubble::OnClick;
 use super::service::{from, user_name};
 use crate::dialogs::content_preview;
 use crate::px_of;
@@ -119,18 +123,24 @@ fn line(text: SharedString, line_font: Font, fg: gpui::Hsla) -> AnyElement {
 
 /// The reply box: tinted in the replied sender's color with its name and
 /// one line of its text.
-// shortcut: no reply preview thumbnails and no jump on click; they come with media (M5) and jumping to a message (M3 step 8).
+/// Its colors are the tint, the name's and the text's.
+// shortcut: no reply preview thumbnails; they come with media (M5).
 pub(super) fn reply_element(
     reply: Reply,
-    tint: ColorRef,
-    name_fg: ColorRef,
-    text_fg: ColorRef,
+    id: impl Into<ElementId>,
+    [tint, name_fg, text_fg]: [ColorRef; 3],
+    on_click: Option<OnClick>,
     cx: &App,
 ) -> AnyElement {
     let tint = color(cx, tint);
     let padding = HISTORY_REPLY_PADDING;
     div()
+        .id(id)
         .relative()
+        .when_some(on_click, |this, on_click| {
+            this.cursor_pointer()
+                .on_click(move |event, window, cx| on_click(event, window, cx))
+        })
         .mt(px_of(HISTORY_REPLY_TOP))
         .mb(px_of(HISTORY_REPLY_BOTTOM))
         .rounded(gpui::px(RADIUS))

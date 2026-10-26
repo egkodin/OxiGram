@@ -186,6 +186,7 @@ pub(crate) fn events() -> Vec<Event> {
         )),
     );
     group.unread_count = 14;
+    group.last_read_inbox = MessageId(36);
     group.unread_mentions = 1;
     group.mute_for = i32::MAX;
     group.uses_default_mute = false;

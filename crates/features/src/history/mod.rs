@@ -5,11 +5,13 @@
 mod body;
 mod bubble;
 mod headers;
+mod jump;
 mod layout;
 mod service;
 mod sync;
 mod text;
 mod top_bar;
+mod unread;
 
 pub(crate) use self::headers::Replied;
 pub(crate) use self::service::text as service_text;
@@ -78,6 +80,18 @@ pub(crate) struct HistoryView {
     /// Replied and pinned messages asked for, and those that are gone.
     requested_references: HashSet<(ChatId, MessageId)>,
     missing_references: HashSet<(ChatId, MessageId)>,
+    /// The last read message when the chat opened; the unread bar goes
+    /// over the first one after it.
+    unread_bar: Option<MessageId>,
+    /// The first incoming message after it, which the bar goes over.
+    unread_bar_index: Option<usize>,
+    /// Where to scroll once the awaited messages are shown.
+    target: Option<jump::Target>,
+    /// Replies the user jumped from, newest last.
+    returns: Vec<MessageId>,
+    is_down_shown: bool,
+    /// Counts reloads, so a page asked for before one is dropped.
+    generation: u64,
     _subscription: Subscription,
 }
 
@@ -102,7 +116,10 @@ impl HistoryView {
         let weak = cx.weak_entity();
         list.set_scroll_handler(move |_, _, cx| {
             // The view is gone once its chat closed; nothing to load then.
-            let _ = weak.update(cx, |this, cx| this.preload(cx));
+            let _ = weak.update(cx, |this, cx| {
+                this.preload(cx);
+                this.update_down_button(cx);
+            });
         });
         let mut view = Self {
             store,
@@ -116,10 +133,17 @@ impl HistoryView {
             revealed_spoilers: HashSet::new(),
             requested_references: HashSet::new(),
             missing_references: HashSet::new(),
+            unread_bar: None,
+            unread_bar_index: None,
+            target: None,
+            returns: Vec::new(),
+            is_down_shown: false,
+            generation: 0,
             _subscription: subscription,
         };
+        let page = view.first_page(cx);
         view.sync(cx);
-        view.load(Page::Newest, cx);
+        view.load(page, cx);
         view
     }
 
@@ -141,7 +165,12 @@ impl HistoryView {
         };
         if sync::apply(&self.list, &self.shown, history.messages()) {
             self.shown = history.messages().to_vec();
+            self.unread_bar_index = self.unread_bar.and_then(|after| {
+                let start = self.shown.partition_point(|message| message.id <= after);
+                (start..self.shown.len()).find(|&index| !self.shown[index].is_outgoing)
+            });
             self.needs_preload_check = true;
+            self.land();
             cx.notify();
         }
     }
@@ -172,10 +201,14 @@ impl HistoryView {
         }
         self.loading = Some(page);
         let chat = self.chat;
+        let generation = self.generation;
         let task = crate::store::spawn(self.store.read(cx).session().chat_history(chat, page), cx);
         cx.spawn(async move |this, cx| {
             let result = task.await;
             let _ = this.update(cx, |this, cx| {
+                if this.generation != generation {
+                    return;
+                }
                 this.loading = None;
                 match result {
                     Ok(messages) => this.store.update(cx, |store, cx| {
@@ -204,13 +237,15 @@ impl HistoryView {
             .then_some(day)
             .flatten()
             .map(|day| SharedString::from(layout::date_badge(strings(cx), day, &now)));
+        let has_unread_bar = self.has_unread_bar(index);
         if let Content::Service(service) = &message.content {
-            return self.service_item(&message, service, date_badge, cx);
+            return self.service_item(&message, service, date_badge, has_unread_bar, cx);
         }
         let run = Run {
-            is_attached_to_previous: previous
-                .is_some_and(|p| layout::is_attached(p, &message, &tz)),
-            is_attached_to_next: next.is_some_and(|n| layout::is_attached(&message, n, &tz)),
+            is_attached_to_previous: !has_unread_bar
+                && previous.is_some_and(|p| layout::is_attached(p, &message, &tz)),
+            is_attached_to_next: !self.has_unread_bar(index + 1)
+                && next.is_some_and(|n| layout::is_attached(&message, n, &tz)),
         };
         let state = self.store.read(cx).state();
         let author = self.author(state, &message);
@@ -246,10 +281,28 @@ impl HistoryView {
                 is_spoiler_revealed: self.revealed_spoilers.contains(&message.id),
                 on_link: self.on_link(message.id, cx),
                 reply,
+                on_reply: self.on_reply(&message, cx),
                 forward,
+                has_unread_bar,
             },
             cx,
         )
+    }
+
+    /// Whether the unread bar goes over item `index`.
+    fn has_unread_bar(&self, index: usize) -> bool {
+        self.unread_bar_index == Some(index)
+    }
+
+    /// A click on the reply box jumps to the replied message in this chat.
+    // shortcut: replies to other chats do not open them; that comes with replies across chats.
+    fn on_reply(&self, message: &Message, cx: &Context<Self>) -> Option<bubble::OnClick> {
+        let reply_to = message.reply_to.as_ref().filter(|r| r.chat == self.chat)?;
+        let (from, to) = (message.id, reply_to.message);
+        let weak = cx.weak_entity();
+        Some(Rc::new(move |_, _, cx| {
+            let _ = weak.update(cx, |this, cx| this.open_reply(from, to, cx));
+        }))
     }
 
     fn on_link(&self, message: MessageId, cx: &Context<Self>) -> body::OnLink {
@@ -270,6 +323,7 @@ impl HistoryView {
         message: &Message,
         service: &Service,
         date_badge: Option<SharedString>,
+        has_unread_bar: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         if let Service::Pinned(id) = service {
@@ -283,7 +337,7 @@ impl HistoryView {
         let text = state.chats.chat(self.chat).and_then(|chat| {
             service::text(strings(cx), &state.chats, chat, message, service, pinned)
         });
-        bubble::service_element(date_badge, text.map(SharedString::from), cx)
+        bubble::service_element(date_badge, has_unread_bar, text.map(SharedString::from), cx)
     }
 
     fn replied<'s>(&self, state: &'s State, chat: ChatId, id: MessageId) -> Replied<'s> {
@@ -381,6 +435,27 @@ impl HistoryView {
     }
 }
 
+impl HistoryView {
+    fn down_button(&self, cx: &mut Context<Self>) -> AnyElement {
+        let unread = self
+            .store
+            .read(cx)
+            .state()
+            .chats
+            .chat(self.chat)
+            .filter(|chat| chat.unread_count > 0)
+            .map(|chat| (chat.unread_count.to_string().into(), chat.is_muted()));
+        let weak = cx.weak_entity();
+        unread::down_button(
+            unread,
+            move |_, _, cx| {
+                let _ = weak.update(cx, |this, cx| this.scroll_down(cx));
+            },
+            cx,
+        )
+    }
+}
+
 /// The color of whoever sent `message` (`colorIndex`).
 fn sender_color(state: &State, message: &Message) -> i32 {
     match message.sender {
@@ -421,13 +496,19 @@ impl Render for HistoryView {
                     .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
             )
             .child(
-                list(self.list.clone(), move |index, _, cx: &mut App| {
-                    weak.update(cx, |this, cx| this.item(index, cx))
-                        .unwrap_or_else(|_| div().into_any_element())
-                })
-                .flex_1()
-                .min_h_0()
-                .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM)),
+                div()
+                    .relative()
+                    .flex_1()
+                    .min_h_0()
+                    .child(
+                        list(self.list.clone(), move |index, _, cx: &mut App| {
+                            weak.update(cx, |this, cx| this.item(index, cx))
+                                .unwrap_or_else(|_| div().into_any_element())
+                        })
+                        .size_full()
+                        .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM)),
+                    )
+                    .children(self.is_down_shown.then(|| self.down_button(cx))),
             )
     }
 }

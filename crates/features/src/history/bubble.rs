@@ -2,12 +2,13 @@
 //! day, then the message in its bubble.
 
 use gpui::{
-    AnyElement, App, BoxShadow, Div, IntoElement, ParentElement, SharedString, Styled, div, point,
-    prelude::FluentBuilder as _, px,
+    AnyElement, App, BoxShadow, ClickEvent, Div, IntoElement, ParentElement, SharedString, Styled,
+    Window, div, point, prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::message::{Content, Message, Sending};
 use model::text::FormattedText;
+use std::rc::Rc;
 use style::chat::{
     BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PHOTO_LEFT, HISTORY_VIEWS_SPACE,
     MSG_DATE_DELTA, MSG_DATE_FONT, MSG_FONT, MSG_MARGIN, MSG_MARGIN_TOP_ATTACHED, MSG_MAX_WIDTH,
@@ -24,7 +25,7 @@ use ui::{Userpic, UserpicSource, color, font, font_height, icon, icon_size, peer
 
 use super::body::{self, Body, OnLink};
 use super::headers::{self, Reply};
-use super::layout;
+use super::{layout, unread};
 use crate::lang::{strings, tr};
 use crate::px_of;
 
@@ -57,9 +58,14 @@ pub(super) struct Item<'a> {
     pub is_spoiler_revealed: bool,
     pub on_link: OnLink,
     pub reply: Option<Reply>,
+    pub on_reply: Option<OnClick>,
     /// "Forwarded from ..." for forwarded messages.
     pub forward: Option<String>,
+    pub has_unread_bar: bool,
 }
+
+/// What a click on part of a message does.
+pub(super) type OnClick = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
 const NAME_COLORS: [ColorId; 8] = [
     ColorId::HistoryPeer1NameFg,
@@ -87,6 +93,7 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
         .when_some(item.date_badge.clone(), |this, text| {
             this.child(service_pill(text, cx))
         })
+        .when(item.has_unread_bar, |this| this.child(unread::bar(cx)))
         .child(message_row(&item, cx))
         .into_any_element()
 }
@@ -95,6 +102,7 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
 /// only the badge.
 pub(super) fn service_element(
     date_badge: Option<SharedString>,
+    has_unread_bar: bool,
     text: Option<SharedString>,
     cx: &App,
 ) -> AnyElement {
@@ -103,6 +111,7 @@ pub(super) fn service_element(
         .flex()
         .flex_col()
         .children(date_badge.map(|text| service_pill(text, cx)))
+        .when(has_unread_bar, |this| this.child(unread::bar(cx)))
         .children(text.map(|text| service_pill(text, cx)))
         .into_any_element()
 }
@@ -304,7 +313,14 @@ fn headers(item: &Item<'_>, out: bool, cx: &App) -> Vec<AnyElement> {
                 .map_or(ColorId::MsgInReplyBarColor, name_color);
             (tint, tint, ColorId::HistoryTextInFg)
         };
-        headers::reply_element(reply, palette(tint), palette(name_fg), palette(text_fg), cx)
+        let id = ("reply", item.message.id.0.unsigned_abs());
+        headers::reply_element(
+            reply,
+            id,
+            [palette(tint), palette(name_fg), palette(text_fg)],
+            item.on_reply.clone(),
+            cx,
+        )
     });
     forward.into_iter().chain(reply).collect()
 }

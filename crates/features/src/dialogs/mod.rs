@@ -18,6 +18,7 @@ mod tabs;
 pub(crate) use self::action::action_text;
 pub(crate) use self::hashtag_results::CompleteQuery;
 pub(crate) use self::preview::content as content_preview;
+pub(crate) use self::row::{Lit, unread_badge};
 pub(crate) use self::sidebar::{OnMainMenu, is_sidebar_shown};
 
 use std::collections::HashSet;
@@ -46,7 +47,7 @@ use ui::{PopupMenu, UserpicSource, color};
 use self::date::DialogDate;
 use self::pinned::{DragGhost, DraggedPinned};
 use self::preview::Preview;
-use self::row::{Badges, Lit, NameBadge, NarrowRow, Row, RowText};
+use self::row::{Badges, NameBadge, NarrowRow, Row, RowText};
 use self::search::Search;
 use self::suggestions::Suggestions;
 use crate::Store;

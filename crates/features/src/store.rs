@@ -99,6 +99,11 @@ impl Store {
         cx.notify();
     }
 
+    pub fn clear_history(&mut self, chat: ChatId, cx: &mut Context<Self>) {
+        self.state.clear_history(chat);
+        cx.notify();
+    }
+
     pub fn add_reference(&mut self, chat: ChatId, message: Message, cx: &mut Context<Self>) {
         self.state.add_reference(chat, message);
         cx.notify();

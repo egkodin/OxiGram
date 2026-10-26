@@ -380,7 +380,7 @@ fn draft_palette(lit: Lit) -> &'static TextPalette {
 }
 
 /// `PaintUnreadBadge`: a pill at least as wide as it is high.
-pub(super) fn unread_badge(
+pub(crate) fn unread_badge(
     count: SharedString,
     is_muted: bool,
     lit: Lit,
