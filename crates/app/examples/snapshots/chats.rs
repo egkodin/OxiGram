@@ -2,12 +2,12 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use model::chat::{Chat, ChatKind, ChatList, Draft, Position};
+use model::chat::{Chat, ChatKind, ChatList, Draft, Folder, Position};
 use model::chats::{Change, ChatAction, MuteScope, Unread};
 use model::message::{Content, Media, Message, Sender};
 use model::text::{Entity, EntityKind, FormattedText};
 use model::user::{Badge, User, UserKind, UserStatus};
-use model::{ChatId, Event, MessageId, UserId};
+use model::{ChatId, Event, FolderId, MessageId, UserId};
 
 const ME: i64 = 1;
 const HOUR: i32 = 3600;
@@ -100,7 +100,12 @@ pub(crate) fn events() -> Vec<Event> {
         expires: now() + HOUR,
     };
     users[1].is_premium = true;
+    users[3].status = UserStatus::Offline {
+        was_online: now() - 25 * 60,
+    };
     users[4].kind = UserKind::Bot;
+    users[4].is_contact = false;
+    users[5].is_contact = false;
     users[4].badge = Badge::Verified;
     users[5].badge = Badge::Scam;
 
@@ -135,6 +140,7 @@ pub(crate) fn events() -> Vec<Event> {
         )),
     );
     maria.unread_count = 2;
+    maria.positions[0].is_pinned = true;
 
     let italic = FormattedText {
         text: "on my way, see you soon".to_owned(),
@@ -324,6 +330,28 @@ pub(crate) fn events() -> Vec<Event> {
             unmuted_chats: 0,
         },
     }));
+    events.push(Event::Chats(Change::Folders(
+        [(1, "Work"), (2, "Family"), (3, "Channels")]
+            .into_iter()
+            .map(|(id, name)| Folder {
+                id: FolderId(id),
+                name: FormattedText::plain(name),
+            })
+            .collect(),
+    )));
+    for (list, chats, unmuted_chats) in [
+        (ChatList::Main, 4, 3),
+        (ChatList::Folder(FolderId(1)), 2, 2),
+        (ChatList::Folder(FolderId(3)), 1, 0),
+    ] {
+        events.push(Event::Chats(Change::UnreadChats {
+            list,
+            unread: Unread {
+                chats,
+                unmuted_chats,
+            },
+        }));
+    }
     events.push(Event::Chats(Change::Action {
         chat: ChatId(-300),
         sender: Sender::User(UserId(2)),

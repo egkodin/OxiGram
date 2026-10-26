@@ -195,6 +195,8 @@ impl Render for Layers {
             .inset_0()
             .flex()
             .bg(dim)
+            // Nothing behind the layer gets the mouse, right clicks included.
+            .occlude()
             .on_action(cx.listener(|this, _: &CloseLayer, window, cx| this.dismiss(window, cx)))
             .on_mouse_down(
                 MouseButton::Left,

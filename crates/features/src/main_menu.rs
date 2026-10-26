@@ -2,14 +2,16 @@
 //! buttons, the night mode switch and the version, sliding in from the left.
 
 use gpui::{
-    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, ParentElement, Render,
-    SharedString, Styled, Subscription, Window, div, prelude::*, px,
+    App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, MouseButton,
+    ParentElement, Render, SharedString, Styled, Subscription, Window, div, prelude::*, px,
 };
 use i18n::key;
 use model::State;
+use model::chat::ChatList;
 use style::menu_icons::{
-    MENU_ICON_CHANNEL, MENU_ICON_GROUPS, MENU_ICON_NIGHT_MODE, MENU_ICON_PHONE, MENU_ICON_PROFILE,
-    MENU_ICON_SAVED_MESSAGES, MENU_ICON_SETTINGS, MENU_ICON_USER_SHOW,
+    MENU_ICON_ARCHIVE_OPEN, MENU_ICON_CHANNEL, MENU_ICON_GROUPS, MENU_ICON_NIGHT_MODE,
+    MENU_ICON_PHONE, MENU_ICON_PROFILE, MENU_ICON_SAVED_MESSAGES, MENU_ICON_SETTINGS,
+    MENU_ICON_USER_SHOW,
 };
 use style::window::{MAIN_MENU_BUTTON, MAIN_MENU_TELEGRAM_LABEL};
 use style::window_main_menu::{
@@ -33,6 +35,10 @@ const APP_NAME: &str = "rgram";
 pub(crate) enum MenuAction {
     /// A button whose screen is not there yet.
     Close,
+    Archive,
+    /// Puts the archive back at the top of the chat list.
+    ArchiveToList,
+    Contacts,
     SavedMessages,
     Settings,
 }
@@ -189,10 +195,27 @@ fn me(state: &State) -> (SharedString, UserpicSource) {
 impl Render for MainMenu {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let night = settings::is_night_mode(cx);
-        let separator = div()
-            .my(px_of(MAIN_MENU_SKIP))
-            .h(px(1.0))
-            .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg)));
+        let shadow = color(cx, ColorRef::Palette(ColorId::ShadowFg));
+        let separator = move || div().my(px_of(MAIN_MENU_SKIP)).h(px(1.0)).bg(shadow);
+        let state = self.store.read(cx).state();
+        let shows_archive =
+            settings::is_archive_in_main_menu(cx) && state.chats.list_len(ChatList::Archive) > 0;
+        let entity = cx.entity();
+        // shortcut: a right click returns the archive at once; tdesktop opens the archive menu there.
+        let archive = shows_archive.then(|| {
+            div()
+                .child(self.button(
+                    "archive",
+                    tr(cx, key::lng_archived_name),
+                    MENU_ICON_ARCHIVE_OPEN,
+                    Some(MenuAction::Archive),
+                    cx,
+                ))
+                .on_mouse_down(MouseButton::Right, move |_, _, cx| {
+                    entity.update(cx, |_, cx| cx.emit(MenuAction::ArchiveToList));
+                })
+                .child(separator())
+        });
         div()
             .track_focus(&self.focus)
             .w(px_of(MAIN_MENU_WIDTH))
@@ -207,6 +230,7 @@ impl Render for MainMenu {
                     .flex_1()
                     .min_h_0()
                     .overflow_y_scroll()
+                    .children(archive)
                     .child(self.button(
                         "my-profile",
                         tr(cx, key::lng_menu_my_profile),
@@ -214,7 +238,7 @@ impl Render for MainMenu {
                         None,
                         cx,
                     ))
-                    .child(separator)
+                    .child(separator())
                     .child(self.button(
                         "new-group",
                         tr(cx, key::lng_create_group_title),
@@ -233,7 +257,7 @@ impl Render for MainMenu {
                         "contacts",
                         tr(cx, key::lng_menu_contacts),
                         MENU_ICON_USER_SHOW,
-                        None,
+                        Some(MenuAction::Contacts),
                         cx,
                     ))
                     .child(self.button(

@@ -69,7 +69,7 @@ pub(crate) fn entries(countries: &[Country], first: &str) -> Vec<Entry> {
     list
 }
 
-fn search_words(text: &str) -> Vec<String> {
+pub(crate) fn search_words(text: &str) -> Vec<String> {
     text.to_lowercase()
         .split(|ch: char| ch.is_whitespace() || ch == '-')
         .filter(|word| !word.is_empty())

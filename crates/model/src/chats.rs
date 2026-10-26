@@ -157,6 +157,11 @@ impl Chats {
         self.users.get(&id)
     }
 
+    /// Every user TDLib has told about, in no particular order.
+    pub fn users(&self) -> impl Iterator<Item = &User> {
+        self.users.values()
+    }
+
     #[must_use]
     pub fn file(&self, id: FileId) -> Option<&File> {
         self.files.get(&id)

@@ -380,7 +380,12 @@ fn draft_palette(lit: Lit) -> &'static TextPalette {
 }
 
 /// `PaintUnreadBadge`: a pill at least as wide as it is high.
-fn unread_badge(count: SharedString, is_muted: bool, lit: Lit, cx: &App) -> impl IntoElement {
+pub(super) fn unread_badge(
+    count: SharedString,
+    is_muted: bool,
+    lit: Lit,
+    cx: &App,
+) -> impl IntoElement {
     let bg = if is_muted {
         pick(
             lit,

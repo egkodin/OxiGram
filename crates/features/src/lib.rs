@@ -3,6 +3,7 @@
 
 pub mod boxes;
 mod connecting;
+mod contacts_box;
 mod dialogs;
 mod intro;
 pub mod lang;
@@ -11,6 +12,7 @@ mod main_menu;
 mod main_view;
 mod root;
 pub mod settings;
+mod status;
 pub mod store;
 
 use gpui::{App, Pixels, px};

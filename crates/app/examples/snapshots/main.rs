@@ -25,6 +25,9 @@ const SETTLE: Duration = Duration::from_millis(1500);
 const WIDTH: f32 = 800.0;
 const HEIGHT: f32 = 600.0;
 
+/// A point in the window, in logical pixels.
+type WindowPoint = (f32, f32);
+
 /// One window: the events it receives, each step saved under its name.
 struct Scenario {
     /// Applied before the first step.
@@ -32,6 +35,9 @@ struct Scenario {
     steps: Vec<(&'static str, Event)>,
     /// Clicks at window points after the steps, each saved.
     clicks: Vec<(&'static str, MouseButton, (f32, f32))>,
+    /// Then drags from one point to another, saved before the button is let
+    /// go; the release drops on the target.
+    drags: Vec<(&'static str, WindowPoint, WindowPoint)>,
 }
 
 fn auth(state: State) -> Event {
@@ -52,11 +58,13 @@ fn scenarios() -> Vec<Scenario> {
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
         },
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![(
                 "02-qr",
                 auth(State::WaitQrScan {
@@ -68,6 +76,7 @@ fn scenarios() -> Vec<Scenario> {
             // Back from the code to the number, as a wrong number does.
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![
                 ("04-code", code()),
                 ("03-phone", auth(State::WaitPhoneNumber)),
@@ -76,6 +85,7 @@ fn scenarios() -> Vec<Scenario> {
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![(
                 "05-password",
                 auth(State::WaitPassword(Password {
@@ -90,6 +100,7 @@ fn scenarios() -> Vec<Scenario> {
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![(
                 "06-signup",
                 auth(State::WaitRegistration {
@@ -106,11 +117,13 @@ fn scenarios() -> Vec<Scenario> {
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
         },
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![(
                 "08-premium-required",
                 auth(State::WaitPremiumPurchase {
@@ -121,6 +134,7 @@ fn scenarios() -> Vec<Scenario> {
         Scenario {
             setup: Vec::new(),
             clicks: Vec::new(),
+            drags: Vec::new(),
             steps: vec![
                 ("09-signed-in", auth(State::Ready)),
                 (
@@ -138,28 +152,72 @@ fn scenarios() -> Vec<Scenario> {
                 ),
             ],
         },
+        Scenario {
+            setup: chats::events(),
+            // Collapses the archive and expands it again for the later windows.
+            clicks: vec![
+                ("21-archive-menu", MouseButton::Right, ARCHIVE_ROW),
+                ("22-archive-collapsed", MouseButton::Left, FIRST_MENU_ITEM),
+                ("23-collapsed-menu", MouseButton::Right, ARCHIVE_BAR),
+                (
+                    "24-archive-expanded",
+                    MouseButton::Left,
+                    FIRST_BAR_MENU_ITEM,
+                ),
+                ("25-archive-menu", MouseButton::Right, ARCHIVE_ROW),
+                ("26-archive-moved", MouseButton::Left, SECOND_MENU_ITEM),
+                ("27-main-menu-archive", MouseButton::Left, MENU_BUTTON),
+                (
+                    "28-archive-returned",
+                    MouseButton::Right,
+                    FIRST_MAIN_MENU_ROW,
+                ),
+            ],
+            drags: vec![("29-drag-pinned", MARIA_ROW, SAVED_ROW)],
+            steps: vec![("20-pinned-chats", auth(State::Ready))],
+        },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
             setup: chats::events(),
             clicks: vec![
                 ("12-main-menu", MouseButton::Left, MENU_BUTTON),
                 ("13-night-menu", MouseButton::Left, NIGHT_MODE_ROW),
-                ("14-night-chat-list", MouseButton::Left, OUTSIDE_MENU),
-                ("15-night-archive", MouseButton::Left, ARCHIVE_ROW),
-                // The archive's first chat sits where the archive row was.
-                ("16-night-chat-menu", MouseButton::Right, ARCHIVE_ROW),
+                ("14-night-contacts", MouseButton::Left, CONTACTS_ROW),
+                ("15-night-chat-list", MouseButton::Left, OUTSIDE_BOX),
+                ("16-night-folder", MouseButton::Left, FAMILY_TAB),
+                ("17-night-all-chats", MouseButton::Left, ALL_CHATS_TAB),
+                ("18-night-archive", MouseButton::Left, ARCHIVE_ROW),
+                ("19-night-chat-menu", MouseButton::Right, FIRST_ARCHIVED),
             ],
+            drags: Vec::new(),
             steps: vec![("11-chat-list", auth(State::Ready))],
         },
     ]
 }
 
-/// The main menu button, the menu's night mode row, and a point beside the
-/// open menu.
+/// The main menu button, the menu's night mode and contacts rows, and a
+/// point beside the contacts box.
 const MENU_BUTTON: (f32, f32) = (27.0, 27.0);
 const NIGHT_MODE_ROW: (f32, f32) = (100.0, 447.0);
-const OUTSIDE_MENU: (f32, f32) = (600.0, 300.0);
-const ARCHIVE_ROW: (f32, f32) = (150.0, 85.0);
+const CONTACTS_ROW: (f32, f32) = (100.0, 287.0);
+const OUTSIDE_BOX: (f32, f32) = (30.0, 300.0);
+const FAMILY_TAB: (f32, f32) = (172.0, 70.0);
+const ALL_CHATS_TAB: (f32, f32) = (25.0, 70.0);
+/// The archive row sits under the folder tabs; in the archive, which has no
+/// tabs, its first chat sits higher.
+const ARCHIVE_ROW: (f32, f32) = (150.0, 118.0);
+/// The first and second items of a menu opened at the archive row, the collapsed
+/// archive bar, and the first item of its menu.
+const FIRST_MENU_ITEM: (f32, f32) = (200.0, 144.0);
+const SECOND_MENU_ITEM: (f32, f32) = (200.0, 178.0);
+/// The main menu's first row, under its cover.
+const FIRST_MAIN_MENU_ROW: (f32, f32) = (100.0, 154.0);
+const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
+const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
+/// Two pinned chats below the archive row.
+const SAVED_ROW: (f32, f32) = (150.0, 180.0);
+const MARIA_ROW: (f32, f32) = (150.0, 242.0);
+const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {
     let out = std::env::args()
@@ -221,6 +279,12 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             })?;
             settle_and_save(window, name, out, cx).await?;
         }
+        for (name, (from_x, from_y), (to_x, to_y)) in scenario.drags {
+            let (from, to) = (point(px(from_x), px(from_y)), point(px(to_x), px(to_y)));
+            window.update(cx, |_, window, cx| drag(from, to, window, cx))?;
+            settle_and_save(window, name, out, cx).await?;
+            window.update(cx, |_, window, cx| release(to, window, cx))?;
+        }
         window.update(cx, |_, window, _| window.remove_window())?;
     }
     Ok(())
@@ -252,6 +316,55 @@ fn click(button: MouseButton, position: Point<Pixels>, window: &mut Window, cx: 
             button,
             position,
             modifiers,
+            click_count: 1,
+        }),
+        cx,
+    );
+}
+
+/// Presses at `from` and moves to `to` in steps, past gpui's drag threshold.
+fn drag(from: Point<Pixels>, to: Point<Pixels>, window: &mut Window, cx: &mut App) {
+    const STEPS: u16 = 8;
+    let modifiers = Modifiers::default();
+    window.dispatch_event(
+        PlatformInput::MouseMove(MouseMoveEvent {
+            position: from,
+            pressed_button: None,
+            modifiers,
+        }),
+        cx,
+    );
+    window.draw(cx).clear(cx);
+    window.dispatch_event(
+        PlatformInput::MouseDown(MouseDownEvent {
+            button: MouseButton::Left,
+            position: from,
+            modifiers,
+            click_count: 1,
+            first_mouse: false,
+        }),
+        cx,
+    );
+    for step in 1..=STEPS {
+        let part = f32::from(step) / f32::from(STEPS);
+        window.dispatch_event(
+            PlatformInput::MouseMove(MouseMoveEvent {
+                position: from + (to - from) * part,
+                pressed_button: Some(MouseButton::Left),
+                modifiers,
+            }),
+            cx,
+        );
+        window.draw(cx).clear(cx);
+    }
+}
+
+fn release(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
+    window.dispatch_event(
+        PlatformInput::MouseUp(MouseUpEvent {
+            button: MouseButton::Left,
+            position,
+            modifiers: Modifiers::default(),
             click_count: 1,
         }),
         cx,

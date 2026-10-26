@@ -12,20 +12,24 @@ use i18n::key;
 use model::chat::{Chat, ChatKind, ChatList};
 use model::chat_actions::{Muting, Pinning, Removal, UnreadMark};
 use model::user::UserKind;
-use model::{ChatId, RequestError, Session};
+use model::{ChatId, MessageId, RequestError, Session};
 use style::menu_icons::{
-    MENU_ICON_ARCHIVE, MENU_ICON_BLOCK, MENU_ICON_CLEAR, MENU_ICON_DELETE_ATTENTION,
-    MENU_ICON_LEAVE_ATTENTION, MENU_ICON_MARK_READ, MENU_ICON_MARK_UNREAD, MENU_ICON_MUTE,
-    MENU_ICON_PIN, MENU_ICON_UNARCHIVE, MENU_ICON_UNMUTE, MENU_ICON_UNPIN,
+    MENU_ICON_ARCHIVE, MENU_ICON_BLOCK, MENU_ICON_CLEAR, MENU_ICON_COLLAPSE,
+    MENU_ICON_DELETE_ATTENTION, MENU_ICON_EXPAND, MENU_ICON_LEAVE_ATTENTION, MENU_ICON_MARK_READ,
+    MENU_ICON_MARK_UNREAD, MENU_ICON_MUTE, MENU_ICON_PIN, MENU_ICON_TO_MAIN_MENU,
+    MENU_ICON_UNARCHIVE, MENU_ICON_UNMUTE, MENU_ICON_UNPIN,
 };
 use style::widgets::POPUP_MENU_WITH_ICONS;
-use ui::{MenuTone, PopupMenu};
+use ui::{Markup, MenuTone, PopupMenu};
 
 use super::Dialogs;
-use crate::boxes::{self, Callback};
+use crate::boxes::{self, Callback, ConfirmArgs};
 use crate::lang::{tr, tr_with};
+use crate::settings;
 use crate::store::spawn;
 
+/// Marking more unread messages than this read asks first.
+const MAX_UNREAD_WITHOUT_CONFIRMATION: i64 = 1000;
 /// Keeps the menu off the window edges.
 const EDGE_MARGIN: f32 = 8.0;
 
@@ -68,9 +72,33 @@ impl Dialogs {
         let Some(chat) = self.store.read(cx).state().chats.chat(chat).cloned() else {
             return;
         };
+        self.open_menu(position, window, cx, |this, menu, cx| {
+            this.fill_menu(menu, &chat, cx);
+        });
+    }
+
+    /// The archive row's menu (`Filler::fillArchiveActions`).
+    pub(super) fn show_archive_menu(
+        &mut self,
+        position: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_menu(position, window, cx, |this, menu, cx| {
+            this.fill_archive_menu(menu, cx);
+        });
+    }
+
+    fn open_menu(
+        &mut self,
+        position: Point<Pixels>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+        fill: impl FnOnce(&Self, &mut PopupMenu, &App),
+    ) {
         let menu = cx.new(|cx| {
             let mut menu = PopupMenu::new(&POPUP_MENU_WITH_ICONS, cx);
-            self.fill_menu(&mut menu, &chat, cx);
+            fill(self, &mut menu, cx);
             menu
         });
         if menu.read(cx).is_empty() {
@@ -83,6 +111,65 @@ impl Dialogs {
         menu.read(cx).focus_handle(cx).focus(window, cx);
         self.menu = Some((position, menu, subscription));
         cx.notify();
+    }
+
+    fn fill_archive_menu(&self, menu: &mut PopupMenu, cx: &App) {
+        let (text, icon) = if settings::is_archive_collapsed(cx) {
+            (key::lng_context_archive_expand, MENU_ICON_EXPAND)
+        } else {
+            (key::lng_context_archive_collapse, MENU_ICON_COLLAPSE)
+        };
+        let collapsed = !settings::is_archive_collapsed(cx);
+        menu.action(tr(cx, text), icon, MenuTone::Normal, move |_, cx| {
+            settings::set_archive_collapsed(collapsed, cx);
+        });
+        // shortcut: no "moved to the main menu" toast until toasts exist (M3).
+        menu.action(
+            tr(cx, key::lng_context_archive_to_menu),
+            MENU_ICON_TO_MAIN_MENU,
+            MenuTone::Normal,
+            |_, cx| settings::set_archive_in_main_menu(true, cx),
+        );
+        let state = self.store.read(cx).state();
+        let unread: Vec<(ChatId, Option<MessageId>, i32)> = state
+            .chats
+            .list(ChatList::Archive)
+            .filter_map(|id| state.chats.chat(id))
+            .filter(|chat| chat.unread_count > 0 || chat.is_marked_as_unread)
+            .map(|chat| {
+                let last = chat.last_message.as_ref().map(|message| message.id);
+                (chat.id, last, chat.unread_count)
+            })
+            .collect();
+        if unread.is_empty() {
+            return;
+        }
+        let messages: i64 = unread.iter().map(|(_, _, count)| i64::from(*count)).sum();
+        let session = self.store.read(cx).session().clone();
+        let layers = self.layers.clone();
+        let read_all: Callback = Rc::new(move |_, cx| {
+            for (chat, last, _) in &unread {
+                send(session.read_chat(*chat, *last), "mark archive read", cx);
+            }
+        });
+        menu.action(
+            tr(cx, key::lng_context_mark_read),
+            MENU_ICON_MARK_READ,
+            MenuTone::Normal,
+            move |window, cx| {
+                if messages <= MAX_UNREAD_WITHOUT_CONFIRMATION {
+                    read_all(window, cx);
+                    return;
+                }
+                let mut args = ConfirmArgs::new(Markup::plain(
+                    tr(cx, key::lng_context_mark_read_archive_sure).to_string(),
+                ));
+                args.confirm_text = Some(tr(cx, key::lng_box_ok));
+                args.cancel_text = Some(tr(cx, key::lng_cancel));
+                args.confirmed = Some(read_all.clone());
+                boxes::confirm(&layers, args, window, cx);
+            },
+        );
     }
 
     pub(super) fn menu_overlay(&self) -> Option<AnyElement> {

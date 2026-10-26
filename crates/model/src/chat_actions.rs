@@ -7,7 +7,7 @@ use futures::FutureExt as _;
 use td_api::enums::{BlockList, MessageSender, MessageSource};
 use td_api::functions::{
     AddChatToList, DeleteChatHistory, GetChat, LeaveChat, ReadAllChatMentions,
-    ReadAllChatReactions, SetChatNotificationSettings, SetMessageSenderBlockList,
+    ReadAllChatReactions, SetChatNotificationSettings, SetMessageSenderBlockList, SetPinnedChats,
     ToggleChatIsMarkedAsUnread, ToggleChatIsPinned, ViewMessages,
 };
 use td_api::types::{BlockListMain, MessageSenderUser, MessageSourceChatList};
@@ -67,6 +67,20 @@ impl Session {
                 chat_list: Box::new(list.to_td()),
                 chat_id: chat.0,
                 is_pinned: pinning == Pinning::Pinned,
+            })
+            .map(done)
+    }
+
+    /// Sets the order of the pinned chats of `list`, top first.
+    pub fn set_pinned_order(
+        &self,
+        list: ChatList,
+        chats: &[ChatId],
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&SetPinnedChats {
+                chat_list: Box::new(list.to_td()),
+                chat_ids: chats.iter().map(|chat| chat.0).collect(),
             })
             .map(done)
     }

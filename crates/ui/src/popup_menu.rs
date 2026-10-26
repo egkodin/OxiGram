@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use gpui::{
     App, BoxShadow, Context, DismissEvent, EventEmitter, FocusHandle, Focusable, IntoElement,
-    KeyBinding, MouseButton, ParentElement, Render, SharedString, Styled, Window, actions, div,
+    KeyBinding, ParentElement, Render, SharedString, Styled, Window, actions, div,
     hsla as gpui_hsla, point, prelude::*, px,
 };
 use style::widgets::PopupMenu as PopupStyle;
@@ -216,8 +216,8 @@ impl Render for PopupMenu {
             .track_focus(&self.focus)
             .on_action(cx.listener(|_, _: &CloseMenu, _, cx| cx.emit(DismissEvent)))
             .on_mouse_down_out(cx.listener(|_, _, _, cx| cx.emit(DismissEvent)))
-            // A right click inside must not reach the row under the menu.
-            .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
+            // Clicks inside must not reach what lies under the menu.
+            .occlude()
             .min_w(px_of(st.menu.width_min))
             .max_w(px_of(st.menu.width_max))
             .pt(px_of(st.scroll_padding.top))

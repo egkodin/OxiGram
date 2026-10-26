@@ -4,9 +4,11 @@
 use std::future::Future;
 
 use futures::FutureExt as _;
-use td_api::functions::{SearchChats, SearchChatsOnServer, SearchMessages, SearchPublicChats};
+use td_api::functions::{
+    GetContacts, SearchChats, SearchChatsOnServer, SearchMessages, SearchPublicChats,
+};
 
-use crate::ids::ChatId;
+use crate::ids::{ChatId, UserId};
 use crate::message::Message;
 use crate::session::{RequestError, Session};
 
@@ -25,6 +27,17 @@ fn chat_ids(chats: td_api::types::Chats) -> Vec<ChatId> {
 }
 
 impl Session {
+    /// The user's contacts; TDLib sends each of them as a user update first.
+    pub fn contacts(
+        &self,
+    ) -> impl Future<Output = Result<Vec<UserId>, RequestError>> + Send + use<> {
+        self.client().request(&GetContacts {}).map(|result| {
+            result
+                .map(|users| users.user_ids.into_iter().map(UserId).collect())
+                .map_err(RequestError::from)
+        })
+    }
+
     /// Known chats whose title or username matches, offline.
     pub fn search_chats(
         &self,

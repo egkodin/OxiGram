@@ -18,6 +18,13 @@
   night palette generated from tdesktop's `night.tdesktop-theme` and saved in
   `settings.json`, Escape clears search or leaves the archive.
 - `ui`: PopupMenu, SettingsButton, CrossButton, SVG icon masks.
+- Folder tabs with unread counters, contacts box from the main menu
+  (online-first sort, name search, last-seen texts in `features::status`),
+  loading / no chats / empty folder texts, drag to reorder pinned chats,
+  archive collapse, move to main menu and back, mark archive read.
+- Fixed two click-through bugs found in snapshots: a popup menu item click
+  also clicked the row under it, and a right click on a layer (main menu,
+  boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
 - Fixed an M1 bug: the log-out box had no cancel button, so Escape or a click
   outside logged out. Destructive boxes now go through `confirm_attention`
   (regression test `destructive_boxes_cancel_on_escape`).
@@ -26,10 +33,10 @@
 
 - `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
   `cargo test` green.
-- Snapshots 11-16 (`cargo run -p rgram --example snapshots`): chat list with
-  search field and archive row, main menu, night menu, night chat list, night
-  archive, chat context menu; compared by eye with tdesktop's style and layout
-  code.
+- Snapshots 11-29 (`cargo run -p rgram --example snapshots`): chat list with
+  folder tabs, main menu, night mode, contacts box, folder switch, archive,
+  chat and archive context menus, collapsed archive, archive in the main
+  menu, pinned drag; compared by eye with tdesktop's style and layout code.
 
 ### Not verified
 
@@ -40,9 +47,10 @@
 
 ### Next steps
 
-1. Pinned drag to reorder and the archive row collapse / move to main menu.
-2. Folder tabs, narrow mode and column resize.
-3. Contacts list, empty states, search filters, recent searches and top peers.
+1. Narrow mode and column resize.
+2. Search filters (date, type), search in one chat and by sender, hashtags,
+   recent searches and top peers.
+3. Folder tab context menu and tab reordering, chat preview (peek).
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)
 

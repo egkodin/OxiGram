@@ -70,9 +70,9 @@ is the definition of done: rgram is finished when every row is `done`, or
 | dialogs | Row: online indicator on user userpics | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
 | dialogs | Row: animated (video) userpics | M5 | todo | |
 | dialogs | Row: mute icon, pinned icon, unread mark | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
-| dialogs | Pinned chats: pin, unpin, drag to reorder, pinned limit box | M2 | in progress | pin and unpin from the context menu; drag to reorder and the limit box not built; not verified: no API credentials yet, so no live account |
-| dialogs | Archive: collapsed row, open, archive and unarchive chats | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; the row is always expanded |
-| dialogs | Archive row collapse/expand and hide into main menu | M2 | todo | |
+| dialogs | Pinned chats: pin, unpin, drag to reorder, pinned limit box | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); pin and unpin from the context menu, drag onto another pinned row (target lights up, rows do not slide); limit box not built; not verified: no API credentials yet, so no live account |
+| dialogs | Archive: collapsed row, open, archive and unarchive chats | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Archive row collapse/expand and hide into main menu | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); collapse, expand, move to main menu and back, mark archive read; the collapsed bar does not scroll with the list; no "moved" toast; not verified: no API credentials yet, so no live account |
 | dialogs | Live updates: new messages, edits, deletes, read states reorder the list | M2 | in progress | unit tests on the update fold; not verified: no API credentials yet, so no live account |
 | dialogs | Connecting / Updating / Waiting for network status with proxy state | M2 | in progress | status pill from M1; proxy state comes with M6; not verified: no API credentials yet, so no live account |
 | dialogs | Adaptive one, two and three column layout with column resize | M2 | todo | |
@@ -98,15 +98,15 @@ is the definition of done: rgram is finished when every row is `done`, or
 | dialogs | Forum rows with the latest topics | M9 | todo | |
 | dialogs | Stories strip above the list and story rings on userpics | M11 | todo | |
 | dialogs | Offer to restore separate windows after restart | M8 | todo | |
-| dialogs | Contacts list with online status, search and sorting | M2 | todo | |
-| dialogs | Empty-state screens (no chats, empty folder, no results) | M2 | todo | |
+| dialogs | Contacts list with online status, search and sorting | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); sorted by last online, name search; no alphabet toggle, section headers or Add contact button; not verified: no API credentials yet, so no live account |
+| dialogs | Empty-state screens (no chats, empty folder, no results) | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); loading, no chats, empty folder and no search results texts; no Add contact / Edit folder links yet; not verified: no API credentials yet, so no live account |
 
 ## Chat folders (`boxes/filters/`, folder tabs)
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| folders | Folder tabs on top or in a left sidebar, with unread counts | M2 | todo | |
-| folders | "All chats" tab and its position | M2 | todo | |
+| folders | Folder tabs on top or in a left sidebar, with unread counts | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); tabs on top with counters (grey when all unread chats are muted); no left sidebar; not verified: no API credentials yet, so no live account |
+| folders | "All chats" tab and its position | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); "All" always first; TDLib's main_chat_list_position ignored; not verified: no API credentials yet, so no live account |
 | folders | Folder tab context menu: edit, mark as read, add chats, delete | M2 | todo | |
 | folders | Reorder folders by dragging tabs | M2 | todo | |
 | folders | Folder editor: name with emoji, icon, included and excluded chat types and chats | M6 | todo | |

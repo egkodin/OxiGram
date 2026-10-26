@@ -8,7 +8,7 @@
 mod chrome;
 mod code;
 mod code_input;
-mod country_box;
+pub(crate) mod country_box;
 mod email;
 mod errors;
 mod new_password;

@@ -101,6 +101,19 @@ impl MainView {
         cx.notify();
     }
 
+    fn show_contacts(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let dialogs = self.dialogs.downgrade();
+        let on_chosen: crate::contacts_box::OnChosen = std::rc::Rc::new(move |user, _, cx| {
+            // A private chat's id is its user's id.
+            let chat = model::ChatId(user.0);
+            // shortcut: selects the chat only; opening a contact without a chat yet (createPrivateChat) comes with history in M3.
+            if let Some(dialogs) = dialogs.upgrade() {
+                dialogs.update(cx, |dialogs, cx| dialogs.select(chat, cx));
+            }
+        });
+        crate::contacts_box::show(&self.store, &self.layers, on_chosen, window, cx);
+    }
+
     fn open_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let menu = cx.new(|cx| MainMenu::new(self.store.clone(), cx));
         cx.subscribe_in(&menu, window, |this, _, action, window, cx| {
@@ -108,6 +121,11 @@ impl MainView {
                 .update(cx, |layers, cx| layers.close(window, cx));
             match action {
                 MenuAction::Close => {}
+                MenuAction::Archive => this
+                    .dialogs
+                    .update(cx, |dialogs, cx| dialogs.open_list(ChatList::Archive, cx)),
+                MenuAction::ArchiveToList => crate::settings::set_archive_in_main_menu(false, cx),
+                MenuAction::Contacts => this.show_contacts(window, cx),
                 MenuAction::SavedMessages => {
                     let me = this.store.read(cx).state().me;
                     if let Some(me) = me {

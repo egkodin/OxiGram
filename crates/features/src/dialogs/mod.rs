@@ -4,24 +4,26 @@
 mod archive;
 mod date;
 mod menu;
+mod pinned;
 mod preview;
 mod row;
 mod search;
+mod tabs;
 
 use std::collections::HashSet;
 use std::ops::Range;
 
 use chrono::{DateTime, Local};
 use gpui::{
-    AnyElement, Context, ElementId, Entity, IntoElement, MouseButton, MouseDownEvent,
-    ParentElement, Pixels, Point, Render, SharedString, Styled, Subscription,
+    AnyElement, App, Context, DragMoveEvent, ElementId, Entity, IntoElement, MouseButton,
+    MouseDownEvent, ParentElement, Pixels, Point, Render, SharedString, Styled, Subscription,
     UniformListScrollHandle, Window, div, prelude::*, uniform_list,
 };
 use i18n::{Key, Strings, key};
 use model::chat::{Chat, ChatKind, ChatList};
 use model::chats::{ChatAction, Chats};
 use model::message::{Message, Sender};
-use model::user::{Badge, UserKind};
+use model::user::{Badge, Photo, UserKind};
 use model::{ChatId, FileId, ListLoad, State};
 use style::dialogs::{
     DIALOGS_CHANNEL_ICON, DIALOGS_CHAT_ICON, DIALOGS_RECEIVED_ICON, DIALOGS_SENT_ICON,
@@ -31,12 +33,14 @@ use style::{ColorId, ColorRef};
 use ui::{PopupMenu, UserpicSource, color};
 
 use self::date::DialogDate;
+use self::pinned::{DragGhost, DraggedPinned};
 use self::preview::Preview;
 use self::row::{Badges, Lit, NameBadge, Row, RowText};
 use self::search::Search;
 use crate::Store;
 use crate::lang::strings;
 use crate::layers::Layers;
+use crate::settings;
 
 /// Chats asked from TDLib at a time.
 const PAGE: i32 = 50;
@@ -44,6 +48,15 @@ const PAGE: i32 = 50;
 const PRELOAD_ROWS: usize = 10;
 /// Userpic downloads go before media but after what the user opened.
 const USERPIC_PRIORITY: i32 = 8;
+
+/// How the archive shows at the top of the main list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ArchivePlace {
+    /// A full row, like a chat.
+    Row,
+    /// Collapsed to a bar with its name and counter.
+    Bar,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Loading {
@@ -156,12 +169,27 @@ impl Dialogs {
 
     /// Whether the archive row leads the list.
     // shortcut: always expanded; collapsing it and moving it to the main menu come with the archive context menu later in M2.
-    fn shows_archive(&self, state: &State) -> bool {
-        self.list == ChatList::Main && state.chats.list_len(ChatList::Archive) > 0
+    /// Where the archive shows in this list, if at all.
+    fn archive_place(&self, state: &State, cx: &App) -> Option<ArchivePlace> {
+        if self.list != ChatList::Main
+            || state.chats.list_len(ChatList::Archive) == 0
+            || settings::is_archive_in_main_menu(cx)
+        {
+            None
+        } else if settings::is_archive_collapsed(cx) {
+            Some(ArchivePlace::Bar)
+        } else {
+            Some(ArchivePlace::Row)
+        }
     }
 
-    fn row_count(&self, state: &State) -> usize {
-        state.chats.list_len(self.list) + usize::from(self.shows_archive(state))
+    /// Whether the archive is the list's first row.
+    fn shows_archive(&self, state: &State, cx: &App) -> bool {
+        self.archive_place(state, cx) == Some(ArchivePlace::Row)
+    }
+
+    fn row_count(&self, state: &State, cx: &App) -> usize {
+        state.chats.list_len(self.list) + usize::from(self.shows_archive(state, cx))
     }
 
     /// Lights `chat` as the open one.
@@ -219,11 +247,11 @@ impl Dialogs {
 
     fn rows(&mut self, range: Range<usize>, cx: &mut Context<Self>) -> Vec<gpui::AnyElement> {
         let state = self.store.read(cx).state();
-        if range.end + PRELOAD_ROWS >= self.row_count(state) {
+        if range.end + PRELOAD_ROWS >= self.row_count(state, cx) {
             self.load_more(cx);
         }
         let state = self.store.read(cx).state();
-        let archive = usize::from(self.shows_archive(state));
+        let archive = usize::from(self.shows_archive(state, cx));
         let leads = archive == 1 && range.start == 0;
         let ids: Vec<ChatId> = state
             .chats
@@ -250,6 +278,49 @@ impl Dialogs {
         };
         let row = archive_row(self.store.read(cx).state(), strings(cx), lit, &Local::now());
         self.wrap_row(RowKey::Archive, row, cx, |this, cx| {
+            this.open_list(ChatList::Archive, cx);
+        })
+    }
+
+    /// The collapsed archive (`PaintCollapsedRow`): its name and a muted
+    /// counter of unread chats.
+    fn archive_bar(&mut self, cx: &mut Context<Self>) -> AnyElement {
+        let is_hovered = self.hovered == Some(RowKey::Archive);
+        let unread = self
+            .store
+            .read(cx)
+            .state()
+            .chats
+            .unread(ChatList::Archive)
+            .chats;
+        let bg = if is_hovered {
+            ColorId::DialogsBgOver
+        } else {
+            ColorId::DialogsBg
+        };
+        let bar =
+            div()
+                .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
+                .w_full()
+                .bg(color(cx, ColorRef::Palette(bg)))
+                .flex()
+                .items_center()
+                .pl(crate::px_of(style::dialogs::DIALOGS_TOP_BAR_LEFT_PADDING))
+                .pr(crate::px_of(
+                    style::dialogs::DEFAULT_DIALOG_ROW.padding.right,
+                ))
+                .child(
+                    div()
+                        .flex_1()
+                        .font(ui::font(style::basic::SEMIBOLD_FONT))
+                        .text_size(crate::px_of(style::basic::SEMIBOLD_FONT.size))
+                        .text_color(color(cx, ColorRef::Palette(ColorId::DialogsNameFg)))
+                        .child(crate::lang::tr(cx, key::lng_archived_name)),
+                )
+                .children((unread > 0).then(|| {
+                    row::unread_badge(unread.to_string().into(), true, row::Lit::Normal, cx)
+                }));
+        self.wrap_row(RowKey::Archive, bar, cx, |this, cx| {
             this.open_list(ChatList::Archive, cx);
         })
     }
@@ -288,10 +359,12 @@ impl Dialogs {
     fn wrap_row(
         &mut self,
         key: RowKey,
-        row: Row,
+        row: impl IntoElement,
         cx: &mut Context<Self>,
         on_click: impl Fn(&mut Self, &mut Context<Self>) + 'static,
     ) -> AnyElement {
+        let draggable =
+            chat_of(key).filter(|chat| self.search.is_none() && self.pinned(cx).contains(chat));
         div()
             .id(key.element_id())
             .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
@@ -316,6 +389,31 @@ impl Dialogs {
                     }),
                 )
             })
+            .when(key == RowKey::Archive, |row| {
+                row.on_mouse_down(
+                    MouseButton::Right,
+                    cx.listener(|this, event: &MouseDownEvent, window, cx| {
+                        this.show_archive_menu(event.position, window, cx);
+                    }),
+                )
+            })
+            .when_some(draggable, |row, chat| {
+                row.on_drag(DraggedPinned(chat), |_, _, _, cx| cx.new(|_| DragGhost))
+                    // Hover does not track during a drag; light the row under the pointer.
+                    .on_drag_move(cx.listener(
+                        move |this, event: &DragMoveEvent<DraggedPinned>, _, cx| {
+                            if event.bounds.contains(&event.event.position)
+                                && this.hovered != Some(key)
+                            {
+                                this.hovered = Some(key);
+                                cx.notify();
+                            }
+                        },
+                    ))
+                    .on_drop(cx.listener(move |this, dragged: &DraggedPinned, _, cx| {
+                        this.drop_pinned(dragged.0, chat, cx);
+                    }))
+            })
             .child(row)
             .into_any_element()
     }
@@ -333,14 +431,17 @@ impl Render for Dialogs {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .size_full()
-            .child(self.body(cx))
+            .flex()
+            .flex_col()
+            .children(self.tabs_strip(cx))
+            .child(div().flex_1().min_h_0().child(self.body(cx)))
             .children(self.menu_overlay())
     }
 }
 
 impl Dialogs {
     fn body(&mut self, cx: &mut Context<Self>) -> AnyElement {
-        let count = self.row_count(self.store.read(cx).state());
+        let count = self.row_count(self.store.read(cx).state(), cx);
         let background = color(cx, ColorRef::Palette(ColorId::DialogsBg));
         if let Some(search) = &self.search {
             return div()
@@ -349,7 +450,14 @@ impl Dialogs {
                 .child(self.search_list(search, cx))
                 .into_any_element();
         }
-        if count == 0 && self.loading == Loading::Complete {
+        // `InnerWidget::refreshEmpty`.
+        // shortcut: no "Add contact" / "Edit folder" links until those boxes exist (M6).
+        let empty_text = match (self.loading, self.list) {
+            (Loading::Complete, ChatList::Folder(_)) => key::lng_no_chats_filter,
+            (Loading::Complete, ChatList::Main | ChatList::Archive) => key::lng_no_chats,
+            (Loading::Idle | Loading::Requested, _) => key::lng_contacts_loading,
+        };
+        if count == 0 {
             return div()
                 .size_full()
                 .bg(background)
@@ -359,19 +467,31 @@ impl Dialogs {
                 .child(ui::FlatLabel::new(
                     "dialogs-empty",
                     &style::dialogs::DIALOGS_EMPTY_LABEL,
-                    ui::Markup::plain(crate::lang::tr(cx, key::lng_no_chats).to_string()),
+                    ui::Markup::plain(crate::lang::tr(cx, empty_text).to_string()),
                 ))
                 .into_any_element();
         }
-        uniform_list(
+        let list = uniform_list(
             "dialogs",
             count,
             cx.processor(|this, range: Range<usize>, _, cx| this.rows(range, cx)),
         )
         .track_scroll(&self.scroll)
         .size_full()
-        .bg(background)
-        .into_any_element()
+        .bg(background);
+        let state = self.store.read(cx).state();
+        if self.archive_place(state, cx) != Some(ArchivePlace::Bar) {
+            return list.into_any_element();
+        }
+        // shortcut: the bar stays put instead of scrolling with the list; uniform_list needs equal rows.
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(background)
+            .child(self.archive_bar(cx))
+            .child(div().flex_1().min_h_0().child(list))
+            .into_any_element()
     }
 }
 
@@ -553,24 +673,30 @@ fn userpic(chats: &Chats, chat: &Chat, is_self: bool) -> (UserpicSource, Option<
     if is_self {
         return (UserpicSource::SavedMessages, None);
     }
-    let Some(photo) = &chat.photo else {
-        return (
-            UserpicSource::Empty {
-                color_index: chat.accent_color,
-                name: chat.title.clone().into(),
-            },
-            None,
-        );
+    photo_userpic(chats, chat.photo.as_ref(), chat.accent_color, &chat.title)
+}
+
+/// The userpic for `photo`: the downloaded file, else its blurred preview
+/// with the file to download, else initials on the accent color.
+pub(crate) fn photo_userpic(
+    chats: &Chats,
+    photo: Option<&Photo>,
+    accent_color: i32,
+    name: &str,
+) -> (UserpicSource, Option<FileId>) {
+    let initials = || UserpicSource::Empty {
+        color_index: accent_color,
+        name: name.to_owned().into(),
+    };
+    let Some(photo) = photo else {
+        return (initials(), None);
     };
     if let Some(path) = chats.file(photo.small).and_then(|file| file.path.clone()) {
         return (UserpicSource::File(path.into()), None);
     }
     let source = match &photo.minithumbnail {
         Some(thumbnail) => UserpicSource::Jpeg(ui::jpeg_image(thumbnail.jpeg.clone())),
-        None => UserpicSource::Empty {
-            color_index: chat.accent_color,
-            name: chat.title.clone().into(),
-        },
+        None => initials(),
     };
     (source, Some(photo.small))
 }
