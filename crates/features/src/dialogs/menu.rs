@@ -89,7 +89,7 @@ impl Dialogs {
         });
     }
 
-    fn open_menu(
+    pub(super) fn open_menu(
         &mut self,
         position: Point<Pixels>,
         window: &mut Window,

@@ -23,6 +23,9 @@
   loading / no chats / empty folder texts, drag to reorder pinned chats,
   archive collapse, move to main menu and back, mark archive read, column
   resize with the narrow (userpics only) list and the one-column layout.
+- Message search filters: "From archive" and chat type (All, Private,
+  Groups, Channels) from the found-messages bar, as tdesktop's
+  `ChatTypeFilter` menu; switching drops stale pages by query and filter.
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -34,7 +37,7 @@
 
 - `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
   `cargo test` green.
-- Snapshots 11-29 (`cargo run -p rgram --example snapshots`): chat list with
+- Snapshots 11-31 (`cargo run -p rgram --example snapshots`): chat list with
   folder tabs, main menu, night mode, contacts box, folder switch, archive,
   chat and archive context menus, collapsed archive, archive in the main
   menu, pinned drag; compared by eye with tdesktop's style and layout code.
@@ -48,8 +51,8 @@
 
 ### Next steps
 
-1. Search filters (date, type), search in one chat and by sender, hashtags,
-   recent searches and top peers.
+1. Search in one chat and by sender, hashtags, recent searches and top
+   peers.
 2. Folder tab context menu and tab reordering, chat preview (peek).
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)

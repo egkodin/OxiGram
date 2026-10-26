@@ -34,10 +34,18 @@ pub enum MenuTone {
     Attention,
 }
 
+/// Menu icons take the menu's icon color; marks such as a check keep their
+/// own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum IconFill {
+    Menu,
+    Own,
+}
+
 enum Item {
     Action {
         text: SharedString,
-        icon: Option<style::Icon>,
+        icon: Option<(style::Icon, IconFill)>,
         tone: MenuTone,
         handler: Handler,
     },
@@ -87,8 +95,23 @@ impl PopupMenu {
     ) {
         self.items.push(Item::Action {
             text: text.into(),
-            icon: Some(icon),
+            icon: Some((icon, IconFill::Menu)),
             tone,
+            handler: Rc::new(handler),
+        });
+    }
+
+    /// Adds an option of a choice, `mark` (a check) beside the chosen one.
+    pub fn option(
+        &mut self,
+        text: impl Into<SharedString>,
+        mark: Option<style::Icon>,
+        handler: impl Fn(&mut Window, &mut App) + 'static,
+    ) {
+        self.items.push(Item::Action {
+            text: text.into(),
+            icon: mark.map(|mark| (mark, IconFill::Own)),
+            tone: MenuTone::Normal,
             handler: Rc::new(handler),
         });
     }
@@ -164,13 +187,13 @@ impl PopupMenu {
                     .text_size(px_of(text_font.size))
                     .line_height(font_height(text_font))
                     .text_color(color(cx, text_fg))
-                    .when_some(*shown, |this, shown| {
+                    .when_some(*shown, |this, (shown, fill)| {
                         this.child(
                             div()
                                 .absolute()
                                 .left(px_of(st.item_icon_position.x))
                                 .top(px_of(st.item_icon_position.y))
-                                .child(match icon_fg {
+                                .child(match icon_fg.filter(|_| fill == IconFill::Menu) {
                                     Some(fg) => icon(shown).color(fg),
                                     None => icon(shown),
                                 }),

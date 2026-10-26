@@ -23,6 +23,7 @@ use i18n::{Key, Strings, key};
 use model::chat::{Chat, ChatKind, ChatList};
 use model::chats::{ChatAction, Chats};
 use model::message::{Message, Sender};
+use model::search::MessageFilter;
 use model::user::{Badge, Photo, UserKind};
 use model::{ChatId, FileId, ListLoad, State};
 use style::dialogs::{
@@ -93,6 +94,8 @@ pub(crate) struct Dialogs {
     scroll: UniformListScrollHandle,
     loading: Loading,
     search: Option<Search>,
+    /// Kept while the user types new queries, as tdesktop's search state.
+    message_filter: MessageFilter,
     hovered: Option<RowKey>,
     active: Option<ChatId>,
     requested_files: HashSet<FileId>,
@@ -123,6 +126,7 @@ impl Dialogs {
             scroll: UniformListScrollHandle::new(),
             loading: Loading::Idle,
             search: None,
+            message_filter: MessageFilter::default(),
             hovered: None,
             active: None,
             requested_files: HashSet::new(),

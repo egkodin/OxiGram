@@ -83,7 +83,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | dialogs | Chat preview without opening (peek) | M2 | todo | |
 | dialogs | Touchpad swipe actions on rows (archive, read, pin, mute, delete) | M8 | todo | |
 | dialogs | Search: chats, contacts and global results | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
-| dialogs | Search: messages across all chats with date and type filters | M2 | in progress | message results with paging; date and type filters not built; not verified: no API credentials yet, so no live account |
+| dialogs | Search: messages across all chats with date and type filters | M2 | in progress | message results with paging; the found-messages bar opens tdesktop's filter menu (From archive, All / Private / Groups / Channels) mapped to `searchMessages`; unit tests only, as the snapshot run has no TDLib replies; tdesktop's global search has no date filter (min/max date 0), the calendar jump comes with search in one chat; not verified: no API credentials yet, so no live account |
 | dialogs | Search: in one chat, by sender | M2 | todo | |
 | dialogs | Search: hashtags and cashtags, in this chat or everywhere | M2 | todo | |
 | dialogs | Search: public posts in channels (with Premium limits) | M13 | todo | |
