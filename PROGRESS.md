@@ -21,7 +21,8 @@
 - Folder tabs with unread counters, contacts box from the main menu
   (online-first sort, name search, last-seen texts in `features::status`),
   loading / no chats / empty folder texts, drag to reorder pinned chats,
-  archive collapse, move to main menu and back, mark archive read.
+  archive collapse, move to main menu and back, mark archive read, column
+  resize with the narrow (userpics only) list and the one-column layout.
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -47,10 +48,9 @@
 
 ### Next steps
 
-1. Narrow mode and column resize.
-2. Search filters (date, type), search in one chat and by sender, hashtags,
+1. Search filters (date, type), search in one chat and by sender, hashtags,
    recent searches and top peers.
-3. Folder tab context menu and tab reordering, chat preview (peek).
+2. Folder tab context menu and tab reordering, chat preview (peek).
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)
 

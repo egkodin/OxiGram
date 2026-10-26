@@ -52,7 +52,12 @@ impl Dialogs {
     /// the archive or a search.
     pub(super) fn tabs_strip(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let chats = &self.store.read(cx).state().chats;
-        if chats.folders().is_empty() || self.list == ChatList::Archive || self.search.is_some() {
+        // shortcut: the narrow list drops the tabs; tdesktop's folder icons sidebar is a later M2 step.
+        if chats.folders().is_empty()
+            || self.list == ChatList::Archive
+            || self.search.is_some()
+            || self.narrow
+        {
             return None;
         }
         let st = &CHATS_FILTERS_TABS;

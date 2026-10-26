@@ -173,7 +173,11 @@ fn scenarios() -> Vec<Scenario> {
                     FIRST_MAIN_MENU_ROW,
                 ),
             ],
-            drags: vec![("29-drag-pinned", MARIA_ROW, SAVED_ROW)],
+            drags: vec![
+                ("29-drag-pinned", MARIA_ROW, SAVED_ROW),
+                ("30-narrow-list", COLUMN_EDGE, (60.0, 300.0)),
+                ("31-wide-list", NARROW_COLUMN_EDGE, COLUMN_EDGE),
+            ],
             steps: vec![("20-pinned-chats", auth(State::Ready))],
         },
         // Last: the night mode it switches on stays for later windows.
@@ -214,6 +218,10 @@ const SECOND_MENU_ITEM: (f32, f32) = (200.0, 178.0);
 const FIRST_MAIN_MENU_ROW: (f32, f32) = (100.0, 154.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
+/// The chat list's right edge at the default width (5/14 of 800), and in
+/// the narrow list.
+const COLUMN_EDGE: (f32, f32) = (286.0, 300.0);
+const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);

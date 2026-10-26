@@ -2,6 +2,7 @@
 //! model through the [`Store`]; none of them sees a TDLib type.
 
 pub mod boxes;
+mod columns;
 mod connecting;
 mod contacts_box;
 mod dialogs;

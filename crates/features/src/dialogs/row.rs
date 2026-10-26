@@ -532,6 +532,48 @@ impl RenderOnce for Row {
     }
 }
 
+/// A row of the narrow list: the userpic with the counters at its corner
+/// (`PaintRow` with `narrow`, `PaintNarrowCounter`).
+#[derive(Debug, IntoElement)]
+pub(crate) struct NarrowRow(pub Row);
+
+impl RenderOnce for NarrowRow {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let st = &DEFAULT_DIALOG_ROW;
+        let row = self.0;
+        let photo = px_of(st.photo_size);
+        let shows_counter = !row.badges.is_empty() && matches!(row.text, RowText::Message { .. });
+        // shortcut: mention and reaction icons keep their wide look instead of tdesktop's round narrow badges.
+        div()
+            .relative()
+            .w_full()
+            .h(px_of(st.height))
+            .bg(color(cx, row.background()))
+            .child(
+                div()
+                    .absolute()
+                    .left(px_of(st.padding.left))
+                    .top(px_of(st.padding.top))
+                    .child(Userpic::new(photo, row.userpic.clone())),
+            )
+            .when(row.is_online && !shows_counter, |view| {
+                view.child(row.online_badge(cx))
+            })
+            .when(shows_counter, |view| {
+                view.child(
+                    div()
+                        .absolute()
+                        .left(px(0.0))
+                        .w(px_of(st.padding.left) + photo)
+                        .top(px_of(st.padding.top) + photo - px_of(DIALOGS_UNREAD_HEIGHT))
+                        .flex()
+                        .justify_end()
+                        .child(row.badges_view(cx)),
+                )
+            })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::preview::Span;

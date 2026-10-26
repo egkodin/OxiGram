@@ -35,12 +35,12 @@ use ui::{PopupMenu, UserpicSource, color};
 use self::date::DialogDate;
 use self::pinned::{DragGhost, DraggedPinned};
 use self::preview::Preview;
-use self::row::{Badges, Lit, NameBadge, Row, RowText};
+use self::row::{Badges, Lit, NameBadge, NarrowRow, Row, RowText};
 use self::search::Search;
 use crate::Store;
 use crate::lang::strings;
 use crate::layers::Layers;
-use crate::settings;
+use crate::{columns, settings};
 
 /// Chats asked from TDLib at a time.
 const PAGE: i32 = 50;
@@ -96,6 +96,8 @@ pub(crate) struct Dialogs {
     hovered: Option<RowKey>,
     active: Option<ChatId>,
     requested_files: HashSet<FileId>,
+    /// Userpics only, as the list is too narrow for names.
+    narrow: bool,
     /// The open context menu, where it was asked for.
     menu: Option<(Point<Pixels>, Entity<PopupMenu>, Subscription)>,
     _subscription: Subscription,
@@ -124,6 +126,7 @@ impl Dialogs {
             hovered: None,
             active: None,
             requested_files: HashSet::new(),
+            narrow: false,
             menu: None,
             _subscription: subscription,
         };
@@ -277,9 +280,11 @@ impl Dialogs {
             Lit::Normal
         };
         let row = archive_row(self.store.read(cx).state(), strings(cx), lit, &Local::now());
-        self.wrap_row(RowKey::Archive, row, cx, |this, cx| {
-            this.open_list(ChatList::Archive, cx);
-        })
+        let open = |this: &mut Self, cx: &mut Context<Self>| this.open_list(ChatList::Archive, cx);
+        if self.narrow {
+            return self.wrap_row(RowKey::Archive, NarrowRow(row), cx, open);
+        }
+        self.wrap_row(RowKey::Archive, row, cx, open)
     }
 
     /// The collapsed archive (`PaintCollapsedRow`): its name and a muted
@@ -298,6 +303,21 @@ impl Dialogs {
         } else {
             ColorId::DialogsBg
         };
+        if self.narrow {
+            // The archive's userpic, small and centered.
+            let size = crate::px_of(style::dialogs::DIALOGS_UNREAD_HEIGHT);
+            let bar = div()
+                .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
+                .w_full()
+                .bg(color(cx, ColorRef::Palette(bg)))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(ui::Userpic::new(size, UserpicSource::Archive));
+            return self.wrap_row(RowKey::Archive, bar, cx, |this, cx| {
+                this.open_list(ChatList::Archive, cx);
+            });
+        }
         let bar =
             div()
                 .h(crate::px_of(style::dialogs::DIALOGS_IMPORTANT_BAR_HEIGHT))
@@ -351,6 +371,9 @@ impl Dialogs {
             build_row(state, strings(cx), id, self.list, found, lit, &Local::now());
         if let Some(file) = download {
             self.download(file, cx);
+        }
+        if self.narrow {
+            return self.wrap_row(key, NarrowRow(row), cx, move |this, cx| this.select(id, cx));
         }
         self.wrap_row(key, row, cx, move |this, cx| this.select(id, cx))
     }
@@ -428,7 +451,12 @@ fn chat_of(key: RowKey) -> Option<ChatId> {
 }
 
 impl Render for Dialogs {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let layout = columns::layout(
+            f32::from(window.viewport_size().width),
+            settings::dialogs_width_ratio(cx),
+        );
+        self.narrow = layout == columns::Layout::Narrow;
         div()
             .size_full()
             .flex()

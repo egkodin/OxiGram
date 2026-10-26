@@ -4,32 +4,30 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, KeyBinding,
-    ParentElement, Render, Styled, Subscription, Window, actions, div, prelude::*, px,
+    App, AppContext as _, Context, DragMoveEvent, Entity, FocusHandle, Focusable, IntoElement,
+    KeyBinding, ParentElement, Render, Styled, Subscription, Window, actions, div, prelude::*, px,
 };
 use i18n::key;
 use model::auth;
 use model::chat::ChatList;
+use style::chat::HISTORY_RESIZE_WIDTH;
 use style::chat::{HISTORY_SAVED_FONT, MSG_PADDING, MSG_SERVICE_FONT, MSG_SERVICE_PADDING};
 use style::dialogs::{
     DIALOGS_CANCEL_SEARCH, DIALOGS_FILTER, DIALOGS_FILTER_PADDING, DIALOGS_FILTER_SKIP,
     DIALOGS_MENU_TOGGLE,
 };
 use style::info::{HISTORY_TOP_BAR_BACK, TOP_BAR_HEIGHT};
-use style::window::{COLUMN_MAXIMAL_WIDTH_LEFT, COLUMN_MINIMAL_WIDTH_LEFT};
 use style::window_main_menu::MAIN_MENU_WIDTH;
 use style::{ColorId, ColorRef};
 use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_height};
 
 use crate::boxes;
+use crate::columns::{self, ColumnResize, ResizeGhost};
 use crate::dialogs::Dialogs;
 use crate::lang::tr;
 use crate::main_menu::{MainMenu, MenuAction};
+use crate::settings;
 use crate::{Layers, Store, px_of};
-
-/// tdesktop's default share of the window for the chat list
-/// (`kDefaultDialogsWidthRatio`).
-const DIALOGS_WIDTH_RATIO: f32 = 5.0 / 14.0;
 
 actions!(main_view, [CancelSearch]);
 
@@ -196,11 +194,26 @@ impl MainView {
     }
 
     /// The menu button and the search field (`Dialogs::Widget` top).
-    fn top_bar(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+    fn top_bar(&self, layout: columns::Layout, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let entity = cx.entity();
+        if layout == columns::Layout::Narrow {
+            // shortcut: no search button under the menu toggle; widen the list to search.
+            return div()
+                .flex_none()
+                .flex()
+                .justify_center()
+                .h(px_of(TOP_BAR_HEIGHT))
+                .pt(px_of(DIALOGS_FILTER_PADDING.y))
+                .child(IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE).on_click(
+                    move |_, window, cx| {
+                        entity.update(cx, |this, cx| this.open_menu(window, cx));
+                    },
+                ))
+                .into_any_element();
+        }
         if self.dialogs.read(cx).list() == ChatList::Archive {
             return self.folder_bar(cx);
         }
-        let entity = cx.entity();
         let padding = px_of(DIALOGS_FILTER_PADDING.x);
         let field_top = (px_of(TOP_BAR_HEIGHT) - px_of(DIALOGS_FILTER.height_min)) / 2.0;
         let is_searching = !self.search.read(cx).text().is_empty();
@@ -277,33 +290,56 @@ impl Focusable for MainView {
 
 impl Render for MainView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let width = window.viewport_size().width;
-        let column = (width * DIALOGS_WIDTH_RATIO)
-            .max(px_of(COLUMN_MINIMAL_WIDTH_LEFT))
-            .min(px_of(COLUMN_MAXIMAL_WIDTH_LEFT));
-        div()
+        let width = f32::from(window.viewport_size().width);
+        let layout = columns::layout(width, settings::dialogs_width_ratio(cx));
+        let list_width = px(layout.list_width(width));
+        let list = div()
+            .w(list_width)
+            .h_full()
+            .flex_none()
+            .flex()
+            .flex_col()
+            .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
+            .child(self.top_bar(layout, cx))
+            .child(div().flex_1().min_h_0().child(self.dialogs.clone()));
+        let root = div()
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .on_action(cx.listener(Self::cancel_search))
+            .relative()
             .size_full()
             .flex()
-            .child(
-                div()
-                    .w(column)
-                    .h_full()
-                    .flex_none()
-                    .flex()
-                    .flex_col()
-                    .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
-                    .child(self.top_bar(cx))
-                    .child(div().flex_1().min_h_0().child(self.dialogs.clone())),
-            )
-            .child(
-                div()
-                    .w(px(1.0))
-                    .h_full()
-                    .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
-            )
-            .child(Self::empty_history(cx))
+            .child(list);
+        if layout == columns::Layout::OneColumn {
+            // shortcut: the list alone; opening a chat over it comes with the history in M3.
+            return root;
+        }
+        let handle_width = px_of(HISTORY_RESIZE_WIDTH);
+        root.on_drag_move(
+            cx.listener(move |_, event: &DragMoveEvent<ColumnResize>, _, cx| {
+                let left = f32::from(event.event.position.x);
+                settings::set_dialogs_width_ratio(columns::ratio_for_drag(left, width), cx);
+                cx.notify();
+            }),
+        )
+        .on_drop(cx.listener(|_, _: &ColumnResize, _, cx| settings::save_now(cx)))
+        .child(
+            div()
+                .w(px(1.0))
+                .h_full()
+                .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
+        )
+        .child(Self::empty_history(cx))
+        .child(
+            div()
+                .id("column-resize")
+                .absolute()
+                .top_0()
+                .h_full()
+                .left(list_width - handle_width / 2.0)
+                .w(handle_width)
+                .cursor_col_resize()
+                .on_drag(ColumnResize, |_, _, _, cx| cx.new(|_| ResizeGhost)),
+        )
     }
 }

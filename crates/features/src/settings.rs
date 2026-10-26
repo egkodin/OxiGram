@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use style::Palette;
 use ui::Theme;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 struct Values {
     night_mode: bool,
@@ -16,6 +16,21 @@ struct Values {
     archive_collapsed: bool,
     /// The archive leaves the list for the main menu (`archiveInMainMenu`).
     archive_in_main_menu: bool,
+    /// The chat list's share of the window; zero is the narrow list
+    /// (`dialogsWidthRatio`).
+    // shortcut: one ratio; tdesktop keeps another for when no chat is open, which matters once chats open in M3.
+    dialogs_width_ratio: f32,
+}
+
+impl Default for Values {
+    fn default() -> Self {
+        Self {
+            night_mode: false,
+            archive_collapsed: false,
+            archive_in_main_menu: false,
+            dialogs_width_ratio: crate::columns::DEFAULT_RATIO,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -77,6 +92,25 @@ pub(crate) fn set_archive_in_main_menu(in_menu: bool, cx: &mut App) {
     cx.refresh_windows();
 }
 
+pub(crate) fn dialogs_width_ratio(cx: &App) -> f32 {
+    values(cx).map_or(crate::columns::DEFAULT_RATIO, |values| {
+        values.dialogs_width_ratio
+    })
+}
+
+/// Follows a column drag; `save` writes it once the drag ends.
+pub(crate) fn set_dialogs_width_ratio(ratio: f32, cx: &mut App) {
+    if !cx.has_global::<Settings>() {
+        cx.set_global(Settings::default());
+    }
+    cx.global_mut::<Settings>().values.dialogs_width_ratio = ratio;
+}
+
+/// Writes the settings as they are now.
+pub(crate) fn save_now(cx: &mut App) {
+    change(cx, |_| {});
+}
+
 fn values(cx: &App) -> Option<&Values> {
     cx.try_global::<Settings>().map(|settings| &settings.values)
 }
@@ -128,6 +162,7 @@ mod tests {
             night_mode: true,
             archive_collapsed: true,
             archive_in_main_menu: false,
+            dialogs_width_ratio: 0.0,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =
