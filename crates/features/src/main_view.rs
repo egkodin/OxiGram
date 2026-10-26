@@ -59,16 +59,25 @@ impl MainView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let dialogs = cx.new(|cx| Dialogs::new(store.clone(), layers.clone(), cx));
+        let focus = cx.focus_handle();
+        let dialogs = cx.new(|cx| Dialogs::new(store.clone(), layers.clone(), focus.clone(), cx));
         let search =
             cx.new(|cx| InputField::new(&DIALOGS_FILTER, tr(cx, key::lng_dlg_filter), window, cx));
-        let subscription = cx.subscribe(&search, |this, search, event, cx| {
-            if *event == InputEvent::Changed {
+        let subscription = cx.subscribe(&search, |this, search, event, cx| match event {
+            InputEvent::Changed => {
                 let query = search.read(cx).text().to_owned();
                 this.dialogs
                     .update(cx, |dialogs, cx| dialogs.set_query(&query, cx));
                 cx.notify();
             }
+            // The suggestions show while the field has focus (`updateSuggestions`).
+            InputEvent::Focused => this
+                .dialogs
+                .update(cx, |dialogs, cx| dialogs.show_suggestions(cx)),
+            InputEvent::Blurred => this
+                .dialogs
+                .update(cx, |dialogs, cx| dialogs.hide_suggestions(cx)),
+            InputEvent::Submitted | InputEvent::BackspaceAtStart => {}
         });
         let observe_dialogs = cx.observe(&dialogs, |_, _, cx| cx.notify());
         Self {
@@ -76,14 +85,16 @@ impl MainView {
             layers,
             dialogs,
             search,
-            focus: cx.focus_handle(),
+            focus,
             _subscriptions: [subscription, observe_dialogs],
         }
     }
 
     /// Escape: clears the search, else leaves the archive.
-    fn cancel_search(&mut self, _: &CancelSearch, _: &mut Window, cx: &mut Context<Self>) {
+    fn cancel_search(&mut self, _: &CancelSearch, window: &mut Window, cx: &mut Context<Self>) {
         if self.search.read(cx).text().is_empty() {
+            // Leaves the field, which hides the suggestions.
+            self.focus.focus(window, cx);
             self.dialogs
                 .update(cx, |dialogs, cx| dialogs.open_list(ChatList::Main, cx));
         } else {

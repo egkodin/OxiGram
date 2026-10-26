@@ -392,16 +392,31 @@ impl Dialogs {
             } => key::lng_search_filter_non_archived,
             filter => chat_type_label(filter.chat_type),
         };
-        div()
-            .id("search-filter")
-            .cursor_pointer()
-            .hover(|style| style.underline())
-            .child(tr(cx, label))
-            .on_click(cx.listener(|this, event, window, cx| {
+        bar_link(
+            "search-filter",
+            tr(cx, label),
+            cx,
+            |this, event, window, cx| {
                 this.show_filter_menu(event, window, cx);
-            }))
-            .into_any_element()
+            },
+        )
     }
+}
+
+/// A link at a bar's right (`searchedBarLink`), underlined under the pointer.
+pub(super) fn bar_link(
+    id: &'static str,
+    text: gpui::SharedString,
+    cx: &mut Context<Dialogs>,
+    on_click: impl Fn(&mut Dialogs, &ClickEvent, &mut Window, &mut Context<Dialogs>) + 'static,
+) -> AnyElement {
+    div()
+        .id(id)
+        .cursor_pointer()
+        .hover(|style| style.underline())
+        .child(text)
+        .on_click(cx.listener(on_click))
+        .into_any_element()
 }
 
 fn chat_type_label(filter: ChatTypeFilter) -> i18n::Key {
@@ -413,8 +428,8 @@ fn chat_type_label(filter: ChatTypeFilter) -> i18n::Key {
     }
 }
 
-/// A section title (`searchedBar`), with `filter` at its right.
-fn bar(text: String, filter: Option<AnyElement>, cx: &App) -> AnyElement {
+/// A section title (`searchedBar`), with `link` at its right.
+pub(super) fn bar(text: String, link: Option<AnyElement>, cx: &App) -> AnyElement {
     div()
         .h(px_of(SEARCHED_BAR_HEIGHT))
         .flex()
@@ -429,7 +444,7 @@ fn bar(text: String, filter: Option<AnyElement>, cx: &App) -> AnyElement {
         .text_size(px_of(SEARCHED_BAR_FONT.size))
         .line_height(font_height(SEARCHED_BAR_FONT))
         .child(text)
-        .children(filter)
+        .children(link)
         .into_any_element()
 }
 

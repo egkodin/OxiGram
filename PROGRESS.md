@@ -26,6 +26,9 @@
 - Message search filters: "From archive" and chat type (All, Private,
   Groups, Channels) from the found-messages bar, as tdesktop's
   `ChatTypeFilter` menu; switching drops stale pages by query and filter.
+- Search suggestions while the search field is focused and empty: the
+  frequent contacts strip and recent searches with their menus and the
+  Clear confirmation (`dialogs::suggestions`).
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -44,6 +47,10 @@
 
 ### Not verified
 
+- Snapshot windows never become active, so gpui sends no focus events there:
+  the search suggestions and focused-field looks have no snapshot; the
+  suggestions were checked by eye once with seeded data.
+
 - Everything live: `RGRAM_API_ID` / `RGRAM_API_HASH` are still not set.
   Context-menu actions modify the account; they will only run in Saved
   Messages or on the test DC, with the owner's say-so.
@@ -51,8 +58,8 @@
 
 ### Next steps
 
-1. Search in one chat and by sender, hashtags, recent searches and top
-   peers.
+1. Channel and app suggestions in the empty search; search in one chat and
+   by sender and hashtags wait for the chat view (M3) as their entry point.
 2. Folder tab context menu and tab reordering, chat preview (peek).
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)

@@ -51,7 +51,7 @@ pub enum UnreadMark {
     Cleared,
 }
 
-fn done(result: Result<td_api::types::Ok, tg::TdError>) -> Result<(), RequestError> {
+pub(crate) fn done(result: Result<td_api::types::Ok, tg::TdError>) -> Result<(), RequestError> {
     result.map(drop).map_err(RequestError::from)
 }
 

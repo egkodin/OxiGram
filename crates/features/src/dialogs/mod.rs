@@ -1,6 +1,7 @@
 //! The chat list column (`Dialogs::InnerWidget`): the chats of one list in
 //! TDLib's order, loaded page by page as the user scrolls.
 
+mod action;
 mod archive;
 mod date;
 mod menu;
@@ -8,6 +9,7 @@ mod pinned;
 mod preview;
 mod row;
 mod search;
+mod suggestions;
 mod tabs;
 
 use std::collections::HashSet;
@@ -15,14 +17,14 @@ use std::ops::Range;
 
 use chrono::{DateTime, Local};
 use gpui::{
-    AnyElement, App, Context, DragMoveEvent, ElementId, Entity, IntoElement, MouseButton,
-    MouseDownEvent, ParentElement, Pixels, Point, Render, SharedString, Styled, Subscription,
-    UniformListScrollHandle, Window, div, prelude::*, uniform_list,
+    AnyElement, App, Context, DragMoveEvent, ElementId, Entity, FocusHandle, IntoElement,
+    MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, SharedString, Styled,
+    Subscription, UniformListScrollHandle, Window, div, prelude::*, uniform_list,
 };
 use i18n::{Key, Strings, key};
 use model::chat::{Chat, ChatKind, ChatList};
-use model::chats::{ChatAction, Chats};
-use model::message::{Message, Sender};
+use model::chats::Chats;
+use model::message::Message;
 use model::search::MessageFilter;
 use model::user::{Badge, Photo, UserKind};
 use model::{ChatId, FileId, ListLoad, State};
@@ -33,11 +35,13 @@ use style::dialogs_layout::DIALOGS_BOT_ICON;
 use style::{ColorId, ColorRef};
 use ui::{PopupMenu, UserpicSource, color};
 
+use self::action::action_text;
 use self::date::DialogDate;
 use self::pinned::{DragGhost, DraggedPinned};
 use self::preview::Preview;
 use self::row::{Badges, Lit, NameBadge, NarrowRow, Row, RowText};
 use self::search::Search;
+use self::suggestions::Suggestions;
 use crate::Store;
 use crate::lang::strings;
 use crate::layers::Layers;
@@ -73,6 +77,10 @@ enum RowKey {
     Chat(ChatId),
     Global(ChatId),
     Found(usize),
+    /// In the frequent contacts strip.
+    Top(ChatId),
+    /// In the recent searches.
+    Recent(ChatId),
 }
 
 impl RowKey {
@@ -82,6 +90,8 @@ impl RowKey {
             Self::Chat(chat) => ("dialog", u64::from_ne_bytes(chat.0.to_ne_bytes())),
             Self::Global(chat) => ("global", u64::from_ne_bytes(chat.0.to_ne_bytes())),
             Self::Found(index) => ("found", index as u64),
+            Self::Top(chat) => ("top", u64::from_ne_bytes(chat.0.to_ne_bytes())),
+            Self::Recent(chat) => ("recent", u64::from_ne_bytes(chat.0.to_ne_bytes())),
         };
         (name, id).into()
     }
@@ -90,12 +100,16 @@ impl RowKey {
 pub(crate) struct Dialogs {
     store: Entity<Store>,
     layers: Entity<Layers>,
+    /// Takes focus from the search field once a suggestion is chosen.
+    main_focus: FocusHandle,
     list: ChatList,
     scroll: UniformListScrollHandle,
     loading: Loading,
     search: Option<Search>,
     /// Kept while the user types new queries, as tdesktop's search state.
     message_filter: MessageFilter,
+    /// Shown while the search field is focused and empty.
+    suggestions: Option<Suggestions>,
     hovered: Option<RowKey>,
     active: Option<ChatId>,
     requested_files: HashSet<FileId>,
@@ -116,17 +130,20 @@ impl Dialogs {
     pub(crate) fn new(
         store: Entity<Store>,
         layers: Entity<Layers>,
+        main_focus: FocusHandle,
         cx: &mut Context<Self>,
     ) -> Self {
         let subscription = cx.observe(&store, |_, _, cx| cx.notify());
         let mut dialogs = Self {
             store,
             layers,
+            main_focus,
             list: ChatList::Main,
             scroll: UniformListScrollHandle::new(),
             loading: Loading::Idle,
             search: None,
             message_filter: MessageFilter::default(),
+            suggestions: None,
             hovered: None,
             active: None,
             requested_files: HashSet::new(),
@@ -376,10 +393,34 @@ impl Dialogs {
         if let Some(file) = download {
             self.download(file, cx);
         }
+        // Chats picked from search results join the recent searches.
+        let is_found_chat = matches!(key, RowKey::Global(_))
+            || (matches!(key, RowKey::Chat(_)) && self.search.is_some());
+        let choose = move |this: &mut Self, cx: &mut Context<Self>| {
+            if is_found_chat {
+                this.remember_found(id, cx);
+            }
+            this.select(id, cx);
+        };
         if self.narrow {
-            return self.wrap_row(key, NarrowRow(row), cx, move |this, cx| this.select(id, cx));
+            return self.wrap_row(key, NarrowRow(row), cx, choose);
         }
-        self.wrap_row(key, row, cx, move |this, cx| this.select(id, cx))
+        self.wrap_row(key, row, cx, choose)
+    }
+
+    /// Lights `key` while the pointer is over it.
+    fn track_hover(&mut self, key: RowKey, hovered: bool, cx: &mut Context<Self>) {
+        let next = if hovered {
+            Some(key)
+        } else if self.hovered == Some(key) {
+            None
+        } else {
+            self.hovered
+        };
+        if self.hovered != next {
+            self.hovered = next;
+            cx.notify();
+        }
     }
 
     /// `row` with the hover tracking for `key` and `on_click`.
@@ -395,17 +436,7 @@ impl Dialogs {
         div()
             .id(key.element_id())
             .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                let next = if *hovered {
-                    Some(key)
-                } else if this.hovered == Some(key) {
-                    None
-                } else {
-                    this.hovered
-                };
-                if this.hovered != next {
-                    this.hovered = next;
-                    cx.notify();
-                }
+                this.track_hover(key, *hovered, cx);
             }))
             .on_click(cx.listener(move |this, _, _, cx| on_click(this, cx)))
             .when_some(chat_of(key), |row, chat| {
@@ -450,7 +481,11 @@ impl Dialogs {
 fn chat_of(key: RowKey) -> Option<ChatId> {
     match key {
         RowKey::Chat(chat) => Some(chat),
-        RowKey::Archive | RowKey::Global(_) | RowKey::Found(_) => None,
+        RowKey::Archive
+        | RowKey::Global(_)
+        | RowKey::Found(_)
+        | RowKey::Top(_)
+        | RowKey::Recent(_) => None,
     }
 }
 
@@ -475,6 +510,11 @@ impl Dialogs {
     fn body(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let count = self.row_count(self.store.read(cx).state(), cx);
         let background = color(cx, ColorRef::Palette(ColorId::DialogsBg));
+        if self.search.is_none()
+            && let Some(suggestions) = self.suggestions_view(cx)
+        {
+            return suggestions;
+        }
         if let Some(search) = &self.search {
             return div()
                 .size_full()
@@ -749,79 +789,5 @@ fn weekday_key(day: u32) -> Key {
         5 => key::lng_weekday5,
         6 => key::lng_weekday6,
         _ => key::lng_weekday7,
-    }
-}
-
-/// "typing" in private chats, "Ann is typing" in groups, for the first
-/// one acting (`SendActionPainter`).
-// shortcut: one person and no animation; "Ann and Bob are typing" and the animated dots come with the chat top bar in M3.
-fn action_text(strings: &Strings, chats: &Chats, chat: &Chat) -> Option<String> {
-    let (sender, action) = chats.actions(chat.id).first()?;
-    let (alone, with_user) = action_keys(action);
-    let emoji = match action {
-        ChatAction::WatchingAnimations(emoji) => emoji.as_str(),
-        _ => "",
-    };
-    if chat.user().is_some() {
-        return Some(i18n::fill(strings.text(alone), &[("emoji", emoji)]));
-    }
-    let name = match sender {
-        Sender::User(user) => chats
-            .user(*user)
-            .map(|user| preview::short_name(strings, user)),
-        Sender::Chat(id) => chats.chat(*id).map(|chat| chat.title.clone()),
-    }?;
-    Some(i18n::fill(
-        strings.text(with_user),
-        &[("user", name.as_str()), ("emoji", emoji)],
-    ))
-}
-
-fn action_keys(action: &ChatAction) -> (Key, Key) {
-    match action {
-        ChatAction::Typing | ChatAction::ChoosingLocation | ChatAction::ChoosingContact => {
-            (key::lng_typing, key::lng_user_typing)
-        }
-        ChatAction::RecordingVideo => (
-            key::lng_send_action_record_video,
-            key::lng_user_action_record_video,
-        ),
-        ChatAction::UploadingVideo => (
-            key::lng_send_action_upload_video,
-            key::lng_user_action_upload_video,
-        ),
-        ChatAction::RecordingVoice => (
-            key::lng_send_action_record_audio,
-            key::lng_user_action_record_audio,
-        ),
-        ChatAction::UploadingVoice => (
-            key::lng_send_action_upload_audio,
-            key::lng_user_action_upload_audio,
-        ),
-        ChatAction::RecordingVideoNote => (
-            key::lng_send_action_record_round,
-            key::lng_user_action_record_round,
-        ),
-        ChatAction::UploadingVideoNote => (
-            key::lng_send_action_upload_round,
-            key::lng_user_action_upload_round,
-        ),
-        ChatAction::UploadingPhoto => (
-            key::lng_send_action_upload_photo,
-            key::lng_user_action_upload_photo,
-        ),
-        ChatAction::UploadingDocument => (
-            key::lng_send_action_upload_file,
-            key::lng_user_action_upload_file,
-        ),
-        ChatAction::ChoosingSticker => (
-            key::lng_send_action_choose_sticker,
-            key::lng_user_action_choose_sticker,
-        ),
-        ChatAction::PlayingGame => (key::lng_playing_game, key::lng_user_playing_game),
-        ChatAction::WatchingAnimations(_) => (
-            key::lng_user_action_watching_animations,
-            key::lng_user_action_watching_animations,
-        ),
     }
 }

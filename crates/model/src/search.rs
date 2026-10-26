@@ -4,11 +4,16 @@
 use std::future::Future;
 
 use futures::FutureExt as _;
+use td_api::enums::TopChatCategory;
 use td_api::functions::{
-    GetContacts, SearchChats, SearchChatsOnServer, SearchMessages, SearchPublicChats,
+    AddRecentlyFoundChat, ClearRecentlyFoundChats, GetContacts, GetTopChats,
+    RemoveRecentlyFoundChat, RemoveTopChat, SearchChats, SearchChatsOnServer, SearchMessages,
+    SearchPublicChats, SearchRecentlyFoundChats,
 };
+use td_api::types::TopChatCategoryUsers;
 
 use crate::chat::ChatList;
+use crate::chat_actions::done;
 use crate::ids::{ChatId, UserId};
 use crate::message::Message;
 use crate::session::{RequestError, Session};
@@ -73,6 +78,10 @@ impl MessageFilter {
     }
 }
 
+fn users_category() -> TopChatCategory {
+    TopChatCategory::Users(TopChatCategoryUsers {})
+}
+
 fn chat_ids(chats: td_api::types::Chats) -> Vec<ChatId> {
     chats.chat_ids.into_iter().map(ChatId).collect()
 }
@@ -87,6 +96,69 @@ impl Session {
                 .map(|users| users.user_ids.into_iter().map(UserId).collect())
                 .map_err(RequestError::from)
         })
+    }
+
+    /// The people the user writes to most (`TopPeersContent`).
+    pub fn top_chats(
+        &self,
+        limit: i32,
+    ) -> impl Future<Output = Result<Vec<ChatId>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetTopChats {
+                category: Box::new(users_category()),
+                limit,
+            })
+            .map(|result| result.map(chat_ids).map_err(RequestError::from))
+    }
+
+    pub fn remove_top_chat(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&RemoveTopChat {
+                category: Box::new(users_category()),
+                chat_id: chat.0,
+            })
+            .map(done)
+    }
+
+    /// Chats the user picked from search results, the latest first.
+    pub fn recently_found_chats(
+        &self,
+        limit: i32,
+    ) -> impl Future<Output = Result<Vec<ChatId>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&SearchRecentlyFoundChats {
+                query: String::new(),
+                type_filter: None,
+                limit,
+            })
+            .map(|result| result.map(chat_ids).map_err(RequestError::from))
+    }
+
+    pub fn add_recently_found_chat(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&AddRecentlyFoundChat { chat_id: chat.0 })
+            .map(done)
+    }
+
+    pub fn remove_recently_found_chat(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&RemoveRecentlyFoundChat { chat_id: chat.0 })
+            .map(done)
+    }
+
+    pub fn clear_recently_found_chats(
+        &self,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client().request(&ClearRecentlyFoundChats {}).map(done)
     }
 
     /// Known chats whose title or username matches, offline.

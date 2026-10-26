@@ -49,13 +49,14 @@ fn tabs(chats: &Chats) -> Vec<ChatList> {
 
 impl Dialogs {
     /// The tab strip, shown while there are folders and the list is not
-    /// the archive or a search.
+    /// the archive, a search or the search suggestions.
     pub(super) fn tabs_strip(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let chats = &self.store.read(cx).state().chats;
         // shortcut: the narrow list drops the tabs; tdesktop's folder icons sidebar is a later M2 step.
         if chats.folders().is_empty()
             || self.list == ChatList::Archive
             || self.search.is_some()
+            || self.suggestions.is_some()
             || self.narrow
         {
             return None;

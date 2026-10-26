@@ -34,7 +34,7 @@ const MAX_UNREAD_WITHOUT_CONFIRMATION: i64 = 1000;
 const EDGE_MARGIN: f32 = 8.0;
 
 /// Sends a request and logs its failure; the result arrives as updates.
-fn send(
+pub(super) fn send(
     task: impl Future<Output = Result<(), RequestError>> + Send + 'static,
     what: &'static str,
     cx: &mut App,

@@ -87,7 +87,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | dialogs | Search: in one chat, by sender | M2 | todo | |
 | dialogs | Search: hashtags and cashtags, in this chat or everywhere | M2 | todo | |
 | dialogs | Search: public posts in channels (with Premium limits) | M13 | todo | |
-| dialogs | Search: recent searches and top peers strip | M2 | todo | |
+| dialogs | Search: recent searches and top peers strip | M2 | in progress | while the search field is focused: frequent contacts strip (`getTopChats`) with online dots and counters, Recent list (`searchRecentlyFoundChats`) with Clear, Remove from Recent and Clear all; chats picked from search results join Recent; checked by eye with seeded data in a throwaway run, since snapshot windows never become active and gpui sends no focus events there; no "Show more" grid, no member counts for groups, no Hide frequent contacts; not verified: no API credentials yet, so no live account |
 | dialogs | Search: channel and app suggestions in the empty search | M2 | todo | |
 | dialogs | Search: Saved Messages tags | M3 | todo | |
 | dialogs | Top bar suggestions: set a userpic, set a birthday, contacts' birthdays | M6 | todo | |
