@@ -3,6 +3,7 @@
 
 use std::future::Future;
 use std::rc::Rc;
+use std::time::Duration;
 
 use gpui::{
     AnyElement, App, AppContext as _, Context, DismissEvent, Focusable as _, IntoElement,
@@ -20,6 +21,7 @@ use style::menu_icons::{
     MENU_ICON_UNARCHIVE, MENU_ICON_UNMUTE, MENU_ICON_UNPIN,
 };
 use style::widgets::POPUP_MENU_WITH_ICONS;
+use style::window::WINDOW_ARCHIVE_TOAST;
 use ui::{MenuTone, PopupMenu};
 
 use super::Dialogs;
@@ -30,6 +32,8 @@ use crate::store::spawn;
 
 /// Keeps the menu off the window edges.
 const EDGE_MARGIN: f32 = 8.0;
+/// The "moved to the main menu" toast stays longer (`kArchivedToastDuration`).
+const ARCHIVE_TOAST_DURATION: Duration = Duration::from_secs(5);
 
 /// Sends a request and logs its failure; the result arrives as updates.
 pub(super) fn send(
@@ -121,12 +125,18 @@ impl Dialogs {
         menu.action(tr(cx, text), icon, MenuTone::Normal, move |_, cx| {
             settings::set_archive_collapsed(collapsed, cx);
         });
-        // shortcut: no "moved to the main menu" toast until toasts exist (M3).
+        let layers = self.layers.clone();
         menu.action(
             tr(cx, key::lng_context_archive_to_menu),
             MENU_ICON_TO_MAIN_MENU,
             MenuTone::Normal,
-            |_, cx| settings::set_archive_in_main_menu(true, cx),
+            move |_, cx| {
+                let text = tr(cx, key::lng_context_archive_to_menu_info);
+                layers.update(cx, |layers, cx| {
+                    layers.show_toast(text, &WINDOW_ARCHIVE_TOAST, ARCHIVE_TOAST_DURATION, cx);
+                });
+                settings::set_archive_in_main_menu(true, cx);
+            },
         );
         self.add_mark_read(menu, ChatList::Archive, cx);
     }

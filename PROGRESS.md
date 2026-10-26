@@ -36,6 +36,8 @@
   with tdesktop's confirmations; All chats offers Mark all chats as read.
 - Folder tabs reorder by dragging (`reorderChatFolders`); All chats stays
   first.
+- Toasts (`features::toast`, shown through `Layers::show_toast`), first
+  used for the archive's "moved to the main menu" note.
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.

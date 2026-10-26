@@ -72,7 +72,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | dialogs | Row: mute icon, pinned icon, unread mark | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
 | dialogs | Pinned chats: pin, unpin, drag to reorder, pinned limit box | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); pin and unpin from the context menu, drag onto another pinned row (target lights up, rows do not slide); limit box not built; not verified: no API credentials yet, so no live account |
 | dialogs | Archive: collapsed row, open, archive and unarchive chats | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
-| dialogs | Archive row collapse/expand and hide into main menu | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); collapse, expand, move to main menu and back, mark archive read; the collapsed bar does not scroll with the list; no "moved" toast; not verified: no API credentials yet, so no live account |
+| dialogs | Archive row collapse/expand and hide into main menu | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); collapse, expand, move to main menu and back, mark archive read; the collapsed bar does not scroll with the list; the "moved to the main menu" toast (snapshot 26); not verified: no API credentials yet, so no live account |
 | dialogs | Live updates: new messages, edits, deletes, read states reorder the list | M2 | in progress | unit tests on the update fold; not verified: no API credentials yet, so no live account |
 | dialogs | Connecting / Updating / Waiting for network status with proxy state | M2 | in progress | status pill from M1; proxy state comes with M6; not verified: no API credentials yet, so no live account |
 | dialogs | Adaptive one, two and three column layout with column resize | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); two columns with the edge drag (ratio saved in settings.json) and one column under 640 px (unit test, no snapshot); the third column comes with the info panel; not verified: no API credentials yet, so no live account |
@@ -434,7 +434,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| window | Main menu: account, My Profile, new group, new channel, contacts, calls, Saved Messages, settings | M2 | todo | |
+| window | Main menu: account, My Profile, new group, new channel, contacts, calls, Saved Messages, settings | M2 | in progress | snapshot 12: every item is there; Contacts and Saved Messages work; Settings opens only the log-out box until the settings screen (M6); My Profile and new group / channel close the menu until M6, Calls until M10; not verified: no API credentials yet, so no live account |
 | window | Main menu: accounts list, night mode switch, version | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); no accounts list until multi-account in M8; not verified: no API credentials yet, so no live account |
 | window | Section slide animations and back navigation | M8 | todo | |
 | window | Chat switcher (Ctrl+Tab) | M8 | todo | |
@@ -442,7 +442,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | window | Separate windows per chat, restored on restart | M8 | todo | |
 | window | Lock screen (passcode) | M7 | todo | |
 | window | Set up a login email when the server asks for it | M6 | todo | |
-| window | Toasts and layer boxes with the tdesktop look | M2 | todo | |
+| window | Toasts and layer boxes with the tdesktop look | M2 | in progress | snapshots: boxes (M1, M2) and the archive toast (26), centered, fading in 200 ms, out 1 s after its duration (`features::toast`); one toast at a time where tdesktop stacks them; no icon or link toasts yet; not verified: no API credentials yet, so no live account |
 
 ## Notifications and OS integration (`window/notifications_*`, `platform/`, `core/`)
 

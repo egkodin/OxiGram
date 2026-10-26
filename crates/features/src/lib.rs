@@ -15,6 +15,7 @@ mod root;
 pub mod settings;
 mod status;
 pub mod store;
+pub mod toast;
 
 use gpui::{App, Pixels, px};
 

@@ -2,13 +2,18 @@
 //! dims behind it. Escape and a click outside close it unless the box is
 //! strict.
 
+use std::time::Duration;
+
 use gpui::{
-    AnyView, App, Context, Entity, FocusHandle, Focusable, IntoElement, KeyBinding, MouseButton,
-    ParentElement, Pixels, Render, Styled, Window, actions, div, prelude::*,
+    AnyElement, AnyView, App, Context, Entity, FocusHandle, Focusable, IntoElement, KeyBinding,
+    MouseButton, ParentElement, Pixels, Render, SharedString, Styled, Window, actions, div,
+    prelude::*,
 };
 use style::layers::BOX_DURATION;
 use ui::anim::{Easing, Simple};
 use ui::hsla;
+
+use crate::toast::Toast;
 
 actions!(layers, [CloseLayer]);
 
@@ -53,6 +58,7 @@ pub struct Layers {
     background: Simple,
     layer: Simple,
     restore_focus: Option<FocusHandle>,
+    toast: Option<Toast>,
 }
 
 impl std::fmt::Debug for Layers {
@@ -72,6 +78,7 @@ impl Layers {
             background: Simple::default(),
             layer: Simple::default(),
             restore_focus: None,
+            toast: None,
         }
     }
 
@@ -147,6 +154,26 @@ impl Layers {
         cx.notify();
     }
 
+    /// Shows `text` over the window for `duration` (`Ui::Toast::Show`).
+    pub fn show_toast(
+        &mut self,
+        text: SharedString,
+        style: &'static style::widgets::Toast,
+        duration: Duration,
+        cx: &mut Context<Self>,
+    ) {
+        let toast = Toast::new(text, style, duration);
+        let fade_at = toast.duration();
+        self.toast = Some(toast);
+        // Wakes the render that starts the fade out.
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(fade_at).await;
+            this.update(cx, |_, cx| cx.notify()).ok();
+        })
+        .detach();
+        cx.notify();
+    }
+
     fn dismiss(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(shown) = self.current.as_mut() else {
             return;
@@ -170,6 +197,29 @@ impl Default for Layers {
 
 impl Render for Layers {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let layer = self.layer_element(window, cx);
+        let toast = self
+            .toast
+            .as_ref()
+            .and_then(|toast| toast.element(window, cx));
+        if toast.is_none() {
+            self.toast = None;
+        }
+        if layer.is_none() && toast.is_none() {
+            return div().into_any_element();
+        }
+        // No handlers here: the toast lets clicks through, as tdesktop's does.
+        div()
+            .absolute()
+            .inset_0()
+            .children(layer)
+            .children(toast)
+            .into_any_element()
+    }
+}
+
+impl Layers {
+    fn layer_element(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let shown = self.current.is_some();
         let background = self
             .background
@@ -183,9 +233,7 @@ impl Render for Layers {
             .as_ref()
             .map(|shown| (shown.view.clone(), shown.placement))
             .or_else(|| self.leaving.clone());
-        let Some((view, placement)) = view else {
-            return div().into_any_element();
-        };
+        let (view, placement) = view?;
         let mut dim = hsla(cx.global::<ui::Theme>().palette.layer_bg);
         dim.a *= background;
         div()
@@ -217,5 +265,6 @@ impl Render for Layers {
                 ),
             })
             .into_any_element()
+            .into()
     }
 }
