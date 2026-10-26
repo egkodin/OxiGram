@@ -3,7 +3,7 @@
 
 use model::Event;
 use model::history::Change;
-use model::message::{Content, Forward, Message, Origin, ReplyTo, Sender, Service};
+use model::message::{Content, Forward, LinkPreview, Message, Origin, ReplyTo, Sender, Service};
 use model::text::{Entity, EntityKind, FormattedText};
 use model::{ChatId, MessageId, UserId};
 
@@ -19,14 +19,14 @@ fn message(chat: i64, id: i64, from: i64, ago: i32, text: &str) -> Message {
             MessageId(id),
             ChatId(chat),
             Sender::User(UserId(from)),
-            Content::Text(FormattedText::plain(text)),
+            Content::text(FormattedText::plain(text)),
         )
     }
 }
 
 /// Marks `part` of the message's text with `kind`.
 fn entity(mut message: Message, part: &str, kind: EntityKind) -> Message {
-    if let Content::Text(text) = &mut message.content {
+    if let Content::Text { text, .. } = &mut message.content {
         let start = text
             .text
             .find(part)
@@ -167,8 +167,67 @@ fn private() -> Vec<Message> {
     ]
 }
 
+/// Gives a text message a link preview.
+fn with_preview(mut message: Message, preview: LinkPreview) -> Message {
+    if let Content::Text { preview: slot, .. } = &mut message.content {
+        *slot = Some(Box::new(preview));
+    }
+    message
+}
+
+/// Ann Lee: link previews below and above the text, and a message TDLib
+/// cannot show.
+fn ann() -> Vec<Message> {
+    let guide = entity(
+        message(
+            3,
+            26,
+            3,
+            4 * HOUR,
+            "Have you seen the new guide? https://example.org/guide",
+        ),
+        "https://example.org/guide",
+        EntityKind::Url,
+    );
+    let unsupported = Message {
+        content: Content::Unsupported,
+        ..message(3, 27, 3, 4 * HOUR - MINUTE, "")
+    };
+    vec![
+        with_preview(
+            guide,
+            LinkPreview {
+                url: "https://example.org/guide".to_owned(),
+                site_name: "Example Trails".to_owned(),
+                title: "Trail guide 2026".to_owned(),
+                description: FormattedText::plain(
+                    "Maps, distances and difficulty for every route in the park, updated for the new season.",
+                ),
+                is_above_text: false,
+                is_url_in_text: true,
+            },
+        ),
+        unsupported,
+        with_preview(
+            message(3, 28, ME, 3 * HOUR + MINUTE, "Looks good for Saturday"),
+            LinkPreview {
+                url: "https://example.org/weather".to_owned(),
+                site_name: "Weather".to_owned(),
+                title: "Weekend forecast".to_owned(),
+                description: FormattedText::plain("Sunny, 18 degrees"),
+                is_above_text: true,
+                is_url_in_text: false,
+            },
+        ),
+    ]
+}
+
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {
-    vec![(ChatId(-100), group()), (ChatId(2), private())]
+    vec![
+        (ChatId(-100), group()),
+        (ChatId(2), private()),
+        (ChatId(3), ann()),
+    ]
 }
 
 /// Hiking Club's pins: the meeting point and the trail news.

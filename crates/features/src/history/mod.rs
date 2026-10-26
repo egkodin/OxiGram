@@ -16,6 +16,7 @@ mod sync;
 mod text;
 mod top_bar;
 mod unread;
+mod web_page;
 
 pub(crate) use self::delete::bind_keys;
 pub(crate) use self::headers::Replied;

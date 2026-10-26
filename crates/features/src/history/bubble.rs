@@ -6,15 +6,15 @@ use gpui::{
     ParentElement, SharedString, Styled, Window, div, point, prelude::FluentBuilder as _, px,
 };
 use i18n::key;
-use model::message::{Content, Message, Sending};
+use model::message::{Content, LinkPreview, Message, Sending};
 use model::text::FormattedText;
 use std::ops::Range;
 use std::rc::Rc;
 use style::chat::{
-    BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PHOTO_LEFT, HISTORY_VIEWS_SPACE,
-    MSG_DATE_DELTA, MSG_DATE_FONT, MSG_FONT, MSG_MARGIN, MSG_MARGIN_TOP_ATTACHED, MSG_MAX_WIDTH,
-    MSG_NAME_FONT, MSG_PADDING, MSG_PHOTO_SIZE, MSG_PHOTO_SKIP, MSG_SERVICE_FONT,
-    MSG_SERVICE_MARGIN, MSG_SERVICE_PADDING, MSG_SHADOW,
+    BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PAGE_PREVIEW, HISTORY_PHOTO_LEFT,
+    HISTORY_VIEWS_SPACE, MSG_DATE_DELTA, MSG_DATE_FONT, MSG_FONT, MSG_MARGIN,
+    MSG_MARGIN_TOP_ATTACHED, MSG_MAX_WIDTH, MSG_NAME_FONT, MSG_PADDING, MSG_PHOTO_SIZE,
+    MSG_PHOTO_SKIP, MSG_SERVICE_FONT, MSG_SERVICE_MARGIN, MSG_SERVICE_PADDING, MSG_SHADOW,
 };
 use style::chat_style::{
     HISTORY_BUBBLE_TAIL_IN_LEFT, HISTORY_BUBBLE_TAIL_IN_LEFT_SELECTED,
@@ -29,6 +29,7 @@ use ui::{Userpic, UserpicSource, color, font, font_height, icon, icon_size, peer
 use super::body::{self, Body, OnLink};
 use super::headers::{self, Reply};
 use super::selection::{OnPointer, Pointer};
+use super::web_page::{self, WebPage};
 use super::{layout, unread};
 use crate::lang::{strings, tr};
 use crate::px_of;
@@ -332,6 +333,7 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
         }])
         .children(name)
         .children(headers(item, out, cx))
+        .children(web_page(item, out, Placement::AboveText, cx))
         .child(
             div()
                 .font(font(MSG_FONT))
@@ -340,6 +342,7 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
                 .text_color(color(cx, palette(fg)))
                 .child(text(item, out, cx)),
         )
+        .children(web_page(item, out, Placement::BelowText, cx))
         .child(info(item, out, cx))
         .children(tail)
 }
@@ -380,6 +383,62 @@ fn headers(item: &Item<'_>, out: bool, cx: &App) -> Vec<AnyElement> {
     forward.into_iter().chain(reply).collect()
 }
 
+/// Where a link preview goes against the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Placement {
+    AboveText,
+    BelowText,
+}
+
+fn link_preview<'a>(item: &Item<'a>) -> Option<&'a LinkPreview> {
+    match &item.message.content {
+        Content::Text { preview, .. } => preview.as_deref(),
+        _ => None,
+    }
+}
+
+/// The link preview, when it goes at `placement`; below the text it holds
+/// the room for the time.
+fn web_page(item: &Item<'_>, out: bool, placement: Placement, cx: &App) -> Option<AnyElement> {
+    let preview = link_preview(item)?;
+    let is_above = placement == Placement::AboveText;
+    if preview.is_above_text != is_above {
+        return None;
+    }
+    let (tint, name_fg, text_fg) = if out {
+        (
+            ColorId::MsgOutReplyBarColor,
+            ColorId::MsgOutServiceFg,
+            ColorId::HistoryTextOutFg,
+        )
+    } else {
+        let tint = name_color(item.color_index);
+        (tint, tint, ColorId::HistoryTextInFg)
+    };
+    Some(web_page::element(
+        WebPage {
+            preview,
+            id: ("web-page", item.message.id.0.unsigned_abs()).into(),
+            colors: [palette(tint), palette(name_fg), palette(text_fg)],
+            room: (!is_above).then(|| time_room(item, out, cx)),
+            on_link: item.on_link.clone(),
+        },
+        cx,
+    ))
+}
+
+/// Transparent text as wide as the time, for the last line under it.
+fn time_room(item: &Item<'_>, out: bool, cx: &App) -> String {
+    let ticks = if out { "\u{2007}\u{2007}\u{2007}" } else { "" };
+    let views = views(item).map_or_else(String::new, |views| {
+        format!("{FIGURE_SPACE}{FIGURE_SPACE}{views}{FIGURE_SPACE}")
+    });
+    format!(
+        " {FIGURE_SPACE}{views}{}{ticks}",
+        info_text(item, cx).replace(' ', "\u{00A0}")
+    )
+}
+
 /// The post's views, as tdesktop shortens them (`FormatCountToShort`).
 fn views(item: &Item<'_>) -> Option<String> {
     (item.message.views > 0).then(|| layout::short_count(item.message.views))
@@ -411,21 +470,24 @@ pub(super) fn name_color(color_index: i32) -> ColorId {
 fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
     let preview;
     let text = match &item.message.content {
-        Content::Text(text) => text,
+        Content::Text { text, .. } => text,
+        Content::Unsupported => {
+            preview = crate::dialogs::unsupported_text(strings(cx));
+            &preview
+        }
         content => {
             preview =
                 FormattedText::plain(crate::dialogs::content_preview(strings(cx), content).0.text);
             &preview
         }
     };
-    let ticks = if out { "\u{2007}\u{2007}\u{2007}" } else { "" };
-    let views = views(item).map_or_else(String::new, |views| {
-        format!("{FIGURE_SPACE}{FIGURE_SPACE}{views}{FIGURE_SPACE}")
-    });
-    let room = format!(
-        " {FIGURE_SPACE}{views}{}{ticks}",
-        info_text(item, cx).replace(' ', "\u{00A0}")
-    );
+    // Below the text the link preview holds the room for the time.
+    let has_preview_below = link_preview(item).is_some_and(|preview| !preview.is_above_text);
+    let room = if has_preview_below {
+        String::new()
+    } else {
+        time_room(item, out, cx)
+    };
     let quote = if out {
         ColorId::MsgOutReplyBarColor
     } else {
@@ -455,6 +517,12 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
         (false, false) => ColorId::MsgInDateFg,
         (false, true) => ColorId::MsgInDateFgSelected,
     };
+    // Over a link preview below the text the time sits on its last line.
+    let preview_lift = if link_preview(item).is_some_and(|preview| !preview.is_above_text) {
+        px_of(HISTORY_PAGE_PREVIEW.padding.bottom)
+    } else {
+        px(0.0)
+    };
     // shortcut: a failed message shows the sending clock; the red failed mark comes with sending in M4.
     let state = out.then_some(match (item.message.sending, item.is_selected) {
         (Some(Sending::Pending | Sending::Failed), _) => HISTORY_SENDING_ICON,
@@ -466,7 +534,7 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
     div()
         .absolute()
         .right(px_of(MSG_PADDING.right) - px_of(MSG_DATE_DELTA.x))
-        .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y))
+        .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y) + preview_lift)
         .flex()
         .items_center()
         .font(font(MSG_DATE_FONT))

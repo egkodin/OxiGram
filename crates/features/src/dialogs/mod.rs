@@ -18,6 +18,7 @@ mod tabs;
 pub(crate) use self::action::action_text;
 pub(crate) use self::hashtag_results::CompleteQuery;
 pub(crate) use self::preview::content as content_preview;
+pub(crate) use self::preview::unsupported_text;
 pub(crate) use self::row::{Lit, unread_badge};
 pub(crate) use self::sidebar::{OnMainMenu, is_sidebar_shown};
 

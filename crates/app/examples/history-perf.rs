@@ -152,7 +152,7 @@ fn messages(ids: std::ops::Range<i64>, ago: i32, rng: &mut Rng) -> Vec<Message> 
                     MessageId(id),
                     GROUP,
                     Sender::User(UserId(from)),
-                    Content::Text(text(rng)),
+                    Content::text(text(rng)),
                 )
             }
         })

@@ -101,7 +101,7 @@ fn messages_between(shown: &[Arc<Message>], a: usize, b: usize) -> BTreeSet<Mess
 
 fn message_text(message: &Message) -> Option<&str> {
     match &message.content {
-        Content::Text(text) => Some(&text.text),
+        Content::Text { text, .. } => Some(&text.text),
         _ => None,
     }
 }
@@ -305,7 +305,7 @@ mod tests {
                     MessageId(id),
                     ChatId(1),
                     Sender::User(UserId(1)),
-                    Content::Text(FormattedText::plain(*text)),
+                    Content::text(FormattedText::plain(*text)),
                 ))
             })
             .collect()

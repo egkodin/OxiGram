@@ -231,6 +231,7 @@ fn scenarios() -> Vec<Scenario> {
                 ),
                 ("52-history-pinned-jump", MouseButton::Left, PINNED_BAR),
                 ("53-history-pinned-previous", MouseButton::Left, PINNED_BAR),
+                ("54-history-link-previews", MouseButton::Left, ANN_ROW),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             folders: FoldersPlacement::Top,
@@ -311,6 +312,7 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
+const ANN_ROW: (f32, f32) = (150.0, 304.0);
 const HIKING_ROW: (f32, f32) = (150.0, 366.0);
 /// The reply box of "Can't wait to see them" in Hiking Club.
 const GROUP_REPLY: (f32, f32) = (670.0, 328.0);

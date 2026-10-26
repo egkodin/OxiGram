@@ -224,7 +224,7 @@ impl HistoryView {
             return;
         };
         let text = match &message.content {
-            Content::Text(text) => Some(text),
+            Content::Text { text, .. } => Some(text),
             _ => None,
         };
         let is_revealed = self.revealed_spoilers.contains(&message.id);
@@ -337,7 +337,7 @@ impl HistoryView {
                 self.copy_selection(cx);
             }
             Item::CopyText => {
-                if let Content::Text(text) = &message.content {
+                if let Content::Text { text, .. } = &message.content {
                     cx.write_to_clipboard(ClipboardItem::new_string(text.text.clone()));
                 }
             }

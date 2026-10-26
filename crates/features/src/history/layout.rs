@@ -126,7 +126,7 @@ mod tests {
                 MessageId(1),
                 ChatId(1),
                 Sender::User(UserId(sender)),
-                Content::Text(FormattedText::plain("hi")),
+                Content::text(FormattedText::plain("hi")),
             )
         }
     }

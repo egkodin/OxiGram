@@ -8,7 +8,7 @@ use model::chat::{Chat, ChatKind, Draft};
 use model::chats::Chats;
 use model::file::Minithumbnail;
 use model::message::{Content, Media, Message, Sender};
-use model::text::{EntityKind, FormattedText};
+use model::text::{Entity, EntityKind, FormattedText};
 
 /// Preview text with the few styles the chat list keeps
 /// (`DialogsPreviewText`).
@@ -90,6 +90,28 @@ impl Preview {
     }
 }
 
+/// Where the unsupported notice sends the user (`UnsupportedMessageText`).
+// shortcut: tdesktop's own download page, as tdesktop links it; an rgram releases page once releases are published (owner's call).
+const UNSUPPORTED_LINK: &str = "https://desktop.telegram.org";
+
+/// The notice in place of a message TDLib cannot show: italic, with the
+/// download page as a link.
+pub(crate) fn unsupported_text(strings: &Strings) -> FormattedText {
+    let template = strings.text(key::lng_message_unsupported);
+    let text = i18n::fill(template, &[("link", UNSUPPORTED_LINK)]);
+    let mut entities = vec![Entity {
+        range: 0..text.len(),
+        kind: EntityKind::Italic,
+    }];
+    if let Some(start) = text.find(UNSUPPORTED_LINK) {
+        entities.push(Entity {
+            range: start..start + UNSUPPORTED_LINK.len(),
+            kind: EntityKind::Url,
+        });
+    }
+    FormattedText { text, entities }
+}
+
 /// The preview of a message's content, and the image shown before it.
 pub(crate) fn content<'a>(
     strings: &Strings,
@@ -105,7 +127,7 @@ pub(crate) fn content<'a>(
     };
     let empty = FormattedText::default();
     let preview = match content {
-        Content::Text(text) => Preview::of_text(text),
+        Content::Text { text, .. } => Preview::of_text(text),
         Content::Photo(photo) => return media(strings.text(key::lng_in_dlg_photo), photo),
         Content::Video(video) => return media(strings.text(key::lng_in_dlg_video), video),
         Content::Animation(animation) => return media("GIF", animation),
@@ -150,7 +172,7 @@ pub(crate) fn content<'a>(
             is_video,
             is_missed,
         } => typed(call_key(*is_video, *is_missed), &empty),
-        Content::Unsupported => typed(key::lng_message_unsupported, &empty),
+        Content::Unsupported => Preview::of_text(&unsupported_text(strings)),
         // Rows build service texts with the chat at hand (`preview::service`).
         _ => Preview::default(),
     };
@@ -311,7 +333,7 @@ mod tests {
                 },
             ],
         };
-        let message = message_with(Content::Text(text));
+        let message = message_with(Content::text(text));
         let (preview, _) = super::message(&english(), Some("Ann"), &message);
         assert_eq!(preview.text, "Ann: hi there");
         assert_eq!(
@@ -347,5 +369,18 @@ mod tests {
             },
         );
         assert_eq!(preview.text, "😀 Sticker");
+    }
+
+    #[test]
+    fn the_unsupported_notice_is_italic_with_its_link() {
+        let text = unsupported_text(&Strings::english());
+        let link = text
+            .entities
+            .iter()
+            .find(|entity| entity.kind == EntityKind::Url)
+            .map(|entity| &text.text[entity.range.clone()]);
+        assert_eq!(link, Some(UNSUPPORTED_LINK));
+        assert_eq!(text.entities[0].range, 0..text.text.len());
+        assert!(!text.text.contains("{link}"));
     }
 }

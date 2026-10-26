@@ -429,7 +429,7 @@ mod tests {
             MessageId(id),
             ChatId(1),
             Sender::User(UserId(2)),
-            Content::Text(FormattedText::plain(id.to_string())),
+            Content::text(FormattedText::plain(id.to_string())),
         )
     }
 

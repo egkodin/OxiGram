@@ -84,7 +84,10 @@ pub enum Sender {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Content {
-    Text(FormattedText),
+    Text {
+        text: FormattedText,
+        preview: Option<Box<LinkPreview>>,
+    },
     Photo(Media),
     Video(Media),
     /// A GIF.
@@ -132,6 +135,45 @@ pub enum Content {
     /// A service message ("X joined the group").
     Service(Service),
     Unsupported,
+}
+
+/// The page a text message links to, as its preview shows it
+/// (`linkPreview`).
+// shortcut: no photo, video or type-specific button yet; media come with M5.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LinkPreview {
+    pub url: String,
+    pub site_name: String,
+    pub title: String,
+    pub description: FormattedText,
+    /// Shown above the message text instead of below it.
+    pub is_above_text: bool,
+    /// The text shows the URL, so opening it asks nothing.
+    pub is_url_in_text: bool,
+}
+
+impl From<td_api::types::LinkPreview> for LinkPreview {
+    fn from(preview: td_api::types::LinkPreview) -> Self {
+        Self {
+            url: preview.url,
+            site_name: preview.site_name,
+            title: preview.title,
+            description: FormattedText::from(*preview.description),
+            is_above_text: preview.show_above_text,
+            is_url_in_text: preview.skip_confirmation,
+        }
+    }
+}
+
+impl Content {
+    /// A text message without a link preview.
+    #[must_use]
+    pub fn text(text: FormattedText) -> Self {
+        Self::Text {
+            text,
+            preview: None,
+        }
+    }
 }
 
 /// What a service message reports (`HistoryService::setServiceText`).
@@ -326,7 +368,12 @@ fn media(
 impl From<MessageContent> for Content {
     fn from(content: MessageContent) -> Self {
         match content {
-            MessageContent::MessageText(text) => Self::Text(FormattedText::from(*text.text)),
+            MessageContent::MessageText(text) => Self::Text {
+                text: FormattedText::from(*text.text),
+                preview: text
+                    .link_preview
+                    .map(|preview| Box::new(LinkPreview::from(*preview))),
+            },
             MessageContent::MessagePhoto(photo) => {
                 Self::Photo(media(*photo.caption, photo.photo.minithumbnail))
             }

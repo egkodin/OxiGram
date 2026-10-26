@@ -29,12 +29,15 @@
   by `updateMessageIsPinned`; the bar follows the view bottom, each click
   jumps and steps to the older pin, wraps after the oldest; close offers
   unpin when allowed, else hides. Jumps shade the target message.
+- Link previews (`web_page`): site, title and description above or below
+  the text, the time on the box's last line; the unsupported message notice
+  as tdesktop words it (`dialogs::unsupported_text`).
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-53 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-54 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -48,7 +51,7 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: link previews, jumps to
+- Many M3 rows in `docs/parity.md` are still todo: jumps to
   mentions and reactions, the calendar, read dates, the pinned section,
   comments, Saved Messages sublists, sponsored messages, protected content.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
@@ -56,16 +59,18 @@
 
 ### Next steps
 
-1. Link previews (small and large, above or below the text) and the
-   unsupported message notice.
-2. Jumps to unread mentions and reactions (the buttons over the down
+1. Jumps to unread mentions and reactions (the buttons over the down
    button) and the calendar jump from a date badge.
-3. Read dates in private chats and the pinned messages section.
+2. Read dates in private chats and the pinned messages section.
+3. Search in a chat (the top bar's search button) and replies to other
+   chats.
 
 ### Open questions for the owner
 
 - API credentials (asked once; still missing).
 - Permission to download Telegram Desktop for screenshot comparison.
+- The unsupported message notice links to desktop.telegram.org as tdesktop
+  does; an rgram releases page could replace it once releases exist.
 
 ## M2: Chat list (in progress; checkpoint committed)
 

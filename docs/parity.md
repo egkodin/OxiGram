@@ -144,7 +144,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Entities: formatted dates and timestamps (timecodes) | M3 | todo | |
 | history | Large single emoji and animated emoji | M5 | todo | |
 | history | Emoji interactions (click an animated emoji, see the partner's) | M5 | todo | |
-| history | Link previews: small or large media, above or below the text | M3 | todo | |
+| history | Link previews: small or large media, above or below the text | M3 | in progress | snapshot 54 and a unit test (`cargo test -p features web_page`); site name, title and description in a tinted box above or below the text, the time on its last line, a click opens the link (asking first unless TDLib says the text shows it); not verified: no API credentials, so no real linkPreview from TDLib; no media (small or large), no type-specific button, description without entities, line limits estimated |
 | history | Loading history upward and downward without scroll jumps | M3 | in progress | unit tests (model history, list splices); `scripts/history-perf.sh`: adding 50 older messages near the top of a 10,000-message history changes no history pixel (3 runs); not verified live: no API credentials yet, and loading newer pages is not measured |
 | history | Scroll-to-bottom button with unread counter | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 44/45); not verified: no API credentials, so no live chat; no show/hide animation, badge 20 px instead of 22 |
 | history | Jump buttons to unread mentions and unread reactions | M3 | todo | |
@@ -168,7 +168,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Protected content (no forwards, no copy, no screenshots) | M3 | todo | |
 | history | "Pull to next channel" at the bottom of a read channel | M3 | todo | |
 | history | Swipe back gesture | M8 | todo | |
-| history | Unsupported message notice | M3 | todo | |
+| history | Unsupported message notice | M3 | done | snapshot 54 and a unit test (`cargo test -p features unsupported`); tdesktop's italic notice with its link, in the bubble and the chat list preview; not verified live (no API credentials) |
 | history | Bot "about" card in an empty bot chat and start button | M10 | todo | |
 | history | Sensitive (18+) media blurred, with the show setting | M5 | todo | |
 | history | Message effects on send (Premium) | M13 | todo | |

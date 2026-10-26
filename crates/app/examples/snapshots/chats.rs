@@ -51,7 +51,7 @@ fn message(
 }
 
 fn text(text: &str) -> Content {
-    Content::Text(FormattedText::plain(text))
+    Content::text(FormattedText::plain(text))
 }
 
 fn chat(id: i64, kind: ChatKind, title: &str, order: i64, last: Option<Message>) -> Chat {
@@ -164,7 +164,7 @@ pub(crate) fn events() -> Vec<Event> {
             Sender::User(UserId(ME)),
             true,
             3 * HOUR,
-            Content::Text(italic),
+            Content::text(italic),
         )),
     );
     ann.last_read_outbox = MessageId(30);

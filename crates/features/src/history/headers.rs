@@ -2,8 +2,9 @@
 //! it was forwarded from (`HistoryMessageForwarded`).
 
 use gpui::{
-    AnyElement, App, ElementId, InteractiveElement as _, IntoElement, ParentElement, SharedString,
-    StatefulInteractiveElement as _, Styled, div, prelude::FluentBuilder as _,
+    AnyElement, App, Div, ElementId, InteractiveElement as _, IntoElement, ParentElement,
+    SharedString, Stateful, StatefulInteractiveElement as _, Styled, div,
+    prelude::FluentBuilder as _,
 };
 use i18n::{Strings, key};
 use model::chats::Chats;
@@ -12,7 +13,7 @@ use style::basic::NORMAL_FONT;
 use style::chat::{
     HISTORY_REPLY_BOTTOM, HISTORY_REPLY_PADDING, HISTORY_REPLY_TOP, MSG_SERVICE_NAME_FONT,
 };
-use style::{ColorRef, Font};
+use style::{ColorRef, Font, Margins};
 use ui::{color, font, font_height};
 
 use super::bubble::OnClick;
@@ -132,17 +133,28 @@ pub(super) fn reply_element(
     on_click: Option<OnClick>,
     cx: &App,
 ) -> AnyElement {
-    let tint = color(cx, tint);
-    let padding = HISTORY_REPLY_PADDING;
-    div()
-        .id(id)
-        .relative()
+    quote_frame(id, color(cx, tint), HISTORY_REPLY_PADDING)
         .when_some(on_click, |this, on_click| {
             this.cursor_pointer()
                 .on_click(move |event, window, cx| on_click(event, window, cx))
         })
         .mt(px_of(HISTORY_REPLY_TOP))
         .mb(px_of(HISTORY_REPLY_BOTTOM))
+        .child(line(reply.name, MSG_SERVICE_NAME_FONT, color(cx, name_fg)))
+        .child(line(reply.text, NORMAL_FONT, color(cx, text_fg)))
+        .into_any_element()
+}
+
+/// A box tinted in `tint` with a line on its left, as replies and link
+/// previews draw (`Ui::Text::QuotePaintCache`).
+pub(super) fn quote_frame(
+    id: impl Into<ElementId>,
+    tint: gpui::Hsla,
+    padding: Margins,
+) -> Stateful<Div> {
+    div()
+        .id(id)
+        .relative()
         .rounded(gpui::px(RADIUS))
         .bg(tint.opacity(BG_OPACITY))
         .pl(px_of(padding.left))
@@ -159,9 +171,6 @@ pub(super) fn reply_element(
                 .rounded_l(gpui::px(RADIUS))
                 .bg(tint.opacity(OUTLINE_OPACITY)),
         )
-        .child(line(reply.name, MSG_SERVICE_NAME_FONT, color(cx, name_fg)))
-        .child(line(reply.text, NORMAL_FONT, color(cx, text_fg)))
-        .into_any_element()
 }
 
 /// The forward line in the service color of the bubble.
