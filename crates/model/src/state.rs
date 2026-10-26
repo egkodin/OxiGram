@@ -1,7 +1,9 @@
 use td_api::enums::ConnectionState as TdConnectionState;
 
 use crate::auth::{self, Terms, TermsId};
+use crate::chats::Chats;
 use crate::event::Event;
+use crate::ids::UserId;
 
 /// Everything the UI shows, built only from [`Event`]s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -13,6 +15,9 @@ pub struct State {
     /// The language pack TDLib suggests for the system language; empty when
     /// there is none.
     pub suggested_language: String,
+    pub chats: Chats,
+    /// The signed-in user, once TDLib told.
+    pub me: Option<UserId>,
 }
 
 /// How TDLib's connection to Telegram stands.
@@ -34,11 +39,21 @@ impl State {
                 if !state.is_signed_in() {
                     self.terms_update = None;
                 }
+                // A new client sends every chat again.
+                if matches!(
+                    state,
+                    auth::State::LoggingOut | auth::State::Closing | auth::State::Closed
+                ) {
+                    self.chats = Chats::default();
+                    self.me = None;
+                }
                 self.auth = state;
             }
             Event::TermsUpdate { id, terms } => self.terms_update = Some((id, terms)),
             Event::Connection(connection) => self.connection = connection,
             Event::SuggestedLanguage(language) => self.suggested_language = language,
+            Event::Me(user) => self.me = Some(user),
+            Event::Chats(change) => self.chats.apply(change),
         }
     }
 

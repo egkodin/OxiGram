@@ -9,25 +9,31 @@ mod icon;
 mod input;
 mod label;
 mod layer;
+mod popup_menu;
 mod qr;
 mod radial;
 mod ripple;
+mod settings_button;
 mod theme;
+mod userpic;
 
 use std::borrow::Cow;
 
 use gpui::App;
 
-pub use button::{IconButton, LinkButton, RoundButton};
+pub use button::{CrossButton, IconButton, LinkButton, RoundButton};
 pub use checkbox::{Checkbox, Checked};
 pub use font::{FONT_FAMILY, font, font_height, text_style};
 pub use icon::{IconView, icon, icon_size};
 pub use input::{Corrector, InputEvent, InputField, InputMode};
 pub use label::{FlatLabel, Markup};
 pub use layer::BoxFrame;
+pub use popup_menu::{MenuTone, PopupMenu};
 pub use qr::{QrCode, QrData, QrError};
 pub use radial::{InfiniteRadial, RadialState, paint_arc};
+pub use settings_button::SettingsButton;
 pub use theme::{Theme, color, hsla};
+pub use userpic::{Userpic, UserpicSource, initials, jpeg_image};
 
 /// The fonts tdesktop bundles (`lib_ui/fonts`); Vazirmatn covers Arabic script.
 const FONTS: [&[u8]; 6] = [
@@ -55,5 +61,6 @@ pub fn init(cx: &mut App) -> Result<(), FontError> {
         .map_err(|error| FontError(error.into()))?;
     cx.set_global(Theme::default());
     input::bind_keys(cx);
+    popup_menu::bind_keys(cx);
     Ok(())
 }

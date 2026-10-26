@@ -27,6 +27,10 @@ gpui = { git = "https://github.com/zed-industries/zed", rev = "876c1b0c5fb0ed7c1
 gpui_platform = { git = "https://github.com/zed-industries/zed", rev = "876c1b0c5fb0ed7c15703a1955ef4b3580bd73fa", features = ["font-kit", "wayland", "x11"] }
 
 anyhow = "1.0.104"
+# Already in the tree through gpui; decodes TDLib's `bytes` fields.
+base64 = "0.22.1"
+# Already in the tree through gpui; local time for chat list dates.
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
 futures = "0.3.34"
 futures-channel = "0.3.34"
 # The version gpui uses, so `render_to_image` results can be saved.

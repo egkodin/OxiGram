@@ -8,6 +8,7 @@ publish.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+miniz_oxide = "0.8.9"
 
 [dev-dependencies]
 insta.workspace = true

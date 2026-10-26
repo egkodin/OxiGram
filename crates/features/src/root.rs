@@ -77,7 +77,8 @@ impl Root {
             auth::State::Ready => {
                 if !matches!(self.screen, Screen::Main(_)) {
                     let (store, layers) = (self.shared.store.clone(), self.shared.layers.clone());
-                    self.screen = Screen::Main(cx.new(|cx| MainView::new(store, layers, cx)));
+                    self.screen =
+                        Screen::Main(cx.new(|cx| MainView::new(store, layers, window, cx)));
                     self.upload_photo(cx);
                     cx.notify();
                 }

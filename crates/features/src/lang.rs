@@ -108,7 +108,7 @@ fn apply(task: gpui::Task<Result<(String, Vec<PackString>), model::RequestError>
     .detach();
 }
 
-fn strings(cx: &App) -> &Strings {
+pub(crate) fn strings(cx: &App) -> &Strings {
     &cx.global::<Lang>().strings
 }
 

@@ -7,17 +7,24 @@
 //! arrives as an event.
 
 pub mod auth;
+pub mod chat;
+pub mod chat_actions;
+pub mod chats;
 mod event;
+pub mod file;
 mod ids;
 pub mod language;
+pub mod message;
 pub mod phone;
+pub mod search;
 mod secret;
 mod session;
 mod state;
 pub mod text;
+pub mod user;
 
 pub use event::{Event, events};
-pub use ids::{CustomEmojiId, UserId};
+pub use ids::{ChatId, CustomEmojiId, FileId, FolderId, MessageId, UserId};
 pub use secret::Secret;
-pub use session::{Environment, Parameters, RequestError, Session};
+pub use session::{Environment, ListLoad, Parameters, RequestError, Session};
 pub use state::{ConnectionState, State};

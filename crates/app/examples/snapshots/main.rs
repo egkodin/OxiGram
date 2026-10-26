@@ -4,14 +4,17 @@
 //!
 //! cargo run -p rgram --example snapshots -- [output directory]
 
+mod chats;
+
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use anyhow::Context as _;
 use features::{Root, Store};
 use gpui::{
-    AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, WindowBounds, WindowOptions,
-    px, size,
+    AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, Modifiers, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, PlatformInput, Point, Window,
+    WindowBounds, WindowOptions, point, px, size,
 };
 use model::auth::{Code, Delivery, Password, Recovery, State, Terms, TermsId};
 use model::text::FormattedText;
@@ -24,7 +27,11 @@ const HEIGHT: f32 = 600.0;
 
 /// One window: the events it receives, each step saved under its name.
 struct Scenario {
+    /// Applied before the first step.
+    setup: Vec<Event>,
     steps: Vec<(&'static str, Event)>,
+    /// Clicks at window points after the steps, each saved.
+    clicks: Vec<(&'static str, MouseButton, (f32, f32))>,
 }
 
 fn auth(state: State) -> Event {
@@ -43,9 +50,13 @@ fn code() -> Event {
 fn scenarios() -> Vec<Scenario> {
     vec![
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
         },
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![(
                 "02-qr",
                 auth(State::WaitQrScan {
@@ -55,12 +66,16 @@ fn scenarios() -> Vec<Scenario> {
         },
         Scenario {
             // Back from the code to the number, as a wrong number does.
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![
                 ("04-code", code()),
                 ("03-phone", auth(State::WaitPhoneNumber)),
             ],
         },
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![(
                 "05-password",
                 auth(State::WaitPassword(Password {
@@ -73,6 +88,8 @@ fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![(
                 "06-signup",
                 auth(State::WaitRegistration {
@@ -87,9 +104,13 @@ fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
         },
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![(
                 "08-premium-required",
                 auth(State::WaitPremiumPurchase {
@@ -98,6 +119,8 @@ fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            setup: Vec::new(),
+            clicks: Vec::new(),
             steps: vec![
                 ("09-signed-in", auth(State::Ready)),
                 (
@@ -115,8 +138,28 @@ fn scenarios() -> Vec<Scenario> {
                 ),
             ],
         },
+        // Last: the night mode it switches on stays for later windows.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("12-main-menu", MouseButton::Left, MENU_BUTTON),
+                ("13-night-menu", MouseButton::Left, NIGHT_MODE_ROW),
+                ("14-night-chat-list", MouseButton::Left, OUTSIDE_MENU),
+                ("15-night-archive", MouseButton::Left, ARCHIVE_ROW),
+                // The archive's first chat sits where the archive row was.
+                ("16-night-chat-menu", MouseButton::Right, ARCHIVE_ROW),
+            ],
+            steps: vec![("11-chat-list", auth(State::Ready))],
+        },
     ]
 }
+
+/// The main menu button, the menu's night mode row, and a point beside the
+/// open menu.
+const MENU_BUTTON: (f32, f32) = (27.0, 27.0);
+const NIGHT_MODE_ROW: (f32, f32) = (100.0, 447.0);
+const OUTSIDE_MENU: (f32, f32) = (600.0, 300.0);
+const ARCHIVE_ROW: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {
     let out = std::env::args()
@@ -154,11 +197,15 @@ fn main() -> anyhow::Result<()> {
 async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<()> {
     for scenario in scenarios() {
         let mut steps = scenario.steps.into_iter();
+        let setup = scenario.setup;
         let Some((first_name, first)) = steps.next() else {
             continue;
         };
         let store = cx.new(|cx| {
             let mut store = Store::new(session.clone(), Environment::Production);
+            for event in setup {
+                store.apply(event, cx);
+            }
             store.apply(first, cx);
             store
         });
@@ -168,9 +215,47 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             store.update(cx, |store, cx| store.apply(event, cx));
             settle_and_save(window, name, out, cx).await?;
         }
+        for (name, button, (x, y)) in scenario.clicks {
+            window.update(cx, |_, window, cx| {
+                click(button, point(px(x), px(y)), window, cx);
+            })?;
+            settle_and_save(window, name, out, cx).await?;
+        }
         window.update(cx, |_, window, _| window.remove_window())?;
     }
     Ok(())
+}
+
+fn click(button: MouseButton, position: Point<Pixels>, window: &mut Window, cx: &mut App) {
+    let modifiers = Modifiers::default();
+    window.dispatch_event(
+        PlatformInput::MouseMove(MouseMoveEvent {
+            position,
+            pressed_button: None,
+            modifiers,
+        }),
+        cx,
+    );
+    window.draw(cx).clear(cx);
+    window.dispatch_event(
+        PlatformInput::MouseDown(MouseDownEvent {
+            button,
+            position,
+            modifiers,
+            click_count: 1,
+            first_mouse: false,
+        }),
+        cx,
+    );
+    window.dispatch_event(
+        PlatformInput::MouseUp(MouseUpEvent {
+            button,
+            position,
+            modifiers,
+            click_count: 1,
+        }),
+        cx,
+    );
 }
 
 fn open(store: Entity<Store>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {

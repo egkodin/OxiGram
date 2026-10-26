@@ -4,7 +4,7 @@
 
 use gpui::{
     AnyView, App, Context, Entity, FocusHandle, Focusable, IntoElement, KeyBinding, MouseButton,
-    ParentElement, Render, Styled, Window, actions, div, prelude::*,
+    ParentElement, Pixels, Render, Styled, Window, actions, div, prelude::*,
 };
 use style::layers::BOX_DURATION;
 use ui::anim::{Easing, Simple};
@@ -30,8 +30,17 @@ pub enum Dismiss {
 /// Runs when the box is dismissed by Escape or a click outside.
 pub type OnDismiss = Box<dyn FnOnce(&mut Window, &mut App)>;
 
+/// Where the layer sits: boxes in the middle, the main menu along the left
+/// edge, sliding in (`showMainMenu`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Placement {
+    Center,
+    Left { width: Pixels },
+}
+
 struct Shown {
     view: AnyView,
+    placement: Placement,
     dismiss: Dismiss,
     on_dismiss: Option<OnDismiss>,
 }
@@ -39,8 +48,8 @@ struct Shown {
 /// The window's box layer.
 pub struct Layers {
     current: Option<Shown>,
-    /// A box fading out after it closed.
-    leaving: Option<AnyView>,
+    /// A layer fading out after it closed.
+    leaving: Option<(AnyView, Placement)>,
     background: Simple,
     layer: Simple,
     restore_focus: Option<FocusHandle>,
@@ -81,6 +90,30 @@ impl Layers {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.show_at(view, Placement::Center, dismiss, on_dismiss, window, cx);
+    }
+
+    /// Slides `view`, `width` wide, in from the left edge, as the main menu.
+    pub fn show_panel<V: Render + Focusable>(
+        &mut self,
+        view: Entity<V>,
+        width: Pixels,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let placement = Placement::Left { width };
+        self.show_at(view, placement, Dismiss::Allowed, None, window, cx);
+    }
+
+    fn show_at<V: Render + Focusable>(
+        &mut self,
+        view: Entity<V>,
+        placement: Placement,
+        dismiss: Dismiss,
+        on_dismiss: Option<OnDismiss>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let focus = view.focus_handle(cx);
         if self.current.is_none() {
             self.restore_focus = window.focused(cx);
@@ -91,6 +124,7 @@ impl Layers {
         self.leaving = None;
         self.current = Some(Shown {
             view: view.into(),
+            placement,
             dismiss,
             on_dismiss,
         });
@@ -103,7 +137,7 @@ impl Layers {
         let Some(shown) = self.current.take() else {
             return;
         };
-        self.leaving = Some(shown.view);
+        self.leaving = Some((shown.view, shown.placement));
         self.background
             .start(1.0, 0.0, BOX_DURATION, Easing::EaseOutCirc);
         self.layer.start(1.0, 0.0, BOX_DURATION, Easing::Linear);
@@ -147,9 +181,9 @@ impl Render for Layers {
         let view = self
             .current
             .as_ref()
-            .map(|shown| shown.view.clone())
+            .map(|shown| (shown.view.clone(), shown.placement))
             .or_else(|| self.leaving.clone());
-        let Some(view) = view else {
+        let Some((view, placement)) = view else {
             return div().into_any_element();
         };
         let mut dim = hsla(cx.global::<ui::Theme>().palette.layer_bg);
@@ -160,15 +194,26 @@ impl Render for Layers {
             .absolute()
             .inset_0()
             .flex()
-            .items_center()
-            .justify_center()
             .bg(dim)
             .on_action(cx.listener(|this, _: &CloseLayer, window, cx| this.dismiss(window, cx)))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(|this, _, window, cx| this.dismiss(window, cx)),
             )
-            .child(div().opacity(opacity).child(view))
+            .map(|this| match placement {
+                Placement::Center => this
+                    .items_center()
+                    .justify_center()
+                    .child(div().opacity(opacity).child(view)),
+                Placement::Left { width } => this.child(
+                    div()
+                        .relative()
+                        .h_full()
+                        .left(-width * (1.0 - background))
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .child(view),
+                ),
+            })
             .into_any_element()
     }
 }

@@ -30,6 +30,7 @@ const WINDOW_MIN_HEIGHT: f32 = 480.0;
 const TDLIB_LOG_VERBOSITY: i32 = 1;
 
 const TEST_DC_VAR: &str = "RGRAM_TEST_DC";
+const SETTINGS_FILE: &str = "settings.json";
 
 fn main() -> anyhow::Result<()> {
     init_logging()?;
@@ -54,6 +55,7 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
+    let settings = paths::data_dir(environment).map(|dir| dir.join(SETTINGS_FILE));
     let runtime = tg::Runtime::start().context("starting TDLib")?;
     gpui_platform::application().run(move |cx: &mut App| {
         if let Err(error) = ui::init(cx) {
@@ -62,6 +64,10 @@ fn main() -> anyhow::Result<()> {
             return;
         }
         features::init(cx);
+        match settings {
+            Ok(path) => features::settings::load(path, cx),
+            Err(error) => tracing::warn!("{error:#}"),
+        }
         let content = match parameters {
             Ok(parameters) => Content::Signed(client::start(runtime, parameters, cx)),
             Err(notice) => {

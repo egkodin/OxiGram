@@ -3,12 +3,15 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::OptionValue;
 use td_api::functions::{
-    GetCountries, GetCountryCode, SetOption, SetProfilePhoto, SetTdlibParameters,
+    DownloadFile, GetCountries, GetCountryCode, LoadChats, SetOption, SetProfilePhoto,
+    SetTdlibParameters,
 };
 use td_api::types::{InputChatPhotoStatic, InputFileLocal, OptionValueString};
 use tg::TdError;
 
 use crate::auth;
+use crate::chat::ChatList;
+use crate::ids::FileId;
 use crate::phone::Country;
 use crate::secret::Secret;
 
@@ -42,6 +45,13 @@ pub struct Parameters {
     pub device_model: String,
     pub system_version: String,
     pub application_version: String,
+}
+
+/// Whether a chat list has more chats to load.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListLoad {
+    HasMore,
+    Complete,
 }
 
 /// A request TDLib did not complete.
@@ -134,6 +144,43 @@ impl Session {
                     },
                 )),
                 is_public: false,
+            })
+            .map(|result| result.map(drop).map_err(RequestError))
+    }
+
+    /// Asks TDLib for `limit` more chats of `list`; they arrive as updates.
+    pub fn load_chats(
+        &self,
+        list: ChatList,
+        limit: i32,
+    ) -> impl Future<Output = Result<ListLoad, RequestError>> + Send + use<> {
+        self.client
+            .request(&LoadChats {
+                chat_list: Some(Box::new(list.to_td())),
+                limit,
+            })
+            .map(|result| match result {
+                Ok(_) => Ok(ListLoad::HasMore),
+                // TDLib answers 404 once the whole list is loaded.
+                Err(TdError::Td { code: 404, .. }) => Ok(ListLoad::Complete),
+                Err(error) => Err(RequestError(error)),
+            })
+    }
+
+    /// Starts downloading a file; progress arrives as file updates. Priority
+    /// runs from 1 (lowest) to 32.
+    pub fn download_file(
+        &self,
+        file: FileId,
+        priority: i32,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client
+            .request(&DownloadFile {
+                file_id: file.0,
+                priority,
+                offset: 0,
+                limit: 0,
+                synchronous: false,
             })
             .map(|result| result.map(drop).map_err(RequestError))
     }

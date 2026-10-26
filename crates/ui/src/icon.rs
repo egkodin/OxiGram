@@ -140,9 +140,12 @@ fn load_mask(mask: IconMask, scale: u8) -> Option<RgbaImage> {
             return Some(RgbaImage::from_pixel(width, height, image::Rgba([255; 4])));
         }
     };
-    let IconFiles::Png { x1, x2, x3 } = style::icon_files(name)? else {
-        // shortcut: no SVG masks are embedded yet; add resvg when one is.
-        return None;
+    let (x1, x2, x3) = match style::icon_files(name)? {
+        IconFiles::Png { x1, x2, x3 } => (x1, x2, x3),
+        IconFiles::Svg(svg) => {
+            let (width, height) = logical_size(mask)?;
+            return render_svg(svg, width, height, scale);
+        }
     };
     let bytes = match scale {
         1 => x1,
@@ -215,13 +218,14 @@ fn logical_size(mask: IconMask) -> Option<(i32, i32)> {
         IconMask::File { name, modifiers } => (name, modifiers),
         IconMask::Rect(rect) => return Some((rect.width.0, rect.height.0)),
     };
-    let IconFiles::Png { x1, .. } = style::icon_files(name)? else {
-        return None;
+    let mut size = match style::icon_files(name)? {
+        // The IHDR chunk holds the width and height at bytes 16..24.
+        IconFiles::Png { x1, .. } => (
+            i32::try_from(u32::from_be_bytes(x1.get(16..20)?.try_into().ok()?)).ok()?,
+            i32::try_from(u32::from_be_bytes(x1.get(20..24)?.try_into().ok()?)).ok()?,
+        ),
+        IconFiles::Svg(svg) => svg_size(svg)?,
     };
-    // The IHDR chunk holds the width and height at bytes 16..24.
-    let width = i32::try_from(u32::from_be_bytes(x1.get(16..20)?.try_into().ok()?)).ok()?;
-    let height = i32::try_from(u32::from_be_bytes(x1.get(20..24)?.try_into().ok()?)).ok()?;
-    let mut size = (width, height);
     for modifier in modifiers {
         size = match *modifier {
             "rotate_cw" | "rotate_ccw" => (size.1, size.0),
@@ -235,9 +239,85 @@ fn logical_size(mask: IconMask) -> Option<(i32, i32)> {
     Some(size)
 }
 
+/// An SVG mask at `width`x`height` logical pixels, as `QSvgRenderer` draws
+/// it in `createIconImage`; the masks are white, so any channel is the mask.
+fn render_svg(svg: &[u8], width: i32, height: i32, scale: u8) -> Option<RgbaImage> {
+    let tree = resvg::usvg::Tree::from_data(svg, &resvg::usvg::Options::default()).ok()?;
+    let factor = u32::from(scale);
+    let (width, height) = (
+        u32::try_from(width).ok()? * factor,
+        u32::try_from(height).ok()? * factor,
+    );
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(width, height)?;
+    let size = tree.size();
+    #[expect(clippy::cast_precision_loss, reason = "icon sizes are small")]
+    let transform = resvg::tiny_skia::Transform::from_scale(
+        width as f32 / size.width(),
+        height as f32 / size.height(),
+    );
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+    let pixels = pixmap
+        .data()
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .flat_map(|pixel| [255, 255, pixel[3], 255])
+        .collect();
+    RgbaImage::from_raw(width, height, pixels)
+}
+
+/// The size an SVG declares: its `width` and `height`, or its `viewBox`.
+fn svg_size(svg: &[u8]) -> Option<(i32, i32)> {
+    let text = std::str::from_utf8(svg).ok()?;
+    let tag = &text[text.find("<svg")?..];
+    let tag = &tag[..tag.find('>')?];
+    let attribute = |name: &str| -> Option<&str> {
+        let start = tag.find(&format!(" {name}=\""))? + name.len() + 3;
+        tag[start..].split('"').next()
+    };
+    let number = |value: &str| -> Option<i32> {
+        let value: f32 = value.trim_end_matches("px").parse().ok()?;
+        #[expect(clippy::cast_possible_truncation, reason = "icon sizes are small")]
+        Some(value.round() as i32)
+    };
+    if let (Some(width), Some(height)) = (attribute("width"), attribute("height"))
+        && let (Some(width), Some(height)) = (number(width), number(height))
+    {
+        return Some((width, height));
+    }
+    let mut view_box = attribute("viewBox")?.split_whitespace().skip(2);
+    Some((number(view_box.next()?)?, number(view_box.next()?)?))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_svg_sizes_from_attributes_or_the_view_box() {
+        assert_eq!(
+            svg_size(br#"<svg width="72px" height="36px">"#),
+            Some((72, 36))
+        );
+        assert_eq!(svg_size(br#"<svg viewBox="0 0 24 20">"#), Some((24, 20)));
+        assert_eq!(svg_size(b"<svg>"), None);
+    }
+
+    #[test]
+    fn renders_svg_masks_at_the_modifier_size() {
+        let size = icon_size(style::dialogs::DIALOGS_UNREAD_MENTION.icon);
+        assert_eq!(size, gpui::size(px(18.0), px(18.0)));
+        let IconMask::File { name, .. } = style::dialogs::DIALOGS_UNREAD_MENTION.icon.parts[0].mask
+        else {
+            panic!("the mention icon is a file");
+        };
+        let Some(IconFiles::Svg(svg)) = style::icon_files(name) else {
+            panic!("the mention icon is an SVG");
+        };
+        let mask = render_svg(svg, 18, 18, 2).expect("the SVG renders");
+        assert_eq!((mask.width(), mask.height()), (36, 36));
+        assert!(mask.pixels().any(|pixel| mask_value(pixel.0) > 0));
+    }
 
     #[test]
     fn reads_sizes_from_the_1x_mask() {

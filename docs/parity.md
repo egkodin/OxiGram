@@ -59,31 +59,31 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| dialogs | Virtualized chat list in the server's order | M2 | todo | |
-| dialogs | Row: userpic, name, time, last message with sender and entities | M2 | todo | |
-| dialogs | Row: media thumbnails and emoji in the last-message preview | M2 | todo | |
-| dialogs | Row: verified, Premium, emoji status, scam, fake and bot badges | M2 | todo | |
-| dialogs | Row: unread counter (muted in grey), mention and reaction badges | M2 | todo | |
-| dialogs | Row: outgoing message read checks | M2 | todo | |
-| dialogs | Row: draft preview ("Draft:") | M2 | todo | |
-| dialogs | Row: typing, uploading and other chat actions | M2 | todo | |
-| dialogs | Row: online indicator on user userpics | M2 | todo | |
+| dialogs | Virtualized chat list in the server's order | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Row: userpic, name, time, last message with sender and entities | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Row: media thumbnails and emoji in the last-message preview | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; custom emoji draw as their fallback emoji until M5 |
+| dialogs | Row: verified, Premium, emoji status, scam, fake and bot badges | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; emoji status shows the Premium star until custom emoji land in M5 |
+| dialogs | Row: unread counter (muted in grey), mention and reaction badges | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Row: outgoing message read checks | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Row: draft preview ("Draft:") | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Row: typing, uploading and other chat actions | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; one sender, no animated dots yet |
+| dialogs | Row: online indicator on user userpics | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
 | dialogs | Row: animated (video) userpics | M5 | todo | |
-| dialogs | Row: mute icon, pinned icon, unread mark | M2 | todo | |
-| dialogs | Pinned chats: pin, unpin, drag to reorder, pinned limit box | M2 | todo | |
-| dialogs | Archive: collapsed row, open, archive and unarchive chats | M2 | todo | |
+| dialogs | Row: mute icon, pinned icon, unread mark | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Pinned chats: pin, unpin, drag to reorder, pinned limit box | M2 | in progress | pin and unpin from the context menu; drag to reorder and the limit box not built; not verified: no API credentials yet, so no live account |
+| dialogs | Archive: collapsed row, open, archive and unarchive chats | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; the row is always expanded |
 | dialogs | Archive row collapse/expand and hide into main menu | M2 | todo | |
-| dialogs | Live updates: new messages, edits, deletes, read states reorder the list | M2 | todo | |
-| dialogs | Connecting / Updating / Waiting for network status with proxy state | M2 | todo | |
+| dialogs | Live updates: new messages, edits, deletes, read states reorder the list | M2 | in progress | unit tests on the update fold; not verified: no API credentials yet, so no live account |
+| dialogs | Connecting / Updating / Waiting for network status with proxy state | M2 | in progress | status pill from M1; proxy state comes with M6; not verified: no API credentials yet, so no live account |
 | dialogs | Adaptive one, two and three column layout with column resize | M2 | todo | |
 | dialogs | Narrow (userpics only) chat list mode | M2 | todo | |
-| dialogs | Chat context menu: pin, mute, mark read/unread, archive, add to folder | M2 | todo | |
-| dialogs | Chat context menu: clear history, delete and leave, block, report | M2 | todo | |
+| dialogs | Chat context menu: pin, mute, mark read/unread, archive, add to folder | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; mute has no duration submenu; add to folder not built |
+| dialogs | Chat context menu: clear history, delete and leave, block, report | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account; report not built; destructive items confirm first |
 | dialogs | Open chat in a separate window | M8 | todo | |
 | dialogs | Chat preview without opening (peek) | M2 | todo | |
 | dialogs | Touchpad swipe actions on rows (archive, read, pin, mute, delete) | M8 | todo | |
-| dialogs | Search: chats, contacts and global results | M2 | todo | |
-| dialogs | Search: messages across all chats with date and type filters | M2 | todo | |
+| dialogs | Search: chats, contacts and global results | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); not verified: no API credentials yet, so no live account |
+| dialogs | Search: messages across all chats with date and type filters | M2 | in progress | message results with paging; date and type filters not built; not verified: no API credentials yet, so no live account |
 | dialogs | Search: in one chat, by sender | M2 | todo | |
 | dialogs | Search: hashtags and cashtags, in this chat or everywhere | M2 | todo | |
 | dialogs | Search: public posts in channels (with Premium limits) | M13 | todo | |
@@ -420,7 +420,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| themes | Day and night themes, night mode toggle in the main menu | M6 | todo | |
+| themes | Day and night themes, night mode toggle in the main menu | M6 | in progress | snapshot only (`cargo run -p rgram --example snapshots`): day and night palettes and the toggle, saved in settings.json; the night theme's background image waits for wallpapers in M3 |
 | themes | Follow the system dark mode | M7 | todo | |
 | themes | Accent colors for the built-in themes | M6 | todo | |
 | themes | Cloud themes: list, apply, create from current, share links | M6 | todo | |
@@ -435,7 +435,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
 | window | Main menu: account, My Profile, new group, new channel, contacts, calls, Saved Messages, settings | M2 | todo | |
-| window | Main menu: accounts list, night mode switch, version | M2 | todo | |
+| window | Main menu: accounts list, night mode switch, version | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); no accounts list until multi-account in M8; not verified: no API credentials yet, so no live account |
 | window | Section slide animations and back navigation | M8 | todo | |
 | window | Chat switcher (Ctrl+Tab) | M8 | todo | |
 | window | Media preview on hover (stickers, GIFs) | M5 | todo | |

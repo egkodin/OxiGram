@@ -7,9 +7,13 @@
 
 pub mod basic;
 pub mod boxes;
+pub mod chat;
 pub mod chat_helpers;
 pub mod country_select_box;
+pub mod dialogs;
+pub mod dialogs_layout;
 mod icons;
+pub mod info;
 pub mod intro;
 pub mod layers;
 pub mod menu_icons;
@@ -19,6 +23,7 @@ pub mod premium_limits;
 pub mod userpic_button;
 pub mod widgets;
 pub mod window;
+pub mod window_main_menu;
 
 pub use icons::icon_files;
 pub use palette::{ColorId, Palette};

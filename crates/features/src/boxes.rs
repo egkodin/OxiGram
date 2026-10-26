@@ -97,6 +97,34 @@ pub fn inform(
     confirm(layers, args, window, cx);
 }
 
+/// Asks before a destructive `action`: a red `confirm_text` button and
+/// Cancel; Escape and a click outside cancel.
+pub(crate) fn confirm_attention(
+    layers: &Entity<Layers>,
+    text: String,
+    confirm_text: SharedString,
+    action: Callback,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let args = attention_args(text, confirm_text, tr(cx, i18n::key::lng_cancel), action);
+    confirm(layers, args, window, cx);
+}
+
+fn attention_args(
+    text: String,
+    confirm_text: SharedString,
+    cancel_text: SharedString,
+    action: Callback,
+) -> ConfirmArgs {
+    let mut args = ConfirmArgs::new(Markup::plain(text));
+    args.confirm_text = Some(confirm_text);
+    args.confirm_style = &style::layers::ATTENTION_BOX_BUTTON;
+    args.cancel_text = Some(cancel_text);
+    args.confirmed = Some(action);
+    args
+}
+
 /// Shows a confirm box (an inform box when `args.cancel_text` is `None` and
 /// there is no `cancelled`).
 pub fn confirm(layers: &Entity<Layers>, args: ConfirmArgs, window: &mut Window, cx: &mut App) {
@@ -207,4 +235,23 @@ impl Render for ConfirmBox {
 fn px_of(value: i32) -> gpui::Pixels {
     #[expect(clippy::cast_precision_loss, reason = "style sizes are small")]
     gpui::px(value as f32)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An inform box runs its action on Escape, so a destructive one must
+    /// never be one.
+    #[test]
+    fn destructive_boxes_cancel_on_escape() {
+        let args = attention_args(
+            "Log out?".to_owned(),
+            "Log out".into(),
+            "Cancel".into(),
+            Rc::new(|_, _| {}),
+        );
+        assert!(args.cancel_text.is_some());
+        assert!(args.cancelled.is_none(), "Escape must only close the box");
+    }
 }

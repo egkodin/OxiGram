@@ -5,6 +5,7 @@
 
 mod palette;
 mod style;
+mod zip;
 
 use std::env;
 use std::fmt::Write as _;
@@ -17,12 +18,20 @@ use anyhow::{Context as _, bail};
 use style::emit::IconFile;
 
 const PALETTE_SOURCE: &str = "Telegram/lib_ui/ui/colors.palette";
+/// The night theme the main menu switches to (`Window::Theme::NightThemePath`).
+const NIGHT_THEME: &str = "Telegram/Resources/night.tdesktop-theme";
+const THEME_COLORS: &str = "colors.tdesktop-theme";
 
 /// The style modules rgram uses; their `using` includes come along.
 const STYLE_ROOTS: &[&str] = &[
+    "dialogs/dialogs.style",
+    "dialogs/ui/dialogs_layout.style",
+    "info/info.style",
     "intro/intro.style",
     "ui/boxes/country_select_box.style",
+    "ui/chat/chat.style",
     "window/window.style",
+    "window/window_main_menu.style",
 ];
 
 /// Telegram's paper-plane logo; rgram may not use it (ADR 0004), so these masks
@@ -47,7 +56,17 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| format!("reading {}", source_path.display()))?;
     let lib_ui_head = git_head(&tdesktop.join("Telegram/lib_ui"))?;
     let provenance = format!("{PALETTE_SOURCE} at lib_ui {lib_ui_head}");
-    let code = palette::generate(&source, &provenance)
+    let night_path = tdesktop.join(NIGHT_THEME);
+    let night_archive =
+        fs::read(&night_path).with_context(|| format!("reading {}", night_path.display()))?;
+    let night = String::from_utf8(zip::extract(&night_archive, THEME_COLORS)?)
+        .with_context(|| format!("decoding {}", night_path.display()))?;
+    let themes = [palette::Theme {
+        name: "NIGHT",
+        doc: "The night palette (`night.tdesktop-theme`).",
+        source: &night,
+    }];
+    let code = palette::generate(&source, &themes, &provenance)
         .with_context(|| format!("generating from {}", source_path.display()))?;
     write(&style_crate.join("src/palette.rs"), &code)?;
 

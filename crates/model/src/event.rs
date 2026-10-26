@@ -2,6 +2,8 @@ use futures::{Stream, StreamExt as _, future};
 use td_api::enums::{OptionValue, Update};
 
 use crate::auth::{self, Terms, TermsId};
+use crate::chats::Change;
+use crate::ids::UserId;
 use crate::state::ConnectionState;
 
 /// A state change, converted from a TDLib update.
@@ -18,6 +20,9 @@ pub enum Event {
     /// The language pack TDLib suggests from the system language
     /// (`suggested_language_pack_id`); empty when there is none.
     SuggestedLanguage(String),
+    /// The signed-in user (`my_id`).
+    Me(UserId),
+    Chats(Change),
 }
 
 /// The events in a client's updates, in TDLib's order. Updates the model does
@@ -45,7 +50,11 @@ impl Event {
                     _ => Self::SuggestedLanguage(String::new()),
                 }
             }
-            _ => return None,
+            Update::Option(update) if update.name == "my_id" => match *update.value {
+                OptionValue::Integer(value) => Self::Me(UserId(value.value)),
+                _ => return None,
+            },
+            other => Self::Chats(Change::from_update(other).ok()?),
         })
     }
 }

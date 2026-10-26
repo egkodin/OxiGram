@@ -3,11 +3,14 @@
 
 pub mod boxes;
 mod connecting;
+mod dialogs;
 mod intro;
 pub mod lang;
 pub mod layers;
+mod main_menu;
 mod main_view;
 mod root;
+pub mod settings;
 pub mod store;
 
 use gpui::{App, Pixels, px};
@@ -23,6 +26,7 @@ pub fn init(cx: &mut App) {
     layers::bind_keys(cx);
     boxes::bind_keys(cx);
     intro::bind_keys(cx);
+    main_view::bind_keys(cx);
 }
 
 /// A style length in window pixels.

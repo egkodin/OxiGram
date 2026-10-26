@@ -6,7 +6,10 @@ use gpui::{
     App, ClickEvent, CursorStyle, ElementId, IntoElement, MouseButton, ParentElement, Pixels,
     RenderOnce, SharedString, TextRun, Window, div, prelude::*, px,
 };
-use style::widgets::{BUTTON_RADIUS, IconButton as IconButtonStyle, LinkButton as LinkStyle};
+use style::widgets::{
+    BUTTON_RADIUS, CrossButton as CrossStyle, IconButton as IconButtonStyle,
+    LinkButton as LinkStyle,
+};
 use style::{Color, ColorRef};
 
 use crate::anim::mix;
@@ -17,7 +20,7 @@ use crate::theme::{Theme, color, hsla};
 
 type ClickHandler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
-fn px_of(value: style::Px) -> Pixels {
+pub(crate) fn px_of(value: style::Px) -> Pixels {
     #[expect(clippy::cast_precision_loss, reason = "style sizes are small")]
     px(value.0 as f32)
 }
@@ -191,7 +194,7 @@ impl RenderOnce for RoundButton {
     }
 }
 
-fn hover_listener(
+pub(crate) fn hover_listener(
     state: &gpui::Entity<ButtonState>,
 ) -> impl Fn(&bool, &mut Window, &mut App) + 'static {
     let state = state.clone();
@@ -206,7 +209,7 @@ fn hover_listener(
     }
 }
 
-fn press_listener(
+pub(crate) fn press_listener(
     state: &gpui::Entity<ButtonState>,
 ) -> impl Fn(&gpui::MouseDownEvent, &mut Window, &mut App) + 'static {
     let state = state.clone();
@@ -216,7 +219,7 @@ fn press_listener(
     }
 }
 
-fn release_listener(
+pub(crate) fn release_listener(
     state: &gpui::Entity<ButtonState>,
 ) -> impl Fn(&gpui::MouseUpEvent, &mut Window, &mut App) + 'static {
     let state = state.clone();
@@ -374,6 +377,105 @@ impl RenderOnce for IconButton {
                     .child(ripple::layer(&state, st.ripple, Shape::Circle)),
             )
             .child(div().absolute().left(left).top(top).child(icon(current)))
+            .on_hover(hover_listener(&state))
+            .on_mouse_down(MouseButton::Left, press_listener(&state))
+            .on_mouse_up(MouseButton::Left, release_listener(&state))
+            .on_mouse_up_out(MouseButton::Left, release_listener(&state))
+            .on_click(move |event, window, cx| {
+                if let Some(on_click) = &on_click {
+                    on_click(event, window, cx);
+                }
+            })
+    }
+}
+
+/// A round button with a cross, such as the chat list's cancel search.
+// shortcut: the cross does not scale in and out and has no loading state; add them when a screen needs them.
+#[derive(IntoElement)]
+pub struct CrossButton {
+    id: ElementId,
+    style: &'static CrossStyle,
+    on_click: Option<ClickHandler>,
+}
+
+impl CrossButton {
+    pub fn new(id: impl Into<ElementId>, style: &'static CrossStyle) -> Self {
+        Self {
+            id: id.into(),
+            style,
+            on_click: None,
+        }
+    }
+
+    #[must_use]
+    pub fn on_click(
+        mut self,
+        handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_click = Some(Rc::new(handler));
+        self
+    }
+}
+
+impl std::fmt::Debug for CrossButton {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CrossButton")
+            .field("id", &self.id)
+            .finish_non_exhaustive()
+    }
+}
+
+impl RenderOnce for CrossButton {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let st = self.style;
+        let state = use_button_state(self.id.clone(), window, cx);
+        let fg = color(
+            cx,
+            if state.read(cx).hovered {
+                st.cross_fg_over
+            } else {
+                st.cross_fg
+            },
+        );
+        let size = px_of(st.cross.size);
+        let skip = px_of(st.cross.skip);
+        #[expect(
+            clippy::cast_possible_truncation,
+            reason = "a stroke width of a few pixels"
+        )]
+        let stroke = px(st.cross.stroke as f32);
+        let on_click = self.on_click.clone();
+        div()
+            .id(self.id)
+            .relative()
+            .w(px_of(st.width))
+            .h(px_of(st.height))
+            .cursor(CursorStyle::PointingHand)
+            .child(div().absolute().size_full().child(ripple::layer(
+                &state,
+                st.ripple,
+                Shape::Circle,
+            )))
+            .child(
+                gpui::canvas(
+                    |_, _, _| {},
+                    move |bounds, (), window, _| {
+                        let origin = bounds.origin
+                            + gpui::point(px_of(st.cross_position.x), px_of(st.cross_position.y));
+                        let (from, to) = (skip, size - skip);
+                        for (start, end) in [((from, from), (to, to)), ((to, from), (from, to))] {
+                            let mut builder = gpui::PathBuilder::stroke(stroke);
+                            builder.move_to(origin + gpui::point(start.0, start.1));
+                            builder.line_to(origin + gpui::point(end.0, end.1));
+                            if let Ok(path) = builder.build() {
+                                window.paint_path(path, fg);
+                            }
+                        }
+                    },
+                )
+                .absolute()
+                .size_full(),
+            )
             .on_hover(hover_listener(&state))
             .on_mouse_down(MouseButton::Left, press_listener(&state))
             .on_mouse_up(MouseButton::Left, release_listener(&state))

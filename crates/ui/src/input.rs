@@ -877,7 +877,11 @@ impl Render for InputField {
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .cursor(CursorStyle::IBeam)
-            .w(px_of(self.style.width))
+            // A zero width means the parent sets it, as with a Qt geometry.
+            .when(self.style.width.0 == 0, Styled::w_full)
+            .when(self.style.width.0 > 0, |this| {
+                this.w(px_of(self.style.width))
+            })
             .h(px_of(self.style.height_min))
             .on_action(cx.listener(Self::backspace))
             .on_action(cx.listener(Self::delete_word_left))
@@ -1013,8 +1017,13 @@ impl Element for FieldElement {
             bounds.left() + input.text_left(bounds.size.width, line.width),
             bounds.top() + px_of(st.text_margins.top),
         );
-        let mut quads = vec![fill(bounds, hsla(st.text_bg.resolve(palette)))];
-        quads.extend(border_quads(input, bounds, palette, window));
+        let mut quads = if st.border_radius.0 > 0 {
+            vec![round_surrounding(input, bounds, palette, window)]
+        } else {
+            let mut quads = vec![fill(bounds, hsla(st.text_bg.resolve(palette)))];
+            quads.extend(border_quads(input, bounds, palette, window));
+            quads
+        };
         if !selected.is_empty() {
             let start = line.x_for_index(selected.start);
             let end = line.x_for_index(selected.end);
@@ -1171,6 +1180,46 @@ fn placeholder_line(
 }
 
 /// The resting bottom border, and the active one growing from the click.
+/// `paintRoundSurrounding`: a rounded field whose fill and outline turn to
+/// their active colors while focused.
+// shortcut: switches at focus without tdesktop's fade; animate when the search field gets its cancel button.
+fn round_surrounding(
+    input: &InputField,
+    bounds: Bounds<Pixels>,
+    palette: &style::Palette,
+    window: &Window,
+) -> gpui::PaintQuad {
+    let st = input.style;
+    let focused = if input.focus.is_focused(window) {
+        1.0
+    } else {
+        0.0
+    };
+    let divide = if st.border_denominator > 0 {
+        st.border_denominator
+    } else {
+        1
+    };
+    #[expect(clippy::cast_precision_loss, reason = "border widths are small")]
+    let border = px(st.border.0 as f32 / divide as f32);
+    gpui::quad(
+        bounds,
+        px_of(st.border_radius),
+        hsla(mix(
+            st.text_bg.resolve(palette),
+            st.text_bg_active.resolve(palette),
+            focused,
+        )),
+        border,
+        hsla(mix(
+            st.border_fg.resolve(palette),
+            st.border_fg_active.resolve(palette),
+            focused,
+        )),
+        gpui::BorderStyle::Solid,
+    )
+}
+
 fn border_quads(
     input: &InputField,
     bounds: Bounds<Pixels>,

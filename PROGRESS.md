@@ -1,5 +1,49 @@
 # Progress
 
+## M2: Chat list (in progress; checkpoint committed)
+
+### Done (code, checks green)
+
+- `model`: chats, users, messages, files and folders folded from TDLib
+  updates (`chats`, `chat`, `user`, `message`, `file`); search
+  (`search`: local, server and public chats, messages across chats with
+  paging); chat actions (`chat_actions`: pin, archive, mute, mark read and
+  unread, clear history, delete or leave, block).
+- `features::dialogs`: the virtualized list with tdesktop's row layout (badges,
+  counters, read checks, drafts, typing, online dots, thumbnails), the archive
+  row and archive list with a back bar, search (chats, global results, message
+  results with paging, stale results dropped), and the chat context menu with
+  attention confirmations for destructive items.
+- `features`: main menu panel (cover, items, night mode toggle, version),
+  night palette generated from tdesktop's `night.tdesktop-theme` and saved in
+  `settings.json`, Escape clears search or leaves the archive.
+- `ui`: PopupMenu, SettingsButton, CrossButton, SVG icon masks.
+- Fixed an M1 bug: the log-out box had no cancel button, so Escape or a click
+  outside logged out. Destructive boxes now go through `confirm_attention`
+  (regression test `destructive_boxes_cancel_on_escape`).
+
+### Verified (macOS arm64, this machine)
+
+- `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
+  `cargo test` green.
+- Snapshots 11-16 (`cargo run -p rgram --example snapshots`): chat list with
+  search field and archive row, main menu, night menu, night chat list, night
+  archive, chat context menu; compared by eye with tdesktop's style and layout
+  code.
+
+### Not verified
+
+- Everything live: `RGRAM_API_ID` / `RGRAM_API_HASH` are still not set.
+  Context-menu actions modify the account; they will only run in Saved
+  Messages or on the test DC, with the owner's say-so.
+- Perf numbers for a real list (needs an account).
+
+### Next steps
+
+1. Pinned drag to reorder and the archive row collapse / move to main menu.
+2. Folder tabs, narrow mode and column resize.
+3. Contacts list, empty states, search filters, recent searches and top peers.
+
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)
 
 ### Done (code, checks green)
