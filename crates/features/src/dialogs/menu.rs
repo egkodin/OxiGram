@@ -36,7 +36,7 @@ const EDGE_MARGIN: f32 = 8.0;
 const ARCHIVE_TOAST_DURATION: Duration = Duration::from_secs(5);
 
 /// Sends a request and logs its failure; the result arrives as updates.
-pub(super) fn send(
+pub(crate) fn send(
     task: impl Future<Output = Result<(), RequestError>> + Send + 'static,
     what: &'static str,
     cx: &mut App,

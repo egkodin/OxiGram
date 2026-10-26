@@ -128,11 +128,19 @@ fn paragraph(
         range.start + index.min(range.len())
     };
     let offset_at = Rc::new(offset_at);
-    let (on_press, on_drag) = (body.on_pointer.clone(), body.on_pointer.clone());
-    let drag_offset = offset_at.clone();
+    let (on_press, on_drag, on_menu) = (
+        body.on_pointer.clone(),
+        body.on_pointer.clone(),
+        body.on_pointer.clone(),
+    );
+    let (drag_offset, menu_offset) = (offset_at.clone(), offset_at.clone());
     div()
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             on_press(Pointer::PressText(offset_at(event.position)), window, cx);
+            cx.stop_propagation();
+        })
+        .on_mouse_down(MouseButton::Right, move |event, window, cx| {
+            on_menu(Pointer::Menu(Some(menu_offset(event.position))), window, cx);
             cx.stop_propagation();
         })
         .on_mouse_move(move |event, window, cx| {

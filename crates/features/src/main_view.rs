@@ -119,8 +119,9 @@ impl MainView {
             return;
         }
         let store = self.store.clone();
+        let layers = self.layers.clone();
         let focus = self.focus.clone();
-        let history = cx.new(|cx| HistoryView::new(store, chat, focus, cx));
+        let history = cx.new(|cx| HistoryView::new(store, layers, chat, focus, cx));
         self._history_subscription =
             Some(
                 cx.subscribe_in(&history, window, |this, _, event, window, cx| match event {

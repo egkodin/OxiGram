@@ -9,6 +9,8 @@ use std::sync::Arc;
 
 use chrono::{Local, TimeZone as _};
 use gpui::{App, Context, Window};
+
+use super::menu::Hit;
 use model::MessageId;
 use model::message::{Content, Message};
 
@@ -67,6 +69,8 @@ pub(super) enum Pointer {
     Hover,
     /// Released; `is_toggle` when Ctrl (Cmd on macOS) was held.
     Release { is_toggle: bool },
+    /// The right button, over the text at an offset or elsewhere.
+    Menu(Option<usize>),
 }
 
 /// Mouse events of one message, bound to its index.
@@ -144,9 +148,16 @@ pub(super) fn copied_text(
 }
 
 impl HistoryView {
-    pub(super) fn on_pointer(&mut self, index: usize, pointer: Pointer, cx: &mut Context<Self>) {
+    pub(super) fn on_pointer(
+        &mut self,
+        index: usize,
+        pointer: Pointer,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let before = self.selection.clone();
         match pointer {
+            Pointer::Menu(offset) => self.open_menu(Hit { index, offset }, window, cx),
             Pointer::PressText(offset) => self.press(index, Some(offset)),
             Pointer::PressRow => self.press(index, None),
             Pointer::Drag(offset) => self.drag_to(index, offset),
@@ -229,6 +240,27 @@ impl HistoryView {
         } else {
             Selection::Messages(messages)
         };
+    }
+
+    /// Selects from the nearest selected message to the one at `index`
+    /// ("Select up to here").
+    pub(super) fn select_up_to(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Selection::Messages(selected) = &self.selection else {
+            return;
+        };
+        let nearest = self
+            .shown
+            .iter()
+            .enumerate()
+            .filter(|(_, message)| selected.contains(&message.id))
+            .min_by_key(|(at, _)| at.abs_diff(index))
+            .map(|(at, _)| at);
+        if let Some(nearest) = nearest {
+            let mut messages = selected.clone();
+            messages.extend(messages_between(&self.shown, nearest, index));
+            self.selection = Selection::Messages(messages);
+            cx.notify();
+        }
     }
 
     /// Escape: drops the selection; `false` when there was none.

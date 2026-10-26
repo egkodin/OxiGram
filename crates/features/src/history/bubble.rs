@@ -108,10 +108,17 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
 
 /// Presses, drags and releases over the row that the text did not take.
 fn with_pointer(row: Div, on_pointer: &OnPointer) -> Div {
-    let (on_press, on_move, on_release) =
-        (on_pointer.clone(), on_pointer.clone(), on_pointer.clone());
+    let (on_press, on_move, on_release, on_menu) = (
+        on_pointer.clone(),
+        on_pointer.clone(),
+        on_pointer.clone(),
+        on_pointer.clone(),
+    );
     row.on_mouse_down(MouseButton::Left, move |_, window, cx| {
         on_press(Pointer::PressRow, window, cx);
+    })
+    .on_mouse_down(MouseButton::Right, move |_, window, cx| {
+        on_menu(Pointer::Menu(None), window, cx);
     })
     .on_mouse_move(move |event, window, cx| {
         let pointer = if event.pressed_button == Some(MouseButton::Left) {

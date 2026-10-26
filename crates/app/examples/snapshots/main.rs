@@ -217,6 +217,8 @@ fn scenarios() -> Vec<Scenario> {
                 ("42-history-group", MouseButton::Left, HIKING_ROW),
                 ("44-history-reply-jump", MouseButton::Left, GROUP_REPLY),
                 ("45-history-reply-return", MouseButton::Left, DOWN_BUTTON),
+                ("48-history-link-menu", MouseButton::Right, GROUP_LINK),
+                ("49-history-menu-closed", MouseButton::Left, HISTORY_GAP),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             folders: FoldersPlacement::Top,
@@ -301,6 +303,10 @@ const HIKING_ROW: (f32, f32) = (150.0, 366.0);
 /// The reply box of "Can't wait to see them" in Hiking Club.
 const GROUP_REPLY: (f32, f32) = (670.0, 328.0);
 const DOWN_BUTTON: (f32, f32) = (761.0, 565.0);
+/// The forwarded link in Hiking Club once back from the reply, and empty
+/// space beside its date badge.
+const GROUP_LINK: (f32, f32) = (610.0, 513.0);
+const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {

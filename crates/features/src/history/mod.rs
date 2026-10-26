@@ -4,9 +4,11 @@
 
 mod body;
 mod bubble;
+mod delete;
 mod headers;
 mod jump;
 mod layout;
+mod menu;
 mod selection;
 mod service;
 mod sync;
@@ -14,6 +16,7 @@ mod text;
 mod top_bar;
 mod unread;
 
+pub(crate) use self::delete::bind_keys;
 pub(crate) use self::headers::Replied;
 pub(crate) use self::service::text as service_text;
 pub(crate) use self::text::Link;
@@ -25,8 +28,8 @@ use std::sync::Arc;
 use chrono::Local;
 use gpui::{
     AnyElement, App, Context, Entity, EventEmitter, FocusHandle, InteractiveElement as _,
-    IntoElement, ListAlignment, ListState, ParentElement, Render, SharedString, Styled,
-    Subscription, Window, div, list, px,
+    IntoElement, ListAlignment, ListState, ParentElement, Pixels, Point, Render, SharedString,
+    Styled, Subscription, Window, div, list, px,
 };
 use model::chat::ChatKind;
 use model::history::Page;
@@ -39,6 +42,7 @@ use self::bubble::{Author, Item, Run};
 use crate::Store;
 use crate::dialogs::photo_userpic;
 use crate::lang::strings;
+use crate::layers::Layers;
 
 /// Pixels of content the list lays out past each edge.
 const OVERDRAW: f32 = 1000.0;
@@ -68,6 +72,7 @@ pub(crate) enum Placement {
 
 pub(crate) struct HistoryView {
     store: Entity<Store>,
+    layers: Entity<Layers>,
     chat: ChatId,
     placement: Placement,
     list: ListState,
@@ -96,6 +101,8 @@ pub(crate) struct HistoryView {
     generation: u64,
     selection: selection::Selection,
     drag: Option<selection::Drag>,
+    /// The open message menu, at the window point it opened.
+    menu: Option<(Point<Pixels>, Entity<ui::PopupMenu>, Subscription)>,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -113,6 +120,7 @@ impl HistoryView {
     /// once the chat is clicked.
     pub(crate) fn new(
         store: Entity<Store>,
+        layers: Entity<Layers>,
         chat: ChatId,
         focus: FocusHandle,
         cx: &mut Context<Self>,
@@ -140,6 +148,7 @@ impl HistoryView {
         });
         let mut view = Self {
             store,
+            layers,
             chat,
             placement: Placement::default(),
             list,
@@ -158,6 +167,7 @@ impl HistoryView {
             generation: 0,
             selection: selection::Selection::None,
             drag: None,
+            menu: None,
             focus,
             _subscription: subscription,
         };
@@ -314,8 +324,8 @@ impl HistoryView {
 
     fn on_pointer_at(&self, index: usize, cx: &Context<Self>) -> selection::OnPointer {
         let weak = cx.weak_entity();
-        Rc::new(move |pointer, _, cx| {
-            let _ = weak.update(cx, |this, cx| this.on_pointer(index, pointer, cx));
+        Rc::new(move |pointer, window, cx| {
+            let _ = weak.update(cx, |this, cx| this.on_pointer(index, pointer, window, cx));
         })
     }
 
@@ -552,5 +562,6 @@ impl Render for HistoryView {
                     )
                     .children(self.is_down_shown.then(|| self.down_button(cx))),
             )
+            .children(self.menu_overlay())
     }
 }

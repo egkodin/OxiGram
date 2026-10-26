@@ -32,6 +32,7 @@ pub fn init(cx: &mut App) {
     cx.set_global(Lang::default());
     layers::bind_keys(cx);
     boxes::bind_keys(cx);
+    history::bind_keys(cx);
     intro::bind_keys(cx);
     main_view::bind_keys(cx);
 }

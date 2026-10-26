@@ -1,0 +1,115 @@
+//! What a message's context menu does (`HistoryInner::showContextMenu`):
+//! what the user may do with a message, its link, and deleting.
+
+use std::future::Future;
+
+use futures::FutureExt as _;
+use td_api::functions::{DeleteMessages, GetMessageLink, GetMessageProperties};
+use td_api::types::MessageProperties;
+
+use crate::chat_actions::done;
+use crate::ids::{ChatId, MessageId};
+use crate::session::{RequestError, Session};
+
+/// What the user may do with one message (`messageProperties`), the part
+/// rgram offers so far.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent permissions, as TDLib reports them"
+)]
+pub struct Abilities {
+    /// Protected content cannot be copied.
+    pub can_be_copied: bool,
+    pub can_be_deleted_only_for_self: bool,
+    pub can_be_deleted_for_all_users: bool,
+    pub can_get_link: bool,
+}
+
+impl Abilities {
+    #[must_use]
+    pub fn can_be_deleted(&self) -> bool {
+        self.can_be_deleted_only_for_self || self.can_be_deleted_for_all_users
+    }
+}
+
+impl From<MessageProperties> for Abilities {
+    fn from(properties: MessageProperties) -> Self {
+        Self {
+            can_be_copied: properties.can_be_copied,
+            can_be_deleted_only_for_self: properties.can_be_deleted_only_for_self,
+            can_be_deleted_for_all_users: properties.can_be_deleted_for_all_users,
+            can_get_link: properties.can_get_link,
+        }
+    }
+}
+
+/// For whom messages are deleted (`deleteMessages`' `revoke`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Deletion {
+    ForMe,
+    ForEveryone,
+}
+
+/// A message's link and whether anyone can open it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageLink {
+    pub link: String,
+    pub is_public: bool,
+}
+
+impl Session {
+    pub fn message_abilities(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<Abilities, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessageProperties {
+                chat_id: chat.0,
+                message_id: message.0,
+            })
+            .map(|result| result.map(Abilities::from).map_err(RequestError::from))
+    }
+
+    pub fn message_link(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<MessageLink, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessageLink {
+                chat_id: chat.0,
+                message_id: message.0,
+                media_timestamp: 0,
+                checklist_task_id: 0,
+                poll_option_id: String::new(),
+                for_album: false,
+                in_message_thread: false,
+            })
+            .map(|result| {
+                result
+                    .map(|link| MessageLink {
+                        link: link.link,
+                        is_public: link.is_public,
+                    })
+                    .map_err(RequestError::from)
+            })
+    }
+
+    /// Deletes messages; they leave the history through updates.
+    pub fn delete_messages(
+        &self,
+        chat: ChatId,
+        messages: &[MessageId],
+        deletion: Deletion,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&DeleteMessages {
+                chat_id: chat.0,
+                message_ids: messages.iter().map(|id| id.0).collect(),
+                revoke: deletion == Deletion::ForEveryone,
+            })
+            .map(done)
+    }
+}
