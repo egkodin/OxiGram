@@ -6,9 +6,10 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::TopChatCategory;
 use td_api::functions::{
-    AddRecentlyFoundChat, ClearRecentlyFoundChats, GetContacts, GetRecommendedChats, GetTopChats,
-    RemoveRecentlyFoundChat, RemoveTopChat, SearchChats, SearchChatsOnServer, SearchMessages,
-    SearchPublicChats, SearchRecentlyFoundChats,
+    AddRecentlyFoundChat, ClearRecentlyFoundChats, CreatePrivateChat, GetContacts,
+    GetRecommendedChats, GetTopChats, RemoveRecentlyFoundChat, RemoveTopChat, SearchChats,
+    SearchChatsOnServer, SearchMessages, SearchPublicChat, SearchPublicChats,
+    SearchRecentlyFoundChats,
 };
 use td_api::types::{TopChatCategoryUsers, TopChatCategoryWebAppBots};
 
@@ -256,6 +257,39 @@ impl Session {
                         messages: found.messages.into_iter().map(Message::from).collect(),
                         next_offset: (!found.next_offset.is_empty()).then_some(found.next_offset),
                     })
+                    .map_err(RequestError::from)
+            })
+    }
+
+    /// The public chat with `username`, for an @mention.
+    pub fn search_public_chat(
+        &self,
+        username: &str,
+    ) -> impl Future<Output = Result<ChatId, RequestError>> + Send + use<> {
+        self.client()
+            .request(&SearchPublicChat {
+                username: username.to_owned(),
+            })
+            .map(|result| {
+                result
+                    .map(|chat| ChatId(chat.id))
+                    .map_err(RequestError::from)
+            })
+    }
+
+    /// The private chat with `user`, for a mention by name.
+    pub fn create_private_chat(
+        &self,
+        user: UserId,
+    ) -> impl Future<Output = Result<ChatId, RequestError>> + Send + use<> {
+        self.client()
+            .request(&CreatePrivateChat {
+                user_id: user.0,
+                force: false,
+            })
+            .map(|result| {
+                result
+                    .map(|chat| ChatId(chat.id))
                     .map_err(RequestError::from)
             })
     }

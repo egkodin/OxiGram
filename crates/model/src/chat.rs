@@ -85,6 +85,29 @@ pub struct Folder {
 }
 
 impl Chat {
+    /// A chat in no list with nothing unread, as fixtures build them.
+    #[must_use]
+    pub fn new(id: ChatId, kind: ChatKind, title: impl Into<String>) -> Self {
+        Self {
+            id,
+            kind,
+            title: title.into(),
+            photo: None,
+            accent_color: 0,
+            last_message: None,
+            positions: Vec::new(),
+            unread_count: 0,
+            last_read_inbox: MessageId(0),
+            last_read_outbox: MessageId(0),
+            unread_mentions: 0,
+            unread_reactions: 0,
+            is_marked_as_unread: false,
+            mute_for: 0,
+            uses_default_mute: true,
+            draft: None,
+        }
+    }
+
     /// The chat's position in `list`, if it is in it.
     #[must_use]
     pub fn position(&self, list: ChatList) -> Option<&Position> {

@@ -151,7 +151,7 @@ pub(crate) fn content<'a>(
             is_missed,
         } => typed(call_key(*is_video, *is_missed), &empty),
         Content::Unsupported => typed(key::lng_message_unsupported, &empty),
-        // shortcut: service messages preview as empty until M3 writes their texts.
+        // Rows build service texts with the chat at hand (`preview::service`).
         _ => Preview::default(),
     };
     (preview, None)
@@ -237,6 +237,12 @@ pub(crate) fn message<'a>(
         &[("from", sender)],
     );
     (preview.after(Preview::colorized(&from)), thumbnail)
+}
+
+/// A service message's text, all in the service color
+/// (`HistoryService::toPreview`).
+pub(crate) fn service(text: &str) -> Preview {
+    Preview::colorized(text)
 }
 
 /// "Draft: text", with "Draft:" in the draft color.

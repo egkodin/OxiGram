@@ -26,8 +26,9 @@ use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_heig
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
 use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, OpenChat, is_sidebar_shown};
-use crate::history::{CloseChat, HistoryView, Placement};
+use crate::history::{HistoryEvent, HistoryView, Placement};
 use crate::lang::tr;
+use crate::links;
 use crate::main_menu::{MainMenu, MenuAction};
 use crate::settings;
 use crate::{Layers, Store, px_of};
@@ -91,8 +92,8 @@ impl MainView {
             this.search
                 .update(cx, |search, cx| search.set_text(text, None, cx));
         });
-        let open = cx.subscribe(&dialogs, |this, _, OpenChat(chat), cx| {
-            this.open_chat(*chat, cx);
+        let open = cx.subscribe_in(&dialogs, window, |this, _, OpenChat(chat), window, cx| {
+            this.open_chat(*chat, window, cx);
         });
         Self {
             store,
@@ -106,7 +107,7 @@ impl MainView {
         }
     }
 
-    fn open_chat(&mut self, chat: model::ChatId, cx: &mut Context<Self>) {
+    fn open_chat(&mut self, chat: model::ChatId, window: &mut Window, cx: &mut Context<Self>) {
         if self
             .history
             .as_ref()
@@ -117,9 +118,25 @@ impl MainView {
         let store = self.store.clone();
         let history = cx.new(|cx| HistoryView::new(store, chat, cx));
         self._history_subscription =
-            Some(cx.subscribe(&history, |this, _, CloseChat, cx| this.close_chat(cx)));
+            Some(
+                cx.subscribe_in(&history, window, |this, _, event, window, cx| match event {
+                    HistoryEvent::Close => this.close_chat(cx),
+                    HistoryEvent::Link(link) => {
+                        links::open(link.clone(), &this.link_targets(), window, cx)
+                    }
+                }),
+            );
         self.history = Some(history);
         cx.notify();
+    }
+
+    fn link_targets(&self) -> links::Targets {
+        links::Targets {
+            store: self.store.clone(),
+            layers: self.layers.clone(),
+            dialogs: self.dialogs.clone(),
+            search: self.search.clone(),
+        }
     }
 
     fn set_history_placement(&self, placement: Placement, cx: &mut Context<Self>) {

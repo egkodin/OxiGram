@@ -99,6 +99,11 @@ impl Store {
         cx.notify();
     }
 
+    pub fn add_reference(&mut self, chat: ChatId, message: Message, cx: &mut Context<Self>) {
+        self.state.add_reference(chat, message);
+        cx.notify();
+    }
+
     /// Sends a sign-in action; the task reports whether TDLib accepted it.
     pub fn auth(&self, action: auth::Action, cx: &App) -> Task<Result<(), auth::Error>> {
         spawn(self.session.auth(action), cx)

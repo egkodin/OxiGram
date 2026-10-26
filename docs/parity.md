@@ -127,19 +127,19 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Sender names in peer colors, admin and member titles | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no admin and member titles |
 | history | Date separators, sticky date on scroll | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no sticky date on scroll |
 | history | Unread messages separator and jump to first unread | M3 | todo | |
-| history | Service messages for every action type | M3 | todo | |
+| history | Service messages for every action type | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; common actions only, others hidden |
 | history | Outgoing state: clock, sent, read, failed with retry | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; failed shows the clock, no retry |
-| history | Edited mark, channel views, forwards count, post signatures | M3 | in progress | unit tests and snapshot; only the edited mark so far |
-| history | Forwarded header (user, channel, hidden sender, saved from) | M3 | todo | |
-| history | Reply header with quote, jump to replied message and back | M3 | todo | |
+| history | Edited mark, channel views, forwards count, post signatures | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; no forwards count yet |
+| history | Forwarded header (user, channel, hidden sender, saved from) | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; no "saved from" yet |
+| history | Reply header with quote, jump to replied message and back | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; replied messages fetched with getMessage; no jump yet |
 | history | Reply to a message in another chat, reply to a story | M3 | todo | |
 | history | "via @bot" label | M3 | todo | |
-| history | Entities: bold, italic, underline, strikethrough, code, pre | M3 | todo | |
+| history | Entities: bold, italic, underline, strikethrough, code, pre | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; underline, strikethrough and pre not in the fixtures |
 | history | Entities: syntax highlighting in pre blocks with copy button | M3 | todo | |
-| history | Entities: links, text links, mentions, hashtags, cashtags, bot commands | M3 | todo | |
+| history | Entities: links, text links, mentions, hashtags, cashtags, bot commands | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; links, text links (confirm box), mentions, hashtags open; cashtags and bot commands are inert |
 | history | Entities: emails, phone numbers, bank cards with their menus | M3 | todo | |
-| history | Entities: spoilers with the reveal animation | M3 | todo | |
-| history | Entities: block quotes and expandable quotes | M3 | todo | |
+| history | Entities: spoilers with the reveal animation | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; click reveals, no particle animation |
+| history | Entities: block quotes and expandable quotes | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; expandable quotes do not collapse |
 | history | Entities: custom emoji in text | M5 | todo | |
 | history | Entities: formatted dates and timestamps (timecodes) | M3 | todo | |
 | history | Large single emoji and animated emoji | M5 | todo | |

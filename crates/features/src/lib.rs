@@ -11,6 +11,7 @@ mod history;
 mod intro;
 pub mod lang;
 pub mod layers;
+mod links;
 mod main_menu;
 mod main_view;
 mod root;

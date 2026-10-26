@@ -21,7 +21,7 @@ pub(crate) fn is_attached<Tz: TimeZone>(previous: &Message, message: &Message, t
 }
 
 pub(crate) fn is_service(message: &Message) -> bool {
-    matches!(message.content, Content::Service)
+    matches!(message.content, Content::Service(_))
 }
 
 /// The local day of a unix time.
@@ -95,6 +95,22 @@ fn month_day_key(month: u32) -> Key {
     }
 }
 
+/// A count shortened past 10,000: "12.3K", "4M" (`FormatCountToShort`).
+pub(super) fn short_count(count: i32) -> String {
+    let count = i64::from(count);
+    let (divider, suffix) = match count.abs() {
+        abs if abs >= 1_000_000_000 => (1_000_000_000, 'B'),
+        abs if abs >= 1_000_000 => (1_000_000, 'M'),
+        abs if abs >= 10_000 => (1_000, 'K'),
+        _ => return count.to_string(),
+    };
+    let tenths = count / (divider / 10);
+    match tenths % 10 {
+        0 => format!("{}{suffix}", tenths / 10),
+        rest => format!("{}.{}{suffix}", tenths / 10, rest.abs()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,7 +154,7 @@ mod tests {
             &utc
         ));
         let mut service = message(1, noon + 1);
-        service.content = Content::Service;
+        service.content = Content::Service(model::message::Service::ScreenshotTaken);
         assert!(!is_attached(&message(1, noon), &service, &utc));
     }
 
@@ -159,5 +175,13 @@ mod tests {
             date_badge(&strings, date(2023, 1, 3), &now),
             "January 3, 2023"
         );
+    }
+
+    #[test]
+    fn counts_shorten_past_ten_thousand() {
+        assert_eq!(short_count(9_999), "9999");
+        assert_eq!(short_count(12_345), "12.3K");
+        assert_eq!(short_count(20_000), "20K");
+        assert_eq!(short_count(4_000_000), "4M");
     }
 }

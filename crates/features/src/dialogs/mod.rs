@@ -614,8 +614,24 @@ fn build_row(
     } else if let Some(draft) = draft {
         RowText::Draft(preview::draft(strings, draft))
     } else if let Some(message) = message {
-        let sender = preview::sender(strings, chats, chat, message);
-        let (preview, thumbnail) = preview::message(strings, sender.as_deref(), message);
+        let (preview, thumbnail) = match &message.content {
+            // Service texts name their people themselves, so no sender prefix.
+            model::message::Content::Service(service) => {
+                let text = crate::history::service_text(
+                    strings,
+                    chats,
+                    chat,
+                    message,
+                    service,
+                    crate::history::Replied::Loading,
+                );
+                (preview::service(&text.unwrap_or_default()), None)
+            }
+            _ => {
+                let sender = preview::sender(strings, chats, chat, message);
+                preview::message(strings, sender.as_deref(), message)
+            }
+        };
         RowText::Message {
             preview,
             thumbnail: thumbnail.map(|thumbnail| ui::jpeg_image(thumbnail.jpeg.clone())),

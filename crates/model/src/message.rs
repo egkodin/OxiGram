@@ -129,10 +129,90 @@ pub enum Content {
         is_video: bool,
         is_missed: bool,
     },
-    /// A service message ("X joined the group"); its text comes with M3.
-    // shortcut: previews of service messages show a generic text; M3 builds each service text.
-    Service,
+    /// A service message ("X joined the group").
+    Service(Service),
     Unsupported,
+}
+
+/// What a service message reports (`HistoryService::setServiceText`).
+// shortcut: the most common actions; gifts, payments, giveaways, topics, boosts and the rest show as `Other` until their milestones (M9-M13).
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Service {
+    GroupCreated {
+        title: String,
+    },
+    /// A supergroup or channel created; which one the chat tells.
+    SupergroupCreated {
+        title: String,
+    },
+    TitleChanged {
+        title: String,
+    },
+    PhotoChanged,
+    PhotoDeleted,
+    MembersAdded(Vec<UserId>),
+    JoinedByLink,
+    JoinedByRequest,
+    MemberRemoved(UserId),
+    /// The basic group became a supergroup (`lng_action_group_migrate`).
+    Upgraded,
+    Pinned(MessageId),
+    ScreenshotTaken,
+    ContactRegistered,
+    /// Messages now auto-delete after this many seconds; 0 turned it off.
+    AutoDelete {
+        seconds: i32,
+    },
+    VideoChatStarted,
+    VideoChatEnded {
+        seconds: i32,
+    },
+    /// Text a bot or the server set.
+    Custom(String),
+    Other,
+}
+
+impl Service {
+    fn from_td(content: MessageContent) -> Option<Self> {
+        let users = |ids: Vec<i64>| ids.into_iter().map(UserId).collect();
+        Some(match content {
+            MessageContent::MessageBasicGroupChatCreate(created) => Self::GroupCreated {
+                title: created.title,
+            },
+            MessageContent::MessageSupergroupChatCreate(created) => Self::SupergroupCreated {
+                title: created.title,
+            },
+            MessageContent::MessageChatChangeTitle(changed) => Self::TitleChanged {
+                title: changed.title,
+            },
+            MessageContent::MessageChatChangePhoto(_) => Self::PhotoChanged,
+            MessageContent::MessageChatDeletePhoto(_) => Self::PhotoDeleted,
+            MessageContent::MessageChatAddMembers(added) => {
+                Self::MembersAdded(users(added.member_user_ids))
+            }
+            MessageContent::MessageChatJoinByLink(_) => Self::JoinedByLink,
+            MessageContent::MessageChatJoinByRequest(_) => Self::JoinedByRequest,
+            MessageContent::MessageChatDeleteMember(removed) => {
+                Self::MemberRemoved(UserId(removed.user_id))
+            }
+            MessageContent::MessageChatUpgradeTo(_) | MessageContent::MessageChatUpgradeFrom(_) => {
+                Self::Upgraded
+            }
+            MessageContent::MessagePinMessage(pin) => Self::Pinned(MessageId(pin.message_id)),
+            MessageContent::MessageScreenshotTaken(_) => Self::ScreenshotTaken,
+            MessageContent::MessageContactRegistered(_) => Self::ContactRegistered,
+            MessageContent::MessageChatSetMessageAutoDeleteTime(time) => Self::AutoDelete {
+                seconds: time.message_auto_delete_time,
+            },
+            MessageContent::MessageVideoChatStarted(_) => Self::VideoChatStarted,
+            MessageContent::MessageVideoChatEnded(ended) => Self::VideoChatEnded {
+                seconds: ended.duration,
+            },
+            MessageContent::MessageCustomServiceAction(action) => Self::Custom(action.text),
+            _ => return None,
+        })
+    }
 }
 
 /// A photo, video or file with its caption and a blurred preview.
@@ -300,7 +380,7 @@ impl From<MessageContent> for Content {
                 is_missed: matches!(*call.discard_reason, CallDiscardReason::Missed(_)),
             },
             MessageContent::MessageUnsupported(_) => Self::Unsupported,
-            _ => Self::Service,
+            other => Self::Service(Service::from_td(other).unwrap_or(Service::Other)),
         }
     }
 }

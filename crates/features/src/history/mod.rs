@@ -2,12 +2,21 @@
 //! pinned to the bottom that loads older and newer pages as the user
 //! scrolls toward them.
 
+mod body;
 mod bubble;
+mod headers;
 mod layout;
+mod service;
 mod sync;
+mod text;
 mod top_bar;
 
+pub(crate) use self::headers::Replied;
+pub(crate) use self::service::text as service_text;
+pub(crate) use self::text::Link;
+
 use std::collections::HashSet;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::Local;
@@ -17,8 +26,8 @@ use gpui::{
 };
 use model::chat::ChatKind;
 use model::history::Page;
-use model::message::{Message, Sender};
-use model::{ChatId, FileId, State};
+use model::message::{Content, Message, Sender, Service};
+use model::{ChatId, FileId, MessageId, State};
 use style::{ColorId, ColorRef};
 use ui::color;
 
@@ -34,11 +43,16 @@ const PRELOAD: usize = 20;
 /// The same as the chat list's (`kUserpicPriority`).
 const USERPIC_PRIORITY: i32 = 1;
 
-/// The user asked to leave the chat, with the top bar's back arrow.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct CloseChat;
+/// What the chat asks of the window around it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum HistoryEvent {
+    /// The top bar's back arrow.
+    Close,
+    /// A link in a message other than a spoiler, which reveals in place.
+    Link(Link),
+}
 
-impl EventEmitter<CloseChat> for HistoryView {}
+impl EventEmitter<HistoryEvent> for HistoryView {}
 
 /// Whether the chat fills the window, so its top bar leads back.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -59,6 +73,11 @@ pub(crate) struct HistoryView {
     /// Set when items changed, so the ends are checked once laid out.
     needs_preload_check: bool,
     requested_files: HashSet<FileId>,
+    /// Messages whose spoilers the user clicked open.
+    revealed_spoilers: HashSet<MessageId>,
+    /// Replied and pinned messages asked for, and those that are gone.
+    requested_references: HashSet<(ChatId, MessageId)>,
+    missing_references: HashSet<(ChatId, MessageId)>,
     _subscription: Subscription,
 }
 
@@ -94,6 +113,9 @@ impl HistoryView {
             loading: None,
             needs_preload_check: false,
             requested_files: HashSet::new(),
+            revealed_spoilers: HashSet::new(),
+            requested_references: HashSet::new(),
+            missing_references: HashSet::new(),
             _subscription: subscription,
         };
         view.sync(cx);
@@ -170,6 +192,9 @@ impl HistoryView {
         let Some(message) = self.shown.get(index).cloned() else {
             return div().into_any_element();
         };
+        if let Some(reply_to) = &message.reply_to {
+            self.ensure_reference(reply_to.chat, reply_to.message, cx);
+        }
         let previous = index.checked_sub(1).and_then(|i| self.shown.get(i));
         let next = self.shown.get(index + 1);
         let now = Local::now();
@@ -179,6 +204,9 @@ impl HistoryView {
             .then_some(day)
             .flatten()
             .map(|day| SharedString::from(layout::date_badge(strings(cx), day, &now)));
+        if let Content::Service(service) = &message.content {
+            return self.service_item(&message, service, date_badge, cx);
+        }
         let run = Run {
             is_attached_to_previous: previous
                 .is_some_and(|p| layout::is_attached(p, &message, &tz)),
@@ -191,6 +219,17 @@ impl HistoryView {
             .chat(self.chat)
             .is_some_and(|chat| chat.last_read_outbox >= message.id);
         let time = layout::time(message.date, &tz);
+        let color_index = sender_color(state, &message);
+        let reply = message.reply_to.as_ref().map(|reply_to| {
+            let replied = self.replied(state, reply_to.chat, reply_to.message);
+            headers::reply(strings(cx), &state.chats, reply_to, replied, |replied| {
+                sender_color(state, replied)
+            })
+        });
+        let forward = message
+            .forward
+            .as_ref()
+            .map(|forward| headers::forwarded(strings(cx), &state.chats, forward));
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -203,9 +242,87 @@ impl HistoryView {
                 author: author.map(|(author, _)| author),
                 is_read,
                 time,
+                color_index,
+                is_spoiler_revealed: self.revealed_spoilers.contains(&message.id),
+                on_link: self.on_link(message.id, cx),
+                reply,
+                forward,
             },
             cx,
         )
+    }
+
+    fn on_link(&self, message: MessageId, cx: &Context<Self>) -> body::OnLink {
+        let weak = cx.weak_entity();
+        Rc::new(move |link, _, cx| {
+            let _ = weak.update(cx, |this, cx| match link {
+                Link::Spoiler => {
+                    this.revealed_spoilers.insert(message);
+                    cx.notify();
+                }
+                link => cx.emit(HistoryEvent::Link(link)),
+            });
+        })
+    }
+
+    fn service_item(
+        &mut self,
+        message: &Message,
+        service: &Service,
+        date_badge: Option<SharedString>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        if let Service::Pinned(id) = service {
+            self.ensure_reference(self.chat, *id, cx);
+        }
+        let state = self.store.read(cx).state();
+        let pinned = match service {
+            Service::Pinned(id) => self.replied(state, self.chat, *id),
+            _ => Replied::Loading,
+        };
+        let text = state.chats.chat(self.chat).and_then(|chat| {
+            service::text(strings(cx), &state.chats, chat, message, service, pinned)
+        });
+        bubble::service_element(date_badge, text.map(SharedString::from), cx)
+    }
+
+    fn replied<'s>(&self, state: &'s State, chat: ChatId, id: MessageId) -> Replied<'s> {
+        match state
+            .history(self.chat)
+            .and_then(|history| history.find(chat, id))
+        {
+            Some(message) => Replied::Loaded(message),
+            None if self.missing_references.contains(&(chat, id)) => Replied::Deleted,
+            None => Replied::Loading,
+        }
+    }
+
+    /// Fetches a replied or pinned message that is not loaded, once.
+    fn ensure_reference(&mut self, chat: ChatId, id: MessageId, cx: &mut Context<Self>) {
+        let state = self.store.read(cx).state();
+        let is_known = state
+            .history(self.chat)
+            .is_some_and(|history| history.find(chat, id).is_some());
+        if is_known || !self.requested_references.insert((chat, id)) {
+            return;
+        }
+        let task = crate::store::spawn(self.store.read(cx).session().message(chat, id), cx);
+        cx.spawn(async move |this, cx| {
+            let result = task.await;
+            let _ = this.update(cx, |this, cx| match result {
+                Ok(message) => {
+                    let history = this.chat;
+                    this.store
+                        .update(cx, |store, cx| store.add_reference(history, message, cx));
+                }
+                Err(error) => {
+                    tracing::debug!(%error, "a referenced message is gone");
+                    this.missing_references.insert((chat, id));
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
     }
 
     /// The author of an incoming message in a group, with the userpic file
@@ -264,6 +381,14 @@ impl HistoryView {
     }
 }
 
+/// The color of whoever sent `message` (`colorIndex`).
+fn sender_color(state: &State, message: &Message) -> i32 {
+    match message.sender {
+        Sender::User(id) => state.chats.user(id).map_or(0, |user| user.accent_color),
+        Sender::Chat(id) => state.chats.chat(id).map_or(0, |chat| chat.accent_color),
+    }
+}
+
 impl Render for HistoryView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         if std::mem::take(&mut self.needs_preload_check) {
@@ -276,7 +401,7 @@ impl Render for HistoryView {
         let on_back = (self.placement == Placement::Alone).then(|| {
             let weak = cx.weak_entity();
             let on_back: top_bar::OnBack = Box::new(move |_, _, cx| {
-                let _ = weak.update(cx, |_, cx| cx.emit(CloseChat));
+                let _ = weak.update(cx, |_, cx| cx.emit(HistoryEvent::Close));
             });
             on_back
         });

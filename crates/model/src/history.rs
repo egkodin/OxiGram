@@ -1,12 +1,13 @@
 //! The messages of open chats: loaded in pages (`getChatHistory`) around
 //! where the user reads, and kept current by message updates.
 
+use std::collections::HashMap;
 use std::future::Future;
 use std::sync::Arc;
 
 use futures::FutureExt as _;
 use td_api::enums::Update;
-use td_api::functions::{CloseChat, GetChatHistory, OpenChat};
+use td_api::functions::{CloseChat, GetChatHistory, GetMessage, OpenChat};
 
 use crate::chat_actions::done;
 use crate::chats;
@@ -86,6 +87,10 @@ pub struct History {
     messages: Vec<Arc<Message>>,
     older: Edge,
     newer: Edge,
+    /// Messages outside the loaded run that loaded ones point at: replied
+    /// and pinned ones, perhaps in other chats.
+    // shortcut: references do not follow edits and deletions; a reopened chat fetches them again.
+    references: HashMap<(ChatId, MessageId), Arc<Message>>,
 }
 
 impl History {
@@ -97,6 +102,20 @@ impl History {
     #[must_use]
     pub fn message(&self, id: MessageId) -> Option<&Message> {
         self.index(id).ok().map(|index| &*self.messages[index])
+    }
+
+    /// The message `id` of `chat`, loaded or referenced.
+    #[must_use]
+    pub fn find(&self, chat: ChatId, id: MessageId) -> Option<&Message> {
+        self.references
+            .get(&(chat, id))
+            .map(|message| &**message)
+            .or_else(|| self.message(id).filter(|message| message.chat == chat))
+    }
+
+    pub fn add_reference(&mut self, message: Message) {
+        self.references
+            .insert((message.chat, message.id), Arc::new(message));
     }
 
     /// Whether the newest message is loaded, so new ones join the end.
@@ -295,6 +314,20 @@ impl Session {
         self.client()
             .request(&OpenChat { chat_id: chat.0 })
             .map(done)
+    }
+
+    /// One message, as a reply or a pin points at it.
+    pub fn message(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<Message, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessage {
+                chat_id: chat.0,
+                message_id: message.0,
+            })
+            .map(|result| result.map(Message::from).map_err(RequestError::from))
     }
 
     pub fn close_chat(

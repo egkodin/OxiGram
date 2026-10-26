@@ -2,25 +2,29 @@
 //! day, then the message in its bubble.
 
 use gpui::{
-    AnyElement, App, BoxShadow, Div, HighlightStyle, IntoElement, ParentElement, SharedString,
-    Styled, StyledText, div, point, prelude::FluentBuilder as _, px,
+    AnyElement, App, BoxShadow, Div, IntoElement, ParentElement, SharedString, Styled, div, point,
+    prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::message::{Content, Message, Sending};
+use model::text::FormattedText;
 use style::chat::{
-    BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PHOTO_LEFT, MSG_DATE_DELTA, MSG_DATE_FONT,
-    MSG_FONT, MSG_MARGIN, MSG_MARGIN_TOP_ATTACHED, MSG_MAX_WIDTH, MSG_NAME_FONT, MSG_PADDING,
-    MSG_PHOTO_SIZE, MSG_PHOTO_SKIP, MSG_SERVICE_FONT, MSG_SERVICE_MARGIN, MSG_SERVICE_PADDING,
-    MSG_SHADOW,
+    BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PHOTO_LEFT, HISTORY_VIEWS_SPACE,
+    MSG_DATE_DELTA, MSG_DATE_FONT, MSG_FONT, MSG_MARGIN, MSG_MARGIN_TOP_ATTACHED, MSG_MAX_WIDTH,
+    MSG_NAME_FONT, MSG_PADDING, MSG_PHOTO_SIZE, MSG_PHOTO_SKIP, MSG_SERVICE_FONT,
+    MSG_SERVICE_MARGIN, MSG_SERVICE_PADDING, MSG_SHADOW,
 };
 use style::chat_style::{
     HISTORY_BUBBLE_TAIL_IN_LEFT, HISTORY_BUBBLE_TAIL_OUT_RIGHT, HISTORY_RECEIVED_ICON,
-    HISTORY_SENT_ICON,
+    HISTORY_SENT_ICON, HISTORY_VIEWS_IN_ICON, HISTORY_VIEWS_OUT_ICON,
 };
 use style::dialogs::HISTORY_SENDING_ICON;
 use style::{ColorId, ColorRef};
 use ui::{Userpic, UserpicSource, color, font, font_height, icon, icon_size, peer_palette_index};
 
+use super::body::{self, Body, OnLink};
+use super::headers::{self, Reply};
+use super::layout;
 use crate::lang::{strings, tr};
 use crate::px_of;
 
@@ -40,7 +44,6 @@ pub(super) struct Author {
 }
 
 /// A history item's content, ready to draw.
-#[derive(Debug)]
 pub(super) struct Item<'a> {
     pub message: &'a Message,
     pub date_badge: Option<SharedString>,
@@ -49,6 +52,13 @@ pub(super) struct Item<'a> {
     pub author: Option<Author>,
     pub is_read: bool,
     pub time: String,
+    /// The sender's color (`colorIndex`), for quotes and replies.
+    pub color_index: i32,
+    pub is_spoiler_revealed: bool,
+    pub on_link: OnLink,
+    pub reply: Option<Reply>,
+    /// "Forwarded from ..." for forwarded messages.
+    pub forward: Option<String>,
 }
 
 const NAME_COLORS: [ColorId; 8] = [
@@ -81,6 +91,22 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
+/// A service message: its pill under the day's badge; hidden ones leave
+/// only the badge.
+pub(super) fn service_element(
+    date_badge: Option<SharedString>,
+    text: Option<SharedString>,
+    cx: &App,
+) -> AnyElement {
+    div()
+        .w_full()
+        .flex()
+        .flex_col()
+        .children(date_badge.map(|text| service_pill(text, cx)))
+        .children(text.map(|text| service_pill(text, cx)))
+        .into_any_element()
+}
+
 /// A centered service pill, as the date badge (`ServiceMessagePainter`).
 pub(super) fn service_pill(text: SharedString, cx: &App) -> Div {
     let height = px_of(MSG_SERVICE_PADDING.top)
@@ -95,6 +121,7 @@ pub(super) fn service_pill(text: SharedString, cx: &App) -> Div {
         .child(
             div()
                 .min_h(height)
+                .max_w(px_of(MSG_MAX_WIDTH))
                 .pl(px_of(MSG_SERVICE_PADDING.left))
                 .pr(px_of(MSG_SERVICE_PADDING.right))
                 .pt(px_of(MSG_SERVICE_PADDING.top))
@@ -216,10 +243,7 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
                 .font(font(MSG_NAME_FONT))
                 .text_size(px_of(MSG_NAME_FONT.size))
                 .line_height(font_height(MSG_NAME_FONT))
-                .text_color(color(
-                    cx,
-                    palette(NAME_COLORS[peer_palette_index(author.color_index)]),
-                ))
+                .text_color(color(cx, palette(name_color(author.color_index))))
                 .child(author.name.clone())
         });
     div()
@@ -243,6 +267,7 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
             inset: false,
         }])
         .children(name)
+        .children(headers(item, out, cx))
         .child(
             div()
                 .font(font(MSG_FONT))
@@ -255,39 +280,98 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
         .children(tail)
 }
 
-/// The edit mark, the time and the ticks (`BottomInfo`).
-fn info_text(item: &Item<'_>, cx: &App) -> String {
-    if item.message.edit_date == 0 {
-        item.time.clone()
+/// The forward line and the reply box, in the bubble's colors.
+fn headers(item: &Item<'_>, out: bool, cx: &App) -> Vec<AnyElement> {
+    let forward_fg = palette(if out {
+        ColorId::MsgOutServiceFg
     } else {
-        format!("{} {}", tr(cx, key::lng_edited), item.time)
+        ColorId::MsgInServiceFg
+    });
+    let forward = item
+        .forward
+        .clone()
+        .map(|text| headers::forward_element(text, forward_fg, cx));
+    let reply = item.reply.clone().map(|reply| {
+        let (tint, name_fg, text_fg) = if out {
+            (
+                ColorId::MsgOutReplyBarColor,
+                ColorId::MsgOutServiceFg,
+                ColorId::HistoryTextOutFg,
+            )
+        } else {
+            let tint = reply
+                .color_index
+                .map_or(ColorId::MsgInReplyBarColor, name_color);
+            (tint, tint, ColorId::HistoryTextInFg)
+        };
+        headers::reply_element(reply, palette(tint), palette(name_fg), palette(text_fg), cx)
+    });
+    forward.into_iter().chain(reply).collect()
+}
+
+/// The post's views, as tdesktop shortens them (`FormatCountToShort`).
+fn views(item: &Item<'_>) -> Option<String> {
+    (item.message.views > 0).then(|| layout::short_count(item.message.views))
+}
+
+/// The signature, the edit mark and the time (`BottomInfo`).
+fn info_text(item: &Item<'_>, cx: &App) -> String {
+    let signature = &item.message.author_signature;
+    let signature = if signature.is_empty() {
+        String::new()
+    } else {
+        format!("{signature}, ")
+    };
+    if item.message.edit_date == 0 {
+        format!("{signature}{}", item.time)
+    } else {
+        format!("{signature}{} {}", tr(cx, key::lng_edited), item.time)
     }
 }
 
-/// The message text and, in its color made transparent, room for the
-/// time on the last line (`skipBlock`).
+/// A sender's name color (`FromNameFg`).
+pub(super) fn name_color(color_index: i32) -> ColorId {
+    NAME_COLORS[peer_palette_index(color_index)]
+}
+
+/// The message text with, made transparent, room for the time on the last
+/// line (`skipBlock`).
 // shortcut: figure spaces approximate the time's width in the text font; tdesktop reserves the exact width.
-fn text(item: &Item<'_>, out: bool, cx: &App) -> StyledText {
+fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
+    let preview;
     let text = match &item.message.content {
-        Content::Text(text) => text.text.clone(),
-        content => crate::dialogs::content_preview(strings(cx), content).0.text,
+        Content::Text(text) => text,
+        content => {
+            preview =
+                FormattedText::plain(crate::dialogs::content_preview(strings(cx), content).0.text);
+            &preview
+        }
     };
     let ticks = if out { "\u{2007}\u{2007}\u{2007}" } else { "" };
+    let views = views(item).map_or_else(String::new, |views| {
+        format!("{FIGURE_SPACE}{FIGURE_SPACE}{views}{FIGURE_SPACE}")
+    });
     let room = format!(
-        " {FIGURE_SPACE}{}{ticks}",
+        " {FIGURE_SPACE}{views}{}{ticks}",
         info_text(item, cx).replace(' ', "\u{00A0}")
     );
-    let start = text.len();
-    let full = format!("{text}{room}");
-    let end = full.len();
-    StyledText::new(full).with_highlights([(
-        start..end,
-        // Highlight colors blend, so only fading hides the text.
-        HighlightStyle {
-            fade_out: Some(1.0),
-            ..HighlightStyle::default()
+    let quote = if out {
+        ColorId::MsgOutReplyBarColor
+    } else {
+        name_color(item.color_index)
+    };
+    body::element(
+        Body {
+            id: ("message", item.message.id.0 as u64).into(),
+            text,
+            is_out: out,
+            quote,
+            is_spoiler_revealed: item.is_spoiler_revealed,
+            room,
+            on_link: item.on_link.clone(),
         },
-    )])
+        cx,
+    )
 }
 
 fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
@@ -312,6 +396,19 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
         .text_size(px_of(MSG_DATE_FONT.size))
         .line_height(font_height(MSG_DATE_FONT))
         .text_color(color(cx, palette(date_fg)))
+        .children(views(item).map(|views| {
+            let views_icon = if out {
+                HISTORY_VIEWS_OUT_ICON
+            } else {
+                HISTORY_VIEWS_IN_ICON
+            };
+            div()
+                .flex()
+                .items_center()
+                .mr(px_of(HISTORY_VIEWS_SPACE))
+                .child(icon(views_icon))
+                .child(div().ml(px(2.0)).child(views))
+        }))
         .child(info_text(item, cx))
         .children(state.map(|state| div().ml(px(2.0)).child(icon(state))))
 }

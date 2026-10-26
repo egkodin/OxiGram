@@ -95,6 +95,13 @@ impl State {
         }
     }
 
+    /// Keeps a message that `chat`'s history points at.
+    pub fn add_reference(&mut self, chat: ChatId, message: Message) {
+        if let Some(history) = self.histories.get_mut(&chat) {
+            history.add_reference(message);
+        }
+    }
+
     /// Forgets the terms update once the user accepted it; TDLib sends no
     /// update for that.
     pub fn accept_terms(&mut self, id: &TermsId) {
