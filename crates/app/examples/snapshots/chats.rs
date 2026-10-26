@@ -7,7 +7,7 @@ use model::chats::{Change, ChatAction, MuteScope, Unread};
 use model::message::{Content, Media, Message, Sender};
 use model::text::{Entity, EntityKind, FormattedText};
 use model::user::{Badge, User, UserKind, UserStatus};
-use model::{ChatId, Event, FolderId, MessageId, UserId};
+use model::{BasicGroupId, ChatId, Event, FolderId, MessageId, SupergroupId, UserId};
 
 const ME: i64 = 1;
 const HOUR: i32 = 3600;
@@ -167,7 +167,9 @@ pub(crate) fn events() -> Vec<Event> {
 
     let mut group = chat(
         -100,
-        ChatKind::Group,
+        ChatKind::Group {
+            group: BasicGroupId(100),
+        },
         "Hiking Club",
         70,
         Some(message(
@@ -190,7 +192,10 @@ pub(crate) fn events() -> Vec<Event> {
     });
     let channel = chat(
         -200,
-        ChatKind::Supergroup { is_channel: true },
+        ChatKind::Supergroup {
+            supergroup: SupergroupId(200),
+            is_channel: true,
+        },
         "Daily Landscapes",
         60,
         Some(message(
@@ -239,7 +244,10 @@ pub(crate) fn events() -> Vec<Event> {
 
     let mut team = chat(
         -300,
-        ChatKind::Supergroup { is_channel: false },
+        ChatKind::Supergroup {
+            supergroup: SupergroupId(300),
+            is_channel: false,
+        },
         "Design Team",
         30,
         Some(message(
@@ -274,9 +282,28 @@ pub(crate) fn events() -> Vec<Event> {
     );
 
     let archived = [
-        ("Old Classmates", ChatKind::Group, 3),
-        ("Alumni News", ChatKind::Supergroup { is_channel: true }, 0),
-        ("Flat Hunting", ChatKind::Group, 0),
+        (
+            "Old Classmates",
+            ChatKind::Group {
+                group: BasicGroupId(901),
+            },
+            3,
+        ),
+        (
+            "Alumni News",
+            ChatKind::Supergroup {
+                supergroup: SupergroupId(902),
+                is_channel: true,
+            },
+            0,
+        ),
+        (
+            "Flat Hunting",
+            ChatKind::Group {
+                group: BasicGroupId(903),
+            },
+            0,
+        ),
     ]
     .into_iter()
     .zip(1_i64..)
@@ -317,6 +344,20 @@ pub(crate) fn events() -> Vec<Event> {
         scope: MuteScope::Group,
         mute_for: 0,
     }));
+    events.extend([
+        Event::Chats(Change::GroupMembers {
+            group: BasicGroupId(100),
+            count: 12,
+        }),
+        Event::Chats(Change::SupergroupMembers {
+            supergroup: SupergroupId(200),
+            count: 48_210,
+        }),
+        Event::Chats(Change::SupergroupMembers {
+            supergroup: SupergroupId(300),
+            count: 9,
+        }),
+    ]);
     for chat in [saved, maria, ann, group, channel, ben, bot, team, scam]
         .into_iter()
         .chain(archived)

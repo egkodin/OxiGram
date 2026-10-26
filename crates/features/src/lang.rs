@@ -60,6 +60,32 @@ pub fn tr_plural(cx: &App, key: Key, count: i64, args: &[(&str, &str)]) -> Strin
     i18n::fill(strings(cx).plural(key, count), &all)
 }
 
+/// As [`tr_plural`], with the count's digits grouped (`lt_count_decimal`).
+#[must_use]
+pub fn tr_plural_decimal(cx: &App, key: Key, count: i64) -> String {
+    i18n::fill(
+        strings(cx).plural(key, count),
+        &[("count", &group_digits(count))],
+    )
+}
+
+/// `48210` as "48,210" (`FormatCountDecimal`).
+// shortcut: English grouping for every language; locale number formats come with M7.
+fn group_digits(number: i64) -> String {
+    let digits = number.unsigned_abs().to_string();
+    let mut grouped = String::with_capacity(digits.len() + digits.len() / 3 + 1);
+    if number < 0 {
+        grouped.push('-');
+    }
+    for (index, digit) in digits.chars().enumerate() {
+        if index > 0 && (digits.len() - index).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped
+}
+
 /// Loads the language TDLib remembers, at startup.
 pub fn load(session: &Session, cx: &mut App) {
     let session = session.clone();
@@ -115,6 +141,14 @@ pub(crate) fn strings(cx: &App) -> &Strings {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn groups_digits_by_thousands() {
+        assert_eq!(group_digits(9), "9");
+        assert_eq!(group_digits(48_210), "48,210");
+        assert_eq!(group_digits(1_000_000), "1,000,000");
+        assert_eq!(group_digits(-1234), "-1,234");
+    }
 
     #[test]
     fn packs_replace_english_and_skip_deleted_keys() {

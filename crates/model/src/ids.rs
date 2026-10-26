@@ -21,6 +21,14 @@ pub struct MessageId(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FileId(pub i32);
 
+/// A legacy small group, as TDLib's `basicGroup`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BasicGroupId(pub i64);
+
+/// A supergroup or channel, as TDLib's `supergroup`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SupergroupId(pub i64);
+
 /// A chat folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FolderId(pub i32);

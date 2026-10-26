@@ -6,11 +6,11 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::TopChatCategory;
 use td_api::functions::{
-    AddRecentlyFoundChat, ClearRecentlyFoundChats, GetContacts, GetTopChats,
+    AddRecentlyFoundChat, ClearRecentlyFoundChats, GetContacts, GetRecommendedChats, GetTopChats,
     RemoveRecentlyFoundChat, RemoveTopChat, SearchChats, SearchChatsOnServer, SearchMessages,
     SearchPublicChats, SearchRecentlyFoundChats,
 };
-use td_api::types::TopChatCategoryUsers;
+use td_api::types::{TopChatCategoryUsers, TopChatCategoryWebAppBots};
 
 use crate::chat::ChatList;
 use crate::chat_actions::done;
@@ -78,8 +78,22 @@ impl MessageFilter {
     }
 }
 
-fn users_category() -> TopChatCategory {
-    TopChatCategory::Users(TopChatCategoryUsers {})
+/// Which frequently used chats to ask for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TopChats {
+    /// People (`TopPeersContent`).
+    Users,
+    /// Bots whose Web Apps the user opened (`TopBotApps`).
+    WebApps,
+}
+
+impl TopChats {
+    fn to_td(self) -> TopChatCategory {
+        match self {
+            Self::Users => TopChatCategory::Users(TopChatCategoryUsers {}),
+            Self::WebApps => TopChatCategory::WebAppBots(TopChatCategoryWebAppBots {}),
+        }
+    }
 }
 
 fn chat_ids(chats: td_api::types::Chats) -> Vec<ChatId> {
@@ -98,14 +112,15 @@ impl Session {
         })
     }
 
-    /// The people the user writes to most (`TopPeersContent`).
+    /// The chats of `category` the user opens most, most first.
     pub fn top_chats(
         &self,
+        category: TopChats,
         limit: i32,
     ) -> impl Future<Output = Result<Vec<ChatId>, RequestError>> + Send + use<> {
         self.client()
             .request(&GetTopChats {
-                category: Box::new(users_category()),
+                category: Box::new(category.to_td()),
                 limit,
             })
             .map(|result| result.map(chat_ids).map_err(RequestError::from))
@@ -113,14 +128,24 @@ impl Session {
 
     pub fn remove_top_chat(
         &self,
+        category: TopChats,
         chat: ChatId,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         self.client()
             .request(&RemoveTopChat {
-                category: Box::new(users_category()),
+                category: Box::new(category.to_td()),
                 chat_id: chat.0,
             })
             .map(done)
+    }
+
+    /// Channels the server suggests joining (`loadRecommendations`).
+    pub fn recommended_channels(
+        &self,
+    ) -> impl Future<Output = Result<Vec<ChatId>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetRecommendedChats {})
+            .map(|result| result.map(chat_ids).map_err(RequestError::from))
     }
 
     /// Chats the user picked from search results, the latest first.

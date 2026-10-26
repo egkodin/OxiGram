@@ -194,8 +194,13 @@ pub(crate) fn sender(
     match chat.kind {
         ChatKind::Private { .. }
         | ChatKind::Secret { .. }
-        | ChatKind::Supergroup { is_channel: true } => return None,
-        ChatKind::Group | ChatKind::Supergroup { is_channel: false } => {}
+        | ChatKind::Supergroup {
+            is_channel: true, ..
+        } => return None,
+        ChatKind::Group { .. }
+        | ChatKind::Supergroup {
+            is_channel: false, ..
+        } => {}
     }
     if message.is_outgoing {
         return Some(strings.text(key::lng_from_you).to_owned());

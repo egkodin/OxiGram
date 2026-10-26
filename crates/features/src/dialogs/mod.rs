@@ -79,8 +79,8 @@ enum RowKey {
     Found(usize),
     /// In the frequent contacts strip.
     Top(ChatId),
-    /// In the recent searches.
-    Recent(ChatId),
+    /// In a suggestions list.
+    Suggested(ChatId),
 }
 
 impl RowKey {
@@ -91,7 +91,7 @@ impl RowKey {
             Self::Global(chat) => ("global", u64::from_ne_bytes(chat.0.to_ne_bytes())),
             Self::Found(index) => ("found", index as u64),
             Self::Top(chat) => ("top", u64::from_ne_bytes(chat.0.to_ne_bytes())),
-            Self::Recent(chat) => ("recent", u64::from_ne_bytes(chat.0.to_ne_bytes())),
+            Self::Suggested(chat) => ("suggested", u64::from_ne_bytes(chat.0.to_ne_bytes())),
         };
         (name, id).into()
     }
@@ -485,7 +485,7 @@ fn chat_of(key: RowKey) -> Option<ChatId> {
         | RowKey::Global(_)
         | RowKey::Found(_)
         | RowKey::Top(_)
-        | RowKey::Recent(_) => None,
+        | RowKey::Suggested(_) => None,
     }
 }
 
@@ -593,8 +593,13 @@ fn build_row(
         chat.title.clone().into()
     };
     let type_icon = match chat.kind {
-        ChatKind::Supergroup { is_channel: true } => Some(&DIALOGS_CHANNEL_ICON),
-        ChatKind::Group | ChatKind::Supergroup { is_channel: false } => Some(&DIALOGS_CHAT_ICON),
+        ChatKind::Supergroup {
+            is_channel: true, ..
+        } => Some(&DIALOGS_CHANNEL_ICON),
+        ChatKind::Group { .. }
+        | ChatKind::Supergroup {
+            is_channel: false, ..
+        } => Some(&DIALOGS_CHAT_ICON),
         ChatKind::Private { .. } | ChatKind::Secret { .. } => user
             .filter(|user| user.kind == UserKind::Bot)
             .map(|_| &DIALOGS_BOT_ICON),

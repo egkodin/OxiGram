@@ -8,7 +8,7 @@ use td_api::enums::{ChatAction as TdChatAction, NotificationSettingsScope, Updat
 
 use crate::chat::{self, Chat, ChatKind, ChatList, Draft, Folder, Position};
 use crate::file::File;
-use crate::ids::{ChatId, FileId, MessageId, UserId};
+use crate::ids::{BasicGroupId, ChatId, FileId, MessageId, SupergroupId, UserId};
 use crate::message::{Content, Message, Sender};
 use crate::user::{Photo, User, UserStatus};
 
@@ -17,6 +17,16 @@ use crate::user::{Photo, User, UserStatus};
 #[non_exhaustive]
 pub enum Change {
     Chat(Box<Chat>),
+    /// A basic group's member count.
+    GroupMembers {
+        group: BasicGroupId,
+        count: i32,
+    },
+    /// A supergroup's member or channel's subscriber count; 0 when unknown.
+    SupergroupMembers {
+        supergroup: SupergroupId,
+        count: i32,
+    },
     Title {
         chat: ChatId,
         title: String,
@@ -144,6 +154,8 @@ pub struct Chats {
     actions: HashMap<ChatId, Vec<(Sender, ChatAction)>>,
     folders: Vec<Folder>,
     unread: HashMap<ChatList, Unread>,
+    group_members: HashMap<BasicGroupId, i32>,
+    supergroup_members: HashMap<SupergroupId, i32>,
 }
 
 impl Chats {
@@ -155,6 +167,19 @@ impl Chats {
     #[must_use]
     pub fn user(&self, id: UserId) -> Option<&User> {
         self.users.get(&id)
+    }
+
+    /// How many people are in a group or follow a channel, once known.
+    #[must_use]
+    pub fn member_count(&self, chat: &Chat) -> Option<i32> {
+        match chat.kind {
+            ChatKind::Group { group } => self.group_members.get(&group).copied(),
+            ChatKind::Supergroup { supergroup, .. } => {
+                self.supergroup_members.get(&supergroup).copied()
+            }
+            ChatKind::Private { .. } | ChatKind::Secret { .. } => None,
+        }
+        .filter(|count| *count > 0)
     }
 
     /// Every user TDLib has told about, in no particular order.
@@ -205,8 +230,13 @@ impl Chats {
         }
         let scope = match chat.kind {
             ChatKind::Private { .. } | ChatKind::Secret { .. } => MuteScope::Private,
-            ChatKind::Group | ChatKind::Supergroup { is_channel: false } => MuteScope::Group,
-            ChatKind::Supergroup { is_channel: true } => MuteScope::Channel,
+            ChatKind::Group { .. }
+            | ChatKind::Supergroup {
+                is_channel: false, ..
+            } => MuteScope::Group,
+            ChatKind::Supergroup {
+                is_channel: true, ..
+            } => MuteScope::Channel,
         };
         self.default_mute
             .get(&scope)
@@ -314,6 +344,12 @@ impl Chats {
             }
             Change::User(user) => {
                 self.users.insert(user.id, *user);
+            }
+            Change::GroupMembers { group, count } => {
+                self.group_members.insert(group, count);
+            }
+            Change::SupergroupMembers { supergroup, count } => {
+                self.supergroup_members.insert(supergroup, count);
             }
             Change::UserStatus { user, status } => {
                 if let Some(user) = self.users.get_mut(&user) {
@@ -459,6 +495,14 @@ impl Change {
                 },
             },
             Update::User(update) => Self::User(Box::new(User::from(*update.user))),
+            Update::BasicGroup(update) => Self::GroupMembers {
+                group: BasicGroupId(update.basic_group.id),
+                count: update.basic_group.member_count,
+            },
+            Update::Supergroup(update) => Self::SupergroupMembers {
+                supergroup: SupergroupId(update.supergroup.id),
+                count: update.supergroup.member_count,
+            },
             Update::UserStatus(update) => Self::UserStatus {
                 user: UserId(update.user_id),
                 status: UserStatus::from(*update.status),

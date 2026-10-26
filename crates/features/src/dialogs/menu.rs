@@ -303,7 +303,13 @@ impl Dialogs {
             );
         }
 
-        let is_channel = matches!(chat.kind, ChatKind::Supergroup { is_channel: true });
+        let is_channel = matches!(
+            chat.kind,
+            ChatKind::Supergroup {
+                is_channel: true,
+                ..
+            }
+        );
         if !is_channel {
             let clear_text = if chat.user().is_some() {
                 tr_with(cx, key::lng_sure_delete_history, &[("contact", &name)])
@@ -367,21 +373,25 @@ fn removal(
             tr_with(cx, key::lng_sure_delete_history, &[("contact", name)]),
             tr(cx, key::lng_box_delete),
         ),
-        ChatKind::Group => (
+        ChatKind::Group { .. } => (
             tr(cx, key::lng_profile_clear_and_exit),
             MENU_ICON_DELETE_ATTENTION,
             Removal::LeaveAndDelete,
             tr_with(cx, key::lng_sure_delete_and_exit, &[("group", name)]),
             tr(cx, key::lng_box_leave),
         ),
-        ChatKind::Supergroup { is_channel: false } => (
+        ChatKind::Supergroup {
+            is_channel: false, ..
+        } => (
             tr(cx, key::lng_profile_leave_group),
             MENU_ICON_LEAVE_ATTENTION,
             Removal::Leave,
             tr(cx, key::lng_sure_leave_group).to_string(),
             tr(cx, key::lng_box_leave),
         ),
-        ChatKind::Supergroup { is_channel: true } => (
+        ChatKind::Supergroup {
+            is_channel: true, ..
+        } => (
             tr(cx, key::lng_profile_leave_channel),
             MENU_ICON_LEAVE_ATTENTION,
             Removal::Leave,

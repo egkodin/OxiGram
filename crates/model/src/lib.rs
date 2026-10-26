@@ -24,7 +24,9 @@ pub mod text;
 pub mod user;
 
 pub use event::{Event, events};
-pub use ids::{ChatId, CustomEmojiId, FileId, FolderId, MessageId, UserId};
+pub use ids::{
+    BasicGroupId, ChatId, CustomEmojiId, FileId, FolderId, MessageId, SupergroupId, UserId,
+};
 pub use secret::Secret;
 pub use session::{Environment, ListLoad, Parameters, RequestError, Session};
 pub use state::{ConnectionState, State};

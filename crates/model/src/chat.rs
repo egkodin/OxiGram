@@ -3,7 +3,7 @@
 use td_api::enums::{ChatList as TdChatList, ChatType, DraftMessageContent};
 
 use crate::file::Minithumbnail;
-use crate::ids::{ChatId, FileId, FolderId, MessageId, UserId};
+use crate::ids::{BasicGroupId, ChatId, FileId, FolderId, MessageId, SupergroupId, UserId};
 use crate::message::Message;
 use crate::text::FormattedText;
 use crate::user::Photo;
@@ -36,8 +36,11 @@ pub enum ChatKind {
         user: UserId,
     },
     /// A legacy small group.
-    Group,
+    Group {
+        group: BasicGroupId,
+    },
     Supergroup {
+        supergroup: SupergroupId,
         is_channel: bool,
     },
     Secret {
@@ -88,7 +91,7 @@ impl Chat {
     pub fn user(&self) -> Option<UserId> {
         match self.kind {
             ChatKind::Private { user } | ChatKind::Secret { user } => Some(user),
-            ChatKind::Group | ChatKind::Supergroup { .. } => None,
+            ChatKind::Group { .. } | ChatKind::Supergroup { .. } => None,
         }
     }
 
@@ -164,8 +167,11 @@ impl From<ChatType> for ChatKind {
             ChatType::Private(private) => Self::Private {
                 user: UserId(private.user_id),
             },
-            ChatType::BasicGroup(_) => Self::Group,
+            ChatType::BasicGroup(group) => Self::Group {
+                group: BasicGroupId(group.basic_group_id),
+            },
             ChatType::Supergroup(supergroup) => Self::Supergroup {
+                supergroup: SupergroupId(supergroup.supergroup_id),
                 is_channel: supergroup.is_channel,
             },
             ChatType::Secret(secret) => Self::Secret {

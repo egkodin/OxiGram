@@ -29,6 +29,9 @@
 - Search suggestions while the search field is focused and empty: the
   frequent contacts strip and recent searches with their menus and the
   Clear confirmation (`dialogs::suggestions`).
+- Suggestion tabs (Chats, Channels, Apps) on the shared tab strip; group
+  member and channel subscriber counts folded from `updateBasicGroup` /
+  `updateSupergroup` (`ChatKind` now carries the group ids).
 - Fixed two click-through bugs found in snapshots: a popup menu item click
   also clicked the row under it, and a right click on a layer (main menu,
   boxes) reached the list behind. `PopupMenu` and `Layers` now occlude.
@@ -58,9 +61,10 @@
 
 ### Next steps
 
-1. Channel and app suggestions in the empty search; search in one chat and
-   by sender and hashtags wait for the chat view (M3) as their entry point.
-2. Folder tab context menu and tab reordering, chat preview (peek).
+1. Folder tab context menu and tab reordering, chat preview (peek); search
+   in one chat, by sender and hashtags wait for the chat view (M3) as their
+   entry point.
+2. The narrow list's folder sidebar and search button.
 
 ## M1: Sign-in (in progress; blocked on API credentials for the live run)
 
