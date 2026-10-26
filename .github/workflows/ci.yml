@@ -69,15 +69,22 @@ jobs:
           echo "VCPKG_ROOT=$vcpkg_root" >> "$GITHUB_ENV"
           "$vcpkg_root/vcpkg.exe" install gperf:x64-windows openssl:x64-windows zlib:x64-windows
 
-      - name: Cache TDLib
+      - name: Restore TDLib
         id: tdlib-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/rgram
           key: tdlib-${{ runner.os }}-${{ hashFiles('tdlib/COMMIT', 'scripts/build-tdlib.sh') }}
       - name: Build TDLib
         if: steps.tdlib-cache.outputs.cache-hit != 'true'
         run: TD_BUILD_JOBS=${{ matrix.tdlib_jobs }} scripts/build-tdlib.sh
+      # Saved right away, so a later failing step does not discard the build.
+      - name: Save TDLib
+        if: steps.tdlib-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/rgram
+          key: ${{ steps.tdlib-cache.outputs.cache-primary-key }}
 
       - uses: Swatinem/rust-cache@v2
       # `--all-features` includes `runtime-shaders`, so macOS runners need no

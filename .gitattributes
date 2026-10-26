@@ -1,0 +1,3 @@
+# LF everywhere: td_api.tl must match TDLib byte for byte, and the generators
+# expect LF on Windows checkouts too.
+* text=auto eol=lf
