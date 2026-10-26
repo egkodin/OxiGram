@@ -104,6 +104,11 @@ impl Store {
         cx.notify();
     }
 
+    pub fn set_pinned(&mut self, chat: ChatId, messages: Vec<Message>, cx: &mut Context<Self>) {
+        self.state.set_pinned(chat, messages);
+        cx.notify();
+    }
+
     pub fn add_reference(&mut self, chat: ChatId, message: Message, cx: &mut Context<Self>) {
         self.state.add_reference(chat, message);
         cx.notify();

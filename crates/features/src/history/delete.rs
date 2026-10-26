@@ -223,6 +223,7 @@ mod tests {
             can_be_deleted_only_for_self: true,
             can_be_deleted_for_all_users: for_all,
             can_get_link: false,
+            can_be_pinned: false,
         }
     }
 

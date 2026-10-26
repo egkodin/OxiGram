@@ -2,9 +2,12 @@
 //! replied message and back, and down to the newest one
 //! (`HistoryWidget::showAtPosition`, `_replyReturns`).
 
+use std::time::Duration;
+
 use gpui::{Context, ListOffset, px};
 use model::MessageId;
 use model::history::Page;
+use style::basic::ACTIVE_FADE_OUT_DURATION;
 use style::chat_helpers::HISTORY_TO_DOWN_SHOWN_AFTER;
 
 use super::HistoryView;
@@ -61,6 +64,7 @@ impl HistoryView {
     }
 
     pub(super) fn jump_to(&mut self, id: MessageId, cx: &mut Context<Self>) {
+        self.highlight(id, cx);
         if let Some(item_ix) = self.shown.iter().position(|message| message.id == id) {
             self.list.scroll_to(ListOffset {
                 item_ix,
@@ -71,6 +75,23 @@ impl HistoryView {
         } else {
             self.reload(Page::Around(id), Target::Message(id), cx);
         }
+    }
+
+    /// Shades the message jumped to for a moment.
+    // shortcut: the shade goes at once instead of fading out (`ElementHighlighter`); the fade comes with M8 polish.
+    fn highlight(&mut self, id: MessageId, cx: &mut Context<Self>) {
+        self.highlight = Some(id);
+        let duration = Duration::from_millis(ACTIVE_FADE_OUT_DURATION.unsigned_abs().into());
+        cx.spawn(async move |this, cx| {
+            cx.background_executor().timer(duration).await;
+            let _ = this.update(cx, |this, cx| {
+                if this.highlight == Some(id) {
+                    this.highlight = None;
+                    cx.notify();
+                }
+            });
+        })
+        .detach();
     }
 
     /// Opens a replied message; the down button comes back here first.

@@ -1,6 +1,8 @@
 //! Preset messages for the history snapshots: a group conversation over
 //! two days and a private chat, both ending in their chat's last message.
 
+use model::Event;
+use model::history::Change;
 use model::message::{Content, Forward, Message, Origin, ReplyTo, Sender, Service};
 use model::text::{Entity, EntityKind, FormattedText};
 use model::{ChatId, MessageId, UserId};
@@ -167,4 +169,17 @@ fn private() -> Vec<Message> {
 
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {
     vec![(ChatId(-100), group()), (ChatId(2), private())]
+}
+
+/// Hiking Club's pins: the meeting point and the trail news.
+pub fn pins() -> Vec<Event> {
+    [32, 39]
+        .map(|id| {
+            Event::Messages(Change::Pinned {
+                chat: ChatId(-100),
+                message: MessageId(id),
+                is_pinned: true,
+            })
+        })
+        .into()
 }

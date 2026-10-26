@@ -9,6 +9,7 @@ mod headers;
 mod jump;
 mod layout;
 mod menu;
+mod pinned;
 mod selection;
 mod service;
 mod sync;
@@ -103,6 +104,9 @@ pub(crate) struct HistoryView {
     drag: Option<selection::Drag>,
     /// The open message menu, at the window point it opened.
     menu: Option<menu::OpenMenu>,
+    pins: pinned::Pins,
+    /// The message jumped to, shaded for a moment.
+    highlight: Option<MessageId>,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -143,6 +147,7 @@ impl HistoryView {
                 let _ = weak.update(cx, |this, cx| {
                     this.preload(cx);
                     this.update_down_button(cx);
+                    this.on_scroll_pins(cx);
                 });
             });
         });
@@ -168,12 +173,15 @@ impl HistoryView {
             selection: selection::Selection::None,
             drag: None,
             menu: None,
+            pins: pinned::Pins::default(),
+            highlight: None,
             focus,
             _subscription: subscription,
         };
         let page = view.first_page(cx);
         view.sync(cx);
         view.load(page, cx);
+        view.load_pins(cx);
         view
     }
 
@@ -315,6 +323,7 @@ impl HistoryView {
                 forward,
                 has_unread_bar,
                 is_selected: self.selection.is_message_selected(message.id),
+                is_highlighted: self.highlight == Some(message.id),
                 selected_text: self.selection.text_range(message.id),
                 on_pointer: self.on_pointer_at(index, cx),
             },
@@ -510,7 +519,10 @@ impl Render for HistoryView {
             // New items are measured only by this frame's layout.
             let weak = cx.weak_entity();
             window.on_next_frame(move |_, cx| {
-                let _ = weak.update(cx, |this, cx| this.preload(cx));
+                let _ = weak.update(cx, |this, cx| {
+                    this.preload(cx);
+                    this.update_pins(cx);
+                });
             });
         }
         let on_back = (self.placement == Placement::Alone).then(|| {
@@ -545,6 +557,7 @@ impl Render for HistoryView {
             .bg(color(cx, ColorRef::Palette(ColorId::WindowBgOver)))
             .capture_any_mouse_down(move |_, window, cx| focus.focus(window, cx))
             .child(bar)
+            .children(self.pinned_bar(cx))
             .child(
                 div()
                     .h(px(1.0))

@@ -21,12 +21,20 @@
   and no-jump check on 10,000 generated messages (`docs/perf.md`). It found a
   crash on the first wheel scroll (the scroll handler read the list while the
   list held its own state); fixed by deferring the handler's work.
+- The message context menu (copy text or selection, copy link or message
+  link, delete with tdesktop's revoke rules, select, select up to here) and
+  the chat menu behind the top bar's three dots (`menu`, `delete`,
+  `peer_menu`).
+- The pinned message bar (`pinned`): pins from `searchChatMessages`, kept
+  by `updateMessageIsPinned`; the bar follows the view bottom, each click
+  jumps and steps to the older pin, wraps after the oldest; close offers
+  unpin when allowed, else hides. Jumps shade the target message.
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-47 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-53 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -40,21 +48,19 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: title bar buttons and
-  chat menu, message context menu, pinned bar, link previews, jumps to
-  mentions and reactions, the calendar, the jump highlight, read dates,
+- Many M3 rows in `docs/parity.md` are still todo: link previews, jumps to
+  mentions and reactions, the calendar, read dates, the pinned section,
   comments, Saved Messages sublists, sponsored messages, protected content.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. The message context menu (reply, copy, copy link, select, delete with
-   tdesktop's confirmations; actions on the account stay behind the owner's
-   say-so) and the chat menu in the title bar.
-2. The pinned message bar and the jump highlight (`HistoryView::highlight`).
-3. Link previews (small and large, above or below the text) and the
+1. Link previews (small and large, above or below the text) and the
    unsupported message notice.
+2. Jumps to unread mentions and reactions (the buttons over the down
+   button) and the calendar jump from a date badge.
+3. Read dates in private chats and the pinned messages section.
 
 ### Open questions for the owner
 

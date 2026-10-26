@@ -131,7 +131,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Outgoing state: clock, sent, read, failed with retry | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; failed shows the clock, no retry |
 | history | Edited mark, channel views, forwards count, post signatures | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; no forwards count yet |
 | history | Forwarded header (user, channel, hidden sender, saved from) | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; no "saved from" yet |
-| history | Reply header with quote, jump to replied message and back | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/44/45); not verified: no API credentials, so no live chat; replied messages fetched with getMessage; click jumps, the down button returns; no highlight flash |
+| history | Reply header with quote, jump to replied message and back | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/44/45); not verified: no API credentials, so no live chat; replied messages fetched with getMessage; click jumps, the down button returns, the target is shaded |
 | history | Reply to a message in another chat, reply to a story | M3 | todo | |
 | history | "via @bot" label | M3 | todo | |
 | history | Entities: bold, italic, underline, strikethrough, code, pre | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; underline, strikethrough and pre not in the fixtures |
@@ -149,13 +149,13 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Scroll-to-bottom button with unread counter | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 44/45); not verified: no API credentials, so no live chat; no show/hide animation, badge 20 px instead of 22 |
 | history | Jump buttons to unread mentions and unread reactions | M3 | todo | |
 | history | Jump to a date with the calendar | M3 | todo | |
-| history | Highlight of the message jumped to | M3 | todo | |
+| history | Highlight of the message jumped to | M3 | in progress | snapshot only (44, 52, 53); shaded with the selection overlay for 3 s after a reply or pin jump, no fade yet; jumped-to message lands at the top, not centered |
 | history | Text selection and copy within and across messages | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 46/47); not verified: no API credentials, so no live chat; copying to the clipboard not checked by eye; drag selects within one message, across messages selects messages as tdesktop does; no double-click word selection or autoscroll while dragging |
 | history | Keyboard text selection | M8 | todo | |
 | history | Multi-message selection: forward, delete, copy, download | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 46/47); not verified: no API credentials, so no live chat; copying to the clipboard not checked by eye; drag or Ctrl/Cmd+click selects, Ctrl/Cmd+C copies, Escape and Cancel clear; forward, delete and download come with M4/M5; delete through the menu (not verified live) |
 | history | Message context menu with all actions for the message type | M3 | in progress | unit tests (item choice per selection and permissions, revoke checkbox); snapshot only (`cargo run -p rgram --example snapshots`, 48/49); not verified: no API credentials, so no live permissions, message links or deletes; copy text and links, copy message link, delete with "delete for everyone", select and select up to here; no reply, edit, forward, pin or report yet; the menu snaps to the window instead of opening upward |
 | history | Read date of outgoing messages ("read at") and who-read in small groups | M3 | todo | |
-| history | Pinned message bar with multiple pins, cycling and unpin | M3 | todo | |
+| history | Pinned message bar with multiple pins, cycling and unpin | M3 | in progress | snapshot (42, 52, 53) and unit tests (`cargo test -p features pinned`, `-p model pins`); not verified: no API credentials, so searchChatMessages, updateMessageIsPinned and unpinning were never run live; first 100 pins only; no "show all" button or pinned section; hiding when the user can't unpin lasts until restart |
 | history | Pinned messages section | M3 | todo | |
 | history | Contact status bar: add contact, block, report spam, share phone | M3 | todo | |
 | history | Business bot bar and paid-message bar | M13 | todo | |

@@ -102,6 +102,13 @@ impl State {
         }
     }
 
+    /// Sets an open chat's pinned messages.
+    pub fn set_pinned(&mut self, chat: ChatId, messages: Vec<Message>) {
+        if let Some(history) = self.histories.get_mut(&chat) {
+            history.set_pinned(messages);
+        }
+    }
+
     /// Keeps a message that `chat`'s history points at.
     pub fn add_reference(&mut self, chat: ChatId, message: Message) {
         if let Some(history) = self.histories.get_mut(&chat) {

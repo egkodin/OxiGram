@@ -229,6 +229,8 @@ fn scenarios() -> Vec<Scenario> {
                     MouseButton::Left,
                     HISTORY_GAP,
                 ),
+                ("52-history-pinned-jump", MouseButton::Left, PINNED_BAR),
+                ("53-history-pinned-previous", MouseButton::Left, PINNED_BAR),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             folders: FoldersPlacement::Top,
@@ -319,6 +321,8 @@ const GROUP_LINK: (f32, f32) = (610.0, 513.0);
 const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
 /// The three dots at the right of the chat's top bar.
 const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
+/// The pinned message bar under the chat's top bar.
+const PINNED_BAR: (f32, f32) = (560.0, 80.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {
@@ -373,6 +377,9 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             for (chat, messages) in histories {
                 store.open_chat(chat, cx);
                 store.add_history_page(chat, model::history::Page::Newest, messages, cx);
+            }
+            for event in history::pins() {
+                store.apply(event, cx);
             }
             store
         });

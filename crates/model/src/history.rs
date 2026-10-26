@@ -6,8 +6,9 @@ use std::future::Future;
 use std::sync::Arc;
 
 use futures::FutureExt as _;
+use td_api::enums::SearchMessagesFilter;
 use td_api::enums::Update;
-use td_api::functions::{CloseChat, GetChatHistory, GetMessage, OpenChat};
+use td_api::functions::{CloseChat, GetChatHistory, GetMessage, OpenChat, SearchChatMessages};
 
 use crate::chat_actions::done;
 use crate::chats;
@@ -17,6 +18,8 @@ use crate::session::{RequestError, Session};
 
 /// How many messages one page asks for; TDLib may return fewer.
 pub const PAGE: i32 = 50;
+/// The most pinned messages one request returns (`searchChatMessages`).
+const PINNED_LIMIT: i32 = 100;
 
 /// A change to messages that only the history shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,6 +46,11 @@ pub enum Change {
         chat: ChatId,
         message: MessageId,
         views: i32,
+    },
+    Pinned {
+        chat: ChatId,
+        message: MessageId,
+        is_pinned: bool,
     },
 }
 
@@ -91,6 +99,8 @@ pub struct History {
     /// and pinned ones, perhaps in other chats.
     // shortcut: references do not follow edits and deletions; a reopened chat fetches them again.
     references: HashMap<(ChatId, MessageId), Arc<Message>>,
+    /// The chat's pinned messages, oldest first.
+    pinned: Vec<MessageId>,
 }
 
 impl History {
@@ -119,6 +129,23 @@ impl History {
         self.messages.clear();
         self.older = Edge::More;
         self.newer = Edge::More;
+    }
+
+    #[must_use]
+    pub fn pinned(&self) -> &[MessageId] {
+        &self.pinned
+    }
+
+    /// Replaces the pinned messages with loaded ones, keeping them as
+    /// references so the pinned bar can show them.
+    pub fn set_pinned(&mut self, messages: Vec<Message>) {
+        let mut ids: Vec<MessageId> = messages.iter().map(|message| message.id).collect();
+        ids.sort_unstable();
+        ids.dedup();
+        self.pinned = ids;
+        for message in messages {
+            self.add_reference(message);
+        }
     }
 
     pub fn add_reference(&mut self, message: Message) {
@@ -218,6 +245,7 @@ impl History {
                 message, edit_date, ..
             } => self.update(message, |message| message.edit_date = edit_date),
             Change::Deleted { messages, .. } => {
+                self.pinned.retain(|id| !messages.contains(id));
                 for id in messages {
                     self.remove(id);
                 }
@@ -226,6 +254,15 @@ impl History {
             Change::Views { message, views, .. } => {
                 self.update(message, |message| message.views = views);
             }
+            Change::Pinned {
+                message, is_pinned, ..
+            } => match (self.pinned.binary_search(&message), is_pinned) {
+                (Err(index), true) => self.pinned.insert(index, message),
+                (Ok(index), false) => {
+                    self.pinned.remove(index);
+                }
+                _ => {}
+            },
         }
     }
 
@@ -252,9 +289,10 @@ impl Change {
     pub fn chat(&self) -> ChatId {
         match self {
             Self::New(message) | Self::SendFailed { message, .. } => message.chat,
-            Self::Edited { chat, .. } | Self::Deleted { chat, .. } | Self::Views { chat, .. } => {
-                *chat
-            }
+            Self::Edited { chat, .. }
+            | Self::Deleted { chat, .. }
+            | Self::Views { chat, .. }
+            | Self::Pinned { chat, .. } => *chat,
         }
     }
 
@@ -278,6 +316,11 @@ impl Change {
                 chat: ChatId(update.chat_id),
                 message: MessageId(update.message_id),
                 views: update.interaction_info.map_or(0, |info| info.view_count),
+            },
+            Update::MessageIsPinned(update) => Self::Pinned {
+                chat: ChatId(update.chat_id),
+                message: MessageId(update.message_id),
+                is_pinned: update.is_pinned,
             },
             other => return Err(other),
         })
@@ -309,6 +352,32 @@ impl Session {
                             .map(Message::from)
                             .collect()
                     })
+                    .map_err(RequestError::from)
+            })
+    }
+
+    /// `chat`'s pinned messages, newest first.
+    // shortcut: only the newest 100 pins; page with next_from_message_id when a chat has more.
+    pub fn pinned_messages(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&SearchChatMessages {
+                chat_id: chat.0,
+                topic_id: None,
+                query: String::new(),
+                sender_id: None,
+                from_message_id: 0,
+                offset: 0,
+                limit: PINNED_LIMIT,
+                filter: Some(Box::new(SearchMessagesFilter::Pinned(
+                    td_api::types::SearchMessagesFilterPinned {},
+                ))),
+            })
+            .map(|result| {
+                result
+                    .map(|found| found.messages.into_iter().map(Message::from).collect())
                     .map_err(RequestError::from)
             })
     }
@@ -425,5 +494,29 @@ mod tests {
             messages: vec![MessageId(1), MessageId(99)],
         });
         assert_eq!(ids(&history), [3, 10]);
+    }
+
+    #[test]
+    fn pins_stay_sorted_and_follow_updates() {
+        let mut history = History::default();
+        history.set_pinned(page([30, 10, 20]));
+        assert_eq!(
+            history.pinned(),
+            [MessageId(10), MessageId(20), MessageId(30)]
+        );
+        assert!(history.find(ChatId(1), MessageId(20)).is_some());
+        let pin = |id, is_pinned| Change::Pinned {
+            chat: ChatId(1),
+            message: MessageId(id),
+            is_pinned,
+        };
+        history.apply(pin(25, true));
+        history.apply(pin(25, true));
+        history.apply(pin(10, false));
+        history.apply(Change::Deleted {
+            chat: ChatId(1),
+            messages: vec![MessageId(30)],
+        });
+        assert_eq!(history.pinned(), [MessageId(20), MessageId(25)]);
     }
 }

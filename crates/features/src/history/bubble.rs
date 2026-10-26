@@ -67,6 +67,8 @@ pub(super) struct Item<'a> {
     pub forward: Option<String>,
     pub has_unread_bar: bool,
     pub is_selected: bool,
+    /// Shaded after a jump to it (`ElementHighlighter`).
+    pub is_highlighted: bool,
     /// The selected part of the text.
     pub selected_text: Option<Range<usize>>,
     pub on_pointer: OnPointer,
@@ -219,7 +221,7 @@ fn message_row(item: &Item<'_>, cx: &App) -> Div {
                 .bottom(px_of(MSG_MARGIN.bottom))
                 .child(Userpic::new(px_of(MSG_PHOTO_SIZE), author.userpic.clone()))
         });
-    let overlay = item.is_selected.then(|| {
+    let overlay = (item.is_selected || item.is_highlighted).then(|| {
         div()
             .absolute()
             .inset_0()

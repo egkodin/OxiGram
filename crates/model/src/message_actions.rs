@@ -4,7 +4,7 @@
 use std::future::Future;
 
 use futures::FutureExt as _;
-use td_api::functions::{DeleteMessages, GetMessageLink, GetMessageProperties};
+use td_api::functions::{DeleteMessages, GetMessageLink, GetMessageProperties, UnpinChatMessage};
 use td_api::types::MessageProperties;
 
 use crate::chat_actions::done;
@@ -24,6 +24,7 @@ pub struct Abilities {
     pub can_be_deleted_only_for_self: bool,
     pub can_be_deleted_for_all_users: bool,
     pub can_get_link: bool,
+    pub can_be_pinned: bool,
 }
 
 impl Abilities {
@@ -40,6 +41,7 @@ impl From<MessageProperties> for Abilities {
             can_be_deleted_only_for_self: properties.can_be_deleted_only_for_self,
             can_be_deleted_for_all_users: properties.can_be_deleted_for_all_users,
             can_get_link: properties.can_get_link,
+            can_be_pinned: properties.can_be_pinned,
         }
     }
 }
@@ -109,6 +111,20 @@ impl Session {
                 chat_id: chat.0,
                 message_ids: messages.iter().map(|id| id.0).collect(),
                 revoke: deletion == Deletion::ForEveryone,
+            })
+            .map(done)
+    }
+
+    /// Unpins a message; the pinned bar follows the update.
+    pub fn unpin_message(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&UnpinChatMessage {
+                chat_id: chat.0,
+                message_id: message.0,
             })
             .map(done)
     }
