@@ -121,8 +121,8 @@ is the definition of done: rgram is finished when every row is `done`, or
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
 | history | Title bar: name, status (online, last seen, members, subscribers), typing | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; buttons, one-column back arrow not snapshotted |
-| history | Title bar buttons: search, call, video call, info panel, menu | M3 | todo | |
-| history | Chat menu: mute, clear history, delete, report, auto-delete, wallpaper | M3 | todo | |
+| history | Title bar buttons: search, call, video call, info panel, menu | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 50/51); not verified: no API credentials, so no live chat; the menu toggle only; search comes with search in a chat, calls with M12, the info panel with M6 |
+| history | Chat menu: mute, clear history, delete, report, auto-delete, wallpaper | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 50/51); not verified: no API credentials, so no live actions; mute (for good), clear history, delete or leave with the chat list's confirmations; no report, auto-delete or wallpaper yet |
 | history | Bubbles with tails, grouping by sender and time, userpics in groups | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no wide-window mode |
 | history | Sender names in peer colors, admin and member titles | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no admin and member titles |
 | history | Date separators, sticky date on scroll | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no sticky date on scroll |

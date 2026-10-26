@@ -28,8 +28,8 @@ use std::sync::Arc;
 use chrono::Local;
 use gpui::{
     AnyElement, App, Context, Entity, EventEmitter, FocusHandle, InteractiveElement as _,
-    IntoElement, ListAlignment, ListState, ParentElement, Pixels, Point, Render, SharedString,
-    Styled, Subscription, Window, div, list, px,
+    IntoElement, ListAlignment, ListState, ParentElement, Render, SharedString, Styled,
+    Subscription, Window, div, list, px,
 };
 use model::chat::ChatKind;
 use model::history::Page;
@@ -102,7 +102,7 @@ pub(crate) struct HistoryView {
     selection: selection::Selection,
     drag: Option<selection::Drag>,
     /// The open message menu, at the window point it opened.
-    menu: Option<(Point<Pixels>, Entity<ui::PopupMenu>, Subscription)>,
+    menu: Option<menu::OpenMenu>,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -529,7 +529,11 @@ impl Render for HistoryView {
                 cx,
             )
         } else {
-            top_bar::top_bar(self.store.read(cx).state(), self.chat, on_back, cx)
+            let weak = cx.weak_entity();
+            let on_menu: top_bar::OnBack = Box::new(move |_, window, cx| {
+                let _ = weak.update(cx, |this, cx| this.show_chat_menu(window, cx));
+            });
+            top_bar::top_bar(self.store.read(cx).state(), self.chat, on_back, on_menu, cx)
         };
         let weak = cx.weak_entity();
         let focus = self.focus.clone();

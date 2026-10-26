@@ -16,9 +16,9 @@ use style::{ColorId, ColorRef};
 use ui::color;
 
 use super::Dialogs;
-use super::menu::send;
 use super::tabs::{Tab, tab_strip};
 use crate::lang::tr;
+use crate::peer_menu::send;
 use crate::store::spawn;
 
 /// TDLib returns at most this many top chats.

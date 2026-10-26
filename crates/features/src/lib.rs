@@ -14,6 +14,7 @@ pub mod layers;
 mod links;
 mod main_menu;
 mod main_view;
+mod peer_menu;
 mod root;
 pub mod settings;
 mod status;

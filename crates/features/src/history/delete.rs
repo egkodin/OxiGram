@@ -15,9 +15,9 @@ use style::widgets::DEFAULT_CHECK;
 use ui::{BoxFrame, Checkbox, Checked, FlatLabel, Markup, RoundButton};
 
 use crate::boxes::Callback;
-use crate::dialogs::send;
 use crate::lang::{tr, tr_plural, tr_with};
 use crate::layers::{Dismiss, Layers};
+use crate::peer_menu::send;
 use crate::px_of;
 
 actions!(delete_messages_box, [Confirm]);
@@ -143,9 +143,7 @@ impl DeleteBox {
 
     fn checkbox(&self, cx: &mut Context<Self>) -> Option<impl IntoElement + use<>> {
         let text = match self.request.revoke.as_ref()? {
-            Revoke::User(name) => {
-                tr_with(cx, key::lng_delete_for_other_check, &[("user", name)])
-            }
+            Revoke::User(name) => tr_with(cx, key::lng_delete_for_other_check, &[("user", name)]),
             Revoke::Everyone => tr(cx, key::lng_delete_for_everyone_check).to_string(),
             Revoke::Own => tr(cx, key::lng_delete_for_other_my).to_string(),
         };
@@ -235,10 +233,7 @@ mod tests {
             revoke(&all, &[true, false], Some("Maria".to_owned())),
             Some(Revoke::User("Maria".to_owned()))
         );
-        assert_eq!(
-            revoke(&all, &[true, false], None),
-            Some(Revoke::Everyone)
-        );
+        assert_eq!(revoke(&all, &[true, false], None), Some(Revoke::Everyone));
     }
 
     #[test]

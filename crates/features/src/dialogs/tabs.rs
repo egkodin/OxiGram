@@ -15,10 +15,10 @@ use style::{ColorId, ColorRef};
 use ui::{color, font, font_height};
 
 use super::Dialogs;
-use super::menu::send;
 use super::pinned::reordered;
 use super::row::{Lit, unread_badge};
 use crate::lang::tr;
+use crate::peer_menu::send;
 use crate::px_of;
 
 /// Between a tab's name and its counter (`st::lineWidth * 5`).

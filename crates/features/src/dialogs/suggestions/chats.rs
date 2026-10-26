@@ -19,13 +19,13 @@ use style::menu_icons::{MENU_ICON_CANCEL_ATTENTION, MENU_ICON_DELETE_ATTENTION};
 use style::{ColorId, ColorRef};
 use ui::{Markup, MenuTone, Userpic, color, font, font_height};
 
-use super::super::menu::send;
 use super::super::row::{Lit, unread_badge};
 use super::super::search::{bar, bar_link};
 use super::super::{Dialogs, RowKey, preview};
 use super::row::{Counter, RowMenu, online_dot};
 use crate::boxes::{self, Callback, ConfirmArgs};
 use crate::lang::{strings, tr};
+use crate::peer_menu::send;
 use crate::px_of;
 
 /// What the remove item of a suggestion's menu removes.

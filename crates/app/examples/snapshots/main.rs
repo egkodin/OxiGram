@@ -219,6 +219,16 @@ fn scenarios() -> Vec<Scenario> {
                 ("45-history-reply-return", MouseButton::Left, DOWN_BUTTON),
                 ("48-history-link-menu", MouseButton::Right, GROUP_LINK),
                 ("49-history-menu-closed", MouseButton::Left, HISTORY_GAP),
+                (
+                    "50-history-chat-menu",
+                    MouseButton::Left,
+                    HISTORY_MENU_TOGGLE,
+                ),
+                (
+                    "51-history-chat-menu-closed",
+                    MouseButton::Left,
+                    HISTORY_GAP,
+                ),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             folders: FoldersPlacement::Top,
@@ -307,6 +317,8 @@ const DOWN_BUTTON: (f32, f32) = (761.0, 565.0);
 /// space beside its date badge.
 const GROUP_LINK: (f32, f32) = (610.0, 513.0);
 const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
+/// The three dots at the right of the chat's top bar.
+const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {

@@ -1,67 +1,36 @@
 //! A chat row's context menu (`Window::FillDialogsEntryMenu`): pin, mute,
 //! read state, archive, block, clear and delete.
 
-use std::future::Future;
-use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{
     AnyElement, App, AppContext as _, Context, DismissEvent, Focusable as _, IntoElement,
-    ParentElement, Pixels, Point, SharedString, Window, anchored, deferred, div, px,
+    ParentElement, Pixels, Point, Window, anchored, deferred, div, px,
 };
 use i18n::key;
-use model::chat::{Chat, ChatKind, ChatList};
-use model::chat_actions::{Muting, Pinning, Removal, UnreadMark};
+use model::ChatId;
+use model::chat::{Chat, ChatList};
+use model::chat_actions::{Pinning, UnreadMark};
 use model::user::UserKind;
-use model::{ChatId, RequestError, Session};
 use style::menu_icons::{
-    MENU_ICON_ARCHIVE, MENU_ICON_BLOCK, MENU_ICON_CLEAR, MENU_ICON_COLLAPSE,
-    MENU_ICON_DELETE_ATTENTION, MENU_ICON_EXPAND, MENU_ICON_LEAVE_ATTENTION, MENU_ICON_MARK_READ,
-    MENU_ICON_MARK_UNREAD, MENU_ICON_MUTE, MENU_ICON_PIN, MENU_ICON_TO_MAIN_MENU,
-    MENU_ICON_UNARCHIVE, MENU_ICON_UNMUTE, MENU_ICON_UNPIN,
+    MENU_ICON_ARCHIVE, MENU_ICON_BLOCK, MENU_ICON_COLLAPSE, MENU_ICON_EXPAND, MENU_ICON_MARK_READ,
+    MENU_ICON_MARK_UNREAD, MENU_ICON_PIN, MENU_ICON_TO_MAIN_MENU, MENU_ICON_UNARCHIVE,
+    MENU_ICON_UNPIN,
 };
 use style::widgets::POPUP_MENU_WITH_ICONS;
 use style::window::WINDOW_ARCHIVE_TOAST;
 use ui::{MenuTone, PopupMenu};
 
 use super::Dialogs;
-use crate::boxes::{self, Callback};
+use crate::boxes;
 use crate::lang::{tr, tr_with};
+use crate::peer_menu::{PeerMenu, on_confirm, send};
 use crate::settings;
-use crate::store::spawn;
 
 /// Keeps the menu off the window edges.
 const EDGE_MARGIN: f32 = 8.0;
 /// The "moved to the main menu" toast stays longer (`kArchivedToastDuration`).
 const ARCHIVE_TOAST_DURATION: Duration = Duration::from_secs(5);
-
-/// Sends a request and logs its failure; the result arrives as updates.
-pub(crate) fn send(
-    task: impl Future<Output = Result<(), RequestError>> + Send + 'static,
-    what: &'static str,
-    cx: &mut App,
-) {
-    let task = spawn(task, cx);
-    cx.spawn(async move |_| {
-        if let Err(error) = task.await {
-            tracing::warn!(%error, what, "chat action failed");
-        }
-    })
-    .detach();
-}
-
-/// A request to send once the user confirms.
-fn on_confirm(
-    session: &Session,
-    request: impl Fn(
-        &Session,
-    ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), RequestError>> + Send>>
-    + 'static,
-    what: &'static str,
-) -> Callback {
-    let session = session.clone();
-    Rc::new(move |_, cx| send(request(&session), what, cx))
-}
 
 impl Dialogs {
     pub(super) fn show_menu(
@@ -162,6 +131,11 @@ impl Dialogs {
         let user = chat.user().and_then(|user| state.chats.user(user));
         let is_self = chat.user().is_some() && chat.user() == state.me;
         let list = self.list;
+        let peer = PeerMenu {
+            chat,
+            session: session.clone(),
+            layers: self.layers.clone(),
+        };
 
         if !is_self {
             let to = if chat.position(ChatList::Archive).is_some() {
@@ -201,16 +175,7 @@ impl Dialogs {
         }
 
         if !is_self {
-            let (text, icon, muting) = if state.chats.is_muted(chat) {
-                (key::lng_context_unmute, MENU_ICON_UNMUTE, Muting::Unmuted)
-            } else {
-                (key::lng_context_mute, MENU_ICON_MUTE, Muting::Muted)
-            };
-            let session = session.clone();
-            // shortcut: mutes for good; the durations submenu comes with M7 notification settings.
-            menu.action(tr(cx, text), icon, MenuTone::Normal, move |_, cx| {
-                send(session.set_chat_muted(id, muting), "mute", cx);
-            });
+            peer.add_mute(menu, state.chats.is_muted(chat), cx);
         }
 
         let is_unread = chat.unread_count > 0 || chat.is_marked_as_unread;
@@ -272,100 +237,7 @@ impl Dialogs {
             );
         }
 
-        let is_channel = matches!(
-            chat.kind,
-            ChatKind::Supergroup {
-                is_channel: true,
-                ..
-            }
-        );
-        if !is_channel {
-            let clear_text = if chat.user().is_some() {
-                tr_with(cx, key::lng_sure_delete_history, &[("contact", &name)])
-            } else {
-                tr_with(cx, key::lng_sure_delete_group_history, &[("group", &name)])
-            };
-            let (layers, session) = (layers.clone(), session.clone());
-            menu.action(
-                tr(cx, key::lng_profile_clear_history),
-                MENU_ICON_CLEAR,
-                MenuTone::Normal,
-                move |window, cx| {
-                    let confirmed = on_confirm(
-                        &session,
-                        move |session| Box::pin(session.clear_chat_history(id)),
-                        "clear history",
-                    );
-                    boxes::confirm_attention(
-                        &layers,
-                        clear_text.clone(),
-                        tr(cx, key::lng_box_delete),
-                        confirmed,
-                        window,
-                        cx,
-                    );
-                },
-            );
-        }
-
-        let (text, icon, removal, question, button) = removal(chat, &name, cx);
-        menu.action(text, icon, MenuTone::Attention, move |window, cx| {
-            let confirmed = on_confirm(
-                &session,
-                move |session| Box::pin(session.remove_chat(id, removal)),
-                "delete chat",
-            );
-            boxes::confirm_attention(
-                &layers,
-                question.clone(),
-                button.clone(),
-                confirmed,
-                window,
-                cx,
-            );
-        });
-    }
-}
-
-/// The delete or leave item for `chat`: its text, icon, what it does, and
-/// the question and button of its confirmation.
-fn removal(
-    chat: &Chat,
-    name: &str,
-    cx: &App,
-) -> (SharedString, style::Icon, Removal, String, SharedString) {
-    match chat.kind {
-        ChatKind::Private { .. } | ChatKind::Secret { .. } => (
-            tr(cx, key::lng_profile_delete_conversation),
-            MENU_ICON_DELETE_ATTENTION,
-            Removal::DeleteHistory,
-            tr_with(cx, key::lng_sure_delete_history, &[("contact", name)]),
-            tr(cx, key::lng_box_delete),
-        ),
-        ChatKind::Group { .. } => (
-            tr(cx, key::lng_profile_clear_and_exit),
-            MENU_ICON_DELETE_ATTENTION,
-            Removal::LeaveAndDelete,
-            tr_with(cx, key::lng_sure_delete_and_exit, &[("group", name)]),
-            tr(cx, key::lng_box_leave),
-        ),
-        ChatKind::Supergroup {
-            is_channel: false, ..
-        } => (
-            tr(cx, key::lng_profile_leave_group),
-            MENU_ICON_LEAVE_ATTENTION,
-            Removal::Leave,
-            tr(cx, key::lng_sure_leave_group).to_string(),
-            tr(cx, key::lng_box_leave),
-        ),
-        ChatKind::Supergroup {
-            is_channel: true, ..
-        } => (
-            tr(cx, key::lng_profile_leave_channel),
-            MENU_ICON_LEAVE_ATTENTION,
-            Removal::Leave,
-            tr(cx, key::lng_sure_leave_channel).to_string(),
-            tr(cx, key::lng_box_leave),
-        ),
+        peer.add_clear_history(menu, cx);
+        peer.add_removal(menu, cx);
     }
 }

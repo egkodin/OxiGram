@@ -4,14 +4,16 @@
 use std::time::Duration;
 
 use gpui::{
-    AnyElement, App, AppContext as _, ClipboardItem, Context, DismissEvent, Focusable as _,
-    IntoElement, ParentElement, Pixels, Point, SharedString, Window, anchored, deferred, div, px,
+    Anchor, AnyElement, App, AppContext as _, ClipboardItem, Context, DismissEvent, Entity,
+    Focusable as _, IntoElement, ParentElement, Pixels, Point, SharedString, Subscription, Window,
+    anchored, deferred, div, point, px,
 };
 use i18n::key;
 use model::MessageId;
 use model::chat::ChatKind;
 use model::message::{Content, Message};
 use model::message_actions::Abilities;
+use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
     MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_LINK, MENU_ICON_SELECT,
 };
@@ -21,11 +23,21 @@ use ui::{MenuTone, PopupMenu};
 use super::selection::Selection;
 use super::{HistoryView, Link, delete, text};
 use crate::lang::tr;
+use crate::peer_menu::PeerMenu;
+use crate::px_of;
 use crate::store::spawn;
 
 /// Keeps the menu off the window edges.
 const EDGE_MARGIN: f32 = 8.0;
 const TOAST_DURATION: Duration = Duration::from_millis(1500);
+
+/// A menu over the history, at the window point its `corner` sits on.
+pub(super) struct OpenMenu {
+    position: Point<Pixels>,
+    corner: Anchor,
+    menu: Entity<PopupMenu>,
+    _subscription: Subscription,
+}
 
 /// Where the menu opened, against the selection (`isUponSelected`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -239,6 +251,48 @@ impl HistoryView {
             }
             menu
         });
+        self.present_menu(menu, position, Anchor::TopLeft, window, cx);
+    }
+
+    /// The top bar's chat menu (`TopBarWidget::showPeerMenu`), under the
+    /// toggle at the bar's right edge.
+    // shortcut: mute, clear history and delete or leave only; info, export, report and the rest come with their features.
+    pub(super) fn show_chat_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let state = self.store.read(cx).state();
+        let Some(chat) = state.chats.chat(self.chat).cloned() else {
+            return;
+        };
+        let is_self = chat.user().is_some() && chat.user() == state.me;
+        let is_muted = state.chats.is_muted(&chat);
+        let peer = PeerMenu {
+            chat: &chat,
+            session: self.store.read(cx).session().clone(),
+            layers: self.layers.clone(),
+        };
+        let menu = cx.new(|cx| {
+            let mut menu = PopupMenu::new(&POPUP_MENU_WITH_ICONS, cx);
+            if !is_self {
+                peer.add_mute(&mut menu, is_muted, cx);
+            }
+            peer.add_clear_history(&mut menu, cx);
+            peer.add_removal(&mut menu, cx);
+            menu
+        });
+        let position = point(
+            window.viewport_size().width + px_of(TOP_BAR_MENU_POSITION.x),
+            px_of(TOP_BAR_MENU_POSITION.y),
+        );
+        self.present_menu(menu, position, Anchor::TopRight, window, cx);
+    }
+
+    fn present_menu(
+        &mut self,
+        menu: Entity<PopupMenu>,
+        position: Point<Pixels>,
+        corner: Anchor,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if menu.read(cx).is_empty() {
             return;
         }
@@ -247,7 +301,12 @@ impl HistoryView {
             cx.notify();
         });
         menu.read(cx).focus_handle(cx).focus(window, cx);
-        self.menu = Some((position, menu, subscription));
+        self.menu = Some(OpenMenu {
+            position,
+            corner,
+            menu,
+            _subscription: subscription,
+        });
         cx.notify();
     }
 
@@ -375,13 +434,14 @@ impl HistoryView {
     }
 
     pub(super) fn menu_overlay(&self) -> Option<AnyElement> {
-        let (position, menu, _) = self.menu.as_ref()?;
+        let open = self.menu.as_ref()?;
         Some(
             deferred(
                 anchored()
-                    .position(*position)
+                    .anchor(open.corner)
+                    .position(open.position)
                     .snap_to_window_with_margin(px(EDGE_MARGIN))
-                    .child(div().child(menu.clone())),
+                    .child(div().child(open.menu.clone())),
             )
             .with_priority(1)
             .into_any_element(),

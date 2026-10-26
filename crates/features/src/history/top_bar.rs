@@ -17,7 +17,7 @@ use style::chat::{
 use style::dialogs::DIALOGS_TEXT_FONT;
 use style::info::{
     HISTORY_TOP_BAR_BACK, TOP_BAR_ACTION_SKIP, TOP_BAR_ARROW_PADDING, TOP_BAR_CLEAR_BUTTON,
-    TOP_BAR_HEIGHT, TOP_BAR_INFO_BUTTON, TOP_BAR_NAME_RIGHT_PADDING,
+    TOP_BAR_HEIGHT, TOP_BAR_INFO_BUTTON, TOP_BAR_MENU_TOGGLE, TOP_BAR_NAME_RIGHT_PADDING,
 };
 use style::{ColorId, ColorRef, Font};
 use ui::{IconButton, RoundButton, Userpic, UserpicSource, color, font, font_height};
@@ -27,7 +27,7 @@ use crate::lang::strings;
 use crate::px_of;
 use crate::status::{members_status, status};
 
-/// What the back arrow does.
+/// What the back arrow or the menu toggle does.
 pub(super) type OnBack = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
 /// The status line and its color.
@@ -69,11 +69,12 @@ fn text(
 }
 
 /// The bar; `on_back` shows the arrow and the userpic, as one column does.
-// shortcut: no search, call and menu buttons on the right; they come with search in a chat (M3), calls (M12) and the chat menu (M4).
+// shortcut: no search, call and info buttons beside the menu toggle; they come with search in a chat (M3), calls (M12) and the info panel (M6).
 pub(super) fn top_bar(
     state: &State,
     chat: ChatId,
     on_back: Option<OnBack>,
+    on_menu: OnBack,
     cx: &App,
 ) -> AnyElement {
     let is_self = state
@@ -143,6 +144,11 @@ pub(super) fn top_bar(
         }))
         .children(userpic)
         .child(lines)
+        .child(
+            div()
+                .flex_none()
+                .child(IconButton::new("history-menu", &TOP_BAR_MENU_TOGGLE).on_click(on_menu)),
+        )
         .into_any_element()
 }
 

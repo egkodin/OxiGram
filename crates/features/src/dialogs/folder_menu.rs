@@ -11,9 +11,9 @@ use style::menu_icons::{MENU_ICON_DELETE_ATTENTION, MENU_ICON_MARK_READ};
 use ui::{Markup, MenuTone, PopupMenu};
 
 use super::Dialogs;
-use super::menu::send;
 use crate::boxes::{self, Callback, ConfirmArgs};
 use crate::lang::tr;
+use crate::peer_menu::send;
 
 /// Marking more unread messages than this read asks first
 /// (`kMaxUnreadWithoutConfirmation`).
