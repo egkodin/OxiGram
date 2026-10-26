@@ -1,7 +1,9 @@
-//! Messages as the chat list previews them. The full message model lands
-//! with the history in M3.
+//! Messages as the chat list previews them and the history shows them.
 
-use td_api::enums::{CallDiscardReason, MessageContent, MessageSender};
+use td_api::enums::{
+    CallDiscardReason, MessageContent, MessageOrigin, MessageReplyTo, MessageSender,
+    MessageSendingState,
+};
 
 use crate::file::Minithumbnail;
 use crate::ids::{ChatId, MessageId, UserId};
@@ -15,7 +17,61 @@ pub struct Message {
     pub is_outgoing: bool,
     /// Unix time the message was sent.
     pub date: i32,
+    /// Unix time of the last edit; 0 when never edited.
+    pub edit_date: i32,
     pub content: Content,
+    pub reply_to: Option<ReplyTo>,
+    pub forward: Option<Forward>,
+    /// Set while an outgoing message is not on the server yet.
+    pub sending: Option<Sending>,
+    /// Channel post views; 0 when not counted.
+    pub views: i32,
+    /// The post author's name in channels that sign posts.
+    pub author_signature: String,
+    /// Messages of one album share it.
+    pub album: Option<i64>,
+    pub is_channel_post: bool,
+}
+
+/// The message a message replies to.
+// shortcut: replies to stories and the replied message's origin and content in other chats are dropped; external replies show as "deleted message" until M5.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReplyTo {
+    pub chat: ChatId,
+    pub message: MessageId,
+    /// The quoted part of the replied message, when the sender picked one.
+    pub quote: Option<FormattedText>,
+}
+
+/// Where a forwarded message first came from, and when.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Forward {
+    pub origin: Origin,
+    pub date: i32,
+}
+
+/// Who first sent a forwarded message (`MessageOrigin`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Origin {
+    User(UserId),
+    /// A user who hides their account in forwards; only the name is known.
+    HiddenUser(String),
+    Chat {
+        chat: ChatId,
+        signature: String,
+    },
+    Channel {
+        chat: ChatId,
+        message: MessageId,
+        signature: String,
+    },
+}
+
+/// Where an outgoing message is on its way to the server.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sending {
+    Pending,
+    Failed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +142,30 @@ pub struct Media {
     pub thumbnail: Option<Minithumbnail>,
 }
 
+impl Message {
+    /// An incoming message with nothing but its content, as fixtures build
+    /// them.
+    #[must_use]
+    pub fn new(id: MessageId, chat: ChatId, sender: Sender, content: Content) -> Self {
+        Self {
+            id,
+            chat,
+            sender,
+            is_outgoing: false,
+            date: 0,
+            edit_date: 0,
+            content,
+            reply_to: None,
+            forward: None,
+            sending: None,
+            views: 0,
+            author_signature: String::new(),
+            album: None,
+            is_channel_post: false,
+        }
+    }
+}
+
 impl From<td_api::types::Message> for Message {
     fn from(message: td_api::types::Message) -> Self {
         Self {
@@ -94,7 +174,52 @@ impl From<td_api::types::Message> for Message {
             sender: Sender::from(*message.sender_id),
             is_outgoing: message.is_outgoing,
             date: message.date,
+            edit_date: message.edit_date,
             content: Content::from(*message.content),
+            reply_to: message.reply_to.and_then(|reply| ReplyTo::from_td(*reply)),
+            forward: message.forward_info.map(|forward| Forward {
+                origin: Origin::from(*forward.origin),
+                date: forward.date,
+            }),
+            sending: message.sending_state.map(|state| match *state {
+                MessageSendingState::Pending(_) => Sending::Pending,
+                MessageSendingState::Failed(_) => Sending::Failed,
+            }),
+            views: message.interaction_info.map_or(0, |info| info.view_count),
+            author_signature: message.author_signature,
+            album: Some(message.media_album_id).filter(|album| *album != 0),
+            is_channel_post: message.is_channel_post,
+        }
+    }
+}
+
+impl ReplyTo {
+    fn from_td(reply: MessageReplyTo) -> Option<Self> {
+        match reply {
+            MessageReplyTo::Message(reply) => Some(Self {
+                chat: ChatId(reply.chat_id),
+                message: MessageId(reply.message_id),
+                quote: reply.quote.map(|quote| FormattedText::from(*quote.text)),
+            }),
+            MessageReplyTo::Story(_) => None,
+        }
+    }
+}
+
+impl From<MessageOrigin> for Origin {
+    fn from(origin: MessageOrigin) -> Self {
+        match origin {
+            MessageOrigin::User(user) => Self::User(UserId(user.sender_user_id)),
+            MessageOrigin::HiddenUser(user) => Self::HiddenUser(user.sender_name),
+            MessageOrigin::Chat(chat) => Self::Chat {
+                chat: ChatId(chat.sender_chat_id),
+                signature: chat.author_signature,
+            },
+            MessageOrigin::Channel(channel) => Self::Channel {
+                chat: ChatId(channel.chat_id),
+                message: MessageId(channel.message_id),
+                signature: channel.author_signature,
+            },
         }
     }
 }

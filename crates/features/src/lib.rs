@@ -7,6 +7,7 @@ mod connecting;
 mod contacts_box;
 mod dialogs;
 mod hashtags;
+mod history;
 mod intro;
 pub mod lang;
 pub mod layers;

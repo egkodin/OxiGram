@@ -15,7 +15,9 @@ mod sidebar;
 mod suggestions;
 mod tabs;
 
+pub(crate) use self::action::action_text;
 pub(crate) use self::hashtag_results::CompleteQuery;
+pub(crate) use self::preview::content as content_preview;
 pub(crate) use self::sidebar::{OnMainMenu, is_sidebar_shown};
 
 use std::collections::HashSet;
@@ -23,9 +25,9 @@ use std::ops::Range;
 
 use chrono::{DateTime, Local};
 use gpui::{
-    AnyElement, App, Context, DragMoveEvent, ElementId, Entity, FocusHandle, IntoElement,
-    MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, SharedString, Styled,
-    Subscription, UniformListScrollHandle, Window, div, prelude::*, uniform_list,
+    AnyElement, App, Context, DragMoveEvent, ElementId, Entity, EventEmitter, FocusHandle,
+    IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, SharedString,
+    Styled, Subscription, UniformListScrollHandle, Window, div, prelude::*, uniform_list,
 };
 use i18n::{Key, Strings, key};
 use model::chat::{Chat, ChatKind, ChatList};
@@ -41,7 +43,6 @@ use style::dialogs_layout::DIALOGS_BOT_ICON;
 use style::{ColorId, ColorRef};
 use ui::{PopupMenu, UserpicSource, color};
 
-use self::action::action_text;
 use self::date::DialogDate;
 use self::pinned::{DragGhost, DraggedPinned};
 use self::preview::Preview;
@@ -105,6 +106,12 @@ impl RowKey {
         (name, id).into()
     }
 }
+
+/// The user chose a chat to open (`Dialogs::Widget::chosenRow`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct OpenChat(pub ChatId);
+
+impl EventEmitter<OpenChat> for Dialogs {}
 
 pub(crate) struct Dialogs {
     store: Entity<Store>,
@@ -225,10 +232,16 @@ impl Dialogs {
         state.chats.list_len(self.list) + usize::from(self.shows_archive(state, cx))
     }
 
-    /// Lights `chat` as the open one.
-    // shortcut: selecting only lights the row; opening the chat comes with the history in M3.
+    /// Lights `chat` as the open one and asks the main view to open it.
     pub(crate) fn select(&mut self, chat: ChatId, cx: &mut Context<Self>) {
         self.active = Some(chat);
+        cx.emit(OpenChat(chat));
+        cx.notify();
+    }
+
+    /// Unlights the closed chat.
+    pub(crate) fn deselect(&mut self, cx: &mut Context<Self>) {
+        self.active = None;
         cx.notify();
     }
 

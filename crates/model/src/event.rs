@@ -3,6 +3,7 @@ use td_api::enums::{OptionValue, Update};
 
 use crate::auth::{self, Terms, TermsId};
 use crate::chats::Change;
+use crate::history;
 use crate::ids::UserId;
 use crate::state::ConnectionState;
 
@@ -23,6 +24,8 @@ pub enum Event {
     /// The signed-in user (`my_id`).
     Me(UserId),
     Chats(Change),
+    /// A change only open chats' histories show.
+    Messages(history::Change),
 }
 
 /// The events in a client's updates, in TDLib's order. Updates the model does
@@ -54,7 +57,10 @@ impl Event {
                 OptionValue::Integer(value) => Self::Me(UserId(value.value)),
                 _ => return None,
             },
-            other => Self::Chats(Change::from_update(other).ok()?),
+            other => match Change::from_update(other) {
+                Ok(change) => Self::Chats(change),
+                Err(other) => Self::Messages(history::Change::from_update(other).ok()?),
+            },
         })
     }
 }

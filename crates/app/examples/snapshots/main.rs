@@ -5,6 +5,7 @@
 //! cargo run -p rgram --example snapshots -- [output directory]
 
 mod chats;
+mod history;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -41,6 +42,8 @@ struct Scenario {
     drags: Vec<(&'static str, WindowPoint, WindowPoint)>,
     /// Set before the window opens; it stays for later windows.
     folders: FoldersPlacement,
+    /// Loaded into open chats before the window opens, as TDLib's pages.
+    histories: Vec<(model::ChatId, Vec<model::message::Message>)>,
 }
 
 fn auth(state: State) -> Event {
@@ -63,6 +66,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
         },
         Scenario {
@@ -70,6 +74,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![(
                 "02-qr",
                 auth(State::WaitQrScan {
@@ -83,6 +88,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![
                 ("04-code", code()),
                 ("03-phone", auth(State::WaitPhoneNumber)),
@@ -93,6 +99,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![(
                 "05-password",
                 auth(State::WaitPassword(Password {
@@ -109,6 +116,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![(
                 "06-signup",
                 auth(State::WaitRegistration {
@@ -127,6 +135,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
         },
         Scenario {
@@ -134,6 +143,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![(
                 "08-premium-required",
                 auth(State::WaitPremiumPurchase {
@@ -146,6 +156,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![
                 ("09-signed-in", auth(State::Ready)),
                 (
@@ -196,9 +207,21 @@ fn scenarios() -> Vec<Scenario> {
                 ("37-drag-tab", WORK_TAB, CHANNELS_TAB),
             ],
             folders: FoldersPlacement::Top,
+            histories: Vec::new(),
             steps: vec![("20-pinned-chats", auth(State::Ready))],
         },
         // Last: the night mode it switches on stays for later windows.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("42-history-group", MouseButton::Left, HIKING_ROW),
+                ("43-history-private", MouseButton::Left, MARIA_ROW),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("41-chat-list", auth(State::Ready))],
+            drags: Vec::new(),
+        },
         Scenario {
             setup: chats::events(),
             clicks: vec![
@@ -219,6 +242,7 @@ fn scenarios() -> Vec<Scenario> {
                 (100.0, 300.0),
             )],
             folders: FoldersPlacement::Sidebar,
+            histories: Vec::new(),
             steps: vec![("11-chat-list", auth(State::Ready))],
         },
     ]
@@ -263,6 +287,7 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
+const HIKING_ROW: (f32, f32) = (150.0, 366.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {
@@ -302,6 +327,7 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     for scenario in scenarios() {
         let mut steps = scenario.steps.into_iter();
         let setup = scenario.setup;
+        let histories = scenario.histories;
         let Some((first_name, first)) = steps.next() else {
             continue;
         };
@@ -313,6 +339,10 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
                 store.apply(event, cx);
             }
             store.apply(first, cx);
+            for (chat, messages) in histories {
+                store.open_chat(chat, cx);
+                store.add_history_page(chat, model::history::Page::Newest, messages, cx);
+            }
             store
         });
         let window = cx.update(|cx| open(store.clone(), cx))?;

@@ -9,10 +9,10 @@ use model::text::{Entity, EntityKind, FormattedText};
 use model::user::{Badge, User, UserKind, UserStatus};
 use model::{BasicGroupId, ChatId, Event, FolderId, MessageId, SupergroupId, UserId};
 
-const ME: i64 = 1;
-const HOUR: i32 = 3600;
+pub(crate) const ME: i64 = 1;
+pub(crate) const HOUR: i32 = 3600;
 
-fn now() -> i32 {
+pub(crate) fn now() -> i32 {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_secs());
@@ -44,12 +44,9 @@ fn message(
     content: Content,
 ) -> Message {
     Message {
-        id: MessageId(id),
-        chat: ChatId(chat),
-        sender,
         is_outgoing,
         date: now() - ago,
-        content,
+        ..Message::new(MessageId(id), ChatId(chat), sender, content)
     }
 }
 
@@ -140,6 +137,7 @@ pub(crate) fn events() -> Vec<Event> {
         )),
     );
     maria.unread_count = 2;
+    maria.last_read_outbox = MessageId(17);
     maria.positions[0].is_pinned = true;
     // Work holds the two unread chats its tab counts, so its menu offers Mark as read.
     maria.positions.push(Position {

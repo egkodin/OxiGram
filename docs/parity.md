@@ -120,16 +120,16 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| history | Title bar: name, status (online, last seen, members, subscribers), typing | M3 | todo | |
+| history | Title bar: name, status (online, last seen, members, subscribers), typing | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; buttons, one-column back arrow not snapshotted |
 | history | Title bar buttons: search, call, video call, info panel, menu | M3 | todo | |
 | history | Chat menu: mute, clear history, delete, report, auto-delete, wallpaper | M3 | todo | |
-| history | Bubbles with tails, grouping by sender and time, userpics in groups | M3 | todo | |
-| history | Sender names in peer colors, admin and member titles | M3 | todo | |
-| history | Date separators, sticky date on scroll | M3 | todo | |
+| history | Bubbles with tails, grouping by sender and time, userpics in groups | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no wide-window mode |
+| history | Sender names in peer colors, admin and member titles | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no admin and member titles |
+| history | Date separators, sticky date on scroll | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no sticky date on scroll |
 | history | Unread messages separator and jump to first unread | M3 | todo | |
 | history | Service messages for every action type | M3 | todo | |
-| history | Outgoing state: clock, sent, read, failed with retry | M3 | todo | |
-| history | Edited mark, channel views, forwards count, post signatures | M3 | todo | |
+| history | Outgoing state: clock, sent, read, failed with retry | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; failed shows the clock, no retry |
+| history | Edited mark, channel views, forwards count, post signatures | M3 | in progress | unit tests and snapshot; only the edited mark so far |
 | history | Forwarded header (user, channel, hidden sender, saved from) | M3 | todo | |
 | history | Reply header with quote, jump to replied message and back | M3 | todo | |
 | history | Reply to a message in another chat, reply to a story | M3 | todo | |
@@ -145,7 +145,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Large single emoji and animated emoji | M5 | todo | |
 | history | Emoji interactions (click an animated emoji, see the partner's) | M5 | todo | |
 | history | Link previews: small or large media, above or below the text | M3 | todo | |
-| history | Loading history upward and downward without scroll jumps | M3 | todo | |
+| history | Loading history upward and downward without scroll jumps | M3 | in progress | unit tests (model history, list splices); not verified live: no API credentials yet |
 | history | Scroll-to-bottom button with unread counter | M3 | todo | |
 | history | Jump buttons to unread mentions and unread reactions | M3 | todo | |
 | history | Jump to a date with the calendar | M3 | todo | |

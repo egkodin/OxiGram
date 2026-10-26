@@ -11,7 +11,7 @@ use super::preview;
 /// "typing" in private chats, "Ann is typing" in groups, for the first
 /// one acting (`SendActionPainter`).
 // shortcut: one person and no animation; "Ann and Bob are typing" and the animated dots come with the chat top bar in M3.
-pub(super) fn action_text(strings: &Strings, chats: &Chats, chat: &Chat) -> Option<String> {
+pub(crate) fn action_text(strings: &Strings, chats: &Chats, chat: &Chat) -> Option<String> {
     let (sender, action) = chats.actions(chat.id).first()?;
     let (alone, with_user) = action_keys(action);
     let emoji = match action {

@@ -20,7 +20,7 @@ use ui::{Userpic, UserpicSource, color, font, font_height};
 use super::super::row::{Lit, unread_badge};
 use super::super::{Dialogs, RowKey, photo_userpic};
 use super::chats::Removable;
-use crate::lang::{strings, tr_plural_decimal};
+use crate::lang::strings;
 use crate::px_of;
 use crate::status::status;
 
@@ -82,7 +82,8 @@ impl Dialogs {
             let line = status(strings, user, &now);
             Some((line.text, line.is_online))
         } else {
-            members_status(chat, state.chats.member_count(chat), cx).map(|text| (text, false))
+            crate::status::members_status(chat, state.chats.member_count(chat), cx)
+                .map(|text| (text, false))
         };
         let unread = (!is_self)
             .then(|| {
@@ -229,16 +230,6 @@ impl Dialogs {
 }
 
 /// "12 members" or "48,210 subscribers", once the count is known.
-fn members_status(chat: &Chat, count: Option<i32>, cx: &App) -> Option<String> {
-    let key = match chat.kind {
-        ChatKind::Supergroup {
-            is_channel: true, ..
-        } => key::lng_chat_status_subscribers,
-        _ => key::lng_chat_status_members,
-    };
-    count.map(|count| tr_plural_decimal(cx, key, i64::from(count)))
-}
-
 /// The green dot at a userpic's bottom right, ringed in `ring`.
 pub(super) fn online_dot(photo: Pixels, ring: ColorId, cx: &App) -> impl IntoElement {
     let size = px_of(DIALOGS_ONLINE_BADGE_SIZE);

@@ -259,14 +259,7 @@ mod tests {
     }
 
     fn message_with(content: Content) -> Message {
-        Message {
-            id: MessageId(1),
-            chat: ChatId(1),
-            sender: Sender::User(UserId(2)),
-            is_outgoing: false,
-            date: 0,
-            content,
-        }
+        Message::new(MessageId(1), ChatId(1), Sender::User(UserId(2)), content)
     }
 
     #[test]

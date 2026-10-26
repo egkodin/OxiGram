@@ -25,7 +25,8 @@ use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_heig
 
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
-use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, is_sidebar_shown};
+use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, OpenChat, is_sidebar_shown};
+use crate::history::{CloseChat, HistoryView, Placement};
 use crate::lang::tr;
 use crate::main_menu::{MainMenu, MenuAction};
 use crate::settings;
@@ -44,8 +45,11 @@ pub struct MainView {
     layers: Entity<Layers>,
     dialogs: Entity<Dialogs>,
     search: Entity<InputField>,
+    /// The open chat, if any.
+    history: Option<Entity<HistoryView>>,
     focus: FocusHandle,
-    _subscriptions: [Subscription; 3],
+    _subscriptions: [Subscription; 4],
+    _history_subscription: Option<Subscription>,
 }
 
 impl std::fmt::Debug for MainView {
@@ -87,19 +91,57 @@ impl MainView {
             this.search
                 .update(cx, |search, cx| search.set_text(text, None, cx));
         });
+        let open = cx.subscribe(&dialogs, |this, _, OpenChat(chat), cx| {
+            this.open_chat(*chat, cx);
+        });
         Self {
             store,
             layers,
             dialogs,
             search,
+            history: None,
             focus,
-            _subscriptions: [subscription, observe_dialogs, complete],
+            _subscriptions: [subscription, observe_dialogs, complete, open],
+            _history_subscription: None,
         }
+    }
+
+    fn open_chat(&mut self, chat: model::ChatId, cx: &mut Context<Self>) {
+        if self
+            .history
+            .as_ref()
+            .is_some_and(|history| history.read(cx).chat() == chat)
+        {
+            return;
+        }
+        let store = self.store.clone();
+        let history = cx.new(|cx| HistoryView::new(store, chat, cx));
+        self._history_subscription =
+            Some(cx.subscribe(&history, |this, _, CloseChat, cx| this.close_chat(cx)));
+        self.history = Some(history);
+        cx.notify();
+    }
+
+    fn set_history_placement(&self, placement: Placement, cx: &mut Context<Self>) {
+        if let Some(history) = &self.history {
+            history.update(cx, |history, cx| history.set_placement(placement, cx));
+        }
+    }
+
+    /// Escape in a chat closes it (`HistoryWidget::escape`).
+    fn close_chat(&mut self, cx: &mut Context<Self>) {
+        self.history = None;
+        self._history_subscription = None;
+        self.dialogs.update(cx, |dialogs, cx| dialogs.deselect(cx));
+        cx.notify();
     }
 
     /// Escape: clears the search, else leaves the archive.
     fn cancel_search(&mut self, _: &CancelSearch, window: &mut Window, cx: &mut Context<Self>) {
-        if self.search.read(cx).text().is_empty() {
+        let is_search_focused = self.search.read(cx).focus_handle(cx).is_focused(window);
+        if self.history.is_some() && !is_search_focused {
+            self.close_chat(cx);
+        } else if self.search.read(cx).text().is_empty() {
             // Leaves the field, which hides the suggestions.
             self.focus.focus(window, cx);
             self.dialogs
@@ -377,9 +419,14 @@ impl Render for MainView {
             .flex()
             .children(sidebar);
         if layout == columns::Layout::OneColumn {
-            // shortcut: the list alone; opening a chat over it comes with the history in M3.
-            return root.child(columns);
+            // One column shows the open chat in place of the list.
+            self.set_history_placement(Placement::Alone, cx);
+            return match &self.history {
+                Some(history) => root.child(history.clone()),
+                None => root.child(columns),
+            };
         }
+        self.set_history_placement(Placement::BesideList, cx);
         let handle_width = px_of(HISTORY_RESIZE_WIDTH);
         root.on_drag_move(
             cx.listener(move |_, event: &DragMoveEvent<ColumnResize>, _, cx| {
@@ -397,7 +444,15 @@ impl Render for MainView {
                         .h_full()
                         .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
                 )
-                .child(Self::empty_history(cx))
+                .child(match &self.history {
+                    Some(history) => div()
+                        .flex_1()
+                        .min_w_0()
+                        .h_full()
+                        .child(history.clone())
+                        .into_any_element(),
+                    None => Self::empty_history(cx).into_any_element(),
+                })
                 .child(
                     div()
                         .id("column-resize")

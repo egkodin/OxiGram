@@ -12,6 +12,7 @@ pub mod chat_actions;
 pub mod chats;
 mod event;
 pub mod file;
+pub mod history;
 mod ids;
 pub mod language;
 pub mod message;

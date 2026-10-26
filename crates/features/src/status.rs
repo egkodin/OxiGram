@@ -2,8 +2,12 @@
 //! order it sorts in (`Data::OnlineText`, `Data::SortByOnlineValue`).
 
 use chrono::{DateTime, Days, TimeZone};
+use gpui::App;
 use i18n::{Strings, key};
+use model::chat::{Chat, ChatKind};
 use model::user::{User, UserKind, UserStatus};
+
+use crate::lang::tr_plural_decimal;
 
 const MINUTE: i64 = 60;
 const HOUR: i64 = 3600;
@@ -103,6 +107,17 @@ pub(crate) fn sort_value(user: &User, now: i64) -> i64 {
         UserStatus::LastMonth => now - 30 * DAY,
         UserStatus::Empty => 0,
     }
+}
+
+/// "5 members" or "5 subscribers" once the count is known.
+pub(crate) fn members_status(chat: &Chat, count: Option<i32>, cx: &App) -> Option<String> {
+    let key = match chat.kind {
+        ChatKind::Supergroup {
+            is_channel: true, ..
+        } => key::lng_chat_status_subscribers,
+        _ => key::lng_chat_status_members,
+    };
+    count.map(|count| tr_plural_decimal(cx, key, i64::from(count)))
 }
 
 #[cfg(test)]

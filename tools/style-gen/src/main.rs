@@ -31,6 +31,7 @@ const STYLE_ROOTS: &[&str] = &[
     "intro/intro.style",
     "ui/boxes/country_select_box.style",
     "ui/chat/chat.style",
+    "ui/chat/chat_style.style",
     "ui/filter_icons.style",
     "window/window.style",
     "window/window_main_menu.style",

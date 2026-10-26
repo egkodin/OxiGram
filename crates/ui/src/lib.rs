@@ -33,7 +33,7 @@ pub use qr::{QrCode, QrData, QrError};
 pub use radial::{InfiniteRadial, RadialState, paint_arc};
 pub use settings_button::SettingsButton;
 pub use theme::{Theme, color, hsla};
-pub use userpic::{Userpic, UserpicSource, initials, jpeg_image};
+pub use userpic::{Userpic, UserpicSource, initials, jpeg_image, peer_palette_index};
 
 /// The fonts tdesktop bundles (`lib_ui/fonts`); Vazirmatn covers Arabic script.
 const FONTS: [&[u8]; 6] = [

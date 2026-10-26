@@ -52,10 +52,40 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/box_search@2x.png")),
             x3: Some(include_bytes!("../icons/box_search@3x.png")),
         },
+        "bubble_tail" => IconFiles::Png {
+            x1: include_bytes!("../icons/bubble_tail.png"),
+            x2: Some(include_bytes!("../icons/bubble_tail@2x.png")),
+            x3: Some(include_bytes!("../icons/bubble_tail@3x.png")),
+        },
         "calendar_down" => IconFiles::Png {
             x1: include_bytes!("../icons/calendar_down.png"),
             x2: Some(include_bytes!("../icons/calendar_down@2x.png")),
             x3: Some(include_bytes!("../icons/calendar_down@3x.png")),
+        },
+        "calls/call_answer" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_answer.png"),
+            x2: Some(include_bytes!("../icons/calls/call_answer@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_answer@3x.png")),
+        },
+        "calls/call_arrow_in" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_arrow_in.png"),
+            x2: Some(include_bytes!("../icons/calls/call_arrow_in@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_arrow_in@3x.png")),
+        },
+        "calls/call_arrow_out" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_arrow_out.png"),
+            x2: Some(include_bytes!("../icons/calls/call_arrow_out@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_arrow_out@3x.png")),
+        },
+        "calls/call_camera_active" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_camera_active.png"),
+            x2: Some(include_bytes!("../icons/calls/call_camera_active@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_camera_active@3x.png")),
+        },
+        "calls/call_group" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_group.png"),
+            x2: Some(include_bytes!("../icons/calls/call_group@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_group@3x.png")),
         },
         "calls/call_shadow_left" => IconFiles::Png {
             x1: include_bytes!("../icons/calls/call_shadow_left.png"),
@@ -83,6 +113,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
         "chat/ai_letters" => IconFiles::Svg(include_bytes!("../icons/chat/ai_letters.svg")),
         "chat/ai_star1" => IconFiles::Svg(include_bytes!("../icons/chat/ai_star1.svg")),
         "chat/ai_star2" => IconFiles::Svg(include_bytes!("../icons/chat/ai_star2.svg")),
+        "chat/audio_once" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/audio_once.png"),
+            x2: Some(include_bytes!("../icons/chat/audio_once@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/audio_once@3x.png")),
+        },
         "chat/code_tags" => IconFiles::Svg(include_bytes!("../icons/chat/code_tags.svg")),
         "chat/ephemeral_badge" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/ephemeral_badge.png"),
@@ -221,6 +256,16 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
         "chat/large_user_tag" => IconFiles::Svg(include_bytes!("../icons/chat/large_user_tag.svg")),
         "chat/large_welcome" => IconFiles::Svg(include_bytes!("../icons/chat/large_welcome.svg")),
         "chat/large_zip" => IconFiles::Svg(include_bytes!("../icons/chat/large_zip.svg")),
+        "chat/link_photo_enlarge" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/link_photo_enlarge.png"),
+            x2: Some(include_bytes!("../icons/chat/link_photo_enlarge@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/link_photo_enlarge@3x.png")),
+        },
+        "chat/live_location_long" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/live_location_long.png"),
+            x2: Some(include_bytes!("../icons/chat/live_location_long@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/live_location_long@3x.png")),
+        },
         "chat/markup_webview" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/markup_webview.png"),
             x2: Some(include_bytes!("../icons/chat/markup_webview@2x.png")),
@@ -241,6 +286,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/chat/mini_lock.png"),
             x2: Some(include_bytes!("../icons/chat/mini_lock@2x.png")),
             x3: Some(include_bytes!("../icons/chat/mini_lock@3x.png")),
+        },
+        "chat/mini_media_once" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/mini_media_once.png"),
+            x2: Some(include_bytes!("../icons/chat/mini_media_once@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/mini_media_once@3x.png")),
         },
         "chat/mini_quote" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/mini_quote.png"),
@@ -320,6 +370,20 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
         "chat/unsupported_plane" => {
             IconFiles::Svg(include_bytes!("../icons/chat/unsupported_plane.svg"))
         }
+        "chat/voice_to_text" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/voice_to_text.png"),
+            x2: Some(include_bytes!("../icons/chat/voice_to_text@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/voice_to_text@3x.png")),
+        },
+        "chat/voice_to_text_collapse" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/voice_to_text_collapse.png"),
+            x2: Some(include_bytes!(
+                "../icons/chat/voice_to_text_collapse@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/chat/voice_to_text_collapse@3x.png"
+            )),
+        },
         "community/requests_hidden" => {
             IconFiles::Svg(include_bytes!("../icons/community/requests_hidden.svg"))
         }
@@ -654,10 +718,25 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/fade_horizontal@2x.png")),
             x3: Some(include_bytes!("../icons/fade_horizontal@3x.png")),
         },
+        "fast_comments" => IconFiles::Png {
+            x1: include_bytes!("../icons/fast_comments.png"),
+            x2: Some(include_bytes!("../icons/fast_comments@2x.png")),
+            x3: Some(include_bytes!("../icons/fast_comments@3x.png")),
+        },
+        "fast_share" => IconFiles::Png {
+            x1: include_bytes!("../icons/fast_share.png"),
+            x2: Some(include_bytes!("../icons/fast_share@2x.png")),
+            x3: Some(include_bytes!("../icons/fast_share@3x.png")),
+        },
         "fast_to_original" => IconFiles::Png {
             x1: include_bytes!("../icons/fast_to_original.png"),
             x2: Some(include_bytes!("../icons/fast_to_original@2x.png")),
             x3: Some(include_bytes!("../icons/fast_to_original@3x.png")),
+        },
+        "filled_go_to_message" => IconFiles::Png {
+            x1: include_bytes!("../icons/filled_go_to_message.png"),
+            x2: Some(include_bytes!("../icons/filled_go_to_message@2x.png")),
+            x3: Some(include_bytes!("../icons/filled_go_to_message@3x.png")),
         },
         "folders/folder_existing_chats" => IconFiles::Png {
             x1: include_bytes!("../icons/folders/folder_existing_chats.png"),
@@ -1015,6 +1094,26 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/fragment@2x.png")),
             x3: Some(include_bytes!("../icons/fragment@3x.png")),
         },
+        "history_audio_cancel" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_audio_cancel.png"),
+            x2: Some(include_bytes!("../icons/history_audio_cancel@2x.png")),
+            x3: Some(include_bytes!("../icons/history_audio_cancel@3x.png")),
+        },
+        "history_audio_download" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_audio_download.png"),
+            x2: Some(include_bytes!("../icons/history_audio_download@2x.png")),
+            x3: Some(include_bytes!("../icons/history_audio_download@3x.png")),
+        },
+        "history_comments" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_comments.png"),
+            x2: Some(include_bytes!("../icons/history_comments@2x.png")),
+            x3: Some(include_bytes!("../icons/history_comments@3x.png")),
+        },
+        "history_comments_open" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_comments_open.png"),
+            x2: Some(include_bytes!("../icons/history_comments_open@2x.png")),
+            x3: Some(include_bytes!("../icons/history_comments_open@3x.png")),
+        },
         "history_down_arrow" => IconFiles::Png {
             x1: include_bytes!("../icons/history_down_arrow.png"),
             x2: Some(include_bytes!("../icons/history_down_arrow@2x.png")),
@@ -1040,15 +1139,45 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/history_file_document@2x.png")),
             x3: Some(include_bytes!("../icons/history_file_document@3x.png")),
         },
+        "history_file_download" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_file_download.png"),
+            x2: Some(include_bytes!("../icons/history_file_download@2x.png")),
+            x3: Some(include_bytes!("../icons/history_file_download@3x.png")),
+        },
         "history_file_image" => IconFiles::Png {
             x1: include_bytes!("../icons/history_file_image.png"),
             x2: Some(include_bytes!("../icons/history_file_image@2x.png")),
             x3: Some(include_bytes!("../icons/history_file_image@3x.png")),
         },
+        "history_file_pause" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_file_pause.png"),
+            x2: Some(include_bytes!("../icons/history_file_pause@2x.png")),
+            x3: Some(include_bytes!("../icons/history_file_pause@3x.png")),
+        },
         "history_file_play" => IconFiles::Png {
             x1: include_bytes!("../icons/history_file_play.png"),
             x2: Some(include_bytes!("../icons/history_file_play@2x.png")),
             x3: Some(include_bytes!("../icons/history_file_play@3x.png")),
+        },
+        "history_pin" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_pin.png"),
+            x2: Some(include_bytes!("../icons/history_pin@2x.png")),
+            x3: Some(include_bytes!("../icons/history_pin@3x.png")),
+        },
+        "history_received" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_received.png"),
+            x2: Some(include_bytes!("../icons/history_received@2x.png")),
+            x3: Some(include_bytes!("../icons/history_received@3x.png")),
+        },
+        "history_replies" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_replies.png"),
+            x2: Some(include_bytes!("../icons/history_replies@2x.png")),
+            x3: Some(include_bytes!("../icons/history_replies@3x.png")),
+        },
+        "history_sent" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_sent.png"),
+            x2: Some(include_bytes!("../icons/history_sent@2x.png")),
+            x3: Some(include_bytes!("../icons/history_sent@3x.png")),
         },
         "history_stash_arrow" => IconFiles::Svg(include_bytes!("../icons/history_stash_arrow.svg")),
         "history_stash_bubble" => {
@@ -1066,6 +1195,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/history_unread_reaction.png"),
             x2: Some(include_bytes!("../icons/history_unread_reaction@2x.png")),
             x3: Some(include_bytes!("../icons/history_unread_reaction@3x.png")),
+        },
+        "history_views" => IconFiles::Png {
+            x1: include_bytes!("../icons/history_views.png"),
+            x2: Some(include_bytes!("../icons/history_views@2x.png")),
+            x3: Some(include_bytes!("../icons/history_views@3x.png")),
         },
         "info/edit/create_channel" => IconFiles::Png {
             x1: include_bytes!("../icons/info/edit/create_channel.png"),
@@ -1452,6 +1586,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/mediaview/next.png"),
             x2: Some(include_bytes!("../icons/mediaview/next@2x.png")),
             x3: Some(include_bytes!("../icons/mediaview/next@3x.png")),
+        },
+        "mediaview/save_check" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/save_check.png"),
+            x2: Some(include_bytes!("../icons/mediaview/save_check@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/save_check@3x.png")),
         },
         "menu/2sv_on" => IconFiles::Png {
             x1: include_bytes!("../icons/menu/2sv_on.png"),
@@ -2456,6 +2595,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
         }
         "menu/zoom_in" => IconFiles::Svg(include_bytes!("../icons/menu/zoom_in.svg")),
         "menu/zoom_out" => IconFiles::Svg(include_bytes!("../icons/menu/zoom_out.svg")),
+        "message_psa_tooltip" => IconFiles::Png {
+            x1: include_bytes!("../icons/message_psa_tooltip.png"),
+            x2: Some(include_bytes!("../icons/message_psa_tooltip@2x.png")),
+            x3: Some(include_bytes!("../icons/message_psa_tooltip@3x.png")),
+        },
         "mini_forward" => IconFiles::Png {
             x1: include_bytes!("../icons/mini_forward.png"),
             x2: Some(include_bytes!("../icons/mini_forward@2x.png")),
@@ -2527,6 +2671,16 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/player/player_play.png"),
             x2: Some(include_bytes!("../icons/player/player_play@2x.png")),
             x3: Some(include_bytes!("../icons/player/player_play@3x.png")),
+        },
+        "player/playlist_cancel" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/playlist_cancel.png"),
+            x2: Some(include_bytes!("../icons/player/playlist_cancel@2x.png")),
+            x3: Some(include_bytes!("../icons/player/playlist_cancel@3x.png")),
+        },
+        "player/playlist_download" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/playlist_download.png"),
+            x2: Some(include_bytes!("../icons/player/playlist_download@2x.png")),
+            x3: Some(include_bytes!("../icons/player/playlist_download@3x.png")),
         },
         "player/speed/audiospeed_menu_0.5" => IconFiles::Png {
             x1: include_bytes!("../icons/player/speed/audiospeed_menu_0.5.png"),
@@ -2611,6 +2765,16 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/proxy_on.png"),
             x2: Some(include_bytes!("../icons/proxy_on@2x.png")),
             x3: Some(include_bytes!("../icons/proxy_on@3x.png")),
+        },
+        "quiz_explain" => IconFiles::Png {
+            x1: include_bytes!("../icons/quiz_explain.png"),
+            x2: Some(include_bytes!("../icons/quiz_explain@2x.png")),
+            x3: Some(include_bytes!("../icons/quiz_explain@3x.png")),
+        },
+        "quiz_timer" => IconFiles::Png {
+            x1: include_bytes!("../icons/quiz_timer.png"),
+            x2: Some(include_bytes!("../icons/quiz_timer@2x.png")),
+            x3: Some(include_bytes!("../icons/quiz_timer@3x.png")),
         },
         "replies_userpic" => IconFiles::Png {
             x1: include_bytes!("../icons/replies_userpic.png"),
@@ -2971,6 +3135,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/voice_lock/voice_arrow.png"),
             x2: Some(include_bytes!("../icons/voice_lock/voice_arrow@2x.png")),
             x3: Some(include_bytes!("../icons/voice_lock/voice_arrow@3x.png")),
+        },
+        "volume_mute" => IconFiles::Png {
+            x1: include_bytes!("../icons/volume_mute.png"),
+            x2: Some(include_bytes!("../icons/volume_mute@2x.png")),
+            x3: Some(include_bytes!("../icons/volume_mute@3x.png")),
         },
         "win_quit" => IconFiles::Png {
             x1: include_bytes!("../icons/win_quit.png"),

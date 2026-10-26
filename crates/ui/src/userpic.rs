@@ -122,9 +122,15 @@ pub fn initials(name: &str) -> String {
     result
 }
 
+/// Which of the eight `historyPeerN` colors TDLib's accent color index
+/// picks, from 0 (`ColorIndexToPaletteIndex`).
+#[must_use]
+pub fn peer_palette_index(color_index: i32) -> usize {
+    PALETTE_ORDER[usize::try_from(color_index).unwrap_or(0) % PALETTE_ORDER.len()]
+}
+
 fn backgrounds(color_index: i32) -> (ColorRef, ColorRef) {
-    let index = usize::try_from(color_index).unwrap_or(0) % PALETTE_ORDER.len();
-    let (top, bottom) = BACKGROUNDS[PALETTE_ORDER[index]];
+    let (top, bottom) = BACKGROUNDS[peer_palette_index(color_index)];
     (ColorRef::Palette(top), ColorRef::Palette(bottom))
 }
 

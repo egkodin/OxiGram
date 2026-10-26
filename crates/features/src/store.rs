@@ -4,7 +4,9 @@
 use std::future::Future;
 
 use gpui::{App, Context, EventEmitter, Task};
-use model::{Environment, Event, Session, State, auth};
+use model::history::Page;
+use model::message::Message;
+use model::{ChatId, Environment, Event, Session, State, auth};
 
 /// The model state and the session that changes it.
 #[derive(Debug)]
@@ -65,6 +67,38 @@ impl Store {
         cx.notify();
     }
 
+    /// Starts keeping `chat`'s messages and tells TDLib it is open.
+    pub fn open_chat(&mut self, chat: ChatId, cx: &mut Context<Self>) {
+        self.state.open_history(chat);
+        cx.notify();
+        log_failure(
+            spawn(self.session.open_chat(chat), cx),
+            "opening a chat",
+            cx,
+        );
+    }
+
+    pub fn close_chat(&mut self, chat: ChatId, cx: &mut Context<Self>) {
+        self.state.close_history(chat);
+        cx.notify();
+        log_failure(
+            spawn(self.session.close_chat(chat), cx),
+            "closing a chat",
+            cx,
+        );
+    }
+
+    pub fn add_history_page(
+        &mut self,
+        chat: ChatId,
+        page: Page,
+        messages: Vec<Message>,
+        cx: &mut Context<Self>,
+    ) {
+        self.state.add_history_page(chat, page, messages);
+        cx.notify();
+    }
+
     /// Sends a sign-in action; the task reports whether TDLib accepted it.
     pub fn auth(&self, action: auth::Action, cx: &App) -> Task<Result<(), auth::Error>> {
         spawn(self.session.auth(action), cx)
@@ -75,6 +109,19 @@ impl Store {
         self.state.accept_terms(id);
         cx.notify();
     }
+}
+
+fn log_failure(
+    task: Task<Result<(), model::RequestError>>,
+    what: &'static str,
+    cx: &mut Context<Store>,
+) {
+    cx.spawn(async move |_, _| {
+        if let Err(error) = task.await {
+            tracing::warn!(%error, what, "request failed");
+        }
+    })
+    .detach();
 }
 
 /// Runs a session request off the UI thread.

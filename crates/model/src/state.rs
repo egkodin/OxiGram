@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+
 use td_api::enums::ConnectionState as TdConnectionState;
 
 use crate::auth::{self, Terms, TermsId};
 use crate::chats::Chats;
 use crate::event::Event;
-use crate::ids::UserId;
+use crate::history::{History, Page};
+use crate::ids::{ChatId, UserId};
+use crate::message::Message;
 
 /// Everything the UI shows, built only from [`Event`]s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -18,6 +22,8 @@ pub struct State {
     pub chats: Chats,
     /// The signed-in user, once TDLib told.
     pub me: Option<UserId>,
+    /// The messages of open chats; others get none, so memory stays flat.
+    histories: HashMap<ChatId, History>,
 }
 
 /// How TDLib's connection to Telegram stands.
@@ -45,6 +51,7 @@ impl State {
                     auth::State::LoggingOut | auth::State::Closing | auth::State::Closed
                 ) {
                     self.chats = Chats::default();
+                    self.histories.clear();
                     self.me = None;
                 }
                 self.auth = state;
@@ -53,7 +60,38 @@ impl State {
             Event::Connection(connection) => self.connection = connection,
             Event::SuggestedLanguage(language) => self.suggested_language = language,
             Event::Me(user) => self.me = Some(user),
-            Event::Chats(change) => self.chats.apply(change),
+            Event::Chats(change) => {
+                for history in self.histories.values_mut() {
+                    history.observe(&change);
+                }
+                self.chats.apply(change);
+            }
+            Event::Messages(change) => {
+                if let Some(history) = self.histories.get_mut(&change.chat()) {
+                    history.apply(change);
+                }
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn history(&self, chat: ChatId) -> Option<&History> {
+        self.histories.get(&chat)
+    }
+
+    /// Starts keeping `chat`'s messages, empty until a page loads.
+    pub fn open_history(&mut self, chat: ChatId) {
+        self.histories.entry(chat).or_default();
+    }
+
+    pub fn close_history(&mut self, chat: ChatId) {
+        self.histories.remove(&chat);
+    }
+
+    /// Adds a loaded page to an open chat's history.
+    pub fn add_history_page(&mut self, chat: ChatId, page: Page, messages: Vec<Message>) {
+        if let Some(history) = self.histories.get_mut(&chat) {
+            history.add_page(page, messages);
         }
     }
 
