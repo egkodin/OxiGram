@@ -22,6 +22,7 @@ use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
     MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_EDIT, MENU_ICON_FORWARD, MENU_ICON_LINK,
     MENU_ICON_REPLY, MENU_ICON_RESCHEDULE, MENU_ICON_SELECT, MENU_ICON_SEND,
+    MENU_ICON_SHOW_IN_FOLDER,
 };
 use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
 use ui::{MenuTone, PopupMenu};
@@ -120,6 +121,8 @@ pub(super) enum Item {
     ClearSelection,
     SendNow,
     Reschedule,
+    /// A downloaded file in Finder, or the file manager elsewhere.
+    ShowInFolder(std::path::PathBuf),
 }
 
 /// A scheduled message's menu: send now and reschedule, then copying and
@@ -371,6 +374,17 @@ impl HistoryView {
         if field_bar::editable_text(&message).is_none() {
             items.retain(|item| *item != Item::Edit);
         }
+        if let Some(path) = self
+            .document_path(&message, cx)
+            .filter(|_| upon == Upon::Nothing)
+        {
+            // After Reply and Edit, as tdesktop adds the document's actions.
+            let at = items
+                .iter()
+                .take_while(|i| matches!(i, Item::Reply | Item::Edit))
+                .count();
+            items.insert(at, Item::ShowInFolder(path));
+        }
         if message.schedule.is_some() {
             items = scheduled_items(items);
         }
@@ -526,6 +540,7 @@ impl HistoryView {
             Item::SelectUpTo => self.select_up_to(index, cx),
             Item::SendNow => self.send_scheduled_now(message.id, window, cx),
             Item::Reschedule => self.reschedule(message.id, window, cx),
+            Item::ShowInFolder(path) => cx.reveal_path(path),
             Item::ClearSelection => {
                 self.clear_selection(cx);
             }
@@ -664,6 +679,10 @@ fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon
         Item::ClearSelection => normal(key::lng_context_clear_selection, MENU_ICON_SELECT),
         Item::SendNow => normal(key::lng_context_send_now_msg, MENU_ICON_SEND),
         Item::Reschedule => normal(key::lng_context_reschedule, MENU_ICON_RESCHEDULE),
+        Item::ShowInFolder(_) if cfg!(target_os = "macos") => {
+            normal(key::lng_context_show_in_finder, MENU_ICON_SHOW_IN_FOLDER)
+        }
+        Item::ShowInFolder(_) => normal(key::lng_context_show_in_folder, MENU_ICON_SHOW_IN_FOLDER),
     }
 }
 

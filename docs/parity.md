@@ -257,7 +257,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | media | Videos: thumbnail, duration, inline autoplay without sound | M5 | todo | |
 | media | Video covers and video timestamps | M5 | todo | |
 | media | Streaming playback while downloading | M5 | todo | |
-| media | Files: icon, size, progress, download, open, show in folder | M5 | todo | |
+| media | Files: icon, size, progress, download, open, show in folder | M5 | in progress | unit tests (`cargo test -p features file_row launch`); snapshots 154-156: the circle downloads, cancels with the arc while it loads, then opens; size or "x / y MB" beside the time; "Show in Finder" in the menu once on disk; opening asks first for executables, unknown types and files that can expose the IP address (tdesktop's lists), never for a verified user's files, and only reveals files without an extension; not verified: no live download yet; a still arc; no Save As, no "Don't ask again" per extension (M7), no thumbnails for image and video files, no music or voice layouts |
 | media | Music files with the player | M5 | todo | |
 | media | Voice messages: waveform, play, seek, speed | M5 | todo | |
 | media | Voice and video transcription (Premium) | M13 | todo | |

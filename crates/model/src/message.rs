@@ -142,7 +142,7 @@ pub enum External {
     /// A message in another chat: who sent it and its media, if any.
     Message {
         origin: Origin,
-        media: Option<Content>,
+        media: Option<Box<Content>>,
     },
     /// A story of this chat's poster.
     Story { poster: ChatId },
@@ -493,7 +493,9 @@ impl ReplyTo {
                 external: reply.origin.map(|origin| {
                     Box::new(External::Message {
                         origin: Origin::from(*origin),
-                        media: reply.content.map(|content| Content::from(*content)),
+                        media: reply
+                            .content
+                            .map(|content| Box::new(Content::from(*content))),
                     })
                 }),
             }),

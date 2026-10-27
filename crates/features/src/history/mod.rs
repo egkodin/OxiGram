@@ -12,10 +12,12 @@ mod compose;
 mod contact_status;
 mod dates;
 mod delete;
+mod documents;
 mod drafts;
 mod drop_area;
 mod emoji_panel;
 mod field_bar;
+mod file_row;
 mod forwarding;
 mod headers;
 mod jump;
@@ -438,8 +440,10 @@ impl HistoryView {
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
         let comments = self.comments(&message, cx);
         let reactions = self.reaction_buttons(&message, cx);
-        let upload = self.upload(&message, cx);
-        let photo = upload.is_none().then(|| self.photo(&message, cx)).flatten();
+        let file = self
+            .upload(&message, cx)
+            .or_else(|| self.document(&message, cx));
+        let photo = file.is_none().then(|| self.photo(&message, cx)).flatten();
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -466,7 +470,7 @@ impl HistoryView {
                 on_pointer: self.on_pointer_at(index, cx),
                 comments,
                 reactions,
-                upload,
+                file,
                 photo,
                 after: self.thread_divider(index, cx),
             },
@@ -625,27 +629,6 @@ impl HistoryView {
             },
             file,
         ))
-    }
-
-    pub(super) fn request_file(&mut self, file: FileId, cx: &mut Context<Self>) {
-        self.fetch(file, USERPIC_PRIORITY, cx);
-    }
-
-    /// Downloads a file once per history view.
-    pub(super) fn fetch(&mut self, file: FileId, priority: i32, cx: &mut Context<Self>) {
-        if !self.requested_files.insert(file) {
-            return;
-        }
-        let task = crate::store::spawn(
-            self.store.read(cx).session().download_file(file, priority),
-            cx,
-        );
-        cx.spawn(async move |_, _| {
-            if let Err(error) = task.await {
-                tracing::warn!(%error, "downloading a file failed");
-            }
-        })
-        .detach();
     }
 }
 

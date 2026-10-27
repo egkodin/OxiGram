@@ -58,6 +58,7 @@ fn events(paths: &[PathBuf]) -> Vec<Event> {
             id: file,
             path: Some(path.to_string_lossy().into_owned()),
             is_downloading: false,
+            downloaded: 0,
             size: 4000,
             uploaded: 4000,
             is_uploading: false,

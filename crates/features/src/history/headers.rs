@@ -339,12 +339,14 @@ mod tests {
                 message: MessageId(5),
                 signature: String::new(),
             },
-            media: Some(model::message::Content::Photo(model::message::Media {
-                caption: model::text::FormattedText::plain("Sunrise"),
-                thumbnail: None,
-                dimensions: None,
-                file: None,
-            })),
+            media: Some(Box::new(model::message::Content::Photo(
+                model::message::Media {
+                    caption: model::text::FormattedText::plain("Sunrise"),
+                    thumbnail: None,
+                    dimensions: None,
+                    file: None,
+                },
+            ))),
         });
         let header = reply(&strings, &chats, &post, Replied::Deleted, |_| 0);
         assert_eq!(

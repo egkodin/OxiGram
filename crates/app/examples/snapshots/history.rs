@@ -216,12 +216,12 @@ fn ann() -> Vec<Message> {
                 message: MessageId(50),
                 signature: String::new(),
             },
-            media: Some(Content::Photo(model::message::Media {
+            media: Some(Box::new(Content::Photo(model::message::Media {
                 caption: FormattedText::plain("Sunrise over the valley"),
                 thumbnail: None,
                 dimensions: None,
                 file: None,
-            })),
+            }))),
         },
     );
     let guide = entity(
@@ -359,6 +359,7 @@ pub(crate) fn uploads() -> Vec<(ChatId, Vec<Message>)> {
         is_uploading: true,
         path: None,
         is_downloading: false,
+        downloaded: 0,
     };
     let sent = message(ME, 1, ME, 2 * HOUR, "Report for the trip");
     let uploading = Message {

@@ -648,7 +648,7 @@ const COLUMN_EDGE: (f32, f32) = (286.0, 300.0);
 const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
 pub(crate) const SAVED_ROW: (f32, f32) = (150.0, 180.0);
-const MARIA_ROW: (f32, f32) = (150.0, 242.0);
+pub(crate) const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
 const BEN_ROW: (f32, f32) = (150.0, 490.0);
 const BOT_ROW: (f32, f32) = (150.0, 552.0);

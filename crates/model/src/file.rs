@@ -12,6 +12,8 @@ pub struct File {
     /// The local path once the download completed.
     pub path: Option<String>,
     pub is_downloading: bool,
+    /// The bytes on disk while it downloads.
+    pub downloaded: i64,
     /// In bytes, exact or TDLib's estimate; 0 if unknown.
     pub size: i64,
     /// The bytes on the server while it uploads.
@@ -52,6 +54,7 @@ impl From<td_api::types::File> for File {
             id: FileId(file.id),
             path: (local.is_downloading_completed && !local.path.is_empty()).then_some(local.path),
             is_downloading: local.is_downloading_active,
+            downloaded: local.downloaded_size,
             size: if file.size > 0 {
                 file.size
             } else {
@@ -109,8 +112,8 @@ mod tests {
         assert_eq!(file.id, FileId(7));
         assert_eq!(file.path.as_deref(), Some("/tmp/a.jpg"));
         assert_eq!(
-            (file.size, file.uploaded, file.is_uploading),
-            (10, 10, false)
+            (file.size, file.downloaded, file.uploaded, file.is_uploading),
+            (10, 10, 10, false)
         );
     }
 

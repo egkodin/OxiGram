@@ -11,6 +11,7 @@ mod hashtags;
 mod history;
 mod intro;
 pub mod lang;
+mod launch;
 pub mod layers;
 mod links;
 mod main_menu;

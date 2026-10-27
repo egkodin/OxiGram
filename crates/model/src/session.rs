@@ -3,8 +3,8 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::OptionValue;
 use td_api::functions::{
-    DownloadFile, GetCountries, GetCountryCode, LoadChats, SetOption, SetProfilePhoto,
-    SetTdlibParameters,
+    CancelDownloadFile, DownloadFile, GetCountries, GetCountryCode, LoadChats, SetOption,
+    SetProfilePhoto, SetTdlibParameters,
 };
 use td_api::types::{InputChatPhotoStatic, InputFileLocal, OptionValueString};
 use tg::TdError;
@@ -207,6 +207,19 @@ impl Session {
                 offset: 0,
                 limit: 0,
                 synchronous: false,
+            })
+            .map(|result| result.map(drop).map_err(RequestError))
+    }
+
+    /// Stops a download; the part already loaded stays for a later one.
+    pub fn cancel_download_file(
+        &self,
+        file: FileId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client
+            .request(&CancelDownloadFile {
+                file_id: file.0,
+                only_if_pending: false,
             })
             .map(|result| result.map(drop).map_err(RequestError))
     }

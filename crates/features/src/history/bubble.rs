@@ -81,8 +81,8 @@ pub(super) struct Item<'a> {
     /// The comments button under a channel post.
     pub comments: Option<Comments>,
     pub reactions: Vec<reactions::Button>,
-    /// The file going up while the message is being sent.
-    pub upload: Option<super::upload::Upload>,
+    /// The file row: one going up, or a document message's file.
+    pub file: Option<super::file_row::FileRow>,
     /// A photo message's picture, once it is sent.
     pub photo: Option<super::photo::Photo>,
     /// What follows the message in its row, as a thread's divider.
@@ -401,18 +401,30 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         .map(|comments| super::comments::button(comments, item.message.id.0, item.is_selected, cx));
     let headers = headers(item, out, cx);
     let has_header = name.is_some() || !headers.is_empty();
-    // Before the upload is taken: with one, only the caption shows.
+    // Before the file is taken: with one, only the caption shows.
     let body = text(item, out, cx);
-    let upload = item
-        .upload
-        .take()
-        .map(|upload| super::upload::row(upload, item.message.id.0 as u64, has_header, cx));
+    let has_caption = !caption(item.message).is_some_and(|caption| caption.text.is_empty());
+    // A file alone reaches the bubble's bottom, its status beside the time.
+    let is_file_alone = !has_caption && item.reactions.is_empty() && comments.is_none();
+    let file = item.file.take().map(|file| {
+        let place = super::file_row::Place {
+            id: item.message.id.0 as u64,
+            is_out: out,
+            is_selected: item.is_selected,
+            has_header,
+            time_room: is_file_alone.then(|| time_room(item, out, cx)),
+        };
+        super::file_row::row(file, &place, cx)
+    });
+    let shows_text = file.is_none() || has_caption;
     frame
         .children(name)
         .children(headers)
-        .children(upload)
+        .children(file)
         .children(web_page(item, out, Placement::AboveText, cx))
-        .child(text_style(fg, cx).child(body))
+        .when(shows_text, |this| {
+            this.child(text_style(fg, cx).child(body))
+        })
         .children(web_page(item, out, Placement::BelowText, cx))
         .map(|this| {
             let reactions = std::mem::take(&mut item.reactions);
@@ -586,6 +598,17 @@ pub(super) fn name_color(color_index: i32) -> ColorId {
     NAME_COLORS[peer_palette_index(color_index)]
 }
 
+/// The caption of a message with media.
+fn caption(message: &Message) -> Option<&FormattedText> {
+    match &message.content {
+        Content::Photo(media)
+        | Content::Video(media)
+        | Content::Animation(media)
+        | Content::Document { media, .. } => Some(&media.caption),
+        _ => None,
+    }
+}
+
 /// The message text in its font and color.
 pub(super) fn text_block(item: &Item<'_>, out: bool, fg: ColorId, cx: &App) -> Div {
     text_style(fg, cx).child(text(item, out, cx))
@@ -610,7 +633,7 @@ pub(super) fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
         // caption follows it.
         Content::Photo(media) => &media.caption,
         Content::Video(media) | Content::Animation(media) | Content::Document { media, .. }
-            if item.upload.is_some() =>
+            if item.file.is_some() =>
         {
             &media.caption
         }

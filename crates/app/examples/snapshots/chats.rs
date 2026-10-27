@@ -472,6 +472,7 @@ fn ann_photo() -> Option<File> {
         id: ANN_PHOTO,
         path: Some(path.to_string_lossy().into_owned()),
         is_downloading: false,
+        downloaded: 0,
         size: 12_000,
         uploaded: 12_000,
         is_uploading: false,

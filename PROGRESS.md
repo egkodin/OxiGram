@@ -7,6 +7,11 @@
 - Photos in the history (`history/photo.rs`): tdesktop's sizes, the
   minithumbnail until the download completes, the caption below, the time
   on its pill over the picture. Snapshots 151-153.
+- Files in the history (`history/file_row.rs`, `documents.rs`): download,
+  cancel and open from the circle, the size or progress beside the time,
+  "Show in Finder" in the menu; `launch.rs` asks before opening risky
+  types, as tdesktop's `LaunchWithWarning`. Uploads share the row.
+  Snapshots 154-156.
 
 ### Half done (shortcuts in code)
 
@@ -20,6 +25,11 @@
    at once, the blurry preview shows, then the photo; the time sits on a
    dark pill at the bottom right, under a caption when there is one.
    Scroll a long way through photos and watch memory in Activity Monitor.
+2. Files, read only: in a chat with a file, click the arrow: the arc and
+   "x / y MB" move, the cross stops it, a second click resumes. Once done,
+   click opens it in its app (a .pdf straight away; an .html or unknown
+   type asks first); right click, "Show in Finder" selects it. Send a file
+   in Saved Messages: the upload row is the same one.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
