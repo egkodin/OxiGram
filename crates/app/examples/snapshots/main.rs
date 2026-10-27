@@ -110,7 +110,12 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     // SNAPSHOTS_ONLY=41,77 runs the scenarios whose first step starts so.
     let only = std::env::var("SNAPSHOTS_ONLY").unwrap_or_default();
     let only: Vec<&str> = only.split(',').filter(|part| !part.is_empty()).collect();
-    for scenario in scenarios::scenarios().into_iter().chain(media::scenarios()) {
+    // The night scenario goes last of all: its night mode and narrow sidebar stay.
+    let mut all = scenarios::scenarios();
+    let night = all.pop();
+    all.extend(media::scenarios());
+    all.extend(night);
+    for scenario in all {
         let first = scenario.steps.first().map_or("", |(name, _)| *name);
         if !only.is_empty() && !only.iter().any(|prefix| first.starts_with(prefix)) {
             continue;
