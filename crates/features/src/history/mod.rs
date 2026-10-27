@@ -5,6 +5,7 @@
 mod body;
 mod bubble;
 mod calendar;
+mod chat_search;
 mod delete;
 mod headers;
 mod jump;
@@ -114,6 +115,7 @@ pub(crate) struct HistoryView {
     highlight: Option<MessageId>,
     scroll_date: scroll_date::ScrollDate,
     section: pinned_section::Section,
+    search: Option<chat_search::ChatSearch>,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -185,6 +187,7 @@ impl HistoryView {
             highlight: None,
             scroll_date: scroll_date::ScrollDate::default(),
             section: pinned_section::Section::Chat,
+            search: None,
             focus,
             _subscription: subscription,
         };
@@ -569,12 +572,23 @@ impl Render for HistoryView {
             )
         } else if !is_chat {
             self.pinned_section_bar(cx)
+        } else if let Some(bar) = self.search_bar(cx) {
+            bar
         } else {
             let weak = cx.weak_entity();
             let on_menu: top_bar::OnBack = Box::new(move |_, window, cx| {
                 let _ = weak.update(cx, |this, cx| this.show_chat_menu(window, cx));
             });
-            top_bar::top_bar(self.store.read(cx).state(), self.chat, on_back, on_menu, cx)
+            let weak = cx.weak_entity();
+            let on_search: top_bar::OnBack = Box::new(move |_, window, cx| {
+                let _ = weak.update(cx, |this, cx| this.open_search(window, cx));
+            });
+            let actions = top_bar::Actions {
+                on_back,
+                on_search,
+                on_menu,
+            };
+            top_bar::top_bar(self.store.read(cx).state(), self.chat, actions, cx)
         };
         let weak = cx.weak_entity();
         let focus = self.focus.clone();
@@ -616,6 +630,7 @@ impl Render for HistoryView {
                     ),
             )
             .children(self.pinned_section_button(cx))
+            .children(self.search_results_bar(cx))
             .children(self.menu_overlay())
     }
 }

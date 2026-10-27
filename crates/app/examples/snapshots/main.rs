@@ -251,6 +251,8 @@ fn scenarios() -> Vec<Scenario> {
                     PINNED_SHOW_ALL,
                 ),
                 ("61-history-pinned-closed", MouseButton::Left, SECTION_BACK),
+                ("62-history-search-open", MouseButton::Left, CHAT_SEARCH),
+                ("63-history-search-closed", MouseButton::Left, SECTION_BACK),
                 ("54-history-link-previews", MouseButton::Left, ANN_ROW),
                 ("55-history-calendar", MouseButton::Left, DATE_BADGE),
                 (
@@ -371,6 +373,8 @@ const HISTORY_MIDDLE: (f32, f32) = (543.0, 400.0);
 const PINNED_BAR: (f32, f32) = (560.0, 80.0);
 const PINNED_SHOW_ALL: (f32, f32) = (775.0, 80.0);
 const SECTION_BACK: (f32, f32) = (312.0, 27.0);
+/// The search button left of the chat's menu toggle.
+const CHAT_SEARCH: (f32, f32) = (736.0, 27.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {

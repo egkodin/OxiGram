@@ -141,14 +141,7 @@ impl CalendarBox {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         if self.target(delta).is_none() {
-            return div()
-                .flex_none()
-                .size(px_of(enabled.width))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(icon(disabled))
-                .into_any_element();
+            return disabled_arrow(enabled, disabled);
         }
         let weak = cx.weak_entity();
         IconButton::new(id, enabled)
@@ -296,6 +289,18 @@ impl Render for CalendarBox {
 }
 
 /// Shows the calendar; Escape and a click outside close it.
+/// An arrow that cannot step further: its dimmed icon in the button's place.
+pub(super) fn disabled_arrow(enabled: &IconButtonStyle, disabled: Icon) -> AnyElement {
+    div()
+        .flex_none()
+        .size(px_of(enabled.width))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(icon(disabled))
+        .into_any_element()
+}
+
 pub(super) fn show(
     layers: &gpui::Entity<Layers>,
     calendar: Calendar,

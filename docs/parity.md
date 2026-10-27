@@ -121,7 +121,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
 | history | Title bar: name, status (online, last seen, members, subscribers), typing | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; buttons, one-column back arrow not snapshotted |
-| history | Title bar buttons: search, call, video call, info panel, menu | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 50/51); not verified: no API credentials, so no live chat; the menu toggle only; search comes with search in a chat, calls with M12, the info panel with M6 |
+| history | Title bar buttons: search, call, video call, info panel, menu | M3 | in progress | snapshots 50/51 and 62-63 (`cargo run -p rgram --example snapshots`); search and the menu toggle; not verified: no API credentials, so no live chat; calls come with M12, the info panel with M6 |
 | history | Chat menu: mute, clear history, delete, report, auto-delete, wallpaper | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 50/51); not verified: no API credentials, so no live actions; mute (for good), clear history, delete or leave with the chat list's confirmations; no report, auto-delete or wallpaper yet |
 | history | Bubbles with tails, grouping by sender and time, userpics in groups | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no wide-window mode |
 | history | Sender names in peer colors, admin and member titles | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42-43); not verified: no API credentials yet, so no live history; no admin and member titles |
@@ -230,7 +230,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Send-as chooser (send as a channel) | M4 | todo | |
 | compose | Slow mode countdown and send restrictions | M4 | todo | |
 | compose | Join, mute/unmute, unblock and start-bot bars in place of the field | M4 | todo | |
-| compose | Search in chat bar with results navigation and sender filter | M3 | todo | |
+| compose | Search in chat bar with results navigation and sender filter | M3 | in progress | snapshots 62-63 and unit tests (`cargo test -p features chat_search`); the top bar's search button swaps the bar for a field after a back arrow (Escape or the arrow closes it); typing searches after 0.9 s, Enter at once (searchChatMessages); the bottom bar shows "1 of 12" or "No results" with the calendar and up/down arrows that jump to and shade each result, dimmed at the ends; the results bar was checked by eye once with a fixture answer, since the snapshot run has no TDLib; not verified: no API credentials, so no live search; first 100 results only, no sender filter, no results list, no F3/Ctrl+G stepping, no highlighting of the query in the text |
 | compose | Delete messages: for me or for everyone, with confirmation | M4 | todo | |
 | compose | Report messages with reasons | M4 | todo | |
 | compose | Pin message box (notify all members, pin for both) | M4 | todo | |

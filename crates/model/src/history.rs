@@ -11,12 +11,14 @@ use td_api::enums::Update;
 use td_api::functions::{
     CloseChat, GetChatHistory, GetChatMessageByDate, GetMessage, OpenChat, SearchChatMessages,
 };
+use td_api::types::FoundChatMessages;
 use tg::TdError;
 
 use crate::chat_actions::done;
 use crate::chats;
 use crate::ids::{ChatId, MessageId};
 use crate::message::{Content, Message};
+use crate::search::FoundMessages;
 use crate::session::{RequestError, Session};
 
 /// How many messages one page asks for; TDLib may return fewer.
@@ -412,27 +414,53 @@ impl Session {
         self.filtered_messages(chat, filter)
     }
 
+    /// Messages of `chat` containing `query`, newest first, and about how
+    /// many match in all (`ComposeSearch`).
+    // shortcut: the newest 100 matches; tdesktop loads more as the user steps past them.
+    pub fn search_chat(
+        &self,
+        chat: ChatId,
+        query: String,
+    ) -> impl Future<Output = Result<FoundMessages, RequestError>> + Send + use<> {
+        self.search_chat_messages(chat, query, None).map(|result| {
+            result.map(|found| FoundMessages {
+                total_count: found.total_count,
+                messages: found.messages.into_iter().map(Message::from).collect(),
+                next_offset: (found.next_from_message_id != 0)
+                    .then(|| found.next_from_message_id.to_string()),
+            })
+        })
+    }
+
     fn filtered_messages(
         &self,
         chat: ChatId,
         filter: SearchMessagesFilter,
     ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
+        self.search_chat_messages(chat, String::new(), Some(filter))
+            .map(|result| {
+                result.map(|found| found.messages.into_iter().map(Message::from).collect())
+            })
+    }
+
+    fn search_chat_messages(
+        &self,
+        chat: ChatId,
+        query: String,
+        filter: Option<SearchMessagesFilter>,
+    ) -> impl Future<Output = Result<FoundChatMessages, RequestError>> + Send + use<> {
         self.client()
             .request(&SearchChatMessages {
                 chat_id: chat.0,
                 topic_id: None,
-                query: String::new(),
+                query,
                 sender_id: None,
                 from_message_id: 0,
                 offset: 0,
                 limit: SEARCH_LIMIT,
-                filter: Some(Box::new(filter)),
+                filter: filter.map(Box::new),
             })
-            .map(|result| {
-                result
-                    .map(|found| found.messages.into_iter().map(Message::from).collect())
-                    .map_err(RequestError::from)
-            })
+            .map(|result| result.map_err(RequestError::from))
     }
 
     /// The last message of `chat` sent before `date` (Unix time); none when

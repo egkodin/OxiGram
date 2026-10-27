@@ -18,6 +18,7 @@ use style::dialogs::DIALOGS_TEXT_FONT;
 use style::info::{
     HISTORY_TOP_BAR_BACK, TOP_BAR_ACTION_SKIP, TOP_BAR_ARROW_PADDING, TOP_BAR_CLEAR_BUTTON,
     TOP_BAR_HEIGHT, TOP_BAR_INFO_BUTTON, TOP_BAR_MENU_TOGGLE, TOP_BAR_NAME_RIGHT_PADDING,
+    TOP_BAR_SEARCH,
 };
 use style::{ColorId, ColorRef, Font};
 use ui::{IconButton, RoundButton, Userpic, UserpicSource, color, font, font_height};
@@ -68,15 +69,22 @@ fn text(
         .child(value.into())
 }
 
-/// The bar; `on_back` shows the arrow and the userpic, as one column does.
-// shortcut: no search, call and info buttons beside the menu toggle; they come with search in a chat (M3), calls (M12) and the info panel (M6).
-pub(super) fn top_bar(
-    state: &State,
-    chat: ChatId,
-    on_back: Option<OnBack>,
-    on_menu: OnBack,
-    cx: &App,
-) -> AnyElement {
+/// What the bar's buttons do.
+pub(super) struct Actions {
+    /// Shows the arrow and the userpic, as one column does.
+    pub on_back: Option<OnBack>,
+    pub on_search: OnBack,
+    pub on_menu: OnBack,
+}
+
+/// The bar of a chat.
+// shortcut: no call and info buttons beside search and the menu toggle; they come with calls (M12) and the info panel (M6).
+pub(super) fn top_bar(state: &State, chat: ChatId, actions: Actions, cx: &App) -> AnyElement {
+    let Actions {
+        on_back,
+        on_search,
+        on_menu,
+    } = actions;
     let is_self = state
         .chats
         .chat(chat)
@@ -147,6 +155,8 @@ pub(super) fn top_bar(
         .child(
             div()
                 .flex_none()
+                .flex()
+                .child(IconButton::new("history-search", &TOP_BAR_SEARCH).on_click(on_search))
                 .child(IconButton::new("history-menu", &TOP_BAR_MENU_TOGGLE).on_click(on_menu)),
         )
         .into_any_element()
