@@ -7,6 +7,7 @@ use gpui::{
     prelude::FluentBuilder as _,
 };
 use i18n::{Strings, key};
+use model::UserId;
 use model::chats::Chats;
 use model::message::{Forward, Message, Origin, ReplyTo};
 use style::basic::NORMAL_FONT;
@@ -80,6 +81,18 @@ pub(super) fn reply(
 
 fn first_line(text: &str) -> &str {
     text.lines().next().unwrap_or_default()
+}
+
+/// "via @bot" for messages sent through an inline bot; none while the
+/// bot is unknown or has no username.
+pub(super) fn via(strings: &Strings, chats: &Chats, bot: UserId) -> Option<String> {
+    let username = &chats.user(bot)?.username;
+    (!username.is_empty()).then(|| {
+        i18n::fill(
+            strings.text(key::lng_inline_bot_via),
+            &[("inline_bot", &format!("@{username}"))],
+        )
+    })
 }
 
 /// "Forwarded from Ann", "Forwarded from News (Ann)".
@@ -219,5 +232,29 @@ mod tests {
             ),
             "Forwarded from News (Ann)"
         );
+    }
+
+    #[test]
+    fn via_names_the_bot_by_its_username() {
+        let strings = Strings::english();
+        let mut chats = Chats::default();
+        let with_username = |change, username: &str| match change {
+            Change::User(mut user) => {
+                user.username = username.to_owned();
+                Change::User(user)
+            }
+            other => other,
+        };
+        chats.apply(with_username(
+            super::super::service::tests::user(7, "GIF"),
+            "gif",
+        ));
+        chats.apply(super::super::service::tests::user(8, "No Name"));
+        assert_eq!(
+            via(&strings, &chats, UserId(7)).as_deref(),
+            Some("via @gif")
+        );
+        assert_eq!(via(&strings, &chats, UserId(8)), None);
+        assert_eq!(via(&strings, &chats, UserId(9)), None);
     }
 }

@@ -13,6 +13,8 @@ use model::{BasicGroupId, ChatId, Event, FolderId, MessageId, SupergroupId, User
 
 pub(crate) const ME: i64 = 1;
 pub(crate) const HOUR: i32 = 3600;
+/// An inline bot that a fixture message was sent through.
+pub(crate) const GIF_BOT: i64 = 7;
 
 /// Noon today: messages hours "ago" land on the same days whenever the
 /// snapshots run, so date badges stay where the clicks expect them.
@@ -46,6 +48,7 @@ fn user(id: i64, first: &str, last: &str) -> User {
         is_premium: false,
         kind: UserKind::Regular,
         is_contact: true,
+        username: String::new(),
     }
 }
 
@@ -106,6 +109,7 @@ pub(crate) fn events() -> Vec<Event> {
         user(4, "Ben", ""),
         user(5, "Weather", "Bot"),
         user(6, "Totally Real", "Support"),
+        user(GIF_BOT, "GIF", ""),
     ];
     users[1].status = UserStatus::Online {
         expires: i32::try_from(clock()).unwrap_or(i32::MAX) + HOUR,
@@ -119,6 +123,9 @@ pub(crate) fn events() -> Vec<Event> {
     users[5].is_contact = false;
     users[4].badge = Badge::Verified;
     users[5].badge = Badge::Scam;
+    users[6].kind = UserKind::Bot;
+    users[6].is_contact = false;
+    users[6].username = "gif".to_owned();
 
     let mut saved = chat(
         ME,

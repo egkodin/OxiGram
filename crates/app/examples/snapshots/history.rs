@@ -7,7 +7,7 @@ use model::message::{Content, Forward, LinkPreview, Message, Origin, ReplyTo, Se
 use model::text::{Entity, EntityKind, FormattedText};
 use model::{ChatId, MessageId, UserId};
 
-use crate::chats::{HOUR, ME, now};
+use crate::chats::{GIF_BOT, HOUR, ME, now};
 
 const MINUTE: i32 = 60;
 
@@ -133,7 +133,10 @@ fn group() -> Vec<Message> {
             "Same time next month?",
         ),
         entity(forwarded, "https://example.org/trails", EntityKind::Url),
-        message(-100, 40, 3, 5 * HOUR, "Photos from Saturday are up"),
+        Message {
+            via_bot: Some(UserId(GIF_BOT)),
+            ..message(-100, 40, 3, 5 * HOUR, "Photos from Saturday are up")
+        },
     ]
 }
 

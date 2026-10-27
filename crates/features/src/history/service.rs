@@ -232,14 +232,14 @@ pub(crate) fn text(
 }
 
 #[cfg(test)]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use model::chats::Change;
     use model::message::Content;
     use model::user::{Badge, User, UserStatus};
     use model::{BasicGroupId, ChatId, MessageId, UserId};
 
-    fn user(id: i64, name: &str) -> Change {
+    pub(in crate::history) fn user(id: i64, name: &str) -> Change {
         Change::User(Box::new(User {
             id: UserId(id),
             first_name: name.to_owned(),
@@ -252,6 +252,7 @@ mod tests {
             is_premium: false,
             kind: UserKind::Regular,
             is_contact: false,
+            username: String::new(),
         }))
     }
 

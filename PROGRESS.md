@@ -39,12 +39,15 @@
   stay put whatever time the snapshots run.
 - The read date of an outgoing message at the top of its menu in private
   chats (`read_date`).
+- "via @bot" after the sender's name; Ctrl+C refuses protected messages
+  with tdesktop's toast; the floating date while scrolling (`scroll_date`).
+  The snapshot runner gained wheel-scroll steps (57-59).
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-56 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-59 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -59,7 +62,7 @@
 ### Half done
 
 - Many M3 rows in `docs/parity.md` are still todo: who-read in groups, the pinned section,
-  comments, Saved Messages sublists, sponsored messages, protected content.
+  comments, Saved Messages sublists, sponsored messages.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 

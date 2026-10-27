@@ -275,7 +275,13 @@ impl HistoryView {
     }
 
     /// Ctrl+C: copies the selection; `false` when nothing is selected.
+    /// A protected message copies nothing and says so
+    /// (`showCopyRestrictionForSelected`).
     pub(crate) fn copy_selection(&self, cx: &mut App) -> bool {
+        if is_copy_restricted(&self.selection, &self.shown) {
+            self.show_copy_restriction(cx);
+            return true;
+        }
         let state = self.store.read(cx).state();
         let strings = crate::lang::strings(cx);
         let text = copied_text(&self.selection, &self.shown, |message| {
@@ -287,6 +293,16 @@ impl HistoryView {
         cx.write_to_clipboard(gpui::ClipboardItem::new_string(text));
         true
     }
+}
+
+/// Whether the selection touches a message that may not be copied
+/// (`hasCopyRestrictionForSelected`).
+fn is_copy_restricted(selection: &Selection, shown: &[Arc<Message>]) -> bool {
+    shown.iter().any(|message| {
+        !message.can_be_saved
+            && (selection.is_message_selected(message.id)
+                || selection.text_range(message.id).is_some())
+    })
 }
 
 #[cfg(test)]
@@ -339,5 +355,25 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert!(lines[0].ends_with("] Ann: first"));
         assert!(lines[1].ends_with("] Ann: second"));
+    }
+
+    #[test]
+    fn protected_messages_restrict_copying_only_when_selected() {
+        let mut shown = shown(&["open", "protected"]);
+        shown[1] = Arc::new(Message {
+            can_be_saved: false,
+            ..(*shown[1]).clone()
+        });
+        let messages =
+            |ids: &[i64]| Selection::Messages(ids.iter().copied().map(MessageId).collect());
+        assert!(!is_copy_restricted(&messages(&[1]), &shown));
+        assert!(is_copy_restricted(&messages(&[1, 2]), &shown));
+        let text = Selection::Text {
+            message: MessageId(2),
+            anchor: 0,
+            head: 4,
+        };
+        assert!(is_copy_restricted(&text, &shown));
+        assert!(!is_copy_restricted(&Selection::None, &shown));
     }
 }

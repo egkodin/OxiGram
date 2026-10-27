@@ -141,6 +141,7 @@ mod tests {
             is_premium: false,
             kind: UserKind::Regular,
             is_contact: true,
+            username: String::new(),
         }
     }
 

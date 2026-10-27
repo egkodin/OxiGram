@@ -3,8 +3,8 @@
 
 use gpui::{
     AnyElement, App, BoxShadow, ClickEvent, Div, ElementId, InteractiveElement as _, IntoElement,
-    MouseButton, ParentElement, SharedString, StatefulInteractiveElement as _, Styled, Window, div,
-    point, prelude::FluentBuilder as _, px,
+    MouseButton, ParentElement, Pixels, SharedString, StatefulInteractiveElement as _, Styled,
+    Window, div, point, prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::message::{Content, LinkPreview, Message, Sending};
@@ -67,6 +67,8 @@ pub(super) struct Item<'a> {
     pub on_reply: Option<OnClick>,
     /// "Forwarded from ..." for forwarded messages.
     pub forward: Option<String>,
+    /// "via @bot" for messages sent through an inline bot.
+    pub via: Option<String>,
     pub has_unread_bar: bool,
     pub is_selected: bool,
     /// Shaded after a jump to it (`ElementHighlighter`).
@@ -89,6 +91,9 @@ const NAME_COLORS: [ColorId; 8] = [
     ColorId::HistoryPeer7NameFg,
     ColorId::HistoryPeer8NameFg,
 ];
+
+/// The space between the name and "via @bot": one space of the name font.
+const NAME_VIA_GAP: f32 = 4.0;
 
 /// U+2007 FIGURE SPACE: wide as a digit and never broken.
 const FIGURE_SPACE: char = '\u{2007}';
@@ -164,7 +169,7 @@ pub(super) struct DateBadge {
     pub on_click: OnClick,
 }
 
-fn date_pill(badge: DateBadge, cx: &App) -> Div {
+pub(super) fn date_pill(badge: DateBadge, cx: &App) -> Div {
     let on_click = badge.on_click;
     pill_row(
         pill(badge.text, cx)
@@ -190,10 +195,19 @@ fn pill_row(pill: impl IntoElement) -> Div {
         .child(pill)
 }
 
-fn pill(text: SharedString, cx: &App) -> Div {
-    let height = px_of(MSG_SERVICE_PADDING.top)
+fn pill_height() -> Pixels {
+    px_of(MSG_SERVICE_PADDING.top)
         + font_height(MSG_SERVICE_FONT)
-        + px_of(MSG_SERVICE_PADDING.bottom);
+        + px_of(MSG_SERVICE_PADDING.bottom)
+}
+
+/// How far a date badge reaches below its message's top.
+pub(super) fn date_row_height() -> Pixels {
+    px_of(MSG_SERVICE_MARGIN.top) + pill_height()
+}
+
+fn pill(text: SharedString, cx: &App) -> Div {
+    let height = pill_height();
     div()
         .min_h(height)
         .max_w(px_of(MSG_MAX_WIDTH))
@@ -324,19 +338,7 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
             .when(!out, |this| this.left(-width))
             .child(icon(tail))
     });
-    let name = item
-        .author
-        .as_ref()
-        .filter(|_| !item.run.is_attached_to_previous)
-        .map(|author| {
-            div()
-                .truncate()
-                .font(font(MSG_NAME_FONT))
-                .text_size(px_of(MSG_NAME_FONT.size))
-                .line_height(font_height(MSG_NAME_FONT))
-                .text_color(color(cx, palette(name_color(author.color_index))))
-                .child(author.name.clone())
-        });
+    let name = name_line(item, out, cx);
     div()
         .relative()
         .min_w_0()
@@ -371,6 +373,48 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
         .children(web_page(item, out, Placement::BelowText, cx))
         .child(info(item, out, cx))
         .children(tail)
+}
+
+/// The sender's name and "via @bot" after it (`HistoryMessageVia`); the
+/// via label stands alone when no name shows above a message.
+// shortcut: a forwarded message's via label is dropped, tdesktop appends it to the forward line; with forward headers in M5.
+fn name_line(item: &Item<'_>, out: bool, cx: &App) -> Option<Div> {
+    let author = item
+        .author
+        .as_ref()
+        .filter(|_| !item.run.is_attached_to_previous);
+    let via = item
+        .via
+        .as_ref()
+        .filter(|_| author.is_some() || item.forward.is_none());
+    if author.is_none() && via.is_none() {
+        return None;
+    }
+    let via_fg = palette(if out {
+        ColorId::MsgOutServiceFg
+    } else {
+        ColorId::MsgInServiceFg
+    });
+    Some(
+        div()
+            .flex()
+            .gap(px(NAME_VIA_GAP))
+            .font(font(MSG_NAME_FONT))
+            .text_size(px_of(MSG_NAME_FONT.size))
+            .line_height(font_height(MSG_NAME_FONT))
+            .children(author.map(|author| {
+                div()
+                    .truncate()
+                    .text_color(color(cx, palette(name_color(author.color_index))))
+                    .child(author.name.clone())
+            }))
+            .children(via.map(|via| {
+                div()
+                    .flex_none()
+                    .text_color(color(cx, via_fg))
+                    .child(via.clone())
+            })),
+    )
 }
 
 /// The forward line and the reply box, in the bubble's colors.

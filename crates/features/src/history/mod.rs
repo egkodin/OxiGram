@@ -12,6 +12,7 @@ mod layout;
 mod menu;
 mod pinned;
 mod read_date;
+mod scroll_date;
 mod selection;
 mod service;
 mod sync;
@@ -110,6 +111,7 @@ pub(crate) struct HistoryView {
     pins: pinned::Pins,
     /// The message jumped to, shaded for a moment.
     highlight: Option<MessageId>,
+    scroll_date: scroll_date::ScrollDate,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -151,6 +153,7 @@ impl HistoryView {
                     this.preload(cx);
                     this.update_down_button(cx);
                     this.on_scroll_pins(cx);
+                    this.on_scroll_date(cx);
                 });
             });
         });
@@ -178,6 +181,7 @@ impl HistoryView {
             menu: None,
             pins: pinned::Pins::default(),
             highlight: None,
+            scroll_date: scroll_date::ScrollDate::default(),
             focus,
             _subscription: subscription,
         };
@@ -306,6 +310,9 @@ impl HistoryView {
             .forward
             .as_ref()
             .map(|forward| headers::forwarded(strings(cx), &state.chats, forward));
+        let via = message
+            .via_bot
+            .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -324,6 +331,7 @@ impl HistoryView {
                 reply,
                 on_reply: self.on_reply(&message, cx),
                 forward,
+                via,
                 has_unread_bar,
                 is_selected: self.selection.is_message_selected(message.id),
                 is_highlighted: self.highlight == Some(message.id),
@@ -576,6 +584,7 @@ impl Render for HistoryView {
                         .size_full()
                         .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM)),
                     )
+                    .children(self.floating_date(cx))
                     .children(self.corner_buttons(cx)),
             )
             .children(self.menu_overlay())

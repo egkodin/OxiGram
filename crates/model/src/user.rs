@@ -18,6 +18,8 @@ pub struct User {
     pub is_premium: bool,
     pub kind: UserKind,
     pub is_contact: bool,
+    /// The primary active username, without "@"; empty when there is none.
+    pub username: String,
 }
 
 /// A small userpic: the file to download and its blurred preview.
@@ -115,6 +117,10 @@ impl From<td_api::types::User> for User {
                 UserType::Unknown(_) => UserKind::Unknown,
             },
             is_contact: user.is_contact,
+            username: user
+                .usernames
+                .and_then(|names| names.active_usernames.into_iter().next())
+                .unwrap_or_default(),
         }
     }
 }

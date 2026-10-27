@@ -15,8 +15,8 @@ use features::settings::FoldersPlacement;
 use features::{Root, Store};
 use gpui::{
     AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, Modifiers, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, PlatformInput, Point, Window,
-    WindowBounds, WindowOptions, point, px, size,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, PlatformInput, Point, ScrollDelta,
+    ScrollEvent, Window, WindowBounds, WindowOptions, point, px, size,
 };
 use model::auth::{Code, Delivery, Password, Recovery, State, Terms, TermsId};
 use model::text::FormattedText;
@@ -24,6 +24,8 @@ use model::{Environment, Event, Secret, Session};
 
 /// Long enough for the intro's slide and cover animations to finish.
 const SETTLE: Duration = Duration::from_millis(1500);
+/// Past the floating date's fade-in, before it hides.
+const SCROLL_SETTLE: Duration = Duration::from_millis(500);
 const WIDTH: f32 = 800.0;
 const HEIGHT: f32 = 600.0;
 
@@ -40,6 +42,9 @@ struct Scenario {
     /// Then drags from one point to another, saved before the button is let
     /// go; the release drops on the target.
     drags: Vec<(&'static str, WindowPoint, WindowPoint)>,
+    /// Then wheel scrolls at a point by pixels, up when positive; saved
+    /// before the floating date hides.
+    scrolls: Vec<(&'static str, WindowPoint, f32)>,
     /// Set before the window opens; it stays for later windows.
     folders: FoldersPlacement,
     /// Loaded into open chats before the window opens, as TDLib's pages.
@@ -65,6 +70,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
@@ -73,6 +79,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -87,6 +94,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![
@@ -98,6 +106,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -115,6 +124,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -134,6 +144,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
@@ -142,6 +153,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -155,6 +167,7 @@ fn scenarios() -> Vec<Scenario> {
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![
@@ -206,6 +219,7 @@ fn scenarios() -> Vec<Scenario> {
                 ("31-wide-list", NARROW_COLUMN_EDGE, COLUMN_EDGE),
                 ("37-drag-tab", WORK_TAB, CHANNELS_TAB),
             ],
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: Vec::new(),
             steps: vec![("20-pinned-chats", auth(State::Ready))],
@@ -240,6 +254,7 @@ fn scenarios() -> Vec<Scenario> {
                 ),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: history::histories(),
             steps: vec![("41-chat-list", auth(State::Ready))],
@@ -252,6 +267,16 @@ fn scenarios() -> Vec<Scenario> {
                     (650.0, 382.0),
                 ),
             ],
+        },
+        // Scrolls Hiking Club up to show the floating date.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("58-history-scroll-open", MouseButton::Left, HIKING_ROW)],
+            drags: Vec::new(),
+            scrolls: vec![("59-history-floating-date", HISTORY_MIDDLE, 120.0)],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("57-history-scroll-list", auth(State::Ready))],
         },
         Scenario {
             setup: chats::events(),
@@ -272,6 +297,7 @@ fn scenarios() -> Vec<Scenario> {
                 SIDEBAR_COLUMN_EDGE,
                 (100.0, 300.0),
             )],
+            scrolls: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![("11-chat-list", auth(State::Ready))],
@@ -332,6 +358,8 @@ const GROUP_LINK: (f32, f32) = (610.0, 513.0);
 const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
 /// The three dots at the right of the chat's top bar.
 const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
+/// The middle of the chat's message list.
+const HISTORY_MIDDLE: (f32, f32) = (543.0, 400.0);
 /// The pinned message bar under the chat's top bar.
 const PINNED_BAR: (f32, f32) = (560.0, 80.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
@@ -395,22 +423,35 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             store
         });
         let window = cx.update(|cx| open(store.clone(), cx))?;
-        settle_and_save(window, first_name, out, cx).await?;
+        settle_and_save(window, first_name, out, SETTLE, cx).await?;
         for (name, event) in steps {
             store.update(cx, |store, cx| store.apply(event, cx));
-            settle_and_save(window, name, out, cx).await?;
+            settle_and_save(window, name, out, SETTLE, cx).await?;
         }
         for (name, button, (x, y)) in scenario.clicks {
             window.update(cx, |_, window, cx| {
                 click(button, point(px(x), px(y)), window, cx);
             })?;
-            settle_and_save(window, name, out, cx).await?;
+            settle_and_save(window, name, out, SETTLE, cx).await?;
         }
         for (name, (from_x, from_y), (to_x, to_y)) in scenario.drags {
             let (from, to) = (point(px(from_x), px(from_y)), point(px(to_x), px(to_y)));
             window.update(cx, |_, window, cx| drag(from, to, window, cx))?;
-            settle_and_save(window, name, out, cx).await?;
+            settle_and_save(window, name, out, SETTLE, cx).await?;
             window.update(cx, |_, window, cx| release(to, window, cx))?;
+        }
+        for (name, (x, y), by) in scenario.scrolls {
+            window.update(cx, |_, window, cx| {
+                window.dispatch_event(
+                    PlatformInput::Scroll(ScrollEvent {
+                        position: point(px(x), px(y)),
+                        delta: ScrollDelta::Pixels(point(px(0.0), px(by))),
+                        ..ScrollEvent::default()
+                    }),
+                    cx,
+                );
+            })?;
+            settle_and_save(window, name, out, SCROLL_SETTLE, cx).await?;
         }
         window.update(cx, |_, window, _| window.remove_window())?;
     }
@@ -514,12 +555,13 @@ async fn settle_and_save(
     window: AnyWindowHandle,
     name: &str,
     out: &Path,
+    settle: Duration,
     cx: &mut AsyncApp,
 ) -> anyhow::Result<()> {
     // A window that is not on screen gets no display-link frames, so draw by
     // hand: once to start the transitions, once after they settled.
     window.update(cx, |_, window, cx| window.draw(cx).clear(cx))?;
-    cx.background_executor().timer(SETTLE).await;
+    cx.background_executor().timer(settle).await;
     window.update(cx, |_, window, cx| window.draw(cx).clear(cx))?;
     let image = window.update(cx, |_, window, _| window.render_to_image())??;
     let path = out.join(format!("{name}.png"));

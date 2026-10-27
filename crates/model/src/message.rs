@@ -31,6 +31,10 @@ pub struct Message {
     /// Messages of one album share it.
     pub album: Option<i64>,
     pub is_channel_post: bool,
+    /// The inline bot the message was sent through.
+    pub via_bot: Option<UserId>,
+    /// False in chats with protected content: no copying or forwarding.
+    pub can_be_saved: bool,
 }
 
 /// The message a message replies to.
@@ -284,6 +288,8 @@ impl Message {
             author_signature: String::new(),
             album: None,
             is_channel_post: false,
+            via_bot: None,
+            can_be_saved: true,
         }
     }
 }
@@ -311,6 +317,8 @@ impl From<td_api::types::Message> for Message {
             author_signature: message.author_signature,
             album: Some(message.media_album_id).filter(|album| *album != 0),
             is_channel_post: message.is_channel_post,
+            via_bot: Some(UserId(message.via_bot_user_id)).filter(|bot| bot.0 != 0),
+            can_be_saved: message.can_be_saved,
         }
     }
 }

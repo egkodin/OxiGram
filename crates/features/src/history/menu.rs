@@ -403,6 +403,22 @@ impl HistoryView {
         }
     }
 
+    /// "Copying is not allowed in this ..." for protected content.
+    pub(super) fn show_copy_restriction(&self, cx: &mut App) {
+        let state = self.store.read(cx).state();
+        let key = match state.chats.chat(self.chat).map(|chat| &chat.kind) {
+            Some(ChatKind::Private { .. } | ChatKind::Secret { .. }) => key::lng_error_nocopy_user,
+            Some(ChatKind::Supergroup {
+                is_channel: true, ..
+            }) => key::lng_error_nocopy_channel,
+            _ => key::lng_error_nocopy_group,
+        };
+        let text = tr(cx, key);
+        self.layers.update(cx, |layers, cx| {
+            layers.show_toast(text, &DEFAULT_TOAST, TOAST_DURATION, cx);
+        });
+    }
+
     /// Copies the message link and says whether anyone can open it
     /// (`CopyPostLink`).
     fn copy_message_link(&self, message: MessageId, cx: &mut Context<Self>) {
