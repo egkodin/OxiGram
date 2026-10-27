@@ -55,6 +55,12 @@
 - Reactions under messages (`reactions`): counts or, when few and all
   named, userpics; the chosen one filled; the time keeps its exact room on
   the last row. The comments and reactions share `userpics_row`.
+- Who reacted (`who_reacted`, `reactions_box`): the group or channel
+  message menu's first line follows tdesktop's `refreshText` ("Maria",
+  "2/5 Reacted", "63 Reactions", "3 Seen") and opens the reactions list:
+  "All" and a tab per reaction, the most used first, pages of 50 from
+  `getMessageAddedReactions`. Checked once with a temporary fixture (the
+  runner gets no TDLib answers), then restored.
 
 ### Verified (macOS arm64, this machine)
 
@@ -80,10 +86,9 @@
 
 ### Next steps
 
-1. Who reacted: the menu item and the list with a tab per reaction
-   (`getMessageAddedReactions`).
-2. Entities: emails, phones, bank cards, dates, code highlighting.
-3. Sponsored messages in channels.
+1. Entities: emails, phones, bank cards, dates, code highlighting.
+2. Sponsored messages in channels.
+3. The contact status bar (add, block, report) in private chats.
 
 ### Open questions for the owner
 

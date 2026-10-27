@@ -1,15 +1,15 @@
-//! Who saw an outgoing message, as the message menu's first line says it:
-//! when the other user read it in a private chat (`WhenAction`,
-//! `FormatReadDate`), who saw it in a small group (`WhoReadContextAction`).
+//! Who saw or reacted to a message, as the message menu's first line says
+//! it: when the other user read it in a private chat (`WhenAction`,
+//! `FormatReadDate`), who saw it or reacted in a group
+//! (`WhoReactedContextAction`).
 
 use chrono::{DateTime, Datelike as _, Days, TimeZone};
 use i18n::{Key, Strings, key};
 use model::UserId;
-use model::chats::Chats;
 use model::message_actions::ReadDate;
 
 use super::layout;
-use super::service::{plural, user_name};
+use super::service::plural;
 
 /// What TDLib told about who saw a message.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,17 +74,77 @@ where
     })
 }
 
-/// The one viewer's name, "3 Seen" or "Nobody Viewed" (`refreshText`).
-// shortcut: no viewer userpics and no submenu listing them; with the reactions list (who reacted) in M3's reactions row.
-pub(super) fn seen(strings: &Strings, chats: &Chats, viewers: &[UserId]) -> String {
-    match viewers {
-        [] => strings.text(key::lng_context_seen_text_none).to_owned(),
-        [only] => user_name(strings, chats, *only),
-        _ => plural(
-            strings,
-            key::lng_context_seen_text,
-            i32::try_from(viewers.len()).unwrap_or(i32::MAX),
+/// Who saw or reacted to a message, as the menu line counts them
+/// (`WhoReadContent`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Seen {
+    /// Who reacted, then who only saw it; `true` for those who reacted.
+    pub participants: Vec<(String, bool)>,
+    /// All reactions, also those of people TDLib did not list.
+    pub reactions: i32,
+    /// How many saw it.
+    pub read: i32,
+    pub kind: SeenKind,
+}
+
+/// What seeing a message means: "Seen", "Listened", or "Reacted" for
+/// messages nobody can tell who read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SeenKind {
+    Seen,
+    Watched,
+    Listened,
+    Reacted,
+}
+
+/// "Maria", "2/5 Reacted", "7 Reactions", "3 Seen" or "Nobody Viewed"
+/// (`Action::refreshText`).
+// shortcut: no userpics after the text and no submenu listing everyone; the reactions list shows them.
+pub(super) fn seen(strings: &Strings, seen: &Seen) -> String {
+    let users = i32::try_from(seen.participants.len()).unwrap_or(i32::MAX);
+    let only_seen = seen.participants.iter().filter(|(_, r)| !r).count();
+    let count = seen.reactions.max(users);
+    let short = |key, count: i32, text: String| {
+        i18n::fill(strings.plural(key, i64::from(count)), &[("count", &text)])
+    };
+    if let [(name, _)] = seen.participants.as_slice() {
+        return name.clone();
+    }
+    if seen.reactions > 0 && seen.reactions <= seen.read {
+        let text = format!("{}/{}", layout::short_count(seen.reactions), seen.read);
+        return short(key::lng_context_seen_reacted, seen.reactions, text);
+    }
+    if seen.kind == SeenKind::Reacted || (count > 0 && (seen.reactions > users || only_seen == 0)) {
+        return if count == 0 {
+            strings.text(key::lng_context_seen_reacted_none).to_owned()
+        } else if seen.reactions > seen.read {
+            let text = layout::short_count(seen.reactions);
+            short(key::lng_context_seen_reactions_count, seen.reactions, text)
+        } else {
+            short(
+                key::lng_context_seen_reacted,
+                count,
+                layout::short_count(count),
+            )
+        };
+    }
+    let (some, none) = match seen.kind {
+        SeenKind::Watched => (
+            key::lng_context_seen_watched,
+            key::lng_context_seen_watched_none,
         ),
+        SeenKind::Listened => (
+            key::lng_context_seen_listened,
+            key::lng_context_seen_listened_none,
+        ),
+        SeenKind::Seen | SeenKind::Reacted => {
+            (key::lng_context_seen_text, key::lng_context_seen_text_none)
+        }
+    };
+    if count == 0 {
+        strings.text(none).to_owned()
+    } else {
+        plural(strings, some, count)
     }
 }
 
@@ -128,13 +188,61 @@ mod tests {
         assert_eq!(text(&strings, ReadDate::TooOld, &now), None);
     }
 
+    fn names(reacted: &[&str], only_seen: &[&str]) -> Vec<(String, bool)> {
+        let reacted = reacted.iter().map(|name| ((*name).to_owned(), true));
+        let seen = only_seen.iter().map(|name| ((*name).to_owned(), false));
+        reacted.chain(seen).collect()
+    }
+
     #[test]
-    fn seen_names_one_viewer_and_counts_more() {
+    fn the_menu_line_names_one_person_and_counts_more() {
         let strings = Strings::english();
-        let mut chats = Chats::default();
-        chats.apply(super::super::service::tests::user(2, "Maria"));
-        assert_eq!(seen(&strings, &chats, &[]), "Nobody Viewed");
-        assert_eq!(seen(&strings, &chats, &[UserId(2)]), "Maria");
-        assert_eq!(seen(&strings, &chats, &[UserId(2), UserId(3)]), "2 Seen");
+        let text = |participants, reactions, read, kind| {
+            seen(
+                &strings,
+                &Seen {
+                    participants,
+                    reactions,
+                    read,
+                    kind,
+                },
+            )
+        };
+        assert_eq!(text(names(&[], &[]), 0, 0, SeenKind::Seen), "Nobody Viewed");
+        assert_eq!(text(names(&[], &["Maria"]), 0, 1, SeenKind::Seen), "Maria");
+        assert_eq!(
+            text(names(&[], &["A", "B"]), 0, 2, SeenKind::Seen),
+            "2 Seen"
+        );
+        assert_eq!(
+            text(names(&[], &["A", "B"]), 0, 2, SeenKind::Listened),
+            "2 Listened"
+        );
+        assert_eq!(
+            text(names(&["A"], &["B", "C"]), 1, 3, SeenKind::Seen),
+            "1/3 Reacted"
+        );
+        assert_eq!(
+            text(names(&["A", "B"], &[]), 7, 0, SeenKind::Reacted),
+            "7 Reactions"
+        );
+        assert_eq!(
+            text(names(&["A", "B"], &[]), 2, 0, SeenKind::Reacted),
+            "2 Reactions",
+            "more reactions than readers counts reactions"
+        );
+        assert_eq!(
+            text(names(&[], &[]), 0, 0, SeenKind::Reacted),
+            "Nobody Reacted"
+        );
+        assert_eq!(
+            text(names(&["A", "B"], &[]), 2, 0, SeenKind::Seen),
+            "2 Reactions",
+            "everyone who saw it reacted"
+        );
+        assert_eq!(
+            text(names(&["A"], &["B", "C"]), 2, 1, SeenKind::Seen),
+            "3 Seen"
+        );
     }
 }

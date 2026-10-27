@@ -15,6 +15,7 @@ mod menu;
 mod pinned;
 mod pinned_section;
 mod reactions;
+mod reactions_box;
 mod read_date;
 mod scroll_date;
 mod selection;
@@ -26,6 +27,7 @@ mod top_bar;
 mod unread;
 mod userpics_row;
 mod web_page;
+mod who_reacted;
 
 pub(crate) use self::delete::bind_keys;
 pub(crate) use self::headers::Replied;

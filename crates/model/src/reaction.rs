@@ -1,9 +1,16 @@
-//! Reactions under messages (`messageReactions`).
+//! Reactions under messages (`messageReactions`) and who added them
+//! (`getMessageAddedReactions`).
 
+use std::future::Future;
+
+use futures::FutureExt as _;
 use td_api::enums::ReactionType;
+use td_api::functions::GetMessageAddedReactions;
+use td_api::types::{ReactionTypeCustomEmoji, ReactionTypeEmoji, ReactionTypePaid};
 
-use crate::ids::CustomEmojiId;
+use crate::ids::{ChatId, CustomEmojiId, MessageId};
 use crate::message::Sender;
+use crate::session::{RequestError, Session};
 
 /// A message's reactions, in the order TDLib sends them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -56,6 +63,74 @@ impl From<td_api::types::MessageReactions> for Reactions {
     }
 }
 
+/// A page of who reacted to a message, newest first.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct AddedReactions {
+    /// All of them, not only this page.
+    pub total: i32,
+    pub list: Vec<AddedReaction>,
+    /// Empty after the last page.
+    pub next_offset: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AddedReaction {
+    pub sender: Sender,
+    pub kind: ReactionKind,
+}
+
+impl Session {
+    /// Who reacted to a message, all reactions or one `kind`, from an
+    /// `offset` a previous page gave.
+    pub fn added_reactions(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+        kind: Option<&ReactionKind>,
+        offset: String,
+        limit: i32,
+    ) -> impl Future<Output = Result<AddedReactions, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessageAddedReactions {
+                chat_id: chat.0,
+                message_id: message.0,
+                reaction_type: kind.map(|kind| Box::new(kind.to_td())),
+                offset,
+                limit,
+            })
+            .map(|result| {
+                result
+                    .map(|added| AddedReactions {
+                        total: added.total_count,
+                        list: added
+                            .reactions
+                            .into_iter()
+                            .map(|reaction| AddedReaction {
+                                sender: Sender::from(*reaction.sender_id),
+                                kind: ReactionKind::from(*reaction.r#type),
+                            })
+                            .collect(),
+                        next_offset: added.next_offset,
+                    })
+                    .map_err(RequestError::from)
+            })
+    }
+}
+
+impl ReactionKind {
+    fn to_td(&self) -> ReactionType {
+        match self {
+            Self::Emoji(emoji) => ReactionType::Emoji(ReactionTypeEmoji {
+                emoji: emoji.clone(),
+            }),
+            Self::CustomEmoji(id) => ReactionType::CustomEmoji(ReactionTypeCustomEmoji {
+                custom_emoji_id: id.0,
+            }),
+            Self::Paid => ReactionType::Paid(ReactionTypePaid {}),
+        }
+    }
+}
+
 impl From<ReactionType> for ReactionKind {
     fn from(kind: ReactionType) -> Self {
         match kind {
@@ -64,6 +139,22 @@ impl From<ReactionType> for ReactionKind {
                 Self::CustomEmoji(CustomEmojiId(custom.custom_emoji_id))
             }
             ReactionType::Paid(_) => Self::Paid,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reaction_kinds_survive_the_trip_to_tdlib() {
+        for kind in [
+            ReactionKind::Emoji("👍".to_owned()),
+            ReactionKind::CustomEmoji(CustomEmojiId(7)),
+            ReactionKind::Paid,
+        ] {
+            assert_eq!(ReactionKind::from(kind.to_td()), kind);
         }
     }
 }

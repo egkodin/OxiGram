@@ -257,7 +257,7 @@ fn bubble_bg(out: bool, is_selected: bool) -> ColorId {
     }
 }
 
-fn emoji(kind: &ReactionKind) -> Div {
+pub(super) fn emoji(kind: &ReactionKind) -> Div {
     let glyph = match kind {
         ReactionKind::Emoji(emoji) => emoji_presentation(emoji),
         ReactionKind::CustomEmoji(_) => "\u{2B50}".to_owned(),

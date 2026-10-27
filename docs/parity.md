@@ -184,7 +184,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | reactions | Hover button, reaction strip and expanded selector with custom emoji | M4 | todo | |
 | reactions | Quick reaction on double-click | M4 | todo | |
 | reactions | Reaction animations | M8 | todo | |
-| reactions | Who reacted list with tabs per reaction | M3 | todo | |
+| reactions | Who reacted list with tabs per reaction | M3 | in progress | unit tests (the menu line's text rules from `refreshText`, tab order, the reaction type sent to TDLib); checked once by a temporary fixture: "63 Reactions" in a channel post's menu, the list with All 63 / 🔥48 / 👍12 / 😍3 tabs and rows with the reaction; not verified: no API credentials, so no live `getMessageAddedReactions`; the list is a layer, not the info column (M6); no tab of who only saw the message; no userpics or submenu in the menu line; rows and a single reactor do not open profiles (M6); custom emoji show a star placeholder (M5) |
 | reactions | Paid star reactions with the top senders list | M13 | todo | |
 | reactions | Allowed reactions per chat | M6 | todo | |
 

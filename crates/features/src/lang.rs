@@ -71,7 +71,7 @@ pub fn tr_plural_decimal(cx: &App, key: Key, count: i64) -> String {
 
 /// `48210` as "48,210" (`FormatCountDecimal`).
 // shortcut: English grouping for every language; locale number formats come with M7.
-fn group_digits(number: i64) -> String {
+pub(crate) fn group_digits(number: i64) -> String {
     let digits = number.unsigned_abs().to_string();
     let mut grouped = String::with_capacity(digits.len() + digits.len() / 3 + 1);
     if number < 0 {

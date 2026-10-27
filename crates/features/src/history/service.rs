@@ -31,7 +31,12 @@ pub(super) fn user_name(strings: &Strings, chats: &Chats, user: model::UserId) -
 
 /// The sender's full name, the chat's title for posts on its behalf.
 pub(super) fn from(strings: &Strings, chats: &Chats, message: &Message) -> String {
-    match message.sender {
+    sender_name(strings, chats, message.sender)
+}
+
+/// A user's full name or a chat's title.
+pub(super) fn sender_name(strings: &Strings, chats: &Chats, sender: Sender) -> String {
+    match sender {
         Sender::User(user) => user_name(strings, chats, user),
         Sender::Chat(chat) => chats
             .chat(chat)

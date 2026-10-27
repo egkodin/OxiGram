@@ -16,6 +16,7 @@ use model::RequestError;
 use model::chat::ChatKind;
 use model::message::{Content, Message};
 use model::message_actions::Abilities;
+use model::reaction::AddedReactions;
 use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
@@ -26,6 +27,7 @@ use ui::{MenuTone, PopupMenu};
 
 use super::read_date::WhoRead;
 use super::selection::Selection;
+use super::who_reacted::WhoLine;
 use super::{HistoryView, Link, delete, read_date, text};
 use crate::lang::{strings, tr};
 use crate::peer_menu::PeerMenu;
@@ -40,12 +42,12 @@ const TOAST_DURATION: Duration = Duration::from_millis(1500);
 pub(super) struct Facts<'a> {
     /// Empty when unknown.
     abilities: &'a [Abilities],
-    /// Who saw a lone outgoing message.
-    who_read: Option<String>,
+    /// Who saw or reacted to a lone message.
+    who_read: Option<WhoLine>,
 }
 
 /// A who-read answer, or none when TDLib could not tell.
-fn known<T>(result: Result<T, RequestError>) -> Option<T> {
+pub(super) fn known<T>(result: Result<T, RequestError>) -> Option<T> {
     result
         .inspect_err(|error| tracing::warn!(%error, "who read the message unknown"))
         .ok()
@@ -196,8 +198,11 @@ impl HistoryView {
             .iter()
             .map(|id| spawn(session.message_abilities(self.chat, *id), cx))
             .collect();
-        let who_read_task =
-            (ids.len() == 1 && message.is_outgoing).then(|| self.who_read(&message, cx));
+        let is_single = ids.len() == 1;
+        let who_read_task = (is_single && message.is_outgoing).then(|| self.who_read(&message, cx));
+        let reactors_task = (is_single && !self.is_private(cx))
+            .then(|| self.reactors(&message, cx))
+            .flatten();
         let position = window.mouse_position();
         let generation = self.generation;
         cx.spawn_in(window, async move |this, cx| {
@@ -216,11 +221,21 @@ impl HistoryView {
                 Some(task) => task.await,
                 None => None,
             };
+            let reactors = match reactors_task {
+                Some(task) => task.await,
+                None => None,
+            };
             this.update_in(cx, |this, window, cx| {
                 if this.generation == generation {
                     let facts = Facts {
                         abilities: &abilities,
-                        who_read: this.who_read_text(who_read, abilities.first(), cx),
+                        who_read: this.who_read_line(
+                            &message,
+                            who_read,
+                            reactors,
+                            abilities.first(),
+                            cx,
+                        ),
                     };
                     this.show_menu(hit, upon, facts, position, window, cx);
                 }
@@ -243,23 +258,27 @@ impl HistoryView {
     }
 
     /// The menu's first line, when the abilities allow asking.
-    fn who_read_text(
+    fn who_read_line(
         &self,
+        message: &Message,
         who_read: Option<WhoRead>,
+        reactors: Option<AddedReactions>,
         abilities: Option<&Abilities>,
         cx: &App,
-    ) -> Option<String> {
+    ) -> Option<WhoLine> {
         let abilities = abilities?;
-        match who_read? {
-            WhoRead::Date(date) if abilities.can_get_read_date => {
-                read_date::text(strings(cx), date, &Local::now())
+        let viewers = match who_read {
+            Some(WhoRead::Date(date)) if abilities.can_get_read_date => {
+                return read_date::text(strings(cx), date, &Local::now()).map(|text| WhoLine {
+                    text,
+                    icon: WHO_READ_CHECKS,
+                    on_click: None,
+                });
             }
-            WhoRead::Viewers(viewers) if abilities.can_get_viewers => {
-                let chats = &self.store.read(cx).state().chats;
-                Some(read_date::seen(strings(cx), chats, &viewers))
-            }
+            Some(WhoRead::Viewers(viewers)) if abilities.can_get_viewers => Some(viewers),
             _ => None,
-        }
+        };
+        self.who_reacted_line(message, viewers, reactors, cx)
     }
 
     fn upon(&self, message: MessageId, offset: Option<usize>) -> Upon {
@@ -303,9 +322,14 @@ impl HistoryView {
         let is_megagroup = self.is_megagroup(cx);
         let menu = cx.new(|cx| {
             let mut menu = PopupMenu::new(&POPUP_MENU_WITH_ICONS, cx);
-            if let Some(who_read) = facts.who_read {
-                // shortcut: an inert line; tdesktop's "show when" link for hidden own read dates comes with privacy settings (M7).
-                menu.action(who_read, WHO_READ_CHECKS, MenuTone::Normal, |_, _| {});
+            if let Some(line) = facts.who_read {
+                // shortcut: read dates and viewers are inert; tdesktop's "show when" link comes with privacy settings (M7).
+                let on_click = line.on_click;
+                menu.action(line.text, line.icon, MenuTone::Normal, move |window, cx| {
+                    if let Some(on_click) = &on_click {
+                        on_click(window, cx);
+                    }
+                });
                 menu.separator();
             }
             for item in items {
