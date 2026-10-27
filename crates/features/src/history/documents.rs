@@ -12,7 +12,7 @@ use model::message::{Content, Message};
 use model::user::Badge;
 
 use super::HistoryView;
-use super::file_row::{FileRow, Thumb, progress};
+use super::file_row::{FileRow, Thumb, Title, progress};
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::strings;
 use crate::store::spawn;
@@ -55,14 +55,15 @@ impl HistoryView {
         let id = file.id;
         let path = file.path.clone().map(PathBuf::from);
         Some(FileRow {
-            name: name.clone(),
+            title: Title::Name(name.clone()),
             status,
+            is_unread: false,
             thumb,
             on_click: Rc::new(move |_, window, cx| {
                 let _ = weak.update(cx, |this, cx| match thumb {
                     Thumb::Download => this.start_download(id, CLICKED_PRIORITY, cx),
                     Thumb::Cancel { .. } => this.cancel_download(id, cx),
-                    Thumb::Document => {
+                    Thumb::Document | Thumb::Play | Thumb::Pause => {
                         if let Some(path) = &path {
                             this.open_file(path, window, cx);
                         }

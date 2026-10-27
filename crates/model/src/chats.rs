@@ -106,6 +106,11 @@ pub enum Change {
         message: MessageId,
         content: Box<Content>,
     },
+    /// A voice or round video was played.
+    ContentOpened {
+        chat: ChatId,
+        message: MessageId,
+    },
     MessageSent {
         message: Box<Message>,
         old: MessageId,
@@ -351,6 +356,11 @@ impl Chats {
             Change::DefaultMute { scope, mute_for } => {
                 self.default_mute.insert(scope, mute_for);
             }
+            Change::ContentOpened { chat, message } => self.update(chat, |chat| {
+                if let Some(last) = chat.last_message.as_mut().filter(|last| last.id == message) {
+                    last.content = last.content.opened();
+                }
+            }),
             Change::MessageContent {
                 chat,
                 message,
@@ -539,6 +549,10 @@ impl Change {
                 chat: ChatId(update.chat_id),
                 message: MessageId(update.message_id),
                 content: Box::new(Content::from(*update.new_content)),
+            },
+            Update::MessageContentOpened(update) => Self::ContentOpened {
+                chat: ChatId(update.chat_id),
+                message: MessageId(update.message_id),
             },
             Update::MessageSendSucceeded(update) => Self::MessageSent {
                 message: Box::new(Message::from(*update.message)),

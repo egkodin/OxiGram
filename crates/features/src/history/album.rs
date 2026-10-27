@@ -114,6 +114,7 @@ impl HistoryView {
         if let Some(file) = self
             .upload(message, cx)
             .or_else(|| self.document(message, cx))
+            .or_else(|| self.voice(message, cx))
         {
             return (Some(file), None);
         }

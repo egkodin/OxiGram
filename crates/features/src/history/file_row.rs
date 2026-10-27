@@ -1,6 +1,6 @@
 //! A file at the top of its bubble (`HistoryDocument`): a circle with what a
-//! click does (download, cancel with the progress arc, open), the name, and
-//! the size or how much moved.
+//! click does (download, cancel with the progress arc, open, play), the name
+//! or a voice's waveform, and the size, length or how much moved.
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
@@ -8,13 +8,18 @@ use gpui::{
     StatefulInteractiveElement as _, Styled as _, canvas, div, px,
 };
 use style::basic::{NORMAL_FONT, SEMIBOLD_FONT};
-use style::chat::{MSG_FILE_LAYOUT, MSG_FILE_MIN_WIDTH, MSG_FILE_RADIAL_LINE, MSG_PADDING};
+use style::chat::{
+    MEDIA_UNREAD_SIZE, MEDIA_UNREAD_SKIP, MEDIA_UNREAD_TOP, MSG_FILE_LAYOUT, MSG_FILE_MIN_WIDTH,
+    MSG_FILE_RADIAL_LINE, MSG_PADDING,
+};
 use style::chat_style::{
     HISTORY_FILE_IN_CANCEL, HISTORY_FILE_IN_CANCEL_SELECTED, HISTORY_FILE_IN_DOCUMENT,
     HISTORY_FILE_IN_DOCUMENT_SELECTED, HISTORY_FILE_IN_DOWNLOAD, HISTORY_FILE_IN_DOWNLOAD_SELECTED,
-    HISTORY_FILE_OUT_CANCEL, HISTORY_FILE_OUT_CANCEL_SELECTED, HISTORY_FILE_OUT_DOCUMENT,
-    HISTORY_FILE_OUT_DOCUMENT_SELECTED, HISTORY_FILE_OUT_DOWNLOAD,
-    HISTORY_FILE_OUT_DOWNLOAD_SELECTED,
+    HISTORY_FILE_IN_PAUSE, HISTORY_FILE_IN_PAUSE_SELECTED, HISTORY_FILE_IN_PLAY,
+    HISTORY_FILE_IN_PLAY_SELECTED, HISTORY_FILE_OUT_CANCEL, HISTORY_FILE_OUT_CANCEL_SELECTED,
+    HISTORY_FILE_OUT_DOCUMENT, HISTORY_FILE_OUT_DOCUMENT_SELECTED, HISTORY_FILE_OUT_DOWNLOAD,
+    HISTORY_FILE_OUT_DOWNLOAD_SELECTED, HISTORY_FILE_OUT_PAUSE, HISTORY_FILE_OUT_PAUSE_SELECTED,
+    HISTORY_FILE_OUT_PLAY, HISTORY_FILE_OUT_PLAY_SELECTED,
 };
 use style::{ColorId, ColorRef, Icon};
 use ui::{RadialState, color, font, font_height, paint_arc};
@@ -37,11 +42,23 @@ pub(super) enum Thumb {
     Cancel { progress: f32 },
     /// On disk: a click opens it.
     Document,
+    /// A voice on disk, still or paused: a click plays it.
+    Play,
+    /// A voice playing: a click pauses it.
+    Pause,
+}
+
+/// What goes beside the circle above the status.
+pub(super) enum Title {
+    Name(String),
+    Waveform(super::waveform::Waveform),
 }
 
 pub(super) struct FileRow {
-    pub name: String,
+    pub title: Title,
     pub status: String,
+    /// A voice nobody played yet: a dot after the status.
+    pub is_unread: bool,
     pub thumb: Thumb,
     pub on_click: OnClick,
 }
@@ -80,6 +97,14 @@ fn icon(thumb: Thumb, is_out: bool, is_selected: bool) -> Icon {
         (Thumb::Document, false, true) => HISTORY_FILE_IN_DOCUMENT_SELECTED,
         (Thumb::Document, true, false) => HISTORY_FILE_OUT_DOCUMENT,
         (Thumb::Document, true, true) => HISTORY_FILE_OUT_DOCUMENT_SELECTED,
+        (Thumb::Play, false, false) => HISTORY_FILE_IN_PLAY,
+        (Thumb::Play, false, true) => HISTORY_FILE_IN_PLAY_SELECTED,
+        (Thumb::Play, true, false) => HISTORY_FILE_OUT_PLAY,
+        (Thumb::Play, true, true) => HISTORY_FILE_OUT_PLAY_SELECTED,
+        (Thumb::Pause, false, false) => HISTORY_FILE_IN_PAUSE,
+        (Thumb::Pause, false, true) => HISTORY_FILE_IN_PAUSE_SELECTED,
+        (Thumb::Pause, true, false) => HISTORY_FILE_OUT_PAUSE,
+        (Thumb::Pause, true, true) => HISTORY_FILE_OUT_PAUSE_SELECTED,
     }
 }
 
@@ -117,7 +142,7 @@ fn circle(file: &FileRow, place: &Place, bg: ColorId, radial: ColorId, cx: &App)
     let st = &MSG_FILE_LAYOUT;
     let arc = match file.thumb {
         Thumb::Cancel { progress } => Some(progress),
-        Thumb::Download | Thumb::Document => None,
+        Thumb::Download | Thumb::Document | Thumb::Play | Thumb::Pause => None,
     };
     let radial_fg = color(cx, ColorRef::Palette(radial));
     div()
@@ -177,7 +202,6 @@ pub(super) fn row(file: FileRow, place: &Place, cx: &App) -> AnyElement {
     };
     let on_click = file.on_click.clone();
     let thumb = circle(&file, place, bg, radial, cx);
-    let status_gap = px_of(st.status_top) - px_of(st.name_top) - font_height(SEMIBOLD_FONT);
     // Transparent figure spaces keep the status clear of the time.
     let room = place.time_room.clone().map(|room| {
         div()
@@ -185,17 +209,39 @@ pub(super) fn row(file: FileRow, place: &Place, cx: &App) -> AnyElement {
             .text_color(gpui::transparent_black())
             .child(room)
     });
+    let title = match file.title {
+        Title::Name(name) => div()
+            .pt(px_of(st.name_top) - px_of(st.padding.top))
+            .child(line(SEMIBOLD_FONT, name_fg).child(name))
+            .into_any_element(),
+        Title::Waveform(waveform) => {
+            super::waveform::element(waveform, place.is_out, place.is_selected, cx)
+        }
+    };
+    let unread = file.is_unread.then(|| {
+        div()
+            .flex_none()
+            .ml(px_of(MEDIA_UNREAD_SKIP))
+            .mt(px_of(MEDIA_UNREAD_TOP))
+            .size(px_of(MEDIA_UNREAD_SIZE))
+            .rounded_full()
+            .bg(color(cx, ColorRef::Palette(bg)))
+    });
     let texts = div()
         .flex()
         .flex_col()
+        .flex_1()
         .min_w_0()
-        .pt(px_of(st.name_top) - px_of(st.padding.top))
-        .child(line(SEMIBOLD_FONT, name_fg).child(file.name))
+        .child(
+            div()
+                .h(px_of(st.status_top) - px_of(st.padding.top))
+                .child(title),
+        )
         .child(
             div()
                 .flex()
-                .mt(status_gap)
                 .child(line(NORMAL_FONT, status_fg).child(file.status))
+                .children(unread)
                 .children(room),
         );
     div()

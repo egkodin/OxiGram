@@ -208,6 +208,7 @@ pub enum Content {
     },
     Voice {
         caption: FormattedText,
+        note: Box<VoiceNote>,
     },
     VideoNote,
     Sticker {
@@ -291,8 +292,24 @@ impl Content {
                 name: name.clone(),
                 caption: FormattedText::default(),
             },
-            Self::Voice { .. } => Self::Voice {
+            Self::Voice { note, .. } => Self::Voice {
                 caption: FormattedText::default(),
+                note: note.clone(),
+            },
+            other => other.clone(),
+        }
+    }
+
+    /// The content once played (`updateMessageContentOpened`).
+    #[must_use]
+    pub fn opened(&self) -> Self {
+        match self {
+            Self::Voice { caption, note } => Self::Voice {
+                caption: caption.clone(),
+                note: Box::new(VoiceNote {
+                    is_listened: true,
+                    ..VoiceNote::clone(note)
+                }),
             },
             other => other.clone(),
         }
@@ -387,6 +404,36 @@ impl Service {
             _ => return None,
         })
     }
+}
+
+/// A voice message's sound.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoiceNote {
+    /// In seconds.
+    pub duration: i32,
+    /// 0-31 per bar; empty when the sender sent none.
+    pub waveform: Vec<u8>,
+    pub file: File,
+    /// Some recipient played it; until then a dot follows the length.
+    pub is_listened: bool,
+}
+
+/// TDLib's base64 of 5-bit values, least significant bits first
+/// (`documentWaveformDecode`).
+fn waveform(base64: &str) -> Vec<u8> {
+    use base64::Engine as _;
+    let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(base64) else {
+        return Vec::new();
+    };
+    (0..bytes.len() * 8 / 5)
+        .map(|index| {
+            let (byte, shift) = (index * 5 / 8, index * 5 % 8);
+            let low = u16::from(bytes[byte]);
+            let high = bytes.get(byte + 1).map_or(0, |&high| u16::from(high));
+            let pair = low | high << 8;
+            u8::try_from(pair >> shift & 0x1F).unwrap_or(0)
+        })
+        .collect()
 }
 
 /// A photo, video or file with its caption and a blurred preview.
@@ -622,6 +669,12 @@ impl From<MessageContent> for Content {
             },
             MessageContent::MessageVoiceNote(voice) => Self::Voice {
                 caption: FormattedText::from(*voice.caption),
+                note: Box::new(VoiceNote {
+                    duration: voice.voice_note.duration,
+                    waveform: waveform(&voice.voice_note.waveform),
+                    file: File::from(*voice.voice_note.voice),
+                    is_listened: voice.is_listened,
+                }),
             },
             MessageContent::MessageVideoNote(_) => Self::VideoNote,
             MessageContent::MessageSticker(sticker) => Self::Sticker {
@@ -658,5 +711,18 @@ impl From<MessageContent> for Content {
             MessageContent::MessageUnsupported(_) => Self::Unsupported,
             other => Self::Service(Service::from_td(other).unwrap_or(Service::Other)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn waveforms_unpack_five_bits_each() {
+        // [31, 0, 1] packed as the recorder sends it.
+        assert_eq!(waveform("HwQ="), [31, 0, 1]);
+        assert!(waveform("not base64!").is_empty());
+        assert!(waveform("").is_empty());
     }
 }

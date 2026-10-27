@@ -7,9 +7,9 @@ use futures::FutureExt as _;
 use td_api::enums::{BlockList, MessageSender, MessageSource};
 use td_api::functions::{
     AddChatToList, DeleteChatFolder, DeleteChatHistory, GetChat, JoinChat, LeaveChat,
-    ReadAllChatMentions, ReadAllChatReactions, ReorderChatFolders, SetChatNotificationSettings,
-    SetMessageSenderBlockList, SetPinnedChats, ToggleChatIsMarkedAsUnread, ToggleChatIsPinned,
-    ViewMessages,
+    OpenMessageContent, ReadAllChatMentions, ReadAllChatReactions, ReorderChatFolders,
+    SetChatNotificationSettings, SetMessageSenderBlockList, SetPinnedChats,
+    ToggleChatIsMarkedAsUnread, ToggleChatIsPinned, ViewMessages,
 };
 use td_api::types::{
     BlockListMain, MessageSenderUser, MessageSourceChatHistory, MessageSourceChatList,
@@ -171,6 +171,27 @@ impl Session {
                 is_marked_as_unread: mark == UnreadMark::Marked,
             })
             .map(done)
+    }
+
+    /// Tells TDLib the user played `message`'s voice or round video, which
+    /// marks it listened; nothing with `Views::Withhold`.
+    pub fn open_message_content(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let request = (self.views() == crate::Views::Report).then(|| {
+            self.client().request(&OpenMessageContent {
+                chat_id: chat.0,
+                message_id: message.0,
+            })
+        });
+        async move {
+            match request {
+                Some(request) => done(request.await),
+                None => Ok(()),
+            }
+        }
     }
 
     /// Tells TDLib the user saw `message` in the chat, which reads it and

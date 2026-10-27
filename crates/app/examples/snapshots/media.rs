@@ -1,6 +1,6 @@
 //! Media in the history: photos in Saved Messages, one known only by its
 //! minithumbnail and two downloaded; files in Maria's chat; videos and a GIF
-//! in Saved Messages; albums there too.
+//! in Saved Messages; albums there too; voice messages with Maria.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -9,7 +9,7 @@ use features::settings::FoldersPlacement;
 use gpui::MouseButton;
 use model::auth::State;
 use model::file::{Dimensions, File, Minithumbnail};
-use model::message::{Content, Media, Message, Sender};
+use model::message::{Content, Media, Message, Sender, VoiceNote};
 use model::text::FormattedText;
 use model::{ChatId, FileId, MessageId, UserId};
 
@@ -76,6 +76,19 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), albums(&photo))],
             steps: vec![("160-albums-list", auth(State::Ready))],
+        },
+        // Voices: one to download and unheard, one loading, one heard on
+        // disk, and one sent with a caption nobody played yet.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("164-voices-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), voices(&notes))],
+            steps: vec![("163-voices-list", auth(State::Ready))],
         },
     ]
 }
@@ -223,6 +236,66 @@ fn albums(downloaded: &Path) -> Vec<Message> {
         part(6, HOUR, 2, "", (1000, 1000)),
         part(7, HOUR, 2, "", (1000, 1000)),
         clip,
+    ]
+}
+
+/// A voice's 100 bars: a few words and pauses.
+fn speech(seed: u32) -> Vec<u8> {
+    (0..100_u32)
+        .map(|index| {
+            let word = (index + seed) % 23 < 17;
+            let wobble = (index * 7 + seed * 3) % 11;
+            u8::try_from(if word { 10 + wobble * 2 } else { wobble / 3 }).unwrap_or(0)
+        })
+        .collect()
+}
+
+fn voice(id: i64, from: i64, ago: i32, caption: &str, note: VoiceNote) -> Message {
+    Message {
+        is_outgoing: from == ME,
+        date: now() - ago,
+        ..Message::new(
+            MessageId(id),
+            ChatId(MARIA),
+            Sender::User(UserId(from)),
+            Content::Voice {
+                caption: FormattedText::plain(caption),
+                note: Box::new(note),
+            },
+        )
+    }
+}
+
+fn voices(on_disk: &Path) -> Vec<Message> {
+    let note = |duration: i32, seed: u32, file: File, is_listened: bool| VoiceNote {
+        duration,
+        waveform: speech(seed),
+        file,
+        is_listened,
+    };
+    let loading = File {
+        size: 60_000,
+        downloaded: 21_000,
+        is_downloading: true,
+        ..file(976, None)
+    };
+    vec![
+        voice(1, MARIA, 4 * HOUR, "", note(7, 1, file(975, None), false)),
+        voice(2, MARIA, 3 * HOUR, "", note(14, 5, loading, false)),
+        voice(
+            3,
+            MARIA,
+            2 * HOUR,
+            "",
+            note(42, 9, file(977, Some(on_disk)), true),
+        ),
+        voice(
+            4,
+            ME,
+            HOUR,
+            "On my way",
+            note(3, 13, file(978, Some(on_disk)), false),
+        ),
     ]
 }
 

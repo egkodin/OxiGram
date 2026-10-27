@@ -355,6 +355,11 @@ impl History {
             chats::Change::MessageSent { message, old } => {
                 self.replace(*old, Message::clone(message));
             }
+            chats::Change::ContentOpened { message, .. } => {
+                self.update(*message, |message| {
+                    message.content = message.content.opened()
+                });
+            }
             _ => {}
         }
     }

@@ -620,6 +620,7 @@ pub(super) fn caption(message: &Message) -> Option<&FormattedText> {
         | Content::Video(media)
         | Content::Animation(media)
         | Content::Document { media, .. } => Some(&media.caption),
+        Content::Voice { caption, .. } => Some(caption),
         _ => None,
     }
 }
@@ -648,6 +649,7 @@ pub(super) fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
         // caption follows it.
         Content::Photo(media) | Content::Video(media) | Content::Animation(media) => &media.caption,
         Content::Document { media, .. } if item.file.is_some() => &media.caption,
+        Content::Voice { caption, .. } if item.file.is_some() => caption,
         Content::Unsupported => {
             preview = crate::dialogs::unsupported_text(strings(cx));
             &preview

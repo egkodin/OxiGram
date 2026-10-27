@@ -19,6 +19,9 @@
 - Albums (`history/album.rs`, `grouped_layout.rs`): tdesktop's mosaic,
   one message per album with the one caption; media alone has no bubble
   or tail. Snapshots 160-162.
+- Voice messages (`history/voice_note.rs`, `waveform.rs`, `media::decode`,
+  `media::Player`): the waveform, download, play, pause and seek on the
+  default output, the listened dot. Snapshots 163-164.
 
 ### Half done (shortcuts in code)
 
@@ -27,6 +30,8 @@
   windows do not shrink it.
 - Albums of files or music show as separate messages; the mosaic keeps
   430 px in a narrow history; a late part does not re-measure the row.
+- Voice speed has no button until the player bar; speed shifts the pitch;
+  playback stops with the chat; no drag to seek.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 
@@ -49,6 +54,11 @@
    in a mosaic like Telegram Desktop's, with thin gaps, round outer
    corners, one caption below; an album without a caption has no bubble.
    Videos in it have their own button.
+5. Voice messages: in Saved Messages send a voice, then play it: the
+   button turns to pause, the bars fill and "0:01 / 0:03" moves; pause and
+   resume; click the middle of the waveform: it jumps there. Read only
+   elsewhere: an unheard incoming voice shows its bars blue with a dot;
+   playing it removes the dot (only when views are reported).
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

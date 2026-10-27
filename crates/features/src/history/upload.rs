@@ -3,30 +3,36 @@
 
 use gpui::Context;
 use i18n::key;
-use model::message::{Content, Message, Sending};
+use model::message::{Content, Media, Message, Sending};
 use model::message_actions::Deletion;
 
 use super::HistoryView;
-use super::file_row::{FileRow, Thumb, progress};
+use super::file_row::{FileRow, Thumb, Title, progress};
+use super::waveform::Waveform;
 use crate::file_sizes::progress_text;
 use crate::lang::{strings, tr};
 use crate::store::spawn;
 
 impl HistoryView {
     /// The upload of a message being sent with a file, if it has one.
-    pub(super) fn upload(&self, message: &Message, cx: &Context<Self>) -> Option<FileRow> {
+    pub(super) fn upload<'a>(&self, message: &'a Message, cx: &Context<Self>) -> Option<FileRow> {
         if message.sending != Some(Sending::Pending) {
             return None;
         }
-        let (media, name) = match &message.content {
-            Content::Photo(media) => (media, tr(cx, key::lng_in_dlg_photo).to_string()),
+        let named =
+            |media: &'a Media, name: String| Some((media.file.as_ref()?, Title::Name(name)));
+        let (sent, title) = match &message.content {
+            Content::Photo(media) => named(media, tr(cx, key::lng_in_dlg_photo).to_string())?,
             Content::Video(media) | Content::Animation(media) => {
-                (media, tr(cx, key::lng_in_dlg_video).to_string())
+                named(media, tr(cx, key::lng_in_dlg_video).to_string())?
             }
-            Content::Document { name, media } => (media, name.clone()),
+            Content::Document { name, media } => named(media, name.clone())?,
+            Content::Voice { note, .. } => (
+                &note.file,
+                Title::Waveform(Waveform::still(note.waveform.clone())),
+            ),
             _ => return None,
         };
-        let sent = media.file.as_ref()?;
         let file = self
             .store
             .read(cx)
@@ -37,7 +43,8 @@ impl HistoryView {
         let weak = cx.weak_entity();
         let (chat, id) = (self.chat, message.id);
         Some(FileRow {
-            name,
+            title,
+            is_unread: false,
             status: progress_text(strings(cx), file.uploaded, file.size),
             thumb: Thumb::Cancel {
                 progress: progress(file.uploaded, file.size),

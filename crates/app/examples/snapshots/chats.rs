@@ -319,6 +319,20 @@ pub(crate) fn events() -> Vec<Event> {
             40 * 24 * HOUR,
             Content::Voice {
                 caption: FormattedText::default(),
+                note: Box::new(model::message::VoiceNote {
+                    duration: 7,
+                    waveform: Vec::new(),
+                    file: File {
+                        id: FileId(940),
+                        path: None,
+                        is_downloading: false,
+                        downloaded: 0,
+                        size: 12_000,
+                        uploaded: 12_000,
+                        is_uploading: false,
+                    },
+                    is_listened: true,
+                }),
             },
         )),
     );

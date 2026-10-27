@@ -171,7 +171,7 @@ pub(crate) fn content<'a>(
                 with_caption(name, caption)
             }
         }
-        Content::Voice { caption } => typed(key::lng_in_dlg_audio, caption),
+        Content::Voice { caption, .. } => typed(key::lng_in_dlg_audio, caption),
         Content::VideoNote => typed(key::lng_in_dlg_video_message, &empty),
         Content::Sticker { emoji } if emoji.is_empty() => {
             Preview::colorized(strings.text(key::lng_in_dlg_sticker))
