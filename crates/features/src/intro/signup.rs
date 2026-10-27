@@ -313,7 +313,12 @@ impl Render for SignupStep {
             .bg(color(cx, st.change_button.text_bg))
             .hover(|style| style.bg(color(cx, st.change_button.text_bg_over)))
             .map(|photo| match self.photo.clone() {
-                Some(path) => photo.child(img(path).size(size).object_fit(ObjectFit::Cover)),
+                Some(path) => photo.child(
+                    img(path)
+                        .size(size)
+                        .object_fit(ObjectFit::Cover)
+                        .rounded_full(),
+                ),
                 None => photo.child(
                     div()
                         .absolute()

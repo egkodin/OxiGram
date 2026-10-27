@@ -14,6 +14,7 @@ mod popup_menu;
 mod qr;
 mod radial;
 mod ripple;
+mod round_image;
 mod settings_button;
 mod text_area;
 mod text_buffer;

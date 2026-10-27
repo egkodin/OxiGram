@@ -9,7 +9,7 @@ publish.workspace = true
 [dependencies]
 gpui.workspace = true
 # The version gpui uses; only PNG decoding for icon masks.
-image = { version = "0.25.10", default-features = false, features = ["png"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }
 # The version gpui uses; rasterizes tdesktop's SVG icon masks.
 resvg = { version = "0.46.0", default-features = false }
 qrcode = { version = "0.14.1", default-features = false }

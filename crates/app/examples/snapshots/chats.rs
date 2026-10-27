@@ -8,10 +8,11 @@ use chrono::{Local, TimeZone as _};
 use model::action_bar::ActionBar;
 use model::chat::{Chat, ChatKind, ChatList, Draft, Folder, Position};
 use model::chats::{Change, ChatAction, MuteScope, Unread};
+use model::file::File;
 use model::message::{Content, Media, Message, Sender};
 use model::text::{Entity, EntityKind, FormattedText};
-use model::user::{Badge, User, UserKind, UserStatus};
-use model::{BasicGroupId, ChatId, Event, FolderId, MessageId, SupergroupId, UserId};
+use model::user::{Badge, Photo, User, UserKind, UserStatus};
+use model::{BasicGroupId, ChatId, Event, FileId, FolderId, MessageId, SupergroupId, UserId};
 
 pub(crate) const ME: i64 = 1;
 pub(crate) const HOUR: i32 = 3600;
@@ -180,6 +181,10 @@ pub(crate) fn events() -> Vec<Event> {
         )),
     );
     ann.last_read_outbox = MessageId(30);
+    ann.photo = Some(Photo {
+        small: ANN_PHOTO,
+        minithumbnail: None,
+    });
 
     let mut group = chat(
         -100,
@@ -364,6 +369,7 @@ pub(crate) fn events() -> Vec<Event> {
     });
 
     let mut events: Vec<Event> = vec![Event::Me(UserId(ME))];
+    events.extend(ann_photo().map(|file| Event::Chats(Change::File(file))));
     events.extend(
         users
             .into_iter()
@@ -437,4 +443,31 @@ pub(crate) fn events() -> Vec<Event> {
         action: Some(ChatAction::Typing),
     }));
     events
+}
+
+const ANN_PHOTO: FileId = FileId(960);
+
+/// Ann's userpic: a 160 px JPEG as TDLib downloads small photos, with
+/// stripes that alias when scaled down roughly.
+fn ann_photo() -> Option<File> {
+    let path = std::env::temp_dir().join("rgram-snapshots").join("ann.jpg");
+    let image = image::RgbImage::from_fn(160, 160, |x, y| {
+        let stripe = u8::try_from((x + y) / 12 % 2 * 60).unwrap_or(0);
+        image::Rgb([230 - stripe, 170, 120 + stripe])
+    });
+    let written = std::fs::create_dir_all(path.parent()?)
+        .map_err(anyhow::Error::from)
+        .and_then(|()| Ok(image.save(&path)?));
+    if let Err(error) = written {
+        eprintln!("writing Ann's userpic: {error:#}");
+        return None;
+    }
+    Some(File {
+        id: ANN_PHOTO,
+        path: Some(path.to_string_lossy().into_owned()),
+        is_downloading: false,
+        size: 12_000,
+        uploaded: 12_000,
+        is_uploading: false,
+    })
 }

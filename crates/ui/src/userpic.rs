@@ -143,7 +143,7 @@ fn gradient(top: ColorRef, bottom: ColorRef, cx: &App) -> gpui::Background {
 }
 
 impl RenderOnce for Userpic {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let size = self.size;
         let circle = div()
             .size(size)
@@ -151,8 +151,20 @@ impl RenderOnce for Userpic {
             .rounded_full()
             .overflow_hidden();
         match self.source {
-            UserpicSource::File(path) => circle.child(img(path).size(size)),
-            UserpicSource::Jpeg(image) => circle.child(img(image).size(size)),
+            UserpicSource::File(path) => {
+                #[expect(
+                    clippy::cast_possible_truncation,
+                    clippy::cast_sign_loss,
+                    reason = "a userpic is a few hundred pixels"
+                )]
+                let side = (f32::from(size) * window.scale_factor()).round() as u32;
+                match crate::round_image::round_file(&path, side, cx) {
+                    Some(round) => circle.child(img(round).size(size)),
+                    None => circle.child(img(path).size(size).rounded_full()),
+                }
+            }
+            // The preview is 40 px or less, so it only grows; gpui clips to rectangles.
+            UserpicSource::Jpeg(image) => circle.child(img(image).size(size).rounded_full()),
             UserpicSource::Empty { color_index, name } => {
                 let (top, bottom) = backgrounds(color_index);
                 circle

@@ -181,6 +181,13 @@ live.
   refusal hid behind options it answers only after the parameters. The
   runtime test now waits for the first authorization state with no request
   sent; `app::device` sends the model and system version.
+- 2026-10-28, M2 on the live account (read only): list order and rows,
+  live updates from the phone in Saved Messages, Wi-Fi off and on,
+  folders, archive and search look right. Photo userpics were blurry and
+  square: gpui clips children only to rectangles and scales images on the
+  GPU without mipmaps. Fixed: `ui::round_image` cuts each downloaded
+  userpic to an antialiased circle at its device pixel size (Lanczos3);
+  to recheck live with M3.
 
 ### Live test list (M4, after M1-M3)
 
