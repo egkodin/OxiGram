@@ -99,6 +99,11 @@ live.
   scheduled messages (`Message::schedule`) stay out of the history.
   Layers now stack (`Layers::show_above`), so the calendar returns to the
   box and the box to the files box.
+- `ui::InputField` (single line) edits a `text_buffer::TextBuffer` like
+  the multi-line field, so cursor, word, selection and UTF-16 logic live
+  once; `input` is split into `mod.rs`, `keys.rs` and `element.rs` as
+  `text_area` is. Every snapshot that types into a single-line field is
+  unchanged.
 - Scheduled messages section (`history::scheduled_section`,
   `model::scheduled`): a clock button by the field while the chat has
   scheduled messages opens "Scheduled Messages" ("Reminders" in Saved
@@ -145,8 +150,6 @@ live.
 - Settings opens a box (Messages: Enter or Ctrl/Cmd+Enter, and Log Out)
   until the settings screen (M7); its radios have no toggle animation and
   use the box checkbox's text offset, not `settingsCheckbox`'s.
-- `InputField` (single line) still has its own copy of the buffer logic;
-  move it onto `text_buffer` when it is next touched.
 
 ### Live test list (M4, after M1-M3)
 
