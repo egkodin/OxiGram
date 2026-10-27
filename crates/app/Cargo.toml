@@ -34,6 +34,8 @@ ui.workspace = true
 # builds keep gpui without test support.
 gpui_platform = { workspace = true, features = ["test-support"] }
 image.workspace = true
+# The snapshot fixtures' fixed time of day.
+chrono.workspace = true
 
 [lints]
 workspace = true

@@ -34,12 +34,15 @@
   as tdesktop words it (`dialogs::unsupported_text`).
 - Corner buttons for unread mentions and reactions over the down button
   (`unread`); a click jumps to the oldest unread one and reads it.
+- The calendar a date badge opens (`calendar`); a chosen day jumps to its
+  first message. Snapshot fixtures now count from noon today, so day badges
+  stay put whatever time the snapshots run.
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-54 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-56 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -53,17 +56,17 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: the calendar, read dates, the pinned section,
+- Many M3 rows in `docs/parity.md` are still todo: read dates, the pinned section,
   comments, Saved Messages sublists, sponsored messages, protected content.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. The calendar jump from a date badge.
-2. Read dates in private chats and the pinned messages section.
-3. Search in a chat (the top bar's search button) and replies to other
+1. Read dates in private chats and the pinned messages section.
+2. Search in a chat (the top bar's search button) and replies to other
    chats.
+3. Comments (channel post threads) and Saved Messages sublists.
 
 ### Open questions for the owner
 

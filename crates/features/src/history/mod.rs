@@ -4,6 +4,7 @@
 
 mod body;
 mod bubble;
+mod calendar;
 mod delete;
 mod headers;
 mod jump;
@@ -275,7 +276,7 @@ impl HistoryView {
         let date_badge = (previous.and_then(|p| layout::day(p.date, &tz)) != day)
             .then_some(day)
             .flatten()
-            .map(|day| SharedString::from(layout::date_badge(strings(cx), day, &now)));
+            .map(|day| self.date_badge(message.id, day, &now, cx));
         let has_unread_bar = self.has_unread_bar(index);
         if let Content::Service(service) = &message.content {
             return self.service_item(&message, service, date_badge, has_unread_bar, cx);
@@ -332,6 +333,23 @@ impl HistoryView {
         )
     }
 
+    fn date_badge(
+        &self,
+        message: MessageId,
+        day: chrono::NaiveDate,
+        now: &chrono::DateTime<Local>,
+        cx: &Context<Self>,
+    ) -> bubble::DateBadge {
+        let weak = cx.weak_entity();
+        bubble::DateBadge {
+            text: layout::date_badge(strings(cx), day, now).into(),
+            id: ("date-badge", message.0.unsigned_abs()).into(),
+            on_click: Rc::new(move |_, window, cx| {
+                let _ = weak.update(cx, |this, cx| this.show_calendar(day, window, cx));
+            }),
+        }
+    }
+
     fn on_pointer_at(&self, index: usize, cx: &Context<Self>) -> selection::OnPointer {
         let weak = cx.weak_entity();
         Rc::new(move |pointer, window, cx| {
@@ -372,7 +390,7 @@ impl HistoryView {
         &mut self,
         message: &Message,
         service: &Service,
-        date_badge: Option<SharedString>,
+        date_badge: Option<bubble::DateBadge>,
         has_unread_bar: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {

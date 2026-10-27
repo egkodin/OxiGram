@@ -2,8 +2,9 @@
 //! day, then the message in its bubble.
 
 use gpui::{
-    AnyElement, App, BoxShadow, ClickEvent, Div, InteractiveElement as _, IntoElement, MouseButton,
-    ParentElement, SharedString, Styled, Window, div, point, prelude::FluentBuilder as _, px,
+    AnyElement, App, BoxShadow, ClickEvent, Div, ElementId, InteractiveElement as _, IntoElement,
+    MouseButton, ParentElement, SharedString, StatefulInteractiveElement as _, Styled, Window, div,
+    point, prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::message::{Content, LinkPreview, Message, Sending};
@@ -52,7 +53,7 @@ pub(super) struct Author {
 /// A history item's content, ready to draw.
 pub(super) struct Item<'a> {
     pub message: &'a Message,
-    pub date_badge: Option<SharedString>,
+    pub date_badge: Option<DateBadge>,
     pub run: Run,
     /// Set in groups for incoming messages.
     pub author: Option<Author>,
@@ -101,8 +102,8 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
         .w_full()
         .flex()
         .flex_col()
-        .when_some(item.date_badge.clone(), |this, text| {
-            this.child(service_pill(text, cx))
+        .when_some(item.date_badge.clone(), |this, badge| {
+            this.child(date_pill(badge, cx))
         })
         .when(item.has_unread_bar, |this| this.child(unread::bar(cx)))
         .child(with_pointer(message_row(&item, cx), &item.on_pointer))
@@ -140,7 +141,7 @@ fn with_pointer(row: Div, on_pointer: &OnPointer) -> Div {
 /// A service message: its pill under the day's badge; hidden ones leave
 /// only the badge.
 pub(super) fn service_element(
-    date_badge: Option<SharedString>,
+    date_badge: Option<DateBadge>,
     has_unread_bar: bool,
     text: Option<SharedString>,
     cx: &App,
@@ -149,40 +150,65 @@ pub(super) fn service_element(
         .w_full()
         .flex()
         .flex_col()
-        .children(date_badge.map(|text| service_pill(text, cx)))
+        .children(date_badge.map(|badge| date_pill(badge, cx)))
         .when(has_unread_bar, |this| this.child(unread::bar(cx)))
         .children(text.map(|text| service_pill(text, cx)))
         .into_any_element()
 }
 
+/// A day's badge over its first message; a click opens the calendar.
+#[derive(Clone)]
+pub(super) struct DateBadge {
+    pub text: SharedString,
+    pub id: ElementId,
+    pub on_click: OnClick,
+}
+
+fn date_pill(badge: DateBadge, cx: &App) -> Div {
+    let on_click = badge.on_click;
+    pill_row(
+        pill(badge.text, cx)
+            .id(badge.id)
+            .cursor_pointer()
+            .on_click(move |event, window, cx| on_click(event, window, cx)),
+    )
+}
+
 /// A centered service pill, as the date badge (`ServiceMessagePainter`).
 pub(super) fn service_pill(text: SharedString, cx: &App) -> Div {
-    let height = px_of(MSG_SERVICE_PADDING.top)
-        + font_height(MSG_SERVICE_FONT)
-        + px_of(MSG_SERVICE_PADDING.bottom);
+    pill_row(pill(text, cx))
+}
+
+/// The row a pill sits centered in.
+fn pill_row(pill: impl IntoElement) -> Div {
     div()
         .flex()
         .justify_center()
         .pt(px_of(MSG_SERVICE_MARGIN.top))
         .pb(px_of(MSG_SERVICE_MARGIN.bottom))
         .px(px_of(MSG_SERVICE_MARGIN.left))
-        .child(
-            div()
-                .min_h(height)
-                .max_w(px_of(MSG_MAX_WIDTH))
-                .pl(px_of(MSG_SERVICE_PADDING.left))
-                .pr(px_of(MSG_SERVICE_PADDING.right))
-                .pt(px_of(MSG_SERVICE_PADDING.top))
-                .pb(px_of(MSG_SERVICE_PADDING.bottom))
-                .rounded(height / 2.0)
-                .bg(color(cx, palette(ColorId::MsgServiceBg)))
-                .text_center()
-                .font(font(MSG_SERVICE_FONT))
-                .text_size(px_of(MSG_SERVICE_FONT.size))
-                .line_height(font_height(MSG_SERVICE_FONT))
-                .text_color(color(cx, palette(ColorId::MsgServiceFg)))
-                .child(text),
-        )
+        .child(pill)
+}
+
+fn pill(text: SharedString, cx: &App) -> Div {
+    let height = px_of(MSG_SERVICE_PADDING.top)
+        + font_height(MSG_SERVICE_FONT)
+        + px_of(MSG_SERVICE_PADDING.bottom);
+    div()
+        .min_h(height)
+        .max_w(px_of(MSG_MAX_WIDTH))
+        .pl(px_of(MSG_SERVICE_PADDING.left))
+        .pr(px_of(MSG_SERVICE_PADDING.right))
+        .pt(px_of(MSG_SERVICE_PADDING.top))
+        .pb(px_of(MSG_SERVICE_PADDING.bottom))
+        .rounded(height / 2.0)
+        .bg(color(cx, palette(ColorId::MsgServiceBg)))
+        .text_center()
+        .font(font(MSG_SERVICE_FONT))
+        .text_size(px_of(MSG_SERVICE_FONT.size))
+        .line_height(font_height(MSG_SERVICE_FONT))
+        .text_color(color(cx, palette(ColorId::MsgServiceFg)))
+        .child(text)
 }
 
 /// Channel posts show on the left even when the user wrote them

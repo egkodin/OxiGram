@@ -20,6 +20,8 @@ pub(super) enum Target {
     /// unread bar.
     FirstUnread,
     Message(MessageId),
+    /// The first message after this one, else the newest loaded.
+    After(MessageId),
     Bottom,
 }
 
@@ -52,6 +54,11 @@ impl HistoryView {
             }
             Target::FirstUnread => self.unread_bar_index,
             Target::Message(id) => self.shown.iter().position(|m| m.id >= id),
+            Target::After(id) => self
+                .shown
+                .iter()
+                .position(|m| m.id > id)
+                .or_else(|| self.shown.len().checked_sub(1)),
         };
         if let Some(item_ix) = index {
             // shortcut: the target lands at the top; tdesktop centers a jumped-to message and flashes it.
@@ -92,6 +99,42 @@ impl HistoryView {
             });
         })
         .detach();
+    }
+
+    /// Scrolls to the message after `before`, or to the chat's first one
+    /// when there is none before.
+    pub(super) fn jump_after(&mut self, before: Option<MessageId>, cx: &mut Context<Self>) {
+        let anchor = before.unwrap_or(MessageId(0));
+        let has_oldest = self
+            .store
+            .read(cx)
+            .state()
+            .history(self.chat)
+            .is_some_and(|history| history.older_page().is_none());
+        let loaded = match before {
+            Some(id) => self.shown.iter().position(|m| m.id == id),
+            None => has_oldest.then_some(0),
+        };
+        match loaded {
+            Some(index) => {
+                let item_ix = if before.is_some() {
+                    (index + 1).min(self.shown.len().saturating_sub(1))
+                } else {
+                    index
+                };
+                self.list.scroll_to(ListOffset {
+                    item_ix,
+                    offset_in_item: px(0.0),
+                });
+                self.update_down_button(cx);
+                cx.notify();
+            }
+            None => self.reload(
+                Page::Around(MessageId(anchor.0.max(1))),
+                Target::After(anchor),
+                cx,
+            ),
+        }
     }
 
     /// Opens a replied message; the down button comes back here first.

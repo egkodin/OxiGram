@@ -8,7 +8,10 @@ use std::sync::Arc;
 use futures::FutureExt as _;
 use td_api::enums::SearchMessagesFilter;
 use td_api::enums::Update;
-use td_api::functions::{CloseChat, GetChatHistory, GetMessage, OpenChat, SearchChatMessages};
+use td_api::functions::{
+    CloseChat, GetChatHistory, GetChatMessageByDate, GetMessage, OpenChat, SearchChatMessages,
+};
+use tg::TdError;
 
 use crate::chat_actions::done;
 use crate::chats;
@@ -18,6 +21,9 @@ use crate::session::{RequestError, Session};
 
 /// How many messages one page asks for; TDLib may return fewer.
 pub const PAGE: i32 = 50;
+/// TDLib's answer when no message is that old.
+const NOT_FOUND: i32 = 404;
+
 /// The most messages one `searchChatMessages` request returns.
 const SEARCH_LIMIT: i32 = 100;
 
@@ -413,6 +419,27 @@ impl Session {
                 result
                     .map(|found| found.messages.into_iter().map(Message::from).collect())
                     .map_err(RequestError::from)
+            })
+    }
+
+    /// The last message of `chat` sent before `date` (Unix time); none when
+    /// the chat starts later, as a jump to a day needs.
+    pub fn message_before(
+        &self,
+        chat: ChatId,
+        date: i64,
+    ) -> impl Future<Output = Result<Option<MessageId>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetChatMessageByDate {
+                chat_id: chat.0,
+                date: i32::try_from(date - 1).unwrap_or(i32::MAX),
+            })
+            .map(|result| match result {
+                Ok(message) => Ok(Some(MessageId(message.id))),
+                Err(TdError::Td {
+                    code: NOT_FOUND, ..
+                }) => Ok(None),
+                Err(error) => Err(RequestError::from(error)),
             })
     }
 

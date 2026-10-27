@@ -2,6 +2,8 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use chrono::{Local, TimeZone as _};
+
 use model::chat::{Chat, ChatKind, ChatList, Draft, Folder, Position};
 use model::chats::{Change, ChatAction, MuteScope, Unread};
 use model::message::{Content, Media, Message, Sender};
@@ -12,11 +14,23 @@ use model::{BasicGroupId, ChatId, Event, FolderId, MessageId, SupergroupId, User
 pub(crate) const ME: i64 = 1;
 pub(crate) const HOUR: i32 = 3600;
 
+/// Noon today: messages hours "ago" land on the same days whenever the
+/// snapshots run, so date badges stay where the clicks expect them.
 pub(crate) fn now() -> i32 {
+    let noon = Local::now()
+        .date_naive()
+        .and_hms_opt(12, 0, 0)
+        .and_then(|noon| Local.from_local_datetime(&noon).earliest())
+        .map_or_else(clock, |noon| noon.timestamp());
+    i32::try_from(noon).unwrap_or(i32::MAX)
+}
+
+/// The real time, for online statuses that are relative to it.
+fn clock() -> i64 {
     let seconds = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_secs());
-    i32::try_from(seconds).unwrap_or(i32::MAX)
+    i64::try_from(seconds).unwrap_or(i64::MAX)
 }
 
 fn user(id: i64, first: &str, last: &str) -> User {
@@ -94,11 +108,11 @@ pub(crate) fn events() -> Vec<Event> {
         user(6, "Totally Real", "Support"),
     ];
     users[1].status = UserStatus::Online {
-        expires: now() + HOUR,
+        expires: i32::try_from(clock()).unwrap_or(i32::MAX) + HOUR,
     };
     users[1].is_premium = true;
     users[3].status = UserStatus::Offline {
-        was_online: now() - 25 * 60,
+        was_online: i32::try_from(clock()).unwrap_or(i32::MAX) - 25 * 60,
     };
     users[4].kind = UserKind::Bot;
     users[4].is_contact = false;
