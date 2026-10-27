@@ -17,7 +17,7 @@ use tg::TdError;
 use crate::chat_actions::done;
 use crate::chats;
 use crate::ids::{ChatId, MessageId};
-use crate::message::{Content, Message};
+use crate::message::{Content, Message, Replies, Topic};
 use crate::search::FoundMessages;
 use crate::session::{RequestError, Session};
 
@@ -57,10 +57,12 @@ pub enum Change {
         message: Box<Message>,
         old: MessageId,
     },
-    Views {
+    /// New view or reply counts.
+    Interaction {
         chat: ChatId,
         message: MessageId,
         views: i32,
+        replies: Option<Replies>,
     },
     Pinned {
         chat: ChatId,
@@ -85,7 +87,7 @@ pub enum Page {
 impl Page {
     /// `getChatHistory`'s `from_message_id`, `offset` and `limit`. A
     /// negative offset adds that many newer messages.
-    fn to_td(self) -> (i64, i32) {
+    pub(crate) fn to_td(self) -> (i64, i32) {
         match self {
             Self::Newest => (0, 0),
             Self::Around(message) => (message.0, -PAGE / 2),
@@ -116,9 +118,19 @@ pub struct History {
     references: HashMap<(ChatId, MessageId), Arc<Message>>,
     /// The chat's pinned messages, oldest first.
     pinned: Vec<MessageId>,
+    /// The topic it holds; new messages outside it stay out.
+    topic: Option<Topic>,
 }
 
 impl History {
+    #[must_use]
+    pub fn new(topic: Option<Topic>) -> Self {
+        Self {
+            topic,
+            ..Self::default()
+        }
+    }
+
     #[must_use]
     pub fn messages(&self) -> &[Arc<Message>] {
         &self.messages
@@ -185,6 +197,12 @@ impl History {
     #[must_use]
     pub fn has_newest(&self) -> bool {
         self.newer == Edge::Reached
+    }
+
+    /// Whether the oldest message is loaded.
+    #[must_use]
+    pub fn has_oldest(&self) -> bool {
+        self.older == Edge::Reached
     }
 
     /// The page that loads older messages, unless the first one is loaded.
@@ -265,7 +283,8 @@ impl History {
     pub(crate) fn apply(&mut self, change: Change) {
         match change {
             Change::New(message) => {
-                if self.has_newest() {
+                if self.has_newest() && self.topic.is_none_or(|topic| message.topic == Some(topic))
+                {
                     self.insert(*message);
                 }
             }
@@ -279,9 +298,15 @@ impl History {
                 }
             }
             Change::SendFailed { message, old } => self.replace(old, *message),
-            Change::Views { message, views, .. } => {
-                self.update(message, |message| message.views = views);
-            }
+            Change::Interaction {
+                message,
+                views,
+                replies,
+                ..
+            } => self.update(message, |message| {
+                message.views = views;
+                message.replies = replies;
+            }),
             Change::Pinned {
                 message, is_pinned, ..
             } => match (self.pinned.binary_search(&message), is_pinned) {
@@ -319,7 +344,7 @@ impl Change {
             Self::New(message) | Self::SendFailed { message, .. } => message.chat,
             Self::Edited { chat, .. }
             | Self::Deleted { chat, .. }
-            | Self::Views { chat, .. }
+            | Self::Interaction { chat, .. }
             | Self::Pinned { chat, .. } => *chat,
         }
     }
@@ -340,11 +365,17 @@ impl Change {
                 message: Box::new(Message::from(*update.message)),
                 old: MessageId(update.old_message_id),
             },
-            Update::MessageInteractionInfo(update) => Self::Views {
-                chat: ChatId(update.chat_id),
-                message: MessageId(update.message_id),
-                views: update.interaction_info.map_or(0, |info| info.view_count),
-            },
+            Update::MessageInteractionInfo(update) => {
+                let info = update.interaction_info;
+                Self::Interaction {
+                    chat: ChatId(update.chat_id),
+                    message: MessageId(update.message_id),
+                    views: info.as_ref().map_or(0, |info| info.view_count),
+                    replies: info
+                        .and_then(|info| info.reply_info)
+                        .map(|replies| Replies::from(*replies)),
+                }
+            }
             Update::MessageIsPinned(update) => Self::Pinned {
                 chat: ChatId(update.chat_id),
                 message: MessageId(update.message_id),
@@ -545,6 +576,34 @@ mod tests {
 
     fn page(ids: impl IntoIterator<Item = i64>) -> Vec<Message> {
         ids.into_iter().map(message).collect()
+    }
+
+    #[test]
+    fn comments_are_unread_only_after_the_user_read_some() {
+        let replies = |last_read, last| Replies {
+            last_read: MessageId(last_read),
+            last: MessageId(last),
+            ..Replies::default()
+        };
+        assert!(replies(60, 70).has_unread());
+        assert!(!replies(70, 70).has_unread());
+        assert!(!replies(0, 70).has_unread(), "never opened");
+    }
+
+    #[test]
+    fn a_thread_takes_only_its_own_new_messages() {
+        let root = MessageId(10);
+        let mut thread = History::new(Some(Topic::Thread(root)));
+        thread.add_page(Page::Newest, page([20]));
+        let mut reply = message(30);
+        reply.topic = Some(Topic::Thread(root));
+        thread.apply(Change::New(Box::new(message(25))));
+        thread.apply(Change::New(Box::new(reply)));
+        assert_eq!(ids(&thread), [20, 30]);
+        let mut chat = History::default();
+        chat.add_page(Page::Newest, page([20]));
+        chat.apply(Change::New(Box::new(message(25))));
+        assert_eq!(ids(&chat), [20, 25], "the whole chat takes every message");
     }
 
     #[test]

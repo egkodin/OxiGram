@@ -47,12 +47,17 @@
   The snapshot runner gained wheel-scroll steps (57-59).
 - Replies to messages in other chats and to stories (`headers::external_reply`):
   the origin's name and color, the quote or the media kind without its caption.
+- Histories are keyed by chat and topic (`model::thread::Key`): a post's
+  comments in its discussion group, a Saved Messages topic. The comments
+  button under channel posts (`comments`) opens the thread over the channel
+  (`thread_section`); the main view keeps the chats a thread came from, so
+  Back returns to the same place.
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-63 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-64 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -72,7 +77,8 @@
 
 ### Next steps
 
-1. Comments (channel post threads) and Saved Messages sublists.
+1. Saved Messages sublists: the topic list (`loadSavedMessagesTopics`) and
+   opening one as a topic history.
 2. Reactions under messages and who reacted.
 3. Entities: emails, phones, bank cards, dates, code highlighting.
 

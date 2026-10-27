@@ -6,7 +6,8 @@ use std::future::Future;
 use gpui::{App, Context, EventEmitter, Task};
 use model::history::Page;
 use model::message::Message;
-use model::{ChatId, Environment, Event, Session, State, auth};
+use model::thread::Key;
+use model::{Environment, Event, Session, State, auth};
 
 /// The model state and the session that changes it.
 #[derive(Debug)]
@@ -67,50 +68,56 @@ impl Store {
         cx.notify();
     }
 
-    /// Starts keeping `chat`'s messages and tells TDLib it is open.
-    pub fn open_chat(&mut self, chat: ChatId, cx: &mut Context<Self>) {
-        self.state.open_history(chat);
+    /// Starts keeping `key`'s messages; TDLib hears the chat is open with
+    /// its first history.
+    pub fn open_chat(&mut self, key: Key, cx: &mut Context<Self>) {
+        let was_open = self.state.is_chat_open(key.chat);
+        self.state.open_history(key);
         cx.notify();
-        log_failure(
-            spawn(self.session.open_chat(chat), cx),
-            "opening a chat",
-            cx,
-        );
+        if !was_open {
+            log_failure(
+                spawn(self.session.open_chat(key.chat), cx),
+                "opening a chat",
+                cx,
+            );
+        }
     }
 
-    pub fn close_chat(&mut self, chat: ChatId, cx: &mut Context<Self>) {
-        self.state.close_history(chat);
+    pub fn close_chat(&mut self, key: Key, cx: &mut Context<Self>) {
+        self.state.close_history(key);
         cx.notify();
-        log_failure(
-            spawn(self.session.close_chat(chat), cx),
-            "closing a chat",
-            cx,
-        );
+        if !self.state.is_chat_open(key.chat) {
+            log_failure(
+                spawn(self.session.close_chat(key.chat), cx),
+                "closing a chat",
+                cx,
+            );
+        }
     }
 
     pub fn add_history_page(
         &mut self,
-        chat: ChatId,
+        key: Key,
         page: Page,
         messages: Vec<Message>,
         cx: &mut Context<Self>,
     ) {
-        self.state.add_history_page(chat, page, messages);
+        self.state.add_history_page(key, page, messages);
         cx.notify();
     }
 
-    pub fn clear_history(&mut self, chat: ChatId, cx: &mut Context<Self>) {
-        self.state.clear_history(chat);
+    pub fn clear_history(&mut self, key: Key, cx: &mut Context<Self>) {
+        self.state.clear_history(key);
         cx.notify();
     }
 
-    pub fn set_pinned(&mut self, chat: ChatId, messages: Vec<Message>, cx: &mut Context<Self>) {
-        self.state.set_pinned(chat, messages);
+    pub fn set_pinned(&mut self, key: Key, messages: Vec<Message>, cx: &mut Context<Self>) {
+        self.state.set_pinned(key, messages);
         cx.notify();
     }
 
-    pub fn add_reference(&mut self, chat: ChatId, message: Message, cx: &mut Context<Self>) {
-        self.state.add_reference(chat, message);
+    pub fn add_reference(&mut self, key: Key, message: Message, cx: &mut Context<Self>) {
+        self.state.add_reference(key, message);
         cx.notify();
     }
 

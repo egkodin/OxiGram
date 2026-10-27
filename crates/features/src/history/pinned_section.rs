@@ -48,7 +48,7 @@ impl HistoryView {
             .store
             .read(cx)
             .state()
-            .history(self.chat)
+            .history(self.key())
             .and_then(|history| history.pinned().last().copied())
         else {
             return;
@@ -180,7 +180,7 @@ impl HistoryView {
                     send(session.unpin_all_messages(this.chat), "unpin all", cx);
                     // TDLib tells only about loaded pins; the section is empty now.
                     this.store
-                        .update(cx, |store, cx| store.set_pinned(this.chat, Vec::new(), cx));
+                        .update(cx, |store, cx| store.set_pinned(this.key(), Vec::new(), cx));
                 } else {
                     this.hide_pinned_bar(cx);
                     this.close_section(cx);

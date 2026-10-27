@@ -12,8 +12,8 @@ use model::text::FormattedText;
 use std::ops::Range;
 use std::rc::Rc;
 use style::chat::{
-    BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_PAGE_PREVIEW, HISTORY_PHOTO_LEFT,
-    HISTORY_VIEWS_SPACE, MSG_DATE_DELTA, MSG_DATE_FONT, MSG_FONT, MSG_MARGIN,
+    BUBBLE_RADIUS_LARGE, BUBBLE_RADIUS_SMALL, HISTORY_COMMENTS_BUTTON_HEIGHT, HISTORY_PAGE_PREVIEW,
+    HISTORY_PHOTO_LEFT, HISTORY_VIEWS_SPACE, MSG_DATE_DELTA, MSG_DATE_FONT, MSG_FONT, MSG_MARGIN,
     MSG_MARGIN_TOP_ATTACHED, MSG_MAX_WIDTH, MSG_NAME_FONT, MSG_PADDING, MSG_PHOTO_SIZE,
     MSG_PHOTO_SKIP, MSG_SERVICE_FONT, MSG_SERVICE_MARGIN, MSG_SERVICE_PADDING, MSG_SHADOW,
 };
@@ -28,6 +28,7 @@ use style::{ColorId, ColorRef};
 use ui::{Userpic, UserpicSource, color, font, font_height, icon, icon_size, peer_palette_index};
 
 use super::body::{self, Body, OnLink};
+use super::comments::Comments;
 use super::headers::{self, Reply};
 use super::selection::{OnPointer, Pointer};
 use super::web_page::{self, WebPage};
@@ -76,6 +77,10 @@ pub(super) struct Item<'a> {
     /// The selected part of the text.
     pub selected_text: Option<Range<usize>>,
     pub on_pointer: OnPointer,
+    /// The comments button under a channel post.
+    pub comments: Option<Comments>,
+    /// What follows the message in its row, as a thread's divider.
+    pub after: Option<AnyElement>,
 }
 
 /// What a click on part of a message does.
@@ -102,7 +107,8 @@ fn palette(id: ColorId) -> ColorRef {
     ColorRef::Palette(id)
 }
 
-pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
+pub(super) fn element(mut item: Item<'_>, cx: &App) -> AnyElement {
+    let after = item.after.take();
     div()
         .w_full()
         .flex()
@@ -111,7 +117,8 @@ pub(super) fn element(item: Item<'_>, cx: &App) -> AnyElement {
             this.child(date_pill(badge, cx))
         })
         .when(item.has_unread_bar, |this| this.child(unread::bar(cx)))
-        .child(with_pointer(message_row(&item, cx), &item.on_pointer))
+        .child(with_pointer(message_row(&mut item, cx), &item.on_pointer))
+        .children(after)
         .into_any_element()
 }
 
@@ -234,7 +241,7 @@ fn is_out(message: &Message) -> bool {
 /// The bubble with the margins of its run, the author's userpic under the
 /// last one.
 // shortcut: no wide mode; tdesktop centers a column of left-aligned messages in wide windows (`ElementChatMode::Wide`).
-fn message_row(item: &Item<'_>, cx: &App) -> Div {
+fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
     let out = is_out(item.message);
     let top = if item.run.is_attached_to_previous {
         MSG_MARGIN_TOP_ATTACHED
@@ -281,7 +288,7 @@ fn message_row(item: &Item<'_>, cx: &App) -> Div {
         .child(bubble(item, out, cx))
 }
 
-fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
+fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
     let (bg, shadow, fg) = match (out, item.is_selected) {
         (true, false) => (
             ColorId::MsgOutBg,
@@ -339,6 +346,11 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
             .child(icon(tail))
     });
     let name = name_line(item, out, cx);
+    let info = info(item, out, cx);
+    let comments = item
+        .comments
+        .take()
+        .map(|comments| super::comments::button(comments, item.message.id.0, item.is_selected, cx));
     div()
         .relative()
         .min_w_0()
@@ -371,7 +383,8 @@ fn bubble(item: &Item<'_>, out: bool, cx: &App) -> Div {
                 .child(text(item, out, cx)),
         )
         .children(web_page(item, out, Placement::BelowText, cx))
-        .child(info(item, out, cx))
+        .child(info)
+        .children(comments)
         .children(tail)
 }
 
@@ -593,6 +606,12 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
     } else {
         px(0.0)
     };
+    // The comments button holds the bubble's bottom; the time sits over it.
+    let comments_lift = if item.comments.is_some() {
+        px_of(HISTORY_COMMENTS_BUTTON_HEIGHT)
+    } else {
+        px(0.0)
+    };
     // shortcut: a failed message shows the sending clock; the red failed mark comes with sending in M4.
     let state = out.then_some(match (item.message.sending, item.is_selected) {
         (Some(Sending::Pending | Sending::Failed), _) => HISTORY_SENDING_ICON,
@@ -604,7 +623,7 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
     div()
         .absolute()
         .right(px_of(MSG_PADDING.right) - px_of(MSG_DATE_DELTA.x))
-        .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y) + preview_lift)
+        .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y) + preview_lift + comments_lift)
         .flex()
         .items_center()
         .font(font(MSG_DATE_FONT))

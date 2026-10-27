@@ -2,11 +2,11 @@
 
 use td_api::enums::{
     CallDiscardReason, MessageContent, MessageOrigin, MessageReplyTo, MessageSender,
-    MessageSendingState,
+    MessageSendingState, MessageTopic,
 };
 
 use crate::file::Minithumbnail;
-use crate::ids::{ChatId, MessageId, UserId};
+use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
 use crate::text::FormattedText;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,6 +35,67 @@ pub struct Message {
     pub via_bot: Option<UserId>,
     /// False in chats with protected content: no copying or forwarding.
     pub can_be_saved: bool,
+    /// The thread or Saved Messages topic it belongs to.
+    pub topic: Option<Topic>,
+    /// Comments under a channel post, replies to a group message.
+    pub replies: Option<Replies>,
+}
+
+/// A part of a chat with a history of its own.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Topic {
+    /// Replies to the message: a channel post's comments in its
+    /// discussion group, or a reply thread in a group.
+    Thread(MessageId),
+    /// The messages saved from one chat.
+    Saved(SavedTopicId),
+}
+
+/// Replies to a message (`messageReplyInfo`).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Replies {
+    pub count: i32,
+    /// Up to three who replied last.
+    pub recent: Vec<Sender>,
+    pub last_read: MessageId,
+    pub last: MessageId,
+}
+
+impl Replies {
+    /// Whether replies came after the last one read; never before the
+    /// user read any (`HistoryItem::areCommentsUnread`).
+    #[must_use]
+    pub fn has_unread(&self) -> bool {
+        self.last_read.0 > 1 && self.last > self.last_read
+    }
+}
+
+impl From<td_api::types::MessageReplyInfo> for Replies {
+    fn from(info: td_api::types::MessageReplyInfo) -> Self {
+        Self {
+            count: info.reply_count,
+            recent: info
+                .recent_replier_ids
+                .into_iter()
+                .map(Sender::from)
+                .collect(),
+            last_read: MessageId(info.last_read_inbox_message_id),
+            last: MessageId(info.last_message_id),
+        }
+    }
+}
+
+impl Topic {
+    fn from_td(topic: MessageTopic) -> Option<Self> {
+        match topic {
+            MessageTopic::Thread(thread) => Some(Self::Thread(MessageId(thread.message_thread_id))),
+            MessageTopic::SavedMessages(saved) => {
+                Some(Self::Saved(SavedTopicId(saved.saved_messages_topic_id)))
+            }
+            // shortcut: forum topics and channel direct messages are not told apart; with forums (M6).
+            MessageTopic::Forum(_) | MessageTopic::DirectMessages(_) => None,
+        }
+    }
 }
 
 /// The message a message replies to.
@@ -332,6 +393,8 @@ impl Message {
             is_channel_post: false,
             via_bot: None,
             can_be_saved: true,
+            topic: None,
+            replies: None,
         }
     }
 }
@@ -355,7 +418,15 @@ impl From<td_api::types::Message> for Message {
                 MessageSendingState::Pending(_) => Sending::Pending,
                 MessageSendingState::Failed(_) => Sending::Failed,
             }),
-            views: message.interaction_info.map_or(0, |info| info.view_count),
+            views: message
+                .interaction_info
+                .as_ref()
+                .map_or(0, |info| info.view_count),
+            replies: message
+                .interaction_info
+                .and_then(|info| info.reply_info)
+                .map(|info| Replies::from(*info)),
+            topic: message.topic_id.and_then(|topic| Topic::from_td(*topic)),
             author_signature: message.author_signature,
             album: Some(message.media_album_id).filter(|album| *album != 0),
             is_channel_post: message.is_channel_post,

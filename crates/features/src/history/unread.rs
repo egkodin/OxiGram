@@ -116,6 +116,8 @@ impl HistoryView {
             .state()
             .chats
             .chat(self.chat)
+            // shortcut: a thread shows no unread counts, the chat's are not its own; with per-thread counts (M4).
+            .filter(|_| self.topic.is_none())
             .map(|chat| {
                 (
                     chat.unread_count,

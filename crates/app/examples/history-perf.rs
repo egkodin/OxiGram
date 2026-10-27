@@ -288,8 +288,8 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             cx,
         );
         store.apply(Event::Auth(model::auth::State::Ready), cx);
-        store.open_chat(GROUP, cx);
-        store.add_history_page(GROUP, Page::Newest, history, cx);
+        store.open_chat(GROUP.into(), cx);
+        store.add_history_page(GROUP.into(), Page::Newest, history, cx);
         store
     });
     let window = cx.update(|cx| open(store.clone(), cx))?;
@@ -334,7 +334,7 @@ async fn check_older_page(
     let ago = MESSAGES * STEP + 2 * 24 * 60 * MINUTE;
     let older = messages(FIRST_ID - i64::from(OLDER_PAGE)..FIRST_ID, ago, rng);
     store.update(cx, |store, cx| {
-        store.add_history_page(GROUP, Page::Older(MessageId(FIRST_ID)), older, cx);
+        store.add_history_page(GROUP.into(), Page::Older(MessageId(FIRST_ID)), older, cx);
     });
     let after = save(window, &out.join("after.png"), cx).await?;
     #[expect(

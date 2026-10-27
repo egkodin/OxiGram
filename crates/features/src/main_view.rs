@@ -32,6 +32,7 @@ use crate::links;
 use crate::main_menu::{MainMenu, MenuAction};
 use crate::settings;
 use crate::{Layers, Store, px_of};
+use model::thread::Thread;
 
 actions!(main_view, [CancelSearch, CopySelection]);
 
@@ -51,6 +52,9 @@ pub struct MainView {
     search: Entity<InputField>,
     /// The open chat, if any.
     history: Option<Entity<HistoryView>>,
+    /// The chats a shown thread was opened from, newest last; each keeps
+    /// its place for the way back.
+    parents: Vec<(Entity<HistoryView>, Subscription)>,
     focus: FocusHandle,
     _subscriptions: [Subscription; 4],
     _history_subscription: Option<Subscription>,
@@ -104,6 +108,7 @@ impl MainView {
             dialogs,
             search,
             history: None,
+            parents: Vec::new(),
             focus,
             _subscriptions: [subscription, observe_dialogs, complete, open],
             _history_subscription: None,
@@ -114,20 +119,43 @@ impl MainView {
         if self
             .history
             .as_ref()
-            .is_some_and(|history| history.read(cx).chat() == chat)
+            .is_some_and(|history| history.read(cx).key() == chat.into())
         {
             return;
         }
-        let store = self.store.clone();
-        let layers = self.layers.clone();
-        let focus = self.focus.clone();
-        let history = cx.new(|cx| HistoryView::new(store, layers, chat, focus, cx));
+        self.parents.clear();
+        let (store, layers, focus) = (self.store.clone(), self.layers.clone(), self.focus.clone());
+        let history = cx.new(|cx| HistoryView::new(store, layers, chat.into(), focus, cx));
+        self.show_history(history, window, cx);
+    }
+
+    /// Shows a post's comments over the chat it came from.
+    fn open_thread(&mut self, start: Thread, window: &mut Window, cx: &mut Context<Self>) {
+        if let (Some(parent), Some(subscription)) =
+            (self.history.take(), self._history_subscription.take())
+        {
+            self.parents.push((parent, subscription));
+        }
+        let (store, layers, focus) = (self.store.clone(), self.layers.clone(), self.focus.clone());
+        let history = cx.new(|cx| HistoryView::thread(store, layers, start, focus, cx));
+        self.show_history(history, window, cx);
+    }
+
+    fn show_history(
+        &mut self,
+        history: Entity<HistoryView>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self._history_subscription =
             Some(
                 cx.subscribe_in(&history, window, |this, _, event, window, cx| match event {
                     HistoryEvent::Close => this.close_chat(cx),
                     HistoryEvent::Link(link) => {
                         links::open(link.clone(), &this.link_targets(), window, cx)
+                    }
+                    HistoryEvent::OpenThread(start) => {
+                        this.open_thread(start.as_ref().clone(), window, cx);
                     }
                 }),
             );
@@ -150,8 +178,15 @@ impl MainView {
         }
     }
 
-    /// Escape in a chat closes it (`HistoryWidget::escape`).
+    /// Escape in a chat closes it (`HistoryWidget::escape`); in a thread it
+    /// goes back to the chat.
     fn close_chat(&mut self, cx: &mut Context<Self>) {
+        if let Some((parent, subscription)) = self.parents.pop() {
+            self.history = Some(parent);
+            self._history_subscription = Some(subscription);
+            cx.notify();
+            return;
+        }
         self.history = None;
         self._history_subscription = None;
         self.dialogs.update(cx, |dialogs, cx| dialogs.deselect(cx));

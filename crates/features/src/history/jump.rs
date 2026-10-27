@@ -109,7 +109,7 @@ impl HistoryView {
             .store
             .read(cx)
             .state()
-            .history(self.chat)
+            .history(self.key())
             .is_some_and(|history| history.older_page().is_none());
         let loaded = match before {
             Some(id) => self.shown.iter().position(|m| m.id == id),
@@ -153,7 +153,7 @@ impl HistoryView {
             .store
             .read(cx)
             .state()
-            .history(self.chat)
+            .history(self.key())
             .is_some_and(model::history::History::has_newest);
         if has_newest {
             self.list.scroll_to_end();
@@ -169,9 +169,9 @@ impl HistoryView {
         self.generation += 1;
         self.loading = None;
         self.target = Some(target);
-        let chat = self.chat;
+        let key = self.key();
         self.store
-            .update(cx, |store, cx| store.clear_history(chat, cx));
+            .update(cx, |store, cx| store.clear_history(key, cx));
         self.load(page, cx);
     }
 
@@ -181,7 +181,7 @@ impl HistoryView {
             .store
             .read(cx)
             .state()
-            .history(self.chat)
+            .history(self.key())
             .is_some_and(model::history::History::has_newest);
         let below =
             self.list.max_offset_for_scrollbar().y + self.list.scroll_px_offset_for_scrollbar().y;

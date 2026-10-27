@@ -23,11 +23,13 @@ mod secret;
 mod session;
 mod state;
 pub mod text;
+pub mod thread;
 pub mod user;
 
 pub use event::{Event, events};
 pub use ids::{
-    BasicGroupId, ChatId, CustomEmojiId, FileId, FolderId, MessageId, SupergroupId, UserId,
+    BasicGroupId, ChatId, CustomEmojiId, FileId, FolderId, MessageId, SavedTopicId, SupergroupId,
+    UserId,
 };
 pub use secret::Secret;
 pub use session::{Environment, ListLoad, Parameters, RequestError, Session};

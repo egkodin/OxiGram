@@ -109,7 +109,7 @@ impl HistoryView {
             let _ = this.update(cx, |this, cx| match result {
                 Ok(messages) => this
                     .store
-                    .update(cx, |store, cx| store.set_pinned(chat, messages, cx)),
+                    .update(cx, |store, cx| store.set_pinned(chat.into(), messages, cx)),
                 Err(error) => tracing::warn!(%error, "loading pinned messages failed"),
             });
         })
@@ -193,14 +193,14 @@ impl HistoryView {
     /// Hides the bar until a newer message is pinned.
     // shortcut: hidden until rgram restarts; tdesktop keeps it in the session settings, which come with M7.
     pub(super) fn hide_pinned_bar(&mut self, cx: &mut Context<Self>) {
-        let history = self.store.read(cx).state().history(self.chat);
+        let history = self.store.read(cx).state().history(self.key());
         self.pins.hidden = history.and_then(|history| history.pinned().last().copied());
         cx.notify();
     }
 
     /// The bar, while the chat has pins the user did not hide.
     pub(super) fn pinned_bar(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let history = self.store.read(cx).state().history(self.chat)?;
+        let history = self.store.read(cx).state().history(self.key())?;
         let newest = history.pinned().last().copied();
         if newest.is_some() && newest == self.pins.hidden {
             return None;

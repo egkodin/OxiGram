@@ -260,6 +260,7 @@ fn scenarios() -> Vec<Scenario> {
                     MouseButton::Left,
                     CALENDAR_CLOSE,
                 ),
+                ("64-history-comments", MouseButton::Left, LANDSCAPES_ROW),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             scrolls: Vec::new(),
@@ -352,6 +353,7 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
+const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
 /// The date badge over Ann Lee's messages, and the calendar's Close.
 const DATE_BADGE: (f32, f32) = (543.0, 63.0);
 const CALENDAR_CLOSE: (f32, f32) = (538.0, 448.0);
@@ -427,8 +429,8 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             }
             store.apply(first, cx);
             for (chat, messages) in histories {
-                store.open_chat(chat, cx);
-                store.add_history_page(chat, model::history::Page::Newest, messages, cx);
+                store.open_chat(chat.into(), cx);
+                store.add_history_page(chat.into(), model::history::Page::Newest, messages, cx);
             }
             for event in history::pins() {
                 store.apply(event, cx);

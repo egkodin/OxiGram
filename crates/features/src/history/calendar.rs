@@ -342,7 +342,7 @@ impl HistoryView {
             .store
             .read(cx)
             .state()
-            .history(self.chat)
+            .history(self.key())
             .filter(|history| history.older_page().is_none())
             .and_then(|history| history.messages().first())
             .and_then(|message| super::layout::day(message.date, &Local));

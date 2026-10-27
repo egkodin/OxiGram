@@ -6,6 +6,7 @@ mod body;
 mod bubble;
 mod calendar;
 mod chat_search;
+mod comments;
 mod delete;
 mod headers;
 mod jump;
@@ -19,6 +20,7 @@ mod selection;
 mod service;
 mod sync;
 mod text;
+mod thread_section;
 mod top_bar;
 mod unread;
 mod web_page;
@@ -40,7 +42,8 @@ use gpui::{
 };
 use model::chat::ChatKind;
 use model::history::Page;
-use model::message::{Content, Message, Sender, Service};
+use model::message::{Content, Message, Sender, Service, Topic};
+use model::thread::Key;
 use model::{ChatId, FileId, MessageId, State};
 use style::{ColorId, ColorRef};
 use ui::color;
@@ -65,6 +68,8 @@ pub(crate) enum HistoryEvent {
     Close,
     /// A link in a message other than a spoiler, which reveals in place.
     Link(Link),
+    /// A post's comments, to show over this chat.
+    OpenThread(Box<model::thread::Thread>),
 }
 
 impl EventEmitter<HistoryEvent> for HistoryView {}
@@ -81,6 +86,8 @@ pub(crate) struct HistoryView {
     store: Entity<Store>,
     layers: Entity<Layers>,
     chat: ChatId,
+    /// The thread or topic shown, if not the whole chat.
+    topic: Option<Topic>,
     placement: Placement,
     list: ListState,
     /// What the list's items stand for, to diff against the store.
@@ -116,6 +123,8 @@ pub(crate) struct HistoryView {
     scroll_date: scroll_date::ScrollDate,
     section: pinned_section::Section,
     search: Option<chat_search::ChatSearch>,
+    /// Set in a post's comments.
+    thread: Option<thread_section::ThreadHead>,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -134,14 +143,13 @@ impl HistoryView {
     pub(crate) fn new(
         store: Entity<Store>,
         layers: Entity<Layers>,
-        chat: ChatId,
+        key: Key,
         focus: FocusHandle,
         cx: &mut Context<Self>,
     ) -> Self {
-        store.update(cx, |store, cx| store.open_chat(chat, cx));
+        store.update(cx, |store, cx| store.open_chat(key, cx));
         cx.on_release(move |this, cx| {
-            this.store
-                .update(cx, |store, cx| store.close_chat(chat, cx));
+            this.store.update(cx, |store, cx| store.close_chat(key, cx));
         })
         .detach();
         let subscription = cx.observe(&store, |this, _, cx| this.sync(cx));
@@ -164,7 +172,8 @@ impl HistoryView {
         let mut view = Self {
             store,
             layers,
-            chat,
+            chat: key.chat,
+            topic: key.topic,
             placement: Placement::default(),
             list,
             shown: Vec::new(),
@@ -188,18 +197,28 @@ impl HistoryView {
             scroll_date: scroll_date::ScrollDate::default(),
             section: pinned_section::Section::Chat,
             search: None,
+            thread: None,
             focus,
             _subscription: subscription,
         };
-        let page = view.first_page(cx);
+        // shortcut: threads open at their newest reply, not the first unread; with the thread's read state (M4).
+        let page = match key.topic {
+            None => view.first_page(cx),
+            Some(_) => Page::Newest,
+        };
         view.sync(cx);
         view.load(page, cx);
-        view.load_pins(cx);
+        if key.topic.is_none() {
+            view.load_pins(cx);
+        }
         view
     }
 
-    pub(crate) fn chat(&self) -> ChatId {
-        self.chat
+    pub(crate) fn key(&self) -> Key {
+        Key {
+            chat: self.chat,
+            topic: self.topic,
+        }
     }
 
     pub(crate) fn set_placement(&mut self, placement: Placement, cx: &mut Context<Self>) {
@@ -211,12 +230,19 @@ impl HistoryView {
 
     /// Brings the list in line with the store's history.
     fn sync(&mut self, cx: &mut Context<Self>) {
-        let Some(history) = self.store.read(cx).state().history(self.chat) else {
+        let Some(history) = self.store.read(cx).state().history(self.key()) else {
             return;
         };
         let pinned;
+        let thread;
         let messages = if self.section == pinned_section::Section::Chat {
-            history.messages()
+            match self.with_starters(history.messages(), history.has_oldest()) {
+                Some(messages) => {
+                    thread = messages;
+                    &thread
+                }
+                None => history.messages(),
+            }
         } else {
             pinned = history.pinned_list(self.chat);
             if pinned.is_empty() {
@@ -240,7 +266,7 @@ impl HistoryView {
 
     /// Loads the next page when the user nears an end that has more.
     fn preload(&mut self, cx: &mut Context<Self>) {
-        let Some(history) = self.store.read(cx).state().history(self.chat) else {
+        let Some(history) = self.store.read(cx).state().history(self.key()) else {
             return;
         };
         // The pinned section shows every pin TDLib gave at once.
@@ -267,9 +293,9 @@ impl HistoryView {
             return;
         }
         self.loading = Some(page);
-        let chat = self.chat;
+        let key = self.key();
         let generation = self.generation;
-        let task = crate::store::spawn(self.store.read(cx).session().chat_history(chat, page), cx);
+        let task = crate::store::spawn(self.store.read(cx).session().history_page(key, page), cx);
         cx.spawn(async move |this, cx| {
             let result = task.await;
             let _ = this.update(cx, |this, cx| {
@@ -279,7 +305,7 @@ impl HistoryView {
                 this.loading = None;
                 match result {
                     Ok(messages) => this.store.update(cx, |store, cx| {
-                        store.add_history_page(chat, page, messages, cx);
+                        store.add_history_page(key, page, messages, cx);
                     }),
                     Err(error) => tracing::warn!(%error, "loading history failed"),
                 }
@@ -336,6 +362,7 @@ impl HistoryView {
         let via = message
             .via_bot
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
+        let comments = self.comments(&message, cx);
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -360,6 +387,8 @@ impl HistoryView {
                 is_highlighted: self.highlight == Some(message.id),
                 selected_text: self.selection.text_range(message.id),
                 on_pointer: self.on_pointer_at(index, cx),
+                comments,
+                after: self.thread_divider(index, cx),
             },
             cx,
         )
@@ -445,7 +474,7 @@ impl HistoryView {
 
     fn replied<'s>(&self, state: &'s State, chat: ChatId, id: MessageId) -> Replied<'s> {
         match state
-            .history(self.chat)
+            .history(self.key())
             .and_then(|history| history.find(chat, id))
         {
             Some(message) => Replied::Loaded(message),
@@ -458,7 +487,7 @@ impl HistoryView {
     fn ensure_reference(&mut self, chat: ChatId, id: MessageId, cx: &mut Context<Self>) {
         let state = self.store.read(cx).state();
         let is_known = state
-            .history(self.chat)
+            .history(self.key())
             .is_some_and(|history| history.find(chat, id).is_some());
         if is_known || !self.requested_references.insert((chat, id)) {
             return;
@@ -468,7 +497,7 @@ impl HistoryView {
             let result = task.await;
             let _ = this.update(cx, |this, cx| match result {
                 Ok(message) => {
-                    let history = this.chat;
+                    let history = this.key();
                     this.store
                         .update(cx, |store, cx| store.add_reference(history, message, cx));
                 }
@@ -494,20 +523,7 @@ impl HistoryView {
         if !is_group || message.is_outgoing {
             return None;
         }
-        let (name, color_index, (userpic, file)) = match message.sender {
-            Sender::User(id) => {
-                let user = chats.user(id)?;
-                let name = user.name();
-                let userpic = photo_userpic(chats, user.photo.as_ref(), user.accent_color, &name);
-                (name, user.accent_color, userpic)
-            }
-            Sender::Chat(id) => {
-                let chat = chats.chat(id)?;
-                let userpic =
-                    photo_userpic(chats, chat.photo.as_ref(), chat.accent_color, &chat.title);
-                (chat.title.clone(), chat.accent_color, userpic)
-            }
-        };
+        let (name, color_index, (userpic, file)) = sender_face(chats, message.sender)?;
         Some((
             Author {
                 name: name.into(),
@@ -518,7 +534,7 @@ impl HistoryView {
         ))
     }
 
-    fn request_file(&mut self, file: FileId, cx: &mut Context<Self>) {
+    pub(super) fn request_file(&mut self, file: FileId, cx: &mut Context<Self>) {
         if !self.requested_files.insert(file) {
             return;
         }
@@ -576,7 +592,7 @@ impl Render for HistoryView {
             )
         } else if !is_chat {
             self.pinned_section_bar(cx)
-        } else if let Some(bar) = self.search_bar(cx) {
+        } else if let Some(bar) = self.search_bar(cx).or_else(|| self.thread_bar(cx)) {
             bar
         } else {
             let weak = cx.weak_entity();
@@ -636,5 +652,25 @@ impl Render for HistoryView {
             .children(self.pinned_section_button(cx))
             .children(self.search_results_bar(cx))
             .children(self.menu_overlay())
+    }
+}
+
+/// A sender's name, color and userpic, with the photo file to download.
+fn sender_face(
+    chats: &model::chats::Chats,
+    sender: Sender,
+) -> Option<(String, i32, (ui::UserpicSource, Option<FileId>))> {
+    match sender {
+        Sender::User(id) => {
+            let user = chats.user(id)?;
+            let name = user.name();
+            let userpic = photo_userpic(chats, user.photo.as_ref(), user.accent_color, &name);
+            Some((name, user.accent_color, userpic))
+        }
+        Sender::Chat(id) => {
+            let chat = chats.chat(id)?;
+            let userpic = photo_userpic(chats, chat.photo.as_ref(), chat.accent_color, &chat.title);
+            Some((chat.title.clone(), chat.accent_color, userpic))
+        }
     }
 }

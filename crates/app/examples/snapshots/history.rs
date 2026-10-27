@@ -4,7 +4,7 @@
 use model::Event;
 use model::history::Change;
 use model::message::{
-    Content, External, Forward, LinkPreview, Message, Origin, ReplyTo, Sender, Service,
+    Content, External, Forward, LinkPreview, Message, Origin, Replies, ReplyTo, Sender, Service,
 };
 use model::text::{Entity, EntityKind, FormattedText};
 use model::{ChatId, MessageId, UserId};
@@ -265,11 +265,41 @@ fn ann() -> Vec<Message> {
     ]
 }
 
+/// Daily Landscapes: a post nobody commented on and one with comments
+/// the user has not read.
+fn landscapes() -> Vec<Message> {
+    let post = |id, ago, text| Message {
+        sender: Sender::Chat(ChatId(-200)),
+        is_channel_post: true,
+        views: 1520,
+        ..message(-200, id, 0, ago, text)
+    };
+    let commented = Message {
+        replies: Some(Replies {
+            count: 12,
+            recent: [3, 2, 4].map(|user| Sender::User(UserId(user))).to_vec(),
+            last_read: MessageId(60),
+            last: MessageId(70),
+        }),
+        ..post(
+            49,
+            27 * HOUR,
+            "Sunrise over the valley, taken from the ridge trail.",
+        )
+    };
+    let quiet = Message {
+        replies: Some(Replies::default()),
+        ..post(48, 28 * HOUR, "Morning mist over the lake.")
+    };
+    vec![quiet, commented]
+}
+
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {
     vec![
         (ChatId(-100), group()),
         (ChatId(2), private()),
         (ChatId(3), ann()),
+        (ChatId(-200), landscapes()),
     ]
 }
 

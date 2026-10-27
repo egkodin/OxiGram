@@ -8,6 +8,7 @@ use crate::event::Event;
 use crate::history::{History, Page};
 use crate::ids::{ChatId, UserId};
 use crate::message::Message;
+use crate::thread::Key;
 
 /// Everything the UI shows, built only from [`Event`]s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -23,7 +24,7 @@ pub struct State {
     /// The signed-in user, once TDLib told.
     pub me: Option<UserId>,
     /// The messages of open chats; others get none, so memory stays flat.
-    histories: HashMap<ChatId, History>,
+    histories: HashMap<Key, History>,
 }
 
 /// How TDLib's connection to Telegram stands.
@@ -67,51 +68,64 @@ impl State {
                 self.chats.apply(change);
             }
             Event::Messages(change) => {
-                if let Some(history) = self.histories.get_mut(&change.chat()) {
-                    history.apply(change);
+                let chat = change.chat();
+                for (_, history) in self
+                    .histories
+                    .iter_mut()
+                    .filter(|(key, _)| key.chat == chat)
+                {
+                    history.apply(change.clone());
                 }
             }
         }
     }
 
     #[must_use]
-    pub fn history(&self, chat: ChatId) -> Option<&History> {
-        self.histories.get(&chat)
+    pub fn history(&self, key: Key) -> Option<&History> {
+        self.histories.get(&key)
     }
 
-    /// Starts keeping `chat`'s messages, empty until a page loads.
-    pub fn open_history(&mut self, chat: ChatId) {
-        self.histories.entry(chat).or_default();
+    /// Whether any history of `chat` is open, its topics' included.
+    #[must_use]
+    pub fn is_chat_open(&self, chat: ChatId) -> bool {
+        self.histories.keys().any(|key| key.chat == chat)
     }
 
-    pub fn close_history(&mut self, chat: ChatId) {
-        self.histories.remove(&chat);
+    /// Starts keeping `key`'s messages, empty until a page loads.
+    pub fn open_history(&mut self, key: Key) {
+        self.histories
+            .entry(key)
+            .or_insert_with(|| History::new(key.topic));
+    }
+
+    pub fn close_history(&mut self, key: Key) {
+        self.histories.remove(&key);
     }
 
     /// Adds a loaded page to an open chat's history.
-    pub fn add_history_page(&mut self, chat: ChatId, page: Page, messages: Vec<Message>) {
-        if let Some(history) = self.histories.get_mut(&chat) {
+    pub fn add_history_page(&mut self, key: Key, page: Page, messages: Vec<Message>) {
+        if let Some(history) = self.histories.get_mut(&key) {
             history.add_page(page, messages);
         }
     }
 
     /// Empties an open chat's history before a jump loads another part.
-    pub fn clear_history(&mut self, chat: ChatId) {
-        if let Some(history) = self.histories.get_mut(&chat) {
+    pub fn clear_history(&mut self, key: Key) {
+        if let Some(history) = self.histories.get_mut(&key) {
             history.clear_messages();
         }
     }
 
     /// Sets an open chat's pinned messages.
-    pub fn set_pinned(&mut self, chat: ChatId, messages: Vec<Message>) {
-        if let Some(history) = self.histories.get_mut(&chat) {
+    pub fn set_pinned(&mut self, key: Key, messages: Vec<Message>) {
+        if let Some(history) = self.histories.get_mut(&key) {
             history.set_pinned(messages);
         }
     }
 
     /// Keeps a message that `chat`'s history points at.
-    pub fn add_reference(&mut self, chat: ChatId, message: Message) {
-        if let Some(history) = self.histories.get_mut(&chat) {
+    pub fn add_reference(&mut self, key: Key, message: Message) {
+        if let Some(history) = self.histories.get_mut(&key) {
             history.add_reference(message);
         }
     }

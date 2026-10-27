@@ -32,3 +32,7 @@ pub struct SupergroupId(pub i64);
 /// A chat folder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FolderId(pub i32);
+
+/// A Saved Messages topic: the messages saved from one chat.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SavedTopicId(pub i64);
