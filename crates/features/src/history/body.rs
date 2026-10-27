@@ -7,10 +7,12 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Div, ElementId, Hsla, InteractiveElement as _, InteractiveText, IntoElement,
-    MouseButton, ParentElement, Styled, StyledText, TextRun, Window, div,
+    MouseButton, ParentElement, SharedString, StatefulInteractiveElement as _, Styled, StyledText,
+    TextRun, Window, div,
 };
+use i18n::key;
 use model::text::FormattedText;
-use style::basic::QuoteStyle;
+use style::basic::{QuoteStyle, TextPalette};
 use style::chat::{
     IN_TEXT_PALETTE, IN_TEXT_PALETTE_SELECTED, MESSAGE_TEXT_STYLE, MSG_FONT, OUT_TEXT_PALETTE,
     OUT_TEXT_PALETTE_SELECTED,
@@ -20,6 +22,7 @@ use ui::{color, font};
 
 use super::selection::{OnPointer, Pointer};
 use super::text::{self, BlockKind, Colors, Link, Look};
+use crate::lang::tr;
 use crate::px_of;
 
 /// What a click on a link does.
@@ -29,8 +32,10 @@ pub(super) type OnLink = Rc<dyn Fn(Link, &mut Window, &mut App)>;
 const BLOCK_BG_OPACITY: f32 = 0.12;
 /// Their left lines (`kDefaultOutline1Opacity`).
 const OUTLINE_OPACITY: f32 = 0.9;
-/// A code block's language (`kDefaultOutline3Opacity`).
-const HEADER_OPACITY: f32 = 0.6;
+/// A code block's header band (`kDefaultOutline2Opacity`).
+const HEADER_BG_OPACITY: f32 = 0.3;
+/// Its copy icon (`kDefaultOutline3Opacity`).
+const ICON_OPACITY: f32 = 0.6;
 
 #[cfg(target_os = "macos")]
 const MONO_FAMILY: &str = "Menlo";
@@ -58,8 +63,10 @@ pub(super) struct Body<'a> {
     pub on_pointer: OnPointer,
 }
 
-fn look<'a>(body: &Body<'_>, font: &'a gpui::Font, cx: &App) -> Look<'a> {
-    let (palette, fg) = match (body.is_out, body.is_selected) {
+/// The text palette and the plain text color for the message's side and
+/// selection.
+fn palette(body: &Body<'_>) -> (&'static TextPalette, ColorId) {
+    match (body.is_out, body.is_selected) {
         (false, false) => (&IN_TEXT_PALETTE, ColorId::HistoryTextInFg),
         (false, true) => (&IN_TEXT_PALETTE_SELECTED, ColorId::HistoryTextInFgSelected),
         (true, false) => (&OUT_TEXT_PALETTE, ColorId::HistoryTextOutFg),
@@ -67,7 +74,11 @@ fn look<'a>(body: &Body<'_>, font: &'a gpui::Font, cx: &App) -> Look<'a> {
             &OUT_TEXT_PALETTE_SELECTED,
             ColorId::HistoryTextOutFgSelected,
         ),
-    };
+    }
+}
+
+fn look<'a>(body: &Body<'_>, font: &'a gpui::Font, cx: &App) -> Look<'a> {
+    let (palette, fg) = palette(body);
     let get = |color_ref| color(cx, color_ref);
     Look {
         font,
@@ -164,18 +175,16 @@ fn transparent_run(len: usize) -> TextRun {
     }
 }
 
-/// A quote or code block: tinted, rounded, a line on the left.
-// shortcut: no quote and copy icons, and long code lines wrap instead of scrolling; both come with M8 polish.
+/// A quote or code block: tinted, rounded, a line on the left, and a
+/// header band across the top for code.
+// shortcut: no quote icon, and long code lines wrap instead of scrolling; both come with M8 polish.
 fn tinted(st: &QuoteStyle, tint: Hsla, header: Option<AnyElement>, content: AnyElement) -> Div {
     let radius = px_of(st.radius);
     div()
         .relative()
         .rounded(radius)
+        .overflow_hidden()
         .bg(tint.opacity(BLOCK_BG_OPACITY))
-        .pl(px_of(st.padding.left))
-        .pr(px_of(st.padding.right))
-        .pt(px_of(st.padding.top))
-        .pb(px_of(st.padding.bottom))
         .child(
             div()
                 .absolute()
@@ -187,7 +196,60 @@ fn tinted(st: &QuoteStyle, tint: Hsla, header: Option<AnyElement>, content: AnyE
                 .bg(tint.opacity(OUTLINE_OPACITY)),
         )
         .children(header)
-        .child(content)
+        .child(
+            div()
+                .pl(px_of(st.padding.left))
+                .pr(px_of(st.padding.right))
+                .pt(px_of(st.padding.top))
+                .pb(px_of(st.padding.bottom))
+                .child(content),
+        )
+}
+
+/// A code block's header: its language, or "copy", and the copy icon; a
+/// click copies the code (`QuoteDetails::copy`).
+// shortcut: no syntax highlighting; tdesktop's highlighter (lib_spellcheck, libprisma) is not in the checkout.
+fn pre_header(
+    body: &Body<'_>,
+    index: usize,
+    language: Option<&str>,
+    code: &str,
+    look: &Look<'_>,
+    cx: &App,
+) -> AnyElement {
+    let st = &MESSAGE_TEXT_STYLE.pre;
+    let mono = look.colors.mono;
+    let title = language.map_or_else(
+        || tr(cx, key::lng_code_block_header_copy),
+        |language| SharedString::from(language.to_owned()),
+    );
+    let (on_link, code) = (body.on_link.clone(), code.to_owned());
+    div()
+        .id(("pre-header", index))
+        .relative()
+        .h(px_of(st.header))
+        .bg(mono.opacity(HEADER_BG_OPACITY))
+        .cursor_pointer()
+        .child(
+            div()
+                .absolute()
+                .left(px_of(st.header_position.x))
+                .top(px_of(st.header_position.y))
+                .font_family(look.mono_family)
+                .text_color(mono)
+                .whitespace_nowrap()
+                .child(title),
+        )
+        .child(
+            div()
+                .absolute()
+                .right(px_of(st.icon_position.x))
+                .top(px_of(st.icon_position.y))
+                .opacity(ICON_OPACITY)
+                .child(ui::icon(st.icon).color(palette(body).0.mono_fg)),
+        )
+        .on_click(move |_, window, cx| on_link(Link::Code(code.clone()), window, cx))
+        .into_any_element()
 }
 
 pub(super) fn element(body: Body<'_>, cx: &App) -> AnyElement {
@@ -213,15 +275,9 @@ pub(super) fn element(body: Body<'_>, cx: &App) -> AnyElement {
                     tinted(&style.blockquote, tint, None, content).into_any_element()
                 }
                 BlockKind::Pre { language } => {
-                    let header = language.as_ref().map(|language| {
-                        div()
-                            .h(px_of(style.pre.header))
-                            .text_color(mono.opacity(HEADER_OPACITY))
-                            .font_weight(gpui::FontWeight::SEMIBOLD)
-                            .child(language.clone())
-                            .into_any_element()
-                    });
-                    tinted(&style.pre, mono, header, content).into_any_element()
+                    let code = &body.text.text[block.range.clone()];
+                    let header = pre_header(&body, index, language.as_deref(), code, &look, cx);
+                    tinted(&style.pre, mono, Some(header), content).into_any_element()
                 }
             }
         })

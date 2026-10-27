@@ -89,7 +89,12 @@ impl LinkCopy {
             Link::Email(email) => Self::Email(email.clone()),
             Link::Username(name) => Self::Mention(format!("@{name}")),
             Link::Hashtag(tag) => Self::Hashtag(tag.clone()),
-            Link::User(_) | Link::Phone(_) | Link::BankCard(_) | Link::Date(_) | Link::Spoiler => {
+            Link::User(_)
+            | Link::Phone(_)
+            | Link::BankCard(_)
+            | Link::Date(_)
+            | Link::Code(_)
+            | Link::Spoiler => {
                 return None;
             }
         })

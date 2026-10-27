@@ -336,7 +336,14 @@ fn landscapes() -> Vec<Message> {
     );
     let walk = entity(walk, "+1 555 0100", EntityKind::PhoneNumber);
     let walk = entity(walk, "4242 4242 4242 4242", EntityKind::BankCardNumber);
-    vec![quiet, commented, walk]
+    let code = entity(
+        post(51, HOUR, "Route as code:\nlet km = 12.4;\nlet climb = 820;"),
+        "let km = 12.4;\nlet climb = 820;",
+        EntityKind::Pre {
+            language: Some("rust".to_owned()),
+        },
+    );
+    vec![quiet, commented, walk, code]
 }
 
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {

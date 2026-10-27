@@ -379,8 +379,8 @@ const DOWN_BUTTON: (f32, f32) = (761.0, 565.0);
 const GROUP_LINK: (f32, f32) = (610.0, 513.0);
 const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
 /// The time and the phone number in Daily Landscapes' last post.
-const WALK_DATE: (f32, f32) = (460.0, 555.0);
-const WALK_PHONE: (f32, f32) = (557.0, 555.0);
+const WALK_DATE: (f32, f32) = (460.0, 427.0);
+const WALK_PHONE: (f32, f32) = (557.0, 427.0);
 /// The three dots at the right of the chat's top bar.
 const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
 /// The middle of the chat's message list.

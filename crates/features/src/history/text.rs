@@ -37,6 +37,8 @@ pub(crate) enum Link {
     BankCard(String),
     /// Opens a menu to copy the date.
     Date(i32),
+    /// A code block's header, which copies the code.
+    Code(String),
     Spoiler,
 }
 

@@ -190,4 +190,13 @@ impl HistoryView {
         });
         self.present_menu(menu, window.mouse_position(), Anchor::TopLeft, window, cx);
     }
+
+    /// Copies a code block from its header (`copyPreOnClick`).
+    pub(super) fn copy_code(&mut self, code: String, cx: &mut Context<Self>) {
+        cx.write_to_clipboard(ClipboardItem::new_string(code));
+        let text = tr(cx, key::lng_code_copied);
+        self.layers.update(cx, |layers, cx| {
+            layers.show_toast(text, &DEFAULT_TOAST, menu::TOAST_DURATION, cx);
+        });
+    }
 }

@@ -49,8 +49,8 @@ pub(crate) fn open(link: Link, targets: &Targets, window: &mut Window, cx: &mut 
             open_chat_when(spawn(task, cx), targets, None, cx);
         }
         // Spoilers reveal in the message itself; phones, cards and dates
-        // open their menus there.
-        Link::Spoiler | Link::Phone(_) | Link::BankCard(_) | Link::Date(_) => {}
+        // open their menus there, and code copies there.
+        Link::Spoiler | Link::Phone(_) | Link::BankCard(_) | Link::Date(_) | Link::Code(_) => {}
     }
 }
 

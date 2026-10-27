@@ -67,6 +67,9 @@
   history formats dates once at `sync`, so layout, selection and copy see
   one text. The snapshot runner now draws between press and release, as
   gpui's text links need; before, link clicks never fired in it.
+- Code block header (`body::pre_header`): tdesktop's band with the
+  language or "copy" and the copy icon; a click copies the code with the
+  "Code copied" toast. Syntax highlighting is not done (see open questions).
 
 ### Verified (macOS arm64, this machine)
 
@@ -92,13 +95,17 @@
 
 ### Next steps
 
-1. Code blocks: syntax highlighting and the copy button.
-2. Sponsored messages in channels.
-3. The contact status bar (add, block, report) in private chats.
+1. Sponsored messages in channels.
+2. The contact status bar (add, block, report) in private chats.
+3. Saved Messages tags search.
 
 ### Open questions for the owner
 
 - API credentials (asked once; still missing).
+- Syntax highlighting in code blocks: tdesktop uses libprisma through
+  lib_spellcheck, which the read-only checkout lacks. Options: add the
+  `tdesktop` submodules locally, or pick a Rust highlighter (adds a
+  dependency) with tdesktop's token colors.
 - Permission to download Telegram Desktop for screenshot comparison.
 - The unsupported message notice links to desktop.telegram.org as tdesktop
   does; an rgram releases page could replace it once releases exist.

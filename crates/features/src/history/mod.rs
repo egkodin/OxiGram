@@ -457,6 +457,7 @@ impl HistoryView {
                 Link::Phone(phone) => this.open_phone_menu(phone, window, cx),
                 Link::BankCard(number) => this.open_bank_card_menu(number, window, cx),
                 Link::Date(unix_time) => this.show_date_menu(unix_time, window, cx),
+                Link::Code(code) => this.copy_code(code, cx),
                 link => cx.emit(HistoryEvent::Link(link)),
             });
         })
