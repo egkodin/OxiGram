@@ -157,6 +157,11 @@ impl MainView {
                     HistoryEvent::OpenThread(start) => {
                         this.open_thread(start.as_ref().clone(), window, cx);
                     }
+                    HistoryEvent::OpenChat(chat) => {
+                        let chat = *chat;
+                        this.dialogs
+                            .update(cx, |dialogs, cx| dialogs.select(chat, cx));
+                    }
                 }),
             );
         self.history = Some(history);

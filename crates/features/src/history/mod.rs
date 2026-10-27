@@ -17,6 +17,7 @@ mod link_menus;
 mod menu;
 mod pinned;
 mod pinned_section;
+mod pull_next;
 mod reactions;
 mod reactions_box;
 mod read_date;
@@ -79,6 +80,8 @@ pub(crate) enum HistoryEvent {
     Link(Link),
     /// A post's comments, to show over this chat.
     OpenThread(Box<model::thread::Thread>),
+    /// Another chat to open in place of this one.
+    OpenChat(ChatId),
 }
 
 impl EventEmitter<HistoryEvent> for HistoryView {}
@@ -132,6 +135,7 @@ pub(crate) struct HistoryView {
     scroll_date: scroll_date::ScrollDate,
     section: pinned_section::Section,
     search: Option<chat_search::ChatSearch>,
+    pull: pull_next::Pull,
     /// Set in a post's comments.
     thread: Option<thread_section::ThreadHead>,
     /// The ad after the last post, its item after the messages.
@@ -209,6 +213,7 @@ impl HistoryView {
             scroll_date: scroll_date::ScrollDate::default(),
             section: pinned_section::Section::Chat,
             search: None,
+            pull: pull_next::Pull::default(),
             thread: None,
             ad: sponsored::Ad::default(),
             focus,
@@ -660,14 +665,21 @@ impl Render for HistoryView {
                     .relative()
                     .flex_1()
                     .min_h_0()
+                    .on_scroll({
+                        let weak = cx.weak_entity();
+                        move |event, _, cx| {
+                            let _ = weak.update(cx, |this, cx| this.on_pull_scroll(event, cx));
+                        }
+                    })
                     .child(
                         list(self.list.clone(), move |index, _, cx: &mut App| {
                             weak.update(cx, |this, cx| this.item(index, cx))
                                 .unwrap_or_else(|_| div().into_any_element())
                         })
                         .size_full()
-                        .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM)),
+                        .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM) + self.pull_shift()),
                     )
+                    .children(self.pull_indicator(cx))
                     .children(self.floating_date(cx))
                     // shortcut: no down button in the pinned section; it comes with the section stack (M8).
                     .children(

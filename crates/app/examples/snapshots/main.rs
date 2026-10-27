@@ -294,6 +294,16 @@ fn scenarios() -> Vec<Scenario> {
                 ),
             ],
         },
+        // Pulls past the end of Daily Landscapes to the next unread channel.
+        Scenario {
+            setup: [chats::events(), vec![unread_channel()]].concat(),
+            clicks: vec![("75-history-pull-open", MouseButton::Left, LANDSCAPES_ROW)],
+            drags: Vec::new(),
+            scrolls: vec![("76-history-next-channel", HISTORY_MIDDLE, -150.0)],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("74-history-pull-list", auth(State::Ready))],
+        },
         // Scrolls Hiking Club up to show the floating date.
         Scenario {
             setup: chats::events(),
@@ -609,4 +619,13 @@ async fn settle_and_save(
         .with_context(|| format!("saving {}", path.display()))?;
     println!("{}", path.display());
     Ok(())
+}
+
+/// Alumni News with posts to read, for pulling to the next channel.
+fn unread_channel() -> Event {
+    Event::Chats(model::chats::Change::ReadInbox {
+        chat: model::ChatId(-902),
+        last_read: model::MessageId(0),
+        unread_count: 5,
+    })
 }

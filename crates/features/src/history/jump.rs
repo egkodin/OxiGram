@@ -183,13 +183,17 @@ impl HistoryView {
             .state()
             .history(self.key())
             .is_some_and(model::history::History::has_newest);
-        let below =
-            self.list.max_offset_for_scrollbar().y + self.list.scroll_px_offset_for_scrollbar().y;
+        let below = self.below_view();
         let is_shown =
             !has_newest || !self.returns.is_empty() || below > px_of(HISTORY_TO_DOWN_SHOWN_AFTER);
         if is_shown != self.is_down_shown {
             self.is_down_shown = is_shown;
             cx.notify();
         }
+    }
+
+    /// How far the newest loaded message is below the view.
+    pub(super) fn below_view(&self) -> gpui::Pixels {
+        self.list.max_offset_for_scrollbar().y + self.list.scroll_px_offset_for_scrollbar().y
     }
 }
