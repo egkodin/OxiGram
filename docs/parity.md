@@ -212,7 +212,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Forward panel with options: hide sender, hide captions, change recipient | M4 | todo | |
 | compose | Share / forward box: several recipients, comment, search | M4 | todo | |
 | compose | Link preview panel: remove, above/below, larger/smaller media | M4 | todo | |
-| compose | Cloud drafts per chat and per topic, synced | M4 | todo | |
+| compose | Cloud drafts per chat and per topic, synced | M4 | in progress | snapshot 69 (Ben's draft in the field); topic drafts saved, not loaded yet |
 | compose | Draft stash (keep a draft aside and restore it) | M4 | todo | |
 | compose | Mention autocomplete | M4 | todo | |
 | compose | Hashtag autocomplete | M4 | todo | |

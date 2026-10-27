@@ -18,6 +18,7 @@ use style::{ColorId, ColorRef, Icon, IconMask, Margins, MonoIcon};
 use ui::{IconButton, TextArea, TextAreaEvent, color};
 
 use super::HistoryView;
+use super::drafts::Draft;
 use crate::lang::tr;
 use crate::px_of;
 use crate::store::spawn;
@@ -50,12 +51,14 @@ static HISTORY_RECORD: IconButtonStyle = IconButtonStyle {
 
 pub(super) struct Compose {
     pub(super) field: Entity<TextArea>,
+    pub(super) draft: Draft,
     _subscription: Subscription,
 }
 
 impl Compose {
     pub(super) fn new(
         placeholder: SharedString,
+        draft: Draft,
         window: &mut Window,
         cx: &mut Context<HistoryView>,
     ) -> Self {
@@ -68,16 +71,21 @@ impl Compose {
                     px(FIELD_MARGIN),
                 );
             field.set_submit_key(crate::settings::send_by(cx).submit_key());
+            field.set_text(draft.text(), cx);
             field
         });
         let subscription = cx.subscribe(&field, |this, _, event, cx| match event {
             TextAreaEvent::Submitted => this.send(cx),
-            // The send button follows whether there is text.
-            TextAreaEvent::Changed => cx.notify(),
+            TextAreaEvent::Changed => {
+                this.draft_changed(cx);
+                // The send button follows whether there is text.
+                cx.notify();
+            }
             TextAreaEvent::Focused | TextAreaEvent::Blurred => {}
         });
         Self {
             field,
+            draft,
             _subscription: subscription,
         }
     }
@@ -105,6 +113,7 @@ impl HistoryView {
         if text.trim().is_empty() {
             return;
         }
+        self.compose.draft.sent();
         field.update(cx, |field, cx| field.set_text("", cx));
         let task = spawn(
             self.store

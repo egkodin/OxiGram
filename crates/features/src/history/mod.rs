@@ -11,6 +11,7 @@ mod compose;
 mod contact_status;
 mod dates;
 mod delete;
+mod drafts;
 mod headers;
 mod jump;
 mod layout;
@@ -168,12 +169,17 @@ impl HistoryView {
     ) -> Self {
         store.update(cx, |store, cx| store.open_chat(key, cx));
         let placeholder = compose::placeholder(store.read(cx).state(), key, cx);
-        let compose = compose::Compose::new(placeholder, window, cx);
+        let draft = drafts::Draft::load(store.read(cx).state(), key);
+        let compose = compose::Compose::new(placeholder, draft, window, cx);
         cx.on_release(move |this, cx| {
+            this.save_draft(cx);
             this.store.update(cx, |store, cx| store.close_chat(key, cx));
         })
         .detach();
-        let subscription = cx.observe(&store, |this, _, cx| this.sync(cx));
+        let subscription = cx.observe(&store, |this, _, cx| {
+            this.sync(cx);
+            this.sync_draft(cx);
+        });
         let list = ListState::new(0, ListAlignment::Bottom, px(OVERDRAW));
         let weak = cx.weak_entity();
         list.set_scroll_handler(move |_, _, cx| {

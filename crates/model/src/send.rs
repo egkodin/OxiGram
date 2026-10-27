@@ -4,10 +4,11 @@
 
 use std::future::Future;
 
-use td_api::enums::{InputMessageContent, MessageTopic};
-use td_api::functions::{SendBotStartMessage, SendMessage};
+use td_api::enums::{DraftMessageContent, InputMessageContent, MessageTopic};
+use td_api::functions::{SendBotStartMessage, SendMessage, SetChatDraftMessage};
 use td_api::types::{
-    FormattedText, InputMessageText, MessageTopicSavedMessages, MessageTopicThread,
+    DraftMessage, DraftMessageContentText, FormattedText, InputMessageText,
+    MessageTopicSavedMessages, MessageTopicThread,
 };
 
 use crate::ids::{ChatId, UserId};
@@ -42,6 +43,39 @@ impl Session {
             bot_user_id: bot.0,
             chat_id: chat.0,
             parameter: String::new(),
+        });
+        async move { request.await.map(drop).map_err(RequestError::from) }
+    }
+
+    /// Saves `text` as the draft of `chat` or its topic
+    /// (`setChatDraftMessage`); a blank text removes the draft. TDLib keeps
+    /// it locally and syncs it to the cloud on its own.
+    pub fn set_draft(
+        &self,
+        chat: ChatId,
+        topic: Option<Topic>,
+        text: &str,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let draft = (!text.trim().is_empty()).then(|| {
+            Box::new(DraftMessage {
+                reply_to: None,
+                // TDLib stamps the date itself.
+                date: 0,
+                content: Box::new(DraftMessageContent::Text(DraftMessageContentText {
+                    text: Box::new(FormattedText {
+                        text: text.to_owned(),
+                        entities: Vec::new(),
+                    }),
+                    link_preview_options: None,
+                })),
+                effect_id: 0,
+                suggested_post_info: None,
+            })
+        });
+        let request = self.client().request(&SetChatDraftMessage {
+            chat_id: chat.0,
+            topic_id: topic.map(|topic| Box::new(topic.to_td())),
+            draft_message: draft,
         });
         async move { request.await.map(drop).map_err(RequestError::from) }
     }

@@ -31,6 +31,11 @@ live.
   admins closed it (restricted until a date, by admins, for all). Member
   status, chat permissions and the block list follow their updates.
   Snapshots 85-89.
+- Drafts (`history::drafts`, `Session::set_draft`): the chat's draft fills
+  the field on open; typing saves it a second after the last key (at most
+  five after the first unsaved one) and on leaving the chat, only when the
+  text changed; a draft changed on another device replaces the field unless
+  something typed here waits to be saved. Sending drops it (`clear_draft`).
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -39,6 +44,8 @@ live.
 ### Half done (shortcuts in code)
 
 - Attach and emoji buttons do nothing yet; the microphone records nothing.
+- Topic and thread drafts are saved but not loaded back (forum topics are
+  not in the model yet); drafts keep no formatting or reply yet.
 - The bars read only basic-message rights; media rights come with
   attachments; slow mode and the "only premium may write" state are not
   shown yet.
@@ -65,6 +72,9 @@ Sending only in Saved Messages:
    bot shows Unblock / Restart bot; a bot never started shows Start (press
    only with the owner's say-so). A group where the owner is restricted
    shows the restriction text.
+7. Drafts in Saved Messages: type, switch chats, come back: the text is
+   there and the list shows "Draft:". Type on the phone in Saved Messages
+   while rgram has it open: the field follows. Send: the draft goes.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 
