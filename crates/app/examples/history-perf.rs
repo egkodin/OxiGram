@@ -143,6 +143,7 @@ fn messages(ids: std::ops::Range<i64>, ago: i32, rng: &mut Rng) -> Vec<Message> 
                 chat: GROUP,
                 message: MessageId(id - 1 - i64::try_from(rng.below(10)).unwrap_or(0)),
                 quote: None,
+                external: None,
             });
             Message {
                 is_outgoing: from == chats::ME,

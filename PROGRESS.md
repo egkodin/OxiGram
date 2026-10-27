@@ -45,6 +45,8 @@
   pinned messages section (`pinned_section`), a mode of the history view;
   search in a chat (`chat_search`).
   The snapshot runner gained wheel-scroll steps (57-59).
+- Replies to messages in other chats and to stories (`headers::external_reply`):
+  the origin's name and color, the quote or the media kind without its caption.
 
 ### Verified (macOS arm64, this machine)
 
@@ -70,9 +72,9 @@
 
 ### Next steps
 
-1. Replies to other chats and stories (the reply header's origin).
-2. Comments (channel post threads) and Saved Messages sublists.
-3. Reactions under messages and who reacted.
+1. Comments (channel post threads) and Saved Messages sublists.
+2. Reactions under messages and who reacted.
+3. Entities: emails, phones, bank cards, dates, code highlighting.
 
 ### Open questions for the owner
 

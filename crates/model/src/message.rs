@@ -38,13 +38,28 @@ pub struct Message {
 }
 
 /// The message a message replies to.
-// shortcut: replies to stories and the replied message's origin and content in other chats are dropped; external replies show as "deleted message" until M5.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ReplyTo {
+    /// 0 when TDLib does not know the chat.
     pub chat: ChatId,
+    /// 0 for stories and unknown chats.
     pub message: MessageId,
     /// The quoted part of the replied message, when the sender picked one.
     pub quote: Option<FormattedText>,
+    /// What TDLib tells about a reply to another chat or to a story.
+    pub external: Option<Box<External>>,
+}
+
+/// A replied message the user may not be able to load.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum External {
+    /// A message in another chat: who sent it and its media, if any.
+    Message {
+        origin: Origin,
+        media: Option<Content>,
+    },
+    /// A story of this chat's poster.
+    Story { poster: ChatId },
 }
 
 /// Where a forwarded message first came from, and when.
@@ -170,6 +185,33 @@ impl From<td_api::types::LinkPreview> for LinkPreview {
 }
 
 impl Content {
+    /// The same media with its caption dropped, as reply previews of
+    /// messages elsewhere show it (`hideCaption`).
+    #[must_use]
+    pub fn without_caption(&self) -> Self {
+        let bare = |media: &Media| Media {
+            caption: FormattedText::default(),
+            ..media.clone()
+        };
+        match self {
+            Self::Photo(media) => Self::Photo(bare(media)),
+            Self::Video(media) => Self::Video(bare(media)),
+            Self::Animation(media) => Self::Animation(bare(media)),
+            Self::Document { name, media } => Self::Document {
+                name: name.clone(),
+                media: bare(media),
+            },
+            Self::Audio { name, .. } => Self::Audio {
+                name: name.clone(),
+                caption: FormattedText::default(),
+            },
+            Self::Voice { .. } => Self::Voice {
+                caption: FormattedText::default(),
+            },
+            other => other.clone(),
+        }
+    }
+
     /// A text message without a link preview.
     #[must_use]
     pub fn text(text: FormattedText) -> Self {
@@ -330,8 +372,21 @@ impl ReplyTo {
                 chat: ChatId(reply.chat_id),
                 message: MessageId(reply.message_id),
                 quote: reply.quote.map(|quote| FormattedText::from(*quote.text)),
+                external: reply.origin.map(|origin| {
+                    Box::new(External::Message {
+                        origin: Origin::from(*origin),
+                        media: reply.content.map(|content| Content::from(*content)),
+                    })
+                }),
             }),
-            MessageReplyTo::Story(_) => None,
+            MessageReplyTo::Story(story) => Some(Self {
+                chat: ChatId(story.story_poster_chat_id),
+                message: MessageId(0),
+                quote: None,
+                external: Some(Box::new(External::Story {
+                    poster: ChatId(story.story_poster_chat_id),
+                })),
+            }),
         }
     }
 }

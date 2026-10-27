@@ -3,7 +3,9 @@
 
 use model::Event;
 use model::history::Change;
-use model::message::{Content, Forward, LinkPreview, Message, Origin, ReplyTo, Sender, Service};
+use model::message::{
+    Content, External, Forward, LinkPreview, Message, Origin, ReplyTo, Sender, Service,
+};
 use model::text::{Entity, EntityKind, FormattedText};
 use model::{ChatId, MessageId, UserId};
 
@@ -45,6 +47,7 @@ fn reply(message: Message, to: i64) -> Message {
             chat: message.chat,
             message: MessageId(to),
             quote: None,
+            external: None,
         }),
         ..message
     }
@@ -178,9 +181,44 @@ fn with_preview(mut message: Message, preview: LinkPreview) -> Message {
     message
 }
 
-/// Ann Lee: link previews below and above the text, and a message TDLib
-/// cannot show.
+/// A reply to something in another chat or to a story, as TDLib tells it.
+fn external(message: Message, chat: i64, to: i64, external: External) -> Message {
+    Message {
+        reply_to: Some(ReplyTo {
+            chat: ChatId(chat),
+            message: MessageId(to),
+            quote: None,
+            external: Some(Box::new(external)),
+        }),
+        ..message
+    }
+}
+
+/// Ann Lee: a reply to her story, link previews below and above the text,
+/// a message TDLib cannot show and a reply to a channel post.
 fn ann() -> Vec<Message> {
+    let story = external(
+        message(3, 25, ME, 4 * HOUR + 5 * MINUTE, "Great view!"),
+        3,
+        0,
+        External::Story { poster: ChatId(3) },
+    );
+    let channel_post = external(
+        message(3, 29, 3, 3 * HOUR, "Like this one from Daily Landscapes"),
+        -200,
+        50,
+        External::Message {
+            origin: Origin::Channel {
+                chat: ChatId(-200),
+                message: MessageId(50),
+                signature: String::new(),
+            },
+            media: Some(Content::Photo(model::message::Media {
+                caption: FormattedText::plain("Sunrise over the valley"),
+                thumbnail: None,
+            })),
+        },
+    );
     let guide = entity(
         message(
             3,
@@ -197,6 +235,7 @@ fn ann() -> Vec<Message> {
         ..message(3, 27, 3, 4 * HOUR - MINUTE, "")
     };
     vec![
+        story,
         with_preview(
             guide,
             LinkPreview {
@@ -222,6 +261,7 @@ fn ann() -> Vec<Message> {
                 is_url_in_text: false,
             },
         ),
+        channel_post,
     ]
 }
 

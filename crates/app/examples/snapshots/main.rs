@@ -353,7 +353,7 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 /// The date badge over Ann Lee's messages, and the calendar's Close.
-const DATE_BADGE: (f32, f32) = (543.0, 227.0);
+const DATE_BADGE: (f32, f32) = (543.0, 63.0);
 const CALENDAR_CLOSE: (f32, f32) = (538.0, 448.0);
 const ANN_ROW: (f32, f32) = (150.0, 304.0);
 const HIKING_ROW: (f32, f32) = (150.0, 366.0);

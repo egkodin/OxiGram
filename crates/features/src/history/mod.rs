@@ -292,7 +292,8 @@ impl HistoryView {
         let Some(message) = self.shown.get(index).cloned() else {
             return div().into_any_element();
         };
-        if let Some(reply_to) = &message.reply_to {
+        // Stories and unknown chats have no message to fetch.
+        if let Some(reply_to) = message.reply_to.as_ref().filter(|r| r.message.0 != 0) {
             self.ensure_reference(reply_to.chat, reply_to.message, cx);
         }
         let previous = index.checked_sub(1).and_then(|i| self.shown.get(i));
@@ -394,9 +395,12 @@ impl HistoryView {
     }
 
     /// A click on the reply box jumps to the replied message in this chat.
-    // shortcut: replies to other chats do not open them; that comes with replies across chats.
+    // shortcut: replies to other chats and stories do not open them; with chat switching from the history (M8) and stories (M11).
     fn on_reply(&self, message: &Message, cx: &Context<Self>) -> Option<bubble::OnClick> {
-        let reply_to = message.reply_to.as_ref().filter(|r| r.chat == self.chat)?;
+        let reply_to = message
+            .reply_to
+            .as_ref()
+            .filter(|r| r.chat == self.chat && r.message.0 != 0)?;
         let (from, to) = (message.id, reply_to.message);
         let weak = cx.weak_entity();
         Some(Rc::new(move |_, _, cx| {

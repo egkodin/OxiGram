@@ -9,7 +9,7 @@ use gpui::{
 use i18n::{Strings, key};
 use model::UserId;
 use model::chats::Chats;
-use model::message::{Forward, Message, Origin, ReplyTo};
+use model::message::{External, Forward, Message, Origin, ReplyTo};
 use style::basic::NORMAL_FONT;
 use style::chat::{
     HISTORY_REPLY_BOTTOM, HISTORY_REPLY_PADDING, HISTORY_REPLY_TOP, MSG_SERVICE_NAME_FONT,
@@ -54,8 +54,8 @@ pub(super) fn reply(
     replied: Replied<'_>,
     color_of: impl Fn(&Message) -> i32,
 ) -> Reply {
-    match replied {
-        Replied::Loaded(message) => {
+    match (replied, reply_to.external.as_deref()) {
+        (Replied::Loaded(message), _) => {
             let text = reply_to.quote.as_ref().map_or_else(
                 || content_preview(strings, &message.content).0.text,
                 |quote| quote.text.clone(),
@@ -66,16 +66,74 @@ pub(super) fn reply(
                 color_index: Some(color_of(message)),
             }
         }
-        Replied::Loading => Reply {
+        (_, Some(external)) => external_reply(strings, chats, reply_to, external),
+        (Replied::Loading, None) => Reply {
             name: SharedString::default(),
             text: strings.text(key::lng_profile_loading).to_owned().into(),
             color_index: None,
         },
-        Replied::Deleted => Reply {
+        (Replied::Deleted, None) => Reply {
             name: SharedString::default(),
             text: strings.text(key::lng_deleted_message).to_owned().into(),
             color_index: None,
         },
+    }
+}
+
+/// A reply to a message the user cannot load or to a story, from what
+/// TDLib sent with it (`Reply::update` with an external sender).
+// shortcut: no peer emoji before the name and no media thumbnail; with reply previews in M5.
+fn external_reply(
+    strings: &Strings,
+    chats: &Chats,
+    reply_to: &ReplyTo,
+    external: &External,
+) -> Reply {
+    let accent = |chat| chats.chat(chat).map(|chat| chat.accent_color);
+    let (name, color_index, text) = match external {
+        External::Message { origin, media } => {
+            let text = reply_to
+                .quote
+                .as_ref()
+                .map(|quote| quote.text.clone())
+                .or_else(|| {
+                    let media = media.as_ref()?.without_caption();
+                    Some(content_preview(strings, &media).0.text)
+                })
+                .unwrap_or_default();
+            let color = match origin {
+                Origin::User(user) => chats.user(*user).map(|user| user.accent_color),
+                Origin::HiddenUser(_) => None,
+                Origin::Chat { chat, .. } | Origin::Channel { chat, .. } => accent(*chat),
+            };
+            (origin_name(strings, chats, origin), color, text)
+        }
+        External::Story { poster } => (
+            chat_title(chats, *poster),
+            accent(*poster),
+            strings.text(key::lng_in_dlg_story).to_owned(),
+        ),
+    };
+    Reply {
+        name: name.into(),
+        text: first_line(&text).into(),
+        color_index,
+    }
+}
+
+fn chat_title(chats: &Chats, chat: model::ChatId) -> String {
+    chats
+        .chat(chat)
+        .map(|chat| chat.title.clone())
+        .unwrap_or_default()
+}
+
+/// Who sent a message elsewhere, by name.
+fn origin_name(strings: &Strings, chats: &Chats, origin: &Origin) -> String {
+    match origin {
+        Origin::User(user) => user_name(strings, chats, *user),
+        Origin::HiddenUser(name) => name.clone(),
+        Origin::Chat { chat, .. } | Origin::Channel { chat, .. } => chat_title(chats, *chat),
     }
 }
 
@@ -97,12 +155,7 @@ pub(super) fn via(strings: &Strings, chats: &Chats, bot: UserId) -> Option<Strin
 
 /// "Forwarded from Ann", "Forwarded from News (Ann)".
 pub(super) fn forwarded(strings: &Strings, chats: &Chats, forward: &Forward) -> String {
-    let title = |chat| {
-        chats
-            .chat(chat)
-            .map(|chat| chat.title.clone())
-            .unwrap_or_default()
-    };
+    let title = |chat| chat_title(chats, chat);
     let signed = |title: String, signature: &str| {
         if signature.is_empty() {
             title
@@ -256,5 +309,50 @@ mod tests {
         );
         assert_eq!(via(&strings, &chats, UserId(8)), None);
         assert_eq!(via(&strings, &chats, UserId(9)), None);
+    }
+
+    #[test]
+    fn replies_elsewhere_name_their_origin_until_the_message_loads() {
+        let strings = Strings::english();
+        let mut chats = Chats::default();
+        chats.apply(Change::Chat(Box::new(Chat::new(
+            ChatId(-100),
+            ChatKind::Supergroup {
+                supergroup: SupergroupId(100),
+                is_channel: true,
+            },
+            "News",
+        ))));
+        let reply_to = |external| ReplyTo {
+            chat: ChatId(-100),
+            message: MessageId(5),
+            quote: None,
+            external: Some(Box::new(external)),
+        };
+        let post = reply_to(External::Message {
+            origin: Origin::Channel {
+                chat: ChatId(-100),
+                message: MessageId(5),
+                signature: String::new(),
+            },
+            media: Some(model::message::Content::Photo(model::message::Media {
+                caption: model::text::FormattedText::plain("Sunrise"),
+                thumbnail: None,
+            })),
+        });
+        let header = reply(&strings, &chats, &post, Replied::Deleted, |_| 0);
+        assert_eq!(
+            (header.name.as_ref(), header.text.as_ref()),
+            ("News", "Photo"),
+            "the caption is left out"
+        );
+        let story = reply_to(External::Story {
+            poster: ChatId(-100),
+        });
+        let header = reply(&strings, &chats, &story, Replied::Loading, |_| 0);
+        assert_eq!(
+            (header.name.as_ref(), header.text.as_ref()),
+            ("News", "Story")
+        );
     }
 }
