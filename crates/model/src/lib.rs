@@ -18,6 +18,7 @@ pub mod language;
 pub mod message;
 pub mod message_actions;
 pub mod phone;
+pub mod reaction;
 pub mod search;
 mod secret;
 mod session;

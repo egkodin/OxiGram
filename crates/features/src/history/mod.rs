@@ -14,6 +14,7 @@ mod layout;
 mod menu;
 mod pinned;
 mod pinned_section;
+mod reactions;
 mod read_date;
 mod scroll_date;
 mod selection;
@@ -23,6 +24,7 @@ mod text;
 mod thread_section;
 mod top_bar;
 mod unread;
+mod userpics_row;
 mod web_page;
 
 pub(crate) use self::delete::bind_keys;
@@ -363,6 +365,7 @@ impl HistoryView {
             .via_bot
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
         let comments = self.comments(&message, cx);
+        let reactions = self.reaction_buttons(&message, cx);
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -388,6 +391,7 @@ impl HistoryView {
                 selected_text: self.selection.text_range(message.id),
                 on_pointer: self.on_pointer_at(index, cx),
                 comments,
+                reactions,
                 after: self.thread_divider(index, cx),
             },
             cx,

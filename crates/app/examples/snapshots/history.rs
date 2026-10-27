@@ -6,6 +6,7 @@ use model::history::Change;
 use model::message::{
     Content, External, Forward, LinkPreview, Message, Origin, Replies, ReplyTo, Sender, Service,
 };
+use model::reaction::{Reaction, ReactionKind, Reactions};
 use model::text::{Entity, EntityKind, FormattedText};
 use model::{ChatId, MessageId, UserId};
 
@@ -274,7 +275,27 @@ fn landscapes() -> Vec<Message> {
         views: 1520,
         ..message(-200, id, 0, ago, text)
     };
+    let reaction = |emoji: &str, count, is_chosen, recent: &[i64]| Reaction {
+        kind: ReactionKind::Emoji(emoji.to_owned()),
+        count,
+        is_chosen,
+        recent: recent
+            .iter()
+            .map(|&user| Sender::User(UserId(user)))
+            .collect(),
+    };
+    let reactions = |list| {
+        Some(Reactions {
+            list,
+            ..Reactions::default()
+        })
+    };
     let commented = Message {
+        reactions: reactions(vec![
+            reaction("👍", 12, false, &[]),
+            reaction("🔥", 48, true, &[]),
+            reaction("😍", 3, false, &[]),
+        ]),
         replies: Some(Replies {
             count: 12,
             recent: [3, 2, 4].map(|user| Sender::User(UserId(user))).to_vec(),
@@ -288,6 +309,10 @@ fn landscapes() -> Vec<Message> {
         )
     };
     let quiet = Message {
+        reactions: reactions(vec![
+            reaction("❤", 1, false, &[3]),
+            reaction("👍", 1, false, &[2]),
+        ]),
         replies: Some(Replies::default()),
         ..post(48, 28 * HOUR, "Morning mist over the lake.")
     };

@@ -32,7 +32,7 @@ use super::comments::Comments;
 use super::headers::{self, Reply};
 use super::selection::{OnPointer, Pointer};
 use super::web_page::{self, WebPage};
-use super::{layout, unread};
+use super::{layout, reactions, unread};
 use crate::lang::{strings, tr};
 use crate::px_of;
 
@@ -79,6 +79,7 @@ pub(super) struct Item<'a> {
     pub on_pointer: OnPointer,
     /// The comments button under a channel post.
     pub comments: Option<Comments>,
+    pub reactions: Vec<reactions::Button>,
     /// What follows the message in its row, as a thread's divider.
     pub after: Option<AnyElement>,
 }
@@ -347,6 +348,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
     });
     let name = name_line(item, out, cx);
     let info = info(item, out, cx);
+    let room = info_content(item, out, cx);
     let comments = item
         .comments
         .take()
@@ -383,6 +385,14 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
                 .child(text(item, out, cx)),
         )
         .children(web_page(item, out, Placement::BelowText, cx))
+        .map(|this| {
+            let reactions = std::mem::take(&mut item.reactions);
+            if reactions.is_empty() {
+                this
+            } else {
+                this.child(reactions::row(reactions, out, item.is_selected, room, cx))
+            }
+        })
         .child(info)
         .children(comments)
         .children(tail)
@@ -503,7 +513,7 @@ fn web_page(item: &Item<'_>, out: bool, placement: Placement, cx: &App) -> Optio
             preview,
             id: ("web-page", item.message.id.0.unsigned_abs()).into(),
             colors: [palette(tint), palette(name_fg), palette(text_fg)],
-            room: (!is_above).then(|| time_room(item, out, cx)),
+            room: (!is_above && item.reactions.is_empty()).then(|| time_room(item, out, cx)),
             on_link: item.on_link.clone(),
         },
         cx,
@@ -564,9 +574,9 @@ fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
             &preview
         }
     };
-    // Below the text the link preview holds the room for the time.
+    // Below the text the link preview or the reactions hold the room for the time.
     let has_preview_below = link_preview(item).is_some_and(|preview| !preview.is_above_text);
-    let room = if has_preview_below {
+    let room = if has_preview_below || !item.reactions.is_empty() {
         String::new()
     } else {
         time_room(item, out, cx)
@@ -594,14 +604,10 @@ fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
 }
 
 fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
-    let date_fg = match (out, item.is_selected) {
-        (true, false) => ColorId::MsgOutDateFg,
-        (true, true) => ColorId::MsgOutDateFgSelected,
-        (false, false) => ColorId::MsgInDateFg,
-        (false, true) => ColorId::MsgInDateFgSelected,
-    };
     // Over a link preview below the text the time sits on its last line.
-    let preview_lift = if link_preview(item).is_some_and(|preview| !preview.is_above_text) {
+    let preview_lift = if item.reactions.is_empty()
+        && link_preview(item).is_some_and(|preview| !preview.is_above_text)
+    {
         px_of(HISTORY_PAGE_PREVIEW.padding.bottom)
     } else {
         px(0.0)
@@ -612,6 +618,21 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
     } else {
         px(0.0)
     };
+    div()
+        .absolute()
+        .right(px_of(MSG_PADDING.right) - px_of(MSG_DATE_DELTA.x))
+        .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y) + preview_lift + comments_lift)
+        .child(info_content(item, out, cx))
+}
+
+/// The views, the time and the sending state.
+fn info_content(item: &Item<'_>, out: bool, cx: &App) -> Div {
+    let date_fg = match (out, item.is_selected) {
+        (true, false) => ColorId::MsgOutDateFg,
+        (true, true) => ColorId::MsgOutDateFgSelected,
+        (false, false) => ColorId::MsgInDateFg,
+        (false, true) => ColorId::MsgInDateFgSelected,
+    };
     // shortcut: a failed message shows the sending clock; the red failed mark comes with sending in M4.
     let state = out.then_some(match (item.message.sending, item.is_selected) {
         (Some(Sending::Pending | Sending::Failed), _) => HISTORY_SENDING_ICON,
@@ -621,9 +642,6 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
         (None, true) => HISTORY_SENT_SELECTED_ICON,
     });
     div()
-        .absolute()
-        .right(px_of(MSG_PADDING.right) - px_of(MSG_DATE_DELTA.x))
-        .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y) + preview_lift + comments_lift)
         .flex()
         .items_center()
         .font(font(MSG_DATE_FONT))

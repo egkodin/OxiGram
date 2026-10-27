@@ -7,6 +7,7 @@ use td_api::enums::{
 
 use crate::file::Minithumbnail;
 use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
+use crate::reaction::Reactions;
 use crate::text::FormattedText;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,6 +40,7 @@ pub struct Message {
     pub topic: Option<Topic>,
     /// Comments under a channel post, replies to a group message.
     pub replies: Option<Replies>,
+    pub reactions: Option<Reactions>,
 }
 
 /// A part of a chat with a history of its own.
@@ -395,12 +397,27 @@ impl Message {
             can_be_saved: true,
             topic: None,
             replies: None,
+            reactions: None,
         }
     }
 }
 
+/// Views, replies and reactions out of `messageInteractionInfo`.
+pub(crate) fn interaction(
+    info: Option<Box<td_api::types::MessageInteractionInfo>>,
+) -> (i32, Option<Replies>, Option<Reactions>) {
+    info.map_or((0, None, None), |info| {
+        (
+            info.view_count,
+            info.reply_info.map(|replies| Replies::from(*replies)),
+            info.reactions.map(|reactions| Reactions::from(*reactions)),
+        )
+    })
+}
+
 impl From<td_api::types::Message> for Message {
     fn from(message: td_api::types::Message) -> Self {
+        let (views, replies, reactions) = interaction(message.interaction_info);
         Self {
             id: MessageId(message.id),
             chat: ChatId(message.chat_id),
@@ -418,14 +435,9 @@ impl From<td_api::types::Message> for Message {
                 MessageSendingState::Pending(_) => Sending::Pending,
                 MessageSendingState::Failed(_) => Sending::Failed,
             }),
-            views: message
-                .interaction_info
-                .as_ref()
-                .map_or(0, |info| info.view_count),
-            replies: message
-                .interaction_info
-                .and_then(|info| info.reply_info)
-                .map(|info| Replies::from(*info)),
+            views,
+            replies,
+            reactions,
             topic: message.topic_id.and_then(|topic| Topic::from_td(*topic)),
             author_signature: message.author_signature,
             album: Some(message.media_album_id).filter(|album| *album != 0),

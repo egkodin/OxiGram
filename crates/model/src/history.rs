@@ -17,7 +17,8 @@ use tg::TdError;
 use crate::chat_actions::done;
 use crate::chats;
 use crate::ids::{ChatId, MessageId};
-use crate::message::{Content, Message, Replies, Topic};
+use crate::message::{Content, Message, Replies, Topic, interaction};
+use crate::reaction::Reactions;
 use crate::search::FoundMessages;
 use crate::session::{RequestError, Session};
 
@@ -63,6 +64,7 @@ pub enum Change {
         message: MessageId,
         views: i32,
         replies: Option<Replies>,
+        reactions: Option<Reactions>,
     },
     Pinned {
         chat: ChatId,
@@ -302,10 +304,12 @@ impl History {
                 message,
                 views,
                 replies,
+                reactions,
                 ..
             } => self.update(message, |message| {
                 message.views = views;
                 message.replies = replies;
+                message.reactions = reactions;
             }),
             Change::Pinned {
                 message, is_pinned, ..
@@ -366,14 +370,13 @@ impl Change {
                 old: MessageId(update.old_message_id),
             },
             Update::MessageInteractionInfo(update) => {
-                let info = update.interaction_info;
+                let (views, replies, reactions) = interaction(update.interaction_info);
                 Self::Interaction {
                     chat: ChatId(update.chat_id),
                     message: MessageId(update.message_id),
-                    views: info.as_ref().map_or(0, |info| info.view_count),
-                    replies: info
-                        .and_then(|info| info.reply_info)
-                        .map(|replies| Replies::from(*replies)),
+                    views,
+                    replies,
+                    reactions,
                 }
             }
             Update::MessageIsPinned(update) => Self::Pinned {

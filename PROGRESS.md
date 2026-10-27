@@ -52,6 +52,9 @@
   button under channel posts (`comments`) opens the thread over the channel
   (`thread_section`); the main view keeps the chats a thread came from, so
   Back returns to the same place.
+- Reactions under messages (`reactions`): counts or, when few and all
+  named, userpics; the chosen one filled; the time keeps its exact room on
+  the last row. The comments and reactions share `userpics_row`.
 
 ### Verified (macOS arm64, this machine)
 
@@ -77,10 +80,10 @@
 
 ### Next steps
 
-1. Saved Messages sublists: the topic list (`loadSavedMessagesTopics`) and
-   opening one as a topic history.
-2. Reactions under messages and who reacted.
-3. Entities: emails, phones, bank cards, dates, code highlighting.
+1. Who reacted: the menu item and the list with a tab per reaction
+   (`getMessageAddedReactions`).
+2. Entities: emails, phones, bank cards, dates, code highlighting.
+3. Sponsored messages in channels.
 
 ### Open questions for the owner
 

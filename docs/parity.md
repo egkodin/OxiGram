@@ -163,7 +163,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Translate bar and translated messages | M13 | todo | |
 | history | Group call / video chat bar | M12 | todo | |
 | history | Channel post comments (discussion) and the replies section | M3 | in progress | unit tests (thread history takes only its own new messages, post over replies, unread comments); snapshot only (64: the button under posts, "Leave a comment" and "12 comments" with the last three commenters and the unread dot); the replies section checked once with a temporary fixture thread (bar "2 comments", the post, "Discussion started", the replies; Back restores the channel pixel for pixel), not kept as a snapshot because the snapshot run has no TDLib answers; not verified: no API credentials, so no live discussion group; no compose in the thread (M4), no "N replies" in groups, the count in the bar is as of opening, opens at the newest reply instead of the first unread |
-| history | Saved Messages: sublists per origin chat and tags | M3 | in progress | the model keeps a history per Saved Messages topic (`getSavedMessagesTopicHistory`); no list of topics or way to open one yet |
+| history | Saved Messages: sublists per origin chat and tags | M6 | in progress | the model keeps a history per Saved Messages topic (`getSavedMessagesTopicHistory`); tdesktop lists the sublists in the Saved Messages profile (`Info::Saved::SublistsWidget`), so the list waits for the profile panel (M6) |
 | history | Sponsored messages in channels with "about" and hide | M3 | todo | |
 | history | Protected content (no forwards, no copy, no screenshots) | M3 | in progress | unit test (`cargo test -p features protected_messages`); messages TDLib marks as not saveable offer no Copy in the menu, and Ctrl+C over them copies nothing and shows "Copying is not allowed…" for the chat's kind; not verified: no API credentials, so no live protected chat; forwarding is not built yet (M4), screenshots are the M7 platform row |
 | history | "Pull to next channel" at the bottom of a read channel | M3 | todo | |
@@ -180,7 +180,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| reactions | Reaction counters in bubbles with userpics in small chats | M3 | todo | |
+| reactions | Reaction counters in bubbles with userpics in small chats | M3 | in progress | unit tests (order: paid, then most chosen by others; userpics only when all who reacted are named and at most 3; both sides in private chats; the emoji look for lone code points); snapshot only (64: counts with the chosen one filled, userpics, the time on the last row or wrapped below); not verified: no API credentials, so no live reactions; custom emoji and paid reactions show a star placeholder until custom emoji (M5) and Stars (M13); Saved Messages tags draw as plain pills without titles; clicking a reaction does nothing until sending (M4) |
 | reactions | Hover button, reaction strip and expanded selector with custom emoji | M4 | todo | |
 | reactions | Quick reaction on double-click | M4 | todo | |
 | reactions | Reaction animations | M8 | todo | |
