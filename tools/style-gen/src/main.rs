@@ -3,6 +3,7 @@
 //! Usage: `cargo run -p style-gen [-- <tdesktop dir>]`. The default directory is
 //! the `tdesktop` checkout next to this repository. The checkout is only read.
 
+mod emoji;
 mod palette;
 mod style;
 mod zip;
@@ -90,6 +91,12 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
+    let emoji_provenance = format!("lib_ui {lib_ui_head}");
+    write(
+        &style_crate.join("src/emoji.rs"),
+        &emoji::generate(&tdesktop, &emoji_provenance)?,
+    )?;
+
     let provenance = format!("tdesktop {}, lib_ui {lib_ui_head}", git_head(&tdesktop)?);
     let mut emitted = style::emit::emit(&modules, &provenance)?;
     for name in CODE_ICONS {

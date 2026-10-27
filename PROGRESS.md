@@ -46,6 +46,15 @@ live.
   search. The selection bar also has Delete N. Reply previews cover
   spoilers. `peer_list` holds the rows the contacts and recipients boxes
   share. Snapshots 90-109.
+- Emoji panel (`emoji_panel`, `TabbedPanel` + `EmojiListWidget`): hovering
+  the emoji button shows it over the field at the right, clicking the
+  button toggles it, leaving both hides it after 200 ms. Recent (used
+  emoji by rating, then tdesktop's defaults, 54 at most, kept in
+  `settings.json`), then the 7 categories with headers, 9 columns of 37x35;
+  footer icons light the section at the top and scroll to theirs. Clicking
+  an emoji types it at the cursor. The categories are generated from
+  `lib_ui/emoji.txt` by style-gen (`crates/style/src/emoji.rs`). The ranking
+  is shared with recent hashtags (`ranked`). Snapshots 110-116.
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -53,7 +62,10 @@ live.
 
 ### Half done (shortcuts in code)
 
-- Attach and emoji buttons do nothing yet; the microphone records nothing.
+- The attach button does nothing yet; the microphone records nothing.
+- Emoji panel: no Stickers/GIFs tabs (M5), search, skin tones, custom
+  emoji, show/hide animation, scrollbar, or third-column mode in wide
+  windows; Recent refreshes when the panel opens, not while it is shown.
 - Edit keeps no formatting, so formatted messages and captions are not
   offered for editing; no quotes, reply in another chat, forward options,
   several recipients or global search in the box yet.
@@ -93,6 +105,10 @@ Sending only in Saved Messages:
    editing gives the field back. Forward a message from another chat to
    Saved Messages (menu and the selection bar), with and without a comment.
    Delete N in the selection bar, only in Saved Messages.
+9. Emoji panel: hover the emoji button, the panel appears; move into it and
+   out, it hides; click an emoji, it is typed at the cursor; send it in
+   Saved Messages; reopen: it leads Recent. Footer icons jump to their
+   category and light up while scrolling. Glyphs render in color.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 

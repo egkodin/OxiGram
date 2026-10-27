@@ -126,6 +126,13 @@ After pull to next channel added a scroll handler to the history, one more
 run (the display at 160 Hz this time): frame build p50 1.50 ms, p99 2.93 ms,
 max 7.93 ms, no frame over 8 ms, no late frames, 0 history pixels changed.
 
+## M4: emoji panel
+
+Not measured yet. The panel's 1,900 emoji sit in a gpui `list`, so a frame
+lays out only the visible rows (about 11 of 9 cells); the rows are built
+once when the panel opens and the panel draws nothing while hidden. To
+check on the live run: frame times while scrolling the panel quickly.
+
 ## How to measure
 
 - Frame timing and memory under scrolling: the spike method in

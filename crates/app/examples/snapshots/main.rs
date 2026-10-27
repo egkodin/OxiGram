@@ -348,6 +348,27 @@ fn scenarios() -> Vec<Scenario> {
             histories: history::histories(),
             steps: vec![("101-forward-list", auth(State::Ready))],
         },
+        // The emoji panel: hovering the button shows it and a click there
+        // hides it, as in tdesktop; another click brings it back. An emoji
+        // goes into the field, a footer icon brings its category up, and
+        // leaving the panel hides it.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("111-emoji-chat", MouseButton::Left, MARIA_ROW),
+                ("112-emoji-toggled-off", MouseButton::Left, COMPOSE_EMOJI),
+                ("113-emoji-panel", MouseButton::Left, COMPOSE_EMOJI),
+                ("114-emoji-typed", MouseButton::Left, EMOJI_FIRST),
+                ("115-emoji-food", MouseButton::Left, EMOJI_FOOD),
+                ("116-emoji-left", MouseButton::Left, COMPOSE_FIELD),
+            ],
+            drags: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("110-emoji-list", auth(State::Ready))],
+        },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
             setup: chats::events(),
@@ -554,6 +575,12 @@ const SELECTION_FORWARD: (f32, f32) = (350.0, 27.0);
 const BOX_SAVED_ROW: (f32, f32) = (360.0, 125.0);
 /// The message field under an open chat.
 const COMPOSE_FIELD: (f32, f32) = (543.0, 577.0);
+/// The emoji button right of the field.
+const COMPOSE_EMOJI: (f32, f32) = (731.0, 577.0);
+/// The first recent emoji in the panel.
+const EMOJI_FIRST: (f32, f32) = (471.0, 154.0);
+/// Food & Drink in the panel's footer.
+const EMOJI_FOOD: (f32, f32) = (595.0, 526.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {

@@ -16,6 +16,7 @@ mod main_menu;
 mod main_view;
 mod peer_list;
 mod peer_menu;
+mod ranked;
 mod recipients_box;
 mod root;
 pub mod settings;

@@ -2,11 +2,10 @@
 //! search query, ranked by use, offered while typing a hashtag.
 
 /// A tag without its `#` and how often it was used, most used first.
-pub(crate) type Recent = Vec<(String, u32)>;
+pub(crate) type Recent = crate::ranked::Ranked;
 
 /// tdesktop keeps this many (`incrementRecentHashtag`).
 const RECENT_LIMIT: usize = 64;
-/// Past this count every count halves, so new tags can catch up.
 const COUNT_CEILING: u32 = 0x4000;
 /// The search shows this many (`kHashtagResultsLimit`).
 const SHOWN_LIMIT: usize = 5;
@@ -43,31 +42,13 @@ pub(crate) fn tags_in(text: &str) -> Vec<String> {
     tags
 }
 
-/// Counts one more use of `tag`, keeping the most used first
-/// (`incrementRecentHashtag`).
+/// Counts one more use of `tag` (`incrementRecentHashtag`).
 pub(crate) fn increment(recent: &mut Recent, tag: &str) {
-    let index = match recent.iter().position(|(known, _)| known == tag) {
-        Some(index) => {
-            recent[index].1 += 1;
-            if recent[index].1 > COUNT_CEILING {
-                for (_, count) in recent.iter_mut() {
-                    *count = (*count / 2).max(1);
-                }
-            }
-            index
-        }
-        None => {
-            recent.truncate(RECENT_LIMIT - 1);
-            recent.push((tag.to_owned(), 1));
-            recent.len() - 1
-        }
+    let limits = crate::ranked::Limits {
+        length: RECENT_LIMIT,
+        ceiling: COUNT_CEILING,
     };
-    // Ties go to the newest use.
-    let mut index = index;
-    while index > 0 && recent[index - 1].1 <= recent[index].1 {
-        recent.swap(index - 1, index);
-        index -= 1;
-    }
+    crate::ranked::increment(recent, tag, limits);
 }
 
 /// The recent tags that continue `query`, a `#` and a prefix; the tag the

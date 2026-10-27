@@ -10,8 +10,8 @@ use i18n::key;
 use model::chat::ChatKind;
 use model::thread::Key;
 use style::chat_helpers::{
-    HISTORY_ATTACH, HISTORY_ATTACH_EMOJI, HISTORY_COMPOSE_FIELD, HISTORY_COMPOSE_FIELD_MAX_HEIGHT,
-    HISTORY_SEND, HISTORY_SEND_PADDING, HISTORY_SEND_RIGHT, HISTORY_SEND_SIZE,
+    HISTORY_ATTACH, HISTORY_COMPOSE_FIELD, HISTORY_COMPOSE_FIELD_MAX_HEIGHT, HISTORY_SEND,
+    HISTORY_SEND_PADDING, HISTORY_SEND_RIGHT, HISTORY_SEND_SIZE,
 };
 use style::widgets::IconButton as IconButtonStyle;
 use style::{ColorId, ColorRef, Icon, IconMask, Margins, MonoIcon};
@@ -154,7 +154,7 @@ impl HistoryView {
             .flex()
             .items_end()
             .px(side)
-            // shortcut: attach and emoji do nothing yet; files come later in M4, the emoji panel in M5.
+            // shortcut: attach does nothing yet; files come later in M4.
             .child(IconButton::new("compose-attach", &HISTORY_ATTACH))
             .child(
                 div()
@@ -163,10 +163,7 @@ impl HistoryView {
                     .py(px_of(HISTORY_SEND_PADDING))
                     .child(field),
             )
-            .child(IconButton::new(
-                "compose-emoji",
-                &HISTORY_ATTACH_EMOJI.inner,
-            ))
+            .child(self.emoji_button(cx))
             .child(send);
         div()
             .flex_none()

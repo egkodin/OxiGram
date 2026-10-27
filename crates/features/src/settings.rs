@@ -54,6 +54,8 @@ struct Values {
     // shortcut: app-wide; tdesktop keeps them per account, which matters once accounts switch in M8.
     recent_search_hashtags: crate::hashtags::Recent,
     send_by: SendBy,
+    /// Emoji sent from the panel, most used first (`recentEmoji`).
+    recent_emoji: crate::ranked::Ranked,
 }
 
 impl Default for Values {
@@ -66,6 +68,7 @@ impl Default for Values {
             folders_placement: FoldersPlacement::Sidebar,
             recent_search_hashtags: Vec::new(),
             send_by: SendBy::Enter,
+            recent_emoji: Vec::new(),
         }
     }
 }
@@ -176,6 +179,17 @@ pub(crate) fn remove_search_hashtag(tag: &str, cx: &mut App) {
     });
 }
 
+pub(crate) fn recent_emoji(cx: &App) -> crate::ranked::Ranked {
+    values(cx).map_or_else(Vec::new, |values| values.recent_emoji.clone())
+}
+
+/// Counts a use of `emoji` (`incrementRecentEmoji`).
+pub(crate) fn count_emoji_use(emoji: &str, limits: crate::ranked::Limits, cx: &mut App) {
+    change(cx, |values| {
+        crate::ranked::increment(&mut values.recent_emoji, emoji, limits);
+    });
+}
+
 pub(crate) fn dialogs_width_ratio(cx: &App) -> f32 {
     values(cx).map_or(crate::columns::DEFAULT_RATIO, |values| {
         values.dialogs_width_ratio
@@ -250,6 +264,7 @@ mod tests {
             folders_placement: FoldersPlacement::Top,
             recent_search_hashtags: vec![("rust".to_owned(), 2)],
             send_by: SendBy::CtrlEnter,
+            recent_emoji: vec![("😂".to_owned(), 3)],
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

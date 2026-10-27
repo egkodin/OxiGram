@@ -87,7 +87,7 @@ impl HistoryView {
         self.store.read(cx).state().history(self.key())?.message(id)
     }
 
-    fn focus_field(&self, window: &mut Window, cx: &mut Context<Self>) {
+    pub(super) fn focus_field(&self, window: &mut Window, cx: &mut Context<Self>) {
         let field = self.compose.field.clone();
         field.update(cx, |field, cx| field.focus(window, cx));
     }

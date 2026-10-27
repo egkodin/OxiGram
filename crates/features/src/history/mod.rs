@@ -12,6 +12,7 @@ mod contact_status;
 mod dates;
 mod delete;
 mod drafts;
+mod emoji_panel;
 mod field_bar;
 mod forwarding;
 mod headers;
@@ -145,6 +146,7 @@ pub(crate) struct HistoryView {
     /// The ad after the last post, its item after the messages.
     ad: sponsored::Ad,
     compose: compose::Compose,
+    emoji: emoji_panel::EmojiPanel,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -236,6 +238,7 @@ impl HistoryView {
             thread: None,
             ad: sponsored::Ad::default(),
             compose,
+            emoji: emoji_panel::EmojiPanel::new(),
             focus,
             _subscription: subscription,
         };
@@ -656,7 +659,9 @@ impl Render for HistoryView {
         let weak = cx.weak_entity();
         let focus = self.focus.clone();
         // shortcut: a plain color instead of the chat wallpaper, which comes with backgrounds in M6.
+        let has_field = is_chat && self.search.is_none();
         div()
+            .relative()
             .size_full()
             .flex()
             .flex_col()
@@ -706,7 +711,8 @@ impl Render for HistoryView {
             )
             .children(self.pinned_section_button(cx))
             .children(self.search_results_bar(cx))
-            .children((is_chat && self.search.is_none()).then(|| self.compose_bar(cx)))
+            .children(has_field.then(|| self.compose_bar(cx)))
+            .children(has_field.then(|| self.emoji_panel(window, cx)).flatten())
             .children(self.menu_overlay())
     }
 }

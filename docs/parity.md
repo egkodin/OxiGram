@@ -220,7 +220,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Emoji suggestions by shortcode and keywords | M4 | todo | |
 | compose | Sticker suggestions by emoji | M5 | todo | |
 | compose | Character counter and limits for text and captions | M4 | todo | |
-| compose | Emoji, sticker and GIF button with the tabbed panel | M5 | todo | |
+| compose | Emoji, sticker and GIF button with the tabbed panel | M5 | in progress | snapshots 110-116: hover shows, click toggles, leaving hides; emoji only, no Stickers/GIFs tabs or animation yet |
 | compose | Attach: photos and videos (compressed or as files), files, albums | M4 | todo | |
 | compose | Send files box: grouping, spoiler, caption above or below, reorder | M4 | todo | |
 | compose | Paste images and files from the clipboard | M4 | todo | |
@@ -308,7 +308,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| stickers | Emoji panel: categories, recent, skin tones, search | M5 | todo | |
+| stickers | Emoji panel: categories, recent, skin tones, search | M5 | in progress | snapshots 110-116 + unit tests (`emoji_panel`, style-gen `emoji`): recent and categories with footer; no skin tones or search yet |
 | stickers | Custom emoji packs in the emoji panel (Premium) | M5 | todo | |
 | stickers | Sticker panel: recent, favorites, installed sets, search, trending | M5 | todo | |
 | stickers | GIF panel: saved GIFs and search | M5 | todo | |
