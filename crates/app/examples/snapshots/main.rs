@@ -8,6 +8,7 @@ mod chats;
 mod history;
 mod media;
 mod scenarios;
+mod soak;
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -100,6 +101,12 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<()> {
+    if let Some(seconds) = std::env::var("SNAPSHOTS_SOAK")
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        return soak::run(session, seconds, cx).await;
+    }
     // SNAPSHOTS_ONLY=41,77 runs the scenarios whose first step starts so.
     let only = std::env::var("SNAPSHOTS_ONLY").unwrap_or_default();
     let only: Vec<&str> = only.split(',').filter(|part| !part.is_empty()).collect();
@@ -324,7 +331,7 @@ fn voice_samples() -> std::sync::Arc<[f32]> {
         .collect()
 }
 
-fn open(store: Entity<Store>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
+pub(crate) fn open(store: Entity<Store>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
     let bounds = Bounds::centered(None, size(px(WIDTH), px(HEIGHT)), cx);
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(bounds)),

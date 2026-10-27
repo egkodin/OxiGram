@@ -75,7 +75,13 @@ fn text(text: &str) -> Content {
     Content::text(FormattedText::plain(text))
 }
 
-fn chat(id: i64, kind: ChatKind, title: &str, order: i64, last: Option<Message>) -> Chat {
+pub(crate) fn chat(
+    id: i64,
+    kind: ChatKind,
+    title: &str,
+    order: i64,
+    last: Option<Message>,
+) -> Chat {
     Chat {
         accent_color: i32::try_from(id % 7).unwrap_or(0),
         last_message: last,

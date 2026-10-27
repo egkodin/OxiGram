@@ -174,3 +174,22 @@ check on the live run: frame times while scrolling the panel quickly.
   up to 2560 px). Not measured yet: memory after scrolling a photo-heavy
   channel (M5 live test 1); a per-history cache with eviction is the
   upgrade if it grows.
+
+## M5: userpic cache soak
+
+- Downloaded userpics are decoded on the background executor, filled into
+  their device-pixel square (Lanczos3) and cut to a circle (`ui::round_image`).
+  The cache keeps the 512 most recently drawn; each eviction calls
+  `App::drop_image`, which frees the texture in every window's atlas. A
+  failed decode waits 2 s, doubling to 60 s, or until the file's time or
+  length changes.
+- Soak, 2026-10-28, macOS arm64, dev-profile example build:
+  `SNAPSHOTS_SOAK=300 cargo run -q -p rgram --example snapshots` scrolls a
+  list of 2000 chats with 2000 distinct 160 px userpics (four times the
+  capacity) at about 33 rows a second, up and down, for 5 minutes. RSS in
+  MB every 15 s: 133, 189, 185, 196, 238, 236, 236, 223, 223, 223, 224,
+  236, 233, 233, 238, 233, 233, 239, 233, 233. Flat at 223-239 MB once the
+  first pass (about 60 s) filled the cache and the atlas.
+- The same soak with eviction that drops the image without `drop_image`
+  (the textures stay in the atlas) grows without bound: 133, 208, 249, 284,
+  334, 369, 388, 400, 415, 428, 441, 455 MB in 165 s, about 2 MB a second.

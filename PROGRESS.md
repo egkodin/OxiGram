@@ -188,6 +188,11 @@ live.
   GPU without mipmaps. Fixed: `ui::round_image` cuts each downloaded
   userpic to an antialiased circle at its device pixel size (Lanczos3);
   to recheck live with M3.
+- 2026-10-28, the userpic cache, at the owner's request before M6: an LRU
+  of 512 that frees evicted textures (`drop_image`), failed decodes retried
+  on a file change or after a back-off, decoding on the background
+  executor. Soak (`SNAPSHOTS_SOAK=300`, docs/perf.md): RSS flat at
+  223-239 MB over 5 minutes of scrolling 2000 userpics.
 
 ### Live test list (M4, after M1-M3)
 

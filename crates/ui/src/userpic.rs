@@ -158,10 +158,11 @@ impl RenderOnce for Userpic {
                     reason = "a userpic is a few hundred pixels"
                 )]
                 let side = (f32::from(size) * window.scale_factor()).round() as u32;
-                match crate::round_image::round_file(&path, side, cx) {
-                    Some(round) => circle.child(img(round).size(size)),
-                    None => circle.child(img(path).size(size).rounded_full()),
-                }
+                // Empty for the moment it decodes, or while a broken file waits to retry.
+                circle.children(
+                    crate::round_image::round_file(&path, side, cx)
+                        .map(|round| img(round).size(size)),
+                )
             }
             // The preview is 40 px or less, so it only grows; gpui clips to rectangles.
             UserpicSource::Jpeg(image) => circle.child(img(image).size(size).rounded_full()),
