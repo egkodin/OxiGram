@@ -151,6 +151,16 @@ live.
   until the settings screen (M7); its radios have no toggle animation and
   use the box checkbox's text offset, not `settingsCheckbox`'s.
 
+### Live run log
+
+- 2026-10-27, first start on the live account: a white window with
+  "Connecting..." forever. Two causes, both fixed (`1aa5270`): TDLib starts
+  an instance only on its first request, and `tg::Runtime::create_client`
+  sent none; then TDLib 1.8.69 refuses an empty device model, and the
+  refusal hid behind options it answers only after the parameters. The
+  runtime test now waits for the first authorization state with no request
+  sent; `app::device` sends the model and system version.
+
 ### Live test list (M4, after M1-M3)
 
 Sending only in Saved Messages:
