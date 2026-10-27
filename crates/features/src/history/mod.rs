@@ -10,6 +10,7 @@ mod calendar;
 mod chat_search;
 mod comments;
 mod compose;
+mod contact;
 mod contact_status;
 mod dates;
 mod delete;
@@ -483,6 +484,7 @@ impl HistoryView {
                 reactions,
                 file,
                 photo,
+                contact: self.contact(&message, cx),
                 after: self.thread_divider(index, cx),
             },
             cx,

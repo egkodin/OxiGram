@@ -1,6 +1,7 @@
 //! Media in the history: photos in Saved Messages, one known only by its
 //! minithumbnail and two downloaded; files in Maria's chat; videos and a GIF
-//! in Saved Messages; albums there too; voice messages with Maria.
+//! in Saved Messages; albums there too; voice messages and contact cards
+//! with Maria.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -9,9 +10,9 @@ use features::settings::FoldersPlacement;
 use gpui::MouseButton;
 use model::auth::State;
 use model::file::{Dimensions, File, Minithumbnail};
-use model::message::{Content, Media, Message, Sender, VoiceNote};
+use model::message::{Content, Media, Message, Sender, SharedContact, VoiceNote};
 use model::text::FormattedText;
-use model::{ChatId, FileId, MessageId, UserId};
+use model::{ChatId, FileId, MessageId, Secret, UserId};
 
 use super::Scenario;
 use super::chats::{self, HOUR, ME, now};
@@ -90,6 +91,48 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), voices(&notes))],
             steps: vec![("163-voices-list", auth(State::Ready))],
         },
+        // Contacts: a contact's account, an account to add, a name and a
+        // phone alone, and one sent.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("166-contacts-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), contacts())],
+            steps: vec![("165-contacts-list", auth(State::Ready))],
+        },
+    ]
+}
+
+fn contact(id: i64, from: i64, ago: i32, name: (&str, &str), phone: &str, user: i64) -> Message {
+    let card = SharedContact {
+        first_name: name.0.to_owned(),
+        last_name: name.1.to_owned(),
+        phone: Secret::new(phone),
+        user: Some(UserId(user)).filter(|user| user.0 != 0),
+        has_vcard: false,
+    };
+    Message {
+        is_outgoing: from == ME,
+        date: now() - ago,
+        ..Message::new(
+            MessageId(id),
+            ChatId(MARIA),
+            Sender::User(UserId(from)),
+            Content::Contact(Box::new(card)),
+        )
+    }
+}
+
+fn contacts() -> Vec<Message> {
+    vec![
+        contact(1, MARIA, 4 * HOUR, ("Ann", "Lee"), "447700900123", 3),
+        contact(2, MARIA, 3 * HOUR, ("Dmitry", "Petrov"), "79991234567", 6),
+        contact(3, MARIA, 2 * HOUR, ("Plumber", ""), "15551230000", 0),
+        contact(4, ME, HOUR, ("Ben", ""), "4915112345678", 4),
     ]
 }
 

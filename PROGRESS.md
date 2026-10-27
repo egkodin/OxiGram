@@ -22,6 +22,9 @@
 - Voice messages (`history/voice_note.rs`, `waveform.rs`, `media::decode`,
   `media::Player`): the waveform, download, play, pause and seek on the
   default output, the listened dot. Snapshots 163-164.
+- Contacts in messages (`history/contact.rs`): tdesktop's card with the
+  userpic, name and phone; MESSAGE opens the account's chat, ADD adds
+  it under the card's name. Snapshots 165-166.
 
 ### Half done (shortcuts in code)
 
@@ -34,6 +37,8 @@
   playback stops with the chat; no drag to seek.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
+- Contact cards: ADD adds without AddContactBox; a card with no
+  account has no VIEW CONTACT (vCard) box; no ripple.
 
 ### Live test list (M5)
 
@@ -59,6 +64,9 @@
    resume; click the middle of the waveform: it jumps there. Read only
    elsewhere: an unheard incoming voice shows its bars blue with a dot;
    playing it removes the dot (only when views are reported).
+6. Contacts: in Saved Messages share a contact (from a phone): the card
+   shows the userpic, name and phone; MESSAGE opens their chat; ADD
+   shows only for someone not in contacts. Read only elsewhere.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

@@ -8,6 +8,7 @@ use td_api::enums::{
 use crate::file::{Dimensions, File, Minithumbnail};
 use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
 use crate::reaction::Reactions;
+use crate::secret::Secret;
 use crate::text::FormattedText;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -216,9 +217,7 @@ pub enum Content {
     },
     /// An emoji sent alone, shown big; also dice.
     Emoji(String),
-    Contact {
-        name: String,
-    },
+    Contact(Box<SharedContact>),
     Location,
     LiveLocation,
     Venue {
@@ -241,6 +240,30 @@ pub enum Content {
     /// A service message ("X joined the group").
     Service(Service),
     Unsupported,
+}
+
+/// A contact card sent in a message (`messageContact`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SharedContact {
+    pub first_name: String,
+    pub last_name: String,
+    /// Digits only, as TDLib gives them; may be empty.
+    pub phone: Secret,
+    /// The Telegram account behind the card, when it has one.
+    pub user: Option<UserId>,
+    pub has_vcard: bool,
+}
+
+impl SharedContact {
+    /// The first and last name, as tdesktop joins them (`langFullName`).
+    #[must_use]
+    pub fn name(&self) -> String {
+        [self.first_name.as_str(), self.last_name.as_str()]
+            .into_iter()
+            .filter(|part| !part.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
 }
 
 /// The page a text message links to, as its preview shows it
@@ -682,13 +705,16 @@ impl From<MessageContent> for Content {
             },
             MessageContent::MessageAnimatedEmoji(emoji) => Self::Emoji(emoji.emoji),
             MessageContent::MessageDice(dice) => Self::Emoji(dice.emoji),
-            MessageContent::MessageContact(contact) => Self::Contact {
-                name: [contact.contact.first_name, contact.contact.last_name]
-                    .into_iter()
-                    .filter(|part| !part.is_empty())
-                    .collect::<Vec<_>>()
-                    .join(" "),
-            },
+            MessageContent::MessageContact(contact) => {
+                let contact = contact.contact;
+                Self::Contact(Box::new(SharedContact {
+                    first_name: contact.first_name,
+                    last_name: contact.last_name,
+                    phone: Secret::new(contact.phone_number),
+                    user: Some(UserId(contact.user_id)).filter(|user| user.0 != 0),
+                    has_vcard: !contact.vcard.is_empty(),
+                }))
+            }
             MessageContent::MessageLocation(_) => Self::Location,
             MessageContent::MessageLiveLocation(_) => Self::LiveLocation,
             MessageContent::MessageVenue(venue) => Self::Venue {

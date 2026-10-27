@@ -265,7 +265,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | media | Stickers: WebP, animated TGS (Lottie), video WebM | M5 | todo | |
 | media | GIFs (MPEG-4 animations) with autoplay | M5 | in progress | snapshots 157-159: as videos, with "GIF, size" or "GIF" on the pill; not verified: no live GIF yet; no autoplay, a click opens it in the system player |
 | media | Dice and slot machine animations | M5 | todo | |
-| media | Contacts in messages | M5 | todo | |
+| media | Contacts in messages | M5 | in progress | unit tests (`cargo test -p features contact`: CRC-32 and the color of a card with no account, as `FakePeerIdForJustName`); snapshots 165-166: the card in a box tinted like a reply, the 42 px userpic, the name in the account's color and the formatted phone; MESSAGE opens the account's chat, ADD shows for someone not in contacts and adds them under the card's name; a card with no account has its initials and no buttons; not verified: no live card yet; no AddContactBox (M6), no VIEW CONTACT box for vCards, no ripple, no drag text |
 | media | Locations, venues and live locations with a map preview | M5 | todo | |
 | media | Polls and quizzes: vote, retract, results, explanation | M5 | todo | |
 | media | Checklists in messages | M5 | todo | |

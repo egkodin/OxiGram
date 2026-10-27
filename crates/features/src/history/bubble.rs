@@ -85,6 +85,7 @@ pub(super) struct Item<'a> {
     pub file: Option<super::file_row::FileRow>,
     /// A photo's, video's or album's pictures, once sent.
     pub photo: Option<super::album::Pictures>,
+    pub contact: Option<super::contact::Card>,
     /// What follows the message in its row, as a thread's divider.
     pub after: Option<AnyElement>,
 }
@@ -431,11 +432,15 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         };
         super::file_row::row(file, &place, cx)
     });
-    let shows_text = file.is_none() || has_caption;
+    let contact = item.contact.take().map(|card| {
+        super::contact::element(card, item.message.id.0 as u64, out, item.is_selected, cx)
+    });
+    let shows_text = (file.is_none() || has_caption) && contact.is_none();
     frame
         .children(name)
         .children(headers)
         .children(file)
+        .children(contact)
         .children(web_page(item, out, Placement::AboveText, cx))
         .when(shows_text, |this| {
             this.child(text_style(fg, cx).child(body))
