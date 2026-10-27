@@ -11,7 +11,6 @@ use gpui::{
 use i18n::key;
 use model::Secret;
 use model::auth::{self, Delivery, EmailReset};
-use model::phone::number_info;
 use style::basic::{LINE_WIDTH, SHAKE_SHIFT};
 use style::intro::{
     INTRO_DESCRIPTION, INTRO_ERROR_BELOW_LINK_TOP, INTRO_FRAGMENT_BUTTON, INTRO_LINK,
@@ -236,13 +235,7 @@ impl CodeStep {
         let Some(Mode::Phone(code)) = &self.mode else {
             return String::new();
         };
-        let digits = code.phone_number.expose().trim_start_matches('+');
-        match number_info("en", digits) {
-            Ok(info) if !info.formatted.contains('-') => {
-                format!("+{} {}", info.calling_code, info.formatted)
-            }
-            _ => format!("+{digits}"),
-        }
+        crate::lang::format_phone(code.phone_number.expose())
     }
 
     fn fragment_url(&self) -> Option<&str> {

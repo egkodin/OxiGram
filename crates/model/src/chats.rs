@@ -6,6 +6,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use td_api::enums::{ChatAction as TdChatAction, NotificationSettingsScope, Update};
 
+use crate::action_bar::ActionBar;
 use crate::chat::{self, Chat, ChatKind, ChatList, Draft, Folder, Position};
 use crate::file::File;
 use crate::ids::{BasicGroupId, ChatId, FileId, MessageId, SupergroupId, UserId};
@@ -64,6 +65,10 @@ pub enum Change {
     MarkedAsUnread {
         chat: ChatId,
         is_marked: bool,
+    },
+    ActionBar {
+        chat: ChatId,
+        bar: Option<ActionBar>,
     },
     Mute {
         chat: ChatId,
@@ -301,6 +306,7 @@ impl Chats {
             Change::MarkedAsUnread { chat, is_marked } => {
                 self.update(chat, |chat| chat.is_marked_as_unread = is_marked);
             }
+            Change::ActionBar { chat, bar } => self.update(chat, |chat| chat.action_bar = bar),
             Change::Mute {
                 chat,
                 mute_for,
@@ -446,6 +452,10 @@ impl Change {
                 chat: ChatId(update.chat_id),
                 count: update.unread_reaction_count,
             },
+            Update::ChatActionBar(update) => Self::ActionBar {
+                chat: ChatId(update.chat_id),
+                bar: update.action_bar.and_then(|bar| ActionBar::from_td(*bar)),
+            },
             Update::ChatIsMarkedAsUnread(update) => Self::MarkedAsUnread {
                 chat: ChatId(update.chat_id),
                 is_marked: update.is_marked_as_unread,
@@ -562,6 +572,7 @@ mod tests {
             mute_for: 0,
             uses_default_mute: true,
             draft: None,
+            action_bar: None,
         }))
     }
 

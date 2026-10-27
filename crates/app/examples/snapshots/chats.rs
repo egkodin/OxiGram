@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{Local, TimeZone as _};
 
+use model::action_bar::ActionBar;
 use model::chat::{Chat, ChatKind, ChatList, Draft, Folder, Position};
 use model::chats::{Change, ChatAction, MuteScope, Unread};
 use model::message::{Content, Media, Message, Sender};
@@ -46,6 +47,7 @@ fn user(id: i64, first: &str, last: &str) -> User {
         emoji_status: None,
         badge: Badge::None,
         is_premium: false,
+        phone: model::Secret::default(),
         kind: UserKind::Regular,
         is_contact: true,
         username: String::new(),
@@ -93,6 +95,7 @@ fn chat(id: i64, kind: ChatKind, title: &str, order: i64, last: Option<Message>)
         mute_for: 0,
         uses_default_mute: true,
         draft: None,
+        action_bar: None,
     }
 }
 
@@ -252,6 +255,10 @@ pub(crate) fn events() -> Vec<Event> {
     ben.draft = Some(Draft {
         date: now() - 30 * 60,
         text: FormattedText::plain("I'll check it tomorrow"),
+    });
+    // Someone new: the history offers to add or block them.
+    ben.action_bar = Some(ActionBar::ReportAddBlock {
+        can_unarchive: false,
     });
 
     let bot = chat(

@@ -4,6 +4,7 @@ use td_api::enums::{UserStatus as TdUserStatus, UserType};
 
 use crate::file::Minithumbnail;
 use crate::ids::{CustomEmojiId, FileId, UserId};
+use crate::secret::Secret;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
@@ -18,6 +19,8 @@ pub struct User {
     pub is_premium: bool,
     pub kind: UserKind,
     pub is_contact: bool,
+    /// Digits without "+"; empty when the user hides it.
+    pub phone: Secret,
     /// The primary active username, without "@"; empty when there is none.
     pub username: String,
 }
@@ -117,6 +120,7 @@ impl From<td_api::types::User> for User {
                 UserType::Unknown(_) => UserKind::Unknown,
             },
             is_contact: user.is_contact,
+            phone: Secret::new(user.phone_number),
             username: user
                 .usernames
                 .and_then(|names| names.active_usernames.into_iter().next())

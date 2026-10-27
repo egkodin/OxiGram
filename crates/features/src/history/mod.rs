@@ -7,6 +7,7 @@ mod bubble;
 mod calendar;
 mod chat_search;
 mod comments;
+mod contact_status;
 mod dates;
 mod delete;
 mod headers;
@@ -642,6 +643,11 @@ impl Render for HistoryView {
             .capture_any_mouse_down(move |_, window, cx| focus.focus(window, cx))
             .child(bar)
             .children(is_chat.then(|| self.pinned_bar(cx)).flatten())
+            .children(
+                (is_chat && self.topic.is_none())
+                    .then(|| self.contact_status(cx))
+                    .flatten(),
+            )
             .child(
                 div()
                     .h(px(1.0))

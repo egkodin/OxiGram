@@ -86,6 +86,18 @@ pub(crate) fn group_digits(number: i64) -> String {
     grouped
 }
 
+/// A phone number as "+1 555 0100" when its country's format is known
+/// (`Ui::FormatPhone`), else "+" and the digits.
+pub(crate) fn format_phone(digits: &str) -> String {
+    let digits = digits.trim_start_matches('+');
+    match model::phone::number_info("en", digits) {
+        Ok(info) if !info.formatted.contains('-') => {
+            format!("+{} {}", info.calling_code, info.formatted)
+        }
+        _ => format!("+{digits}"),
+    }
+}
+
 /// Loads the language TDLib remembers, at startup.
 pub fn load(session: &Session, cx: &mut App) {
     let session = session.clone();

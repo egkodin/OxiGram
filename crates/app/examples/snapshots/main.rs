@@ -273,6 +273,9 @@ fn scenarios() -> Vec<Scenario> {
                     MouseButton::Left,
                     HISTORY_GAP,
                 ),
+                ("69-history-contact-status", MouseButton::Left, BEN_ROW),
+                ("70-history-block-confirm", MouseButton::Left, BLOCK_BUTTON),
+                ("71-history-block-cancelled", MouseButton::Left, OUTSIDE_BOX),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             scrolls: Vec::new(),
@@ -366,6 +369,8 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
+const BEN_ROW: (f32, f32) = (150.0, 490.0);
+const BLOCK_BUTTON: (f32, f32) = (672.0, 79.0);
 /// The date badge over Ann Lee's messages, and the calendar's Close.
 const DATE_BADGE: (f32, f32) = (543.0, 63.0);
 const CALENDAR_CLOSE: (f32, f32) = (538.0, 448.0);

@@ -80,12 +80,17 @@
 - Boxes no longer grow past the window: `BoxFrame` caps itself at the
   window height inside the style's margin and scrolls its rows
   (`updateMaxRealHeight`). The contacts box is 6 px shorter for it.
+- The contact status bar (`model::action_bar`, `history::contact_status`):
+  TDLib's chat action bar under the pinned bar, with tdesktop's buttons
+  and confirmations (block, report and leave, share the phone number, the
+  join-request note); close removes the bar. Users now carry their phone
+  number as a `Secret`, for the share confirmation.
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-68 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-71 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -99,15 +104,15 @@
 
 ### Half done
 
-- M3 rows still todo in `docs/parity.md`: the contact status bar, Saved Messages tags search, "pull to next channel".
+- M3 rows still todo in `docs/parity.md`: Saved Messages tags search, "pull to next channel".
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. The contact status bar (add, block, report) in private chats.
-2. Saved Messages tags search.
-3. "Pull to next channel" at the bottom of a read channel.
+1. Saved Messages tags search.
+2. "Pull to next channel" at the bottom of a read channel.
+3. The M3 rows still in progress: what each one lacks, then the M3 perf and done-criterion run.
 
 ### Open questions for the owner
 

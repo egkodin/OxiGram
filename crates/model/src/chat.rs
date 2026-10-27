@@ -2,6 +2,7 @@
 
 use td_api::enums::{ChatList as TdChatList, ChatType, DraftMessageContent};
 
+use crate::action_bar::ActionBar;
 use crate::file::Minithumbnail;
 use crate::ids::{BasicGroupId, ChatId, FileId, FolderId, MessageId, SupergroupId, UserId};
 use crate::message::Message;
@@ -28,6 +29,7 @@ pub struct Chat {
     /// Whether `mute_for` comes from the defaults for the chat's type.
     pub uses_default_mute: bool,
     pub draft: Option<Draft>,
+    pub action_bar: Option<ActionBar>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,6 +107,7 @@ impl Chat {
             mute_for: 0,
             uses_default_mute: true,
             draft: None,
+            action_bar: None,
         }
     }
 
@@ -157,6 +160,7 @@ impl From<td_api::types::Chat> for Chat {
             mute_for: notifications.mute_for,
             uses_default_mute: notifications.use_default_mute_for,
             draft: chat.draft_message.and_then(|draft| draft_of(*draft)),
+            action_bar: chat.action_bar.and_then(|bar| ActionBar::from_td(*bar)),
         }
     }
 }

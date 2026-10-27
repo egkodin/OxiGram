@@ -44,7 +44,8 @@ pub struct ConfirmArgs {
     /// Runs on the cancel button, Escape and a click outside; an inform box
     /// runs `confirmed` there instead (`boxClosing`).
     pub cancelled: Option<Callback>,
-    /// Escape and a click outside only close the box (`strictCancel`).
+    /// Escape and a click outside only close the box, also an inform box
+    /// (`strictCancel`).
     pub strict_cancel: bool,
 }
 
@@ -129,10 +130,10 @@ fn attention_args(
 /// there is no `cancelled`).
 pub fn confirm(layers: &Entity<Layers>, args: ConfirmArgs, window: &mut Window, cx: &mut App) {
     let is_inform = args.cancel_text.is_none() && args.cancelled.is_none();
-    let on_dismiss = if is_inform {
-        args.confirmed.clone()
-    } else if args.strict_cancel {
+    let on_dismiss = if args.strict_cancel {
         None
+    } else if is_inform {
+        args.confirmed.clone()
     } else {
         args.cancelled.clone()
     };

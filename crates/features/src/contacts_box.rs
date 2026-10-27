@@ -347,6 +347,7 @@ mod tests {
             emoji_status: None,
             badge: Badge::None,
             is_premium: false,
+            phone: model::Secret::default(),
             kind: UserKind::Regular,
             is_contact,
             username: String::new(),
