@@ -344,6 +344,8 @@ mod tests {
                     caption: model::text::FormattedText::plain("Sunrise"),
                     thumbnail: None,
                     dimensions: None,
+                    preview: None,
+                    duration: 0,
                     file: None,
                 },
             ))),

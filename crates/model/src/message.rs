@@ -395,6 +395,10 @@ pub struct Media {
     pub caption: FormattedText,
     pub thumbnail: Option<Minithumbnail>,
     pub dimensions: Option<Dimensions>,
+    /// A still of a video, GIF or file: TDLib's JPEG thumbnail.
+    pub preview: Option<File>,
+    /// A video's length in seconds; 0 for other media.
+    pub duration: i32,
     /// The photo's largest size, or the video or file itself, as the
     /// message brought it; `updateFile` follows it in `Chats::file`.
     pub file: Option<File>,
@@ -548,8 +552,17 @@ fn media(
         caption: FormattedText::from(caption),
         thumbnail: thumbnail.and_then(|thumbnail| Minithumbnail::from_td(*thumbnail)),
         dimensions,
+        preview: None,
+        duration: 0,
         file: file.map(File::from),
     }
+}
+
+/// The thumbnail's file when it is a still image gpui can draw.
+fn still(thumbnail: Option<Box<td_api::types::Thumbnail>>) -> Option<File> {
+    let thumbnail = thumbnail?;
+    matches!(*thumbnail.format, td_api::enums::ThumbnailFormat::Jpeg(_))
+        .then(|| File::from(*thumbnail.file))
 }
 
 impl From<MessageContent> for Content {
@@ -574,18 +587,26 @@ impl From<MessageContent> for Content {
                     dimensions,
                 ))
             }
-            MessageContent::MessageVideo(video) => Self::Video(media(
-                *video.caption,
-                video.video.minithumbnail,
-                Some(*video.video.video),
-                Dimensions::new(video.video.width, video.video.height),
-            )),
-            MessageContent::MessageAnimation(animation) => Self::Animation(media(
-                *animation.caption,
-                animation.animation.minithumbnail,
-                Some(*animation.animation.animation),
-                Dimensions::new(animation.animation.width, animation.animation.height),
-            )),
+            MessageContent::MessageVideo(video) => Self::Video(Media {
+                preview: still(video.video.thumbnail),
+                duration: video.video.duration,
+                ..media(
+                    *video.caption,
+                    video.video.minithumbnail,
+                    Some(*video.video.video),
+                    Dimensions::new(video.video.width, video.video.height),
+                )
+            }),
+            MessageContent::MessageAnimation(animation) => Self::Animation(Media {
+                preview: still(animation.animation.thumbnail),
+                duration: animation.animation.duration,
+                ..media(
+                    *animation.caption,
+                    animation.animation.minithumbnail,
+                    Some(*animation.animation.animation),
+                    Dimensions::new(animation.animation.width, animation.animation.height),
+                )
+            }),
             MessageContent::MessageDocument(document) => Self::Document {
                 media: media(
                     *document.caption,

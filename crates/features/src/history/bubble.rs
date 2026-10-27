@@ -599,7 +599,7 @@ pub(super) fn name_color(color_index: i32) -> ColorId {
 }
 
 /// The caption of a message with media.
-fn caption(message: &Message) -> Option<&FormattedText> {
+pub(super) fn caption(message: &Message) -> Option<&FormattedText> {
     match &message.content {
         Content::Photo(media)
         | Content::Video(media)
@@ -629,14 +629,10 @@ pub(super) fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
     let preview;
     let text = match &item.message.content {
         Content::Text { text, .. } => text,
-        // The picture or the upload row stands for the file; only the
+        // The picture or the file row stands for the file; only the
         // caption follows it.
-        Content::Photo(media) => &media.caption,
-        Content::Video(media) | Content::Animation(media) | Content::Document { media, .. }
-            if item.file.is_some() =>
-        {
-            &media.caption
-        }
+        Content::Photo(media) | Content::Video(media) | Content::Animation(media) => &media.caption,
+        Content::Document { media, .. } if item.file.is_some() => &media.caption,
         Content::Unsupported => {
             preview = crate::dialogs::unsupported_text(strings(cx));
             &preview

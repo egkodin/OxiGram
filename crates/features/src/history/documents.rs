@@ -18,10 +18,14 @@ use crate::lang::strings;
 use crate::store::spawn;
 
 /// A file the user asked for loads before anything shown on its own.
-const CLICKED_PRIORITY: i32 = 32;
+pub(super) const CLICKED_PRIORITY: i32 = 32;
 
 /// The file's state now, from `updateFile` when TDLib sent one.
-fn current<'a>(view: &'a HistoryView, sent: &'a File, cx: &'a Context<HistoryView>) -> &'a File {
+pub(super) fn current<'a>(
+    view: &'a HistoryView,
+    sent: &'a File,
+    cx: &'a Context<HistoryView>,
+) -> &'a File {
     view.store
         .read(cx)
         .state()
@@ -80,7 +84,7 @@ impl HistoryView {
         }
     }
 
-    fn start_download(&mut self, file: FileId, priority: i32, cx: &mut Context<Self>) {
+    pub(super) fn start_download(&mut self, file: FileId, priority: i32, cx: &mut Context<Self>) {
         let task = spawn(
             self.store.read(cx).session().download_file(file, priority),
             cx,
@@ -93,7 +97,7 @@ impl HistoryView {
         .detach();
     }
 
-    fn cancel_download(&mut self, file: FileId, cx: &mut Context<Self>) {
+    pub(super) fn cancel_download(&mut self, file: FileId, cx: &mut Context<Self>) {
         let task = spawn(self.store.read(cx).session().cancel_download_file(file), cx);
         cx.spawn(async move |_, _| {
             if let Err(error) = task.await {
@@ -112,7 +116,12 @@ impl HistoryView {
         file.path.clone().map(PathBuf::from)
     }
 
-    fn open_file(&mut self, path: &Path, window: &mut gpui::Window, cx: &mut Context<Self>) {
+    pub(super) fn open_file(
+        &mut self,
+        path: &Path,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
         let state = self.store.read(cx).state();
         // Only a verified user's files skip the warning; channel badges come with profiles (M6).
         let is_verified = state

@@ -1,5 +1,6 @@
 //! Media in the history: photos in Saved Messages, one known only by its
-//! minithumbnail and two downloaded; files in Maria's chat.
+//! minithumbnail and two downloaded; files in Maria's chat; videos and a GIF
+//! in Saved Messages.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -51,6 +52,18 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), documents(&notes))],
             steps: vec![("154-files-list", auth(State::Ready))],
         },
+        // Videos: one to download, one loading with a caption, a GIF on disk.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("158-videos-saved", MouseButton::Left, SAVED_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("159-videos-scrolled", CHAT_AREA, 400.0)],
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), videos(&photo))],
+            steps: vec![("157-videos-list", auth(State::Ready))],
+        },
     ]
 }
 
@@ -59,6 +72,8 @@ fn document(id: i64, from: i64, ago: i32, name: &str, caption: &str, file: File)
         caption: FormattedText::plain(caption),
         thumbnail: None,
         dimensions: None,
+        preview: None,
+        duration: 0,
         file: Some(file),
     };
     Message {
@@ -123,23 +138,80 @@ fn minithumbnail() -> Option<Minithumbnail> {
     })
 }
 
+fn saved(id: i64, ago: i32, content: Content) -> Message {
+    Message {
+        is_outgoing: true,
+        date: now() - ago,
+        ..Message::new(MessageId(id), ChatId(ME), Sender::User(UserId(ME)), content)
+    }
+}
+
 fn photo(id: i64, ago: i32, caption: &str, dimensions: (i32, i32), file: File) -> Message {
     let media = Media {
         caption: FormattedText::plain(caption),
         thumbnail: minithumbnail(),
         dimensions: Dimensions::new(dimensions.0, dimensions.1),
+        preview: None,
+        duration: 0,
         file: Some(file),
     };
-    Message {
-        is_outgoing: true,
-        date: now() - ago,
-        ..Message::new(
-            MessageId(id),
-            ChatId(ME),
-            Sender::User(UserId(ME)),
-            Content::Photo(media),
-        )
-    }
+    saved(id, ago, Content::Photo(media))
+}
+
+/// A video, or a GIF when `duration` is `None`, with its still.
+fn video(
+    id: i64,
+    ago: i32,
+    caption: &str,
+    duration: Option<i32>,
+    [still, file]: [File; 2],
+) -> Message {
+    let media = Media {
+        caption: FormattedText::plain(caption),
+        thumbnail: minithumbnail(),
+        dimensions: Dimensions::new(1280, 720),
+        preview: Some(still),
+        duration: duration.unwrap_or(0),
+        file: Some(file),
+    };
+    saved(
+        id,
+        ago,
+        match duration {
+            Some(_) => Content::Video(media),
+            None => Content::Animation(media),
+        },
+    )
+}
+
+fn videos(still: &Path) -> Vec<Message> {
+    let remote = File {
+        size: 8_808_038,
+        ..file(981, None)
+    };
+    let loading = File {
+        size: 12_582_912,
+        downloaded: 3_145_728,
+        is_downloading: true,
+        ..file(983, None)
+    };
+    vec![
+        video(1, 3 * HOUR, "", Some(75), [file(980, None), remote]),
+        video(
+            2,
+            2 * HOUR,
+            "Ridge line",
+            Some(754),
+            [file(982, Some(still)), loading],
+        ),
+        video(
+            3,
+            HOUR,
+            "",
+            None,
+            [file(984, Some(still)), file(985, Some(still))],
+        ),
+    ]
 }
 
 fn file(id: i32, path: Option<&Path>) -> File {

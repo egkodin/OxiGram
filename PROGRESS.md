@@ -12,12 +12,18 @@
   "Show in Finder" in the menu; `launch.rs` asks before opening risky
   types, as tdesktop's `LaunchWithWarning`. Uploads share the row.
   Snapshots 154-156.
+- Videos and GIFs in the history (`history/video.rs`): TDLib's still sized
+  as a photo, the middle button downloads, cancels with the arc, then
+  plays in the system player; length and size on the corner pill.
+  Snapshots 157-159.
 
 ### Half done (shortcuts in code)
 
 - The minithumbnail is stretched, not blurred; no loading radial or
   cancel; no click to open; captions do not widen a photo and narrow
   windows do not shrink it.
+- Videos and GIFs play in the system player; inline playback and GIF
+  autoplay wait for the media viewer (row 292).
 
 ### Live test list (M5)
 
@@ -30,6 +36,10 @@
    click opens it in its app (a .pdf straight away; an .html or unknown
    type asks first); right click, "Show in Finder" selects it. Send a file
    in Saved Messages: the upload row is the same one.
+3. Videos and GIFs, read only: a video shows its still with "1:15, 8.3 MB"
+   top left and an arrow in the middle; click: the arc and "x / y MB"
+   move, the cross stops it; once loaded the play button opens it in the
+   system player. A GIF says "GIF, size", then "GIF".
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

@@ -219,6 +219,8 @@ pub(crate) fn events() -> Vec<Event> {
         caption: FormattedText::plain("Sunrise over the valley"),
         thumbnail: None,
         dimensions: None,
+        preview: None,
+        duration: 0,
         file: None,
     });
     let channel = chat(

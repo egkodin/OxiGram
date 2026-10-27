@@ -334,6 +334,8 @@ mod tests {
             caption: FormattedText::plain("At the sea"),
             thumbnail: None,
             dimensions: None,
+            preview: None,
+            duration: 0,
             file: None,
         });
         let (preview, thumbnail) = super::content(&english(), &content);
@@ -353,6 +355,8 @@ mod tests {
             caption: FormattedText::plain("At the sea"),
             thumbnail: Some(thumbnail.clone()),
             dimensions: None,
+            preview: None,
+            duration: 0,
             file: None,
         });
         let (preview, image) = super::content(&english(), &content);

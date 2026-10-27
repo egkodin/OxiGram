@@ -4,7 +4,7 @@
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, App, InteractiveElement as _, IntoElement as _, ParentElement as _,
+    AnyElement, App, Hsla, InteractiveElement as _, IntoElement as _, ParentElement as _,
     StatefulInteractiveElement as _, Styled as _, canvas, div, px,
 };
 use style::basic::{NORMAL_FONT, SEMIBOLD_FONT};
@@ -120,7 +120,6 @@ fn circle(file: &FileRow, place: &Place, bg: ColorId, radial: ColorId, cx: &App)
         Thumb::Download | Thumb::Document => None,
     };
     let radial_fg = color(cx, ColorRef::Palette(radial));
-    let line_width = px_of(MSG_FILE_RADIAL_LINE);
     div()
         .relative()
         .flex_none()
@@ -131,27 +130,33 @@ fn circle(file: &FileRow, place: &Place, bg: ColorId, radial: ColorId, cx: &App)
         .items_center()
         .justify_center()
         .child(ui::icon(icon(file.thumb, place.is_out, place.is_selected)))
-        .children(arc.map(|progress| {
-            #[expect(clippy::cast_possible_truncation, reason = "within a full turn")]
-            let state = RadialState {
-                shown: 1.0,
-                arc_from: QUARTER_ARC,
-                arc_length: -(FULL_ARC * progress).round() as i64,
-            };
-            canvas(
-                |_, _, _| (),
-                move |bounds, (), window, _| {
-                    // The arc runs inside the circle by its width (`msgFileRadialLine`).
-                    let arc = bounds.dilate(-line_width - line_width / 2.0);
-                    paint_arc(window, arc, state, line_width, radial_fg);
-                },
-            )
-            .absolute()
-            .top(px(0.0))
-            .left(px(0.0))
-            .size_full()
-        }))
+        .children(arc.map(|progress| self::arc(progress, radial_fg)))
         .into_any_element()
+}
+
+/// The transfer's arc over a round button, `progress` of a turn from twelve
+/// o'clock.
+pub(super) fn arc(progress: f32, fg: Hsla) -> AnyElement {
+    let line_width = px_of(MSG_FILE_RADIAL_LINE);
+    #[expect(clippy::cast_possible_truncation, reason = "within a full turn")]
+    let state = RadialState {
+        shown: 1.0,
+        arc_from: QUARTER_ARC,
+        arc_length: -(FULL_ARC * progress).round() as i64,
+    };
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, _| {
+            // The arc runs inside the circle by its width (`msgFileRadialLine`).
+            let arc = bounds.dilate(-line_width - line_width / 2.0);
+            paint_arc(window, arc, state, line_width, fg);
+        },
+    )
+    .absolute()
+    .top(px(0.0))
+    .left(px(0.0))
+    .size_full()
+    .into_any_element()
 }
 
 /// The row, its top on the bubble's unless a header is above it.

@@ -1,0 +1,214 @@
+//! A video or GIF in its bubble (`HistoryView::Gif` before it plays): the
+//! still TDLib sends, a round button in the middle with what a click does,
+//! and the length or the transfer on a pill in the top-left corner.
+
+use std::path::PathBuf;
+use std::rc::Rc;
+
+use gpui::{
+    AnyElement, App, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
+    StatefulInteractiveElement as _, Styled as _, div,
+};
+use i18n::key;
+use model::message::{Content, Message};
+use style::basic::NORMAL_FONT;
+use style::chat::{MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT};
+use style::chat_style::{
+    HISTORY_FILE_THUMB_CANCEL, HISTORY_FILE_THUMB_CANCEL_SELECTED, HISTORY_FILE_THUMB_DOWNLOAD,
+    HISTORY_FILE_THUMB_DOWNLOAD_SELECTED, HISTORY_FILE_THUMB_PLAY,
+    HISTORY_FILE_THUMB_PLAY_SELECTED,
+};
+use style::{ColorId, ColorRef, Icon};
+use ui::{color, font, font_height};
+
+use super::HistoryView;
+use super::bubble::OnClick;
+use super::documents::{CLICKED_PRIORITY, current};
+use super::file_row::progress;
+use super::photo::Photo;
+use crate::file_sizes::{progress_text, size_text};
+use crate::lang::{strings, tr};
+use crate::px_of;
+
+/// What the middle button shows, and so what a click on the video does.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) enum Center {
+    /// Not on disk: a click downloads.
+    Download,
+    /// Moving, `progress` of it done: a click cancels.
+    Cancel { progress: f32 },
+    /// On disk: a click plays it.
+    Play,
+}
+
+pub(super) struct Video {
+    pub center: Center,
+    pub status: String,
+    pub on_click: OnClick,
+}
+
+/// "0:07", "12:30", "1:02:03" (`FormatDurationText`).
+fn duration_text(seconds: i32) -> String {
+    let (hours, minutes, seconds) = (seconds / 3600, seconds / 60 % 60, seconds % 60);
+    if hours > 0 {
+        format!("{hours}:{minutes:02}:{seconds:02}")
+    } else {
+        format!("{minutes}:{seconds:02}")
+    }
+}
+
+fn icon(center: Center, is_selected: bool) -> Icon {
+    match (center, is_selected) {
+        (Center::Download, false) => HISTORY_FILE_THUMB_DOWNLOAD,
+        (Center::Download, true) => HISTORY_FILE_THUMB_DOWNLOAD_SELECTED,
+        (Center::Cancel { .. }, false) => HISTORY_FILE_THUMB_CANCEL,
+        (Center::Cancel { .. }, true) => HISTORY_FILE_THUMB_CANCEL_SELECTED,
+        (Center::Play, false) => HISTORY_FILE_THUMB_PLAY,
+        (Center::Play, true) => HISTORY_FILE_THUMB_PLAY_SELECTED,
+    }
+}
+
+impl HistoryView {
+    /// A video or GIF message's still with its button and status.
+    pub(super) fn video(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
+        let (media, is_gif) = match &message.content {
+            Content::Video(media) => (media, false),
+            Content::Animation(media) => (media, true),
+            _ => return None,
+        };
+        let file = current(self, media.file.as_ref()?, cx).clone();
+        // TDLib's GIFs are muted loops, "GIF" stands for their length.
+        let length = if is_gif {
+            "GIF".to_owned()
+        } else {
+            duration_text(media.duration)
+        };
+        let (center, status) = match (&file.path, file.is_downloading) {
+            (Some(_), _) => (Center::Play, length),
+            (None, true) => (
+                Center::Cancel {
+                    progress: progress(file.downloaded, file.size),
+                },
+                progress_text(strings(cx), file.downloaded, file.size),
+            ),
+            (None, false) => (
+                Center::Download,
+                i18n::fill(
+                    &tr(cx, key::lng_duration_and_size),
+                    &[("duration", &length), ("size", &size_text(file.size))],
+                ),
+            ),
+        };
+        let weak = cx.weak_entity();
+        let path = file.path.clone().map(PathBuf::from);
+        let on_click: OnClick = Rc::new(move |_, window, cx| {
+            let _ = weak.update(cx, |this, cx| match center {
+                Center::Download => this.start_download(file.id, CLICKED_PRIORITY, cx),
+                Center::Cancel { .. } => this.cancel_download(file.id, cx),
+                // shortcut: the system player plays it; inline playback comes with the media viewer (row 292).
+                Center::Play => {
+                    if let Some(path) = &path {
+                        this.open_file(path, window, cx);
+                    }
+                }
+            });
+        });
+        let still = self.still(media.preview.as_ref(), media, cx);
+        Some(Photo {
+            video: Some(Video {
+                center,
+                status,
+                on_click,
+            }),
+            ..still
+        })
+    }
+}
+
+/// The button over the whole picture, which takes its clicks, and the
+/// status pill in its corner.
+pub(super) fn overlays(video: Video, id: i64, is_selected: bool, cx: &App) -> [AnyElement; 2] {
+    let bg = color(
+        cx,
+        ColorRef::Palette(if is_selected {
+            ColorId::MsgDateImgBgSelected
+        } else {
+            ColorId::MsgDateImgBg
+        }),
+    );
+    let radial = color(
+        cx,
+        ColorRef::Palette(if is_selected {
+            ColorId::HistoryFileThumbRadialFgSelected
+        } else {
+            ColorId::HistoryFileThumbRadialFg
+        }),
+    );
+    let arc = match video.center {
+        Center::Cancel { progress } => Some(super::file_row::arc(progress, radial)),
+        Center::Download | Center::Play => None,
+    };
+    let circle = div()
+        .relative()
+        .size(px_of(MSG_FILE_LAYOUT.thumb_size))
+        .rounded_full()
+        .bg(bg)
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(ui::icon(icon(video.center, is_selected)))
+        .children(arc);
+    let on_click = video.on_click;
+    let button = div()
+        .id(("video", id.unsigned_abs()))
+        .absolute()
+        .inset_0()
+        .flex()
+        .items_center()
+        .justify_center()
+        .cursor_pointer()
+        .child(circle)
+        .on_click(move |event, window, cx| {
+            cx.stop_propagation();
+            on_click(event, window, cx);
+        })
+        .into_any_element();
+    let status = div()
+        .absolute()
+        .left(px_of(MSG_DATE_IMG_DELTA))
+        .top(px_of(MSG_DATE_IMG_DELTA))
+        .px(px_of(MSG_DATE_IMG_PADDING.x))
+        .py(px_of(MSG_DATE_IMG_PADDING.y))
+        .rounded_full()
+        .bg(bg)
+        .font(font(NORMAL_FONT))
+        .text_size(px_of(NORMAL_FONT.size))
+        .line_height(font_height(NORMAL_FONT))
+        .text_color(color(cx, ColorRef::Palette(ColorId::MsgDateImgFg)))
+        .whitespace_nowrap()
+        .child(video.status)
+        .into_any_element();
+    [button, status]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn durations_drop_hours_under_an_hour() {
+        assert_eq!(duration_text(7), "0:07");
+        assert_eq!(duration_text(750), "12:30");
+        assert_eq!(duration_text(3723), "1:02:03");
+    }
+
+    #[test]
+    fn the_button_shows_what_a_click_does() {
+        assert_eq!(icon(Center::Download, false), HISTORY_FILE_THUMB_DOWNLOAD);
+        assert_eq!(
+            icon(Center::Cancel { progress: 0.3 }, true),
+            HISTORY_FILE_THUMB_CANCEL_SELECTED
+        );
+        assert_eq!(icon(Center::Play, false), HISTORY_FILE_THUMB_PLAY);
+    }
+}

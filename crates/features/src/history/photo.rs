@@ -9,8 +9,8 @@ use gpui::{
     AnyElement, App, Context, Corners, Div, ImageSource, IntoElement as _, ObjectFit,
     ParentElement as _, Pixels, Styled, StyledImage as _, div, img, px,
 };
-use model::file::Dimensions;
-use model::message::{Content, Message};
+use model::file::{Dimensions, File};
+use model::message::{Content, Media, Message};
 use style::chat::{
     HISTORY_PHOTO_BUBBLE_MIN_WIDTH, MAX_MEDIA_SIZE, MEDIA_CAPTION_SKIP, MEDIA_IN_BUBBLE_SKIP,
     MIN_PHOTO_SIZE, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_PADDING,
@@ -20,6 +20,8 @@ use ui::color;
 
 use super::HistoryView;
 use super::bubble::{self, InfoOn, Item};
+use super::documents::current;
+use super::video::{self, Video};
 use crate::px_of;
 
 /// Photos in view load before userpics (TDLib's 1..=32, higher first).
@@ -31,6 +33,8 @@ pub(super) struct Photo {
     /// The downloaded photo, else its minithumbnail.
     pub source: Option<ImageSource>,
     pub thumbnail: Option<ImageSource>,
+    /// A video's or GIF's button and status over the still.
+    pub video: Option<Video>,
 }
 
 /// `QSize::scaled` with `Qt::KeepAspectRatio` (`expanding` false) or
@@ -91,20 +95,23 @@ fn size(dimensions: Option<Dimensions>) -> (i32, i32) {
 }
 
 impl HistoryView {
-    /// A photo message's picture, downloading it the first time it shows.
+    /// A photo, video or GIF message's picture.
     pub(super) fn photo(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
-        let Content::Photo(media) = &message.content else {
-            return None;
-        };
-        let file = media.file.as_ref().map(|sent| {
-            self.store
-                .read(cx)
-                .state()
-                .chats
-                .file(sent.id)
-                .unwrap_or(sent)
-                .clone()
-        });
+        match &message.content {
+            Content::Photo(media) => Some(self.still(media.file.as_ref(), media, cx)),
+            Content::Video(_) | Content::Animation(_) => self.video(message, cx),
+            _ => None,
+        }
+    }
+
+    /// `file` as `media`'s picture, downloading it the first time it shows.
+    pub(super) fn still(
+        &mut self,
+        file: Option<&File>,
+        media: &Media,
+        cx: &mut Context<Self>,
+    ) -> Photo {
+        let file = file.map(|sent| current(self, sent, cx).clone());
         let path = file.as_ref().and_then(|file| file.path.clone());
         if let Some(file) = file.filter(|file| file.path.is_none()) {
             self.fetch(file.id, PHOTO_PRIORITY, cx);
@@ -114,14 +121,15 @@ impl HistoryView {
             .thumbnail
             .as_ref()
             .map(|thumbnail| ImageSource::from(ui::jpeg_image(thumbnail.jpeg.clone())));
-        Some(Photo {
+        Photo {
             width,
             height,
             source: path
                 .map(|path| ImageSource::from(PathBuf::from(path)))
                 .or(thumbnail.clone()),
             thumbnail,
-        })
+            video: None,
+        }
     }
 }
 
@@ -136,9 +144,12 @@ fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     };
     let thumbnail = photo.thumbnail;
     let background = color(cx, bubble::palette(ColorId::ImageBg));
+    // The box's own ratio, or gpui takes the image's and a still of another
+    // shape stretches the bubble past its height.
     img(source)
         .w(width)
         .h(height)
+        .aspect_ratio(width / height)
         .object_fit(ObjectFit::Cover)
         .map(|this| rounded(this, corners))
         .with_loading(move || match thumbnail.clone() {
@@ -191,14 +202,17 @@ fn info_over(item: &Item<'_>, out: bool, cx: &App) -> Div {
 
 /// The bubble: name and headers, the picture, then the caption and the
 /// reactions under it with the time.
-pub(super) fn bubble(item: &mut Item<'_>, out: bool, photo: Photo, cx: &App) -> Div {
+pub(super) fn bubble(item: &mut Item<'_>, out: bool, mut photo: Photo, cx: &App) -> Div {
     let (frame, fg) = bubble::frame(out, item.is_selected, &item.run, cx);
     let width = px_of(Px(photo.width));
+    let video = photo
+        .video
+        .take()
+        .map(|video| video::overlays(video, item.message.id.0, item.is_selected, cx));
     let name = bubble::name_line(item, out, cx);
     let headers = bubble::headers(item, out, cx);
     let has_header = name.is_some() || !headers.is_empty();
-    let has_caption =
-        matches!(&item.message.content, Content::Photo(media) if !media.caption.text.is_empty());
+    let has_caption = bubble::caption(item.message).is_some_and(|caption| !caption.text.is_empty());
     let has_below = has_caption || !item.reactions.is_empty();
     let comments = item
         .comments
@@ -239,6 +253,7 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, photo: Photo, cx: &App) -> 
         .relative()
         .child(picture(photo, corners, cx))
         .children(overlay)
+        .children(video.into_iter().flatten())
         .when(!has_below, |this| this.child(info_over(item, out, cx)));
     let below = has_below.then(|| {
         let room = bubble::info_content(item, out, InfoOn::Bubble, cx);

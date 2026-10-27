@@ -47,6 +47,7 @@ mod top_bar;
 mod unread;
 mod upload;
 mod userpics_row;
+mod video;
 mod voice;
 
 pub use voice::preset_voice_samples;

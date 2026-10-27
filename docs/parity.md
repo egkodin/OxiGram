@@ -252,9 +252,9 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| media | Photos with blurred placeholder and progressive load | M5 | in progress | unit tests (`cargo test -p features photo`: tdesktop's sizes); snapshots 151-153: sized from the dimensions into 430x430 (at least 200x100, taller when that crops under a quarter), the minithumbnail until the download completes, the caption below, the time on a dark pill over the picture without one, the bubble's corners on the picture; not verified: no live photo yet; the minithumbnail is stretched, not blurred; no loading radial or cancel; a caption wider than the photo does not widen it; a history narrower than 430 does not shrink it; no click to open (the viewer row) |
+| media | Photos with blurred placeholder and progressive load | M5 | in progress | unit tests (`cargo test -p features photo`: tdesktop's sizes); snapshots 151-153: sized from the dimensions into 430x430 (at least 200x100, taller when that crops under a quarter), the minithumbnail until the download completes, the caption below, the time on a dark pill over the picture without one, the bubble's corners on the picture; not verified: no live photo yet; the minithumbnail is stretched, not blurred; no loading radial or cancel; a caption wider than the photo does not widen it; a history narrower than 430 does not shrink it; no click to open (the viewer row); a still of another shape than its box no longer stretches the bubble (gpui took the image's ratio) |
 | media | Albums in mosaic layout | M5 | todo | |
-| media | Videos: thumbnail, duration, inline autoplay without sound | M5 | todo | |
+| media | Videos: thumbnail, duration, inline autoplay without sound | M5 | in progress | unit tests (`cargo test -p features video`); snapshots 157-159: TDLib's still (the minithumbnail until it loads) sized as a photo, a round button in the middle that downloads, cancels with the arc while it loads, then plays; "1:15, 8.3 MB", "3.0 / 12.0 MB" or the length on a pill top left; the caption below; not verified: no live video yet; it plays in the system player, not inline, and no autoplay (the media viewer row); a still arc; tdesktop sizes videos slightly differently from photos |
 | media | Video covers and video timestamps | M5 | todo | |
 | media | Streaming playback while downloading | M5 | todo | |
 | media | Files: icon, size, progress, download, open, show in folder | M5 | in progress | unit tests (`cargo test -p features file_row launch`); snapshots 154-156: the circle downloads, cancels with the arc while it loads, then opens; size or "x / y MB" beside the time; "Show in Finder" in the menu once on disk; opening asks first for executables, unknown types and files that can expose the IP address (tdesktop's lists), never for a verified user's files, and only reveals files without an extension; not verified: no live download yet; a still arc; no Save As, no "Don't ask again" per extension (M7), no thumbnails for image and video files, no music or voice layouts |
@@ -263,7 +263,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | media | Voice and video transcription (Premium) | M13 | todo | |
 | media | Round video messages | M5 | todo | |
 | media | Stickers: WebP, animated TGS (Lottie), video WebM | M5 | todo | |
-| media | GIFs (MPEG-4 animations) with autoplay | M5 | todo | |
+| media | GIFs (MPEG-4 animations) with autoplay | M5 | in progress | snapshots 157-159: as videos, with "GIF, size" or "GIF" on the pill; not verified: no live GIF yet; no autoplay, a click opens it in the system player |
 | media | Dice and slot machine animations | M5 | todo | |
 | media | Contacts in messages | M5 | todo | |
 | media | Locations, venues and live locations with a map preview | M5 | todo | |
