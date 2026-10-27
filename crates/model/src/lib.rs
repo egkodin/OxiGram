@@ -37,5 +37,5 @@ pub use ids::{
     UserId,
 };
 pub use secret::Secret;
-pub use session::{Environment, ListLoad, Parameters, RequestError, Session};
+pub use session::{Environment, ListLoad, Parameters, RequestError, Session, Views};
 pub use state::{ConnectionState, State};

@@ -25,7 +25,7 @@ pub(crate) fn start(runtime: tg::Runtime, parameters: Parameters, cx: &mut App) 
     });
     let (client, updates) = connection.runtime.create_client();
     let environment = connection.parameters.environment;
-    let store = cx.new(|_| Store::new(Session::new(client.clone()), environment));
+    let store = cx.new(|_| Store::new(session(&connection, client.clone()), environment));
     let (closed_sender, closed) = shutdown::closed_signal();
     shutdown::init(cx, client, closed);
     pump(store.clone(), connection, updates, closed_sender, cx);
@@ -61,11 +61,15 @@ fn pump(
     .detach();
 }
 
+fn session(connection: &Connection, client: tg::Client) -> Session {
+    Session::new(client).with_views(connection.parameters.views)
+}
+
 fn restart(store: Entity<Store>, connection: Rc<Connection>, cx: &mut App) {
     tracing::info!("TDLib client closed; starting a new one");
     let (client, updates) = connection.runtime.create_client();
     store.update(cx, |store, cx| {
-        store.replace_session(Session::new(client.clone()), cx)
+        store.replace_session(session(&connection, client.clone()), cx)
     });
     let (closed_sender, closed) = shutdown::closed_signal();
     shutdown::set_client(cx, client, closed);

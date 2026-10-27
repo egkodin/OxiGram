@@ -174,14 +174,14 @@ impl Session {
     }
 
     /// Tells TDLib the user saw `message` in the chat, which reads it and
-    /// its mention or reactions.
+    /// its mention or reactions; nothing with `Views::Withhold`.
     pub fn view_message(
         &self,
         chat: ChatId,
         message: MessageId,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
-        self.client()
-            .request(&ViewMessages {
+        let request = (self.views() == crate::Views::Report).then(|| {
+            self.client().request(&ViewMessages {
                 chat_id: chat.0,
                 message_ids: vec![message.0],
                 source: Some(Box::new(MessageSource::ChatHistory(
@@ -189,7 +189,13 @@ impl Session {
                 ))),
                 force_read: false,
             })
-            .map(done)
+        });
+        async move {
+            match request {
+                Some(request) => done(request.await),
+                None => Ok(()),
+            }
+        }
     }
 
     /// Reads everything in `chat` up to `last`, its mentions and reactions

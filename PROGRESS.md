@@ -126,6 +126,17 @@
    opening a chat from the TDLib cache (`docs/perf.md`).
 3. M4 (compose and sending), only when the owner says to start it.
 
+### Live run setup
+
+- Credentials: git-ignored `.env` at the project root (mode 600), with a
+  copy in the login Keychain (`rgram.api_id`, `rgram.api_hash`).
+- Start with `scripts/run-live.sh` (release build, production DC, log in
+  `target/run-live.log`). It sets `RGRAM_WITHHOLD_VIEWS=1`, so browsing
+  real chats reads nothing; reading is checked in Saved Messages only, with
+  `RGRAM_WITHHOLD_VIEWS=0`.
+- The owner signs in at the Mac (phone, code, 2FA password, or QR); the
+  codes are never asked for in chat. Run M1-M3 first, then M4.
+
 ### Live run order (once credentials are set)
 
 M1, sign-in (the owner enters codes and the 2FA password):

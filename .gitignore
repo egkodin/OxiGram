@@ -1,3 +1,6 @@
 /target
 *.pending-snap
 *.snap.new
+
+# Local secrets (API credentials); never commit.
+.env

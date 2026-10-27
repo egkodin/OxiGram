@@ -19,6 +19,16 @@ use crate::secret::Secret;
 #[derive(Debug, Clone)]
 pub struct Session {
     client: tg::Client,
+    views: Views,
+}
+
+/// Whether showing messages tells Telegram they were seen, which reads them.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Views {
+    #[default]
+    Report,
+    /// Browsing reads nothing: for checking the app on a real account.
+    Withhold,
 }
 
 /// Which Telegram servers to use.
@@ -45,6 +55,7 @@ pub struct Parameters {
     pub device_model: String,
     pub system_version: String,
     pub application_version: String,
+    pub views: Views,
 }
 
 /// Whether a chat list has more chats to load.
@@ -62,7 +73,19 @@ pub struct RequestError(#[from] TdError);
 impl Session {
     #[must_use]
     pub fn new(client: tg::Client) -> Self {
-        Self { client }
+        Self {
+            client,
+            views: Views::default(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_views(self, views: Views) -> Self {
+        Self { views, ..self }
+    }
+
+    pub(crate) fn views(&self) -> Views {
+        self.views
     }
 
     /// Takes a sign-in step. The future reports whether TDLib accepted it;

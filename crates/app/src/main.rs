@@ -30,6 +30,9 @@ const WINDOW_MIN_HEIGHT: f32 = 480.0;
 const TDLIB_LOG_VERBOSITY: i32 = 1;
 
 const TEST_DC_VAR: &str = "RGRAM_TEST_DC";
+/// `RGRAM_WITHHOLD_VIEWS=1` browses without reading messages, for checks on
+/// a real account.
+const WITHHOLD_VIEWS_VAR: &str = "RGRAM_WITHHOLD_VIEWS";
 const SETTINGS_FILE: &str = "settings.json";
 
 fn main() -> anyhow::Result<()> {
@@ -115,6 +118,10 @@ fn parameters(
         device_model: String::new(),
         system_version: String::new(),
         application_version: env!("CARGO_PKG_VERSION").to_owned(),
+        views: match std::env::var(WITHHOLD_VIEWS_VAR).as_deref() {
+            Ok("1" | "true") => model::Views::Withhold,
+            _ => model::Views::Report,
+        },
     })
 }
 
