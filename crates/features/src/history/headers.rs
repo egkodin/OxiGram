@@ -342,6 +342,7 @@ mod tests {
             media: Some(model::message::Content::Photo(model::message::Media {
                 caption: model::text::FormattedText::plain("Sunrise"),
                 thumbnail: None,
+                dimensions: None,
                 file: None,
             })),
         });

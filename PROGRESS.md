@@ -1,5 +1,26 @@
 # Progress
 
+## M5: Media (in progress, started while the live runs of M1-M4 go on)
+
+### Done (code, checks green)
+
+- Photos in the history (`history/photo.rs`): tdesktop's sizes, the
+  minithumbnail until the download completes, the caption below, the time
+  on its pill over the picture. Snapshots 151-153.
+
+### Half done (shortcuts in code)
+
+- The minithumbnail is stretched, not blurred; no loading radial or
+  cancel; no click to open; captions do not widen a photo and narrow
+  windows do not shrink it.
+
+### Live test list (M5)
+
+1. Open a channel with photos (read only): each photo's box has its size
+   at once, the blurry preview shows, then the photo; the time sits on a
+   dark pill at the bottom right, under a caption when there is one.
+   Scroll a long way through photos and watch memory in Activity Monitor.
+
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
 Built on the offline pattern (model, store, snapshots, tests) until the

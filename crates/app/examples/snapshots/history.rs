@@ -219,6 +219,7 @@ fn ann() -> Vec<Message> {
             media: Some(Content::Photo(model::message::Media {
                 caption: FormattedText::plain("Sunrise over the valley"),
                 thumbnail: None,
+                dimensions: None,
                 file: None,
             })),
         },
@@ -367,6 +368,7 @@ pub(crate) fn uploads() -> Vec<(ChatId, Vec<Message>)> {
             media: Media {
                 caption: FormattedText::plain("Numbers for the Q3 hike"),
                 thumbnail: None,
+                dimensions: None,
                 file: Some(file),
             },
         },

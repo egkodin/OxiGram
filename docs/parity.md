@@ -252,7 +252,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| media | Photos with blurred placeholder and progressive load | M5 | todo | |
+| media | Photos with blurred placeholder and progressive load | M5 | in progress | unit tests (`cargo test -p features photo`: tdesktop's sizes); snapshots 151-153: sized from the dimensions into 430x430 (at least 200x100, taller when that crops under a quarter), the minithumbnail until the download completes, the caption below, the time on a dark pill over the picture without one, the bubble's corners on the picture; not verified: no live photo yet; the minithumbnail is stretched, not blurred; no loading radial or cancel; a caption wider than the photo does not widen it; a history narrower than 430 does not shrink it; no click to open (the viewer row) |
 | media | Albums in mosaic layout | M5 | todo | |
 | media | Videos: thumbnail, duration, inline autoplay without sound | M5 | todo | |
 | media | Video covers and video timestamps | M5 | todo | |

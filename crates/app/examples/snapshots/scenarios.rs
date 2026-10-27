@@ -11,7 +11,7 @@ use model::{Event, Secret};
 
 use super::{Input, Scenario, chats, history};
 
-fn auth(state: State) -> Event {
+pub(crate) fn auth(state: State) -> Event {
     Event::Auth(state)
 }
 
@@ -625,7 +625,7 @@ const CHANNELS_TAB: (f32, f32) = (240.0, 70.0);
 /// The second item of a menu opened on [`WORK_TAB`].
 const SECOND_TAB_MENU_ITEM: (f32, f32) = (155.0, 130.0);
 /// Empty space beside the list; a click there closes menus and boxes.
-const CHAT_AREA: (f32, f32) = (600.0, 450.0);
+pub(crate) const CHAT_AREA: (f32, f32) = (600.0, 450.0);
 /// The archive row sits under the folder tabs; in the archive, which has no
 /// tabs, its first chat sits higher.
 const ARCHIVE_ROW: (f32, f32) = (150.0, 118.0);
@@ -647,7 +647,7 @@ const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 const COLUMN_EDGE: (f32, f32) = (286.0, 300.0);
 const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
-const SAVED_ROW: (f32, f32) = (150.0, 180.0);
+pub(crate) const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
 const BEN_ROW: (f32, f32) = (150.0, 490.0);
@@ -755,7 +755,7 @@ fn write_restrictions() -> Vec<Event> {
 }
 
 /// A photo and a text file to drop, written where the system clears them.
-fn fixture_files() -> (PathBuf, PathBuf) {
+pub(crate) fn fixture_files() -> (PathBuf, PathBuf) {
     let folder = std::env::temp_dir().join("rgram-snapshots");
     let photo = folder.join("summit.png");
     let notes = folder.join("trail-notes.txt");

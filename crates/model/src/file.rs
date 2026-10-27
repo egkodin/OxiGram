@@ -19,6 +19,23 @@ pub struct File {
     pub is_uploading: bool,
 }
 
+/// A photo's or video's size in pixels, which lays it out before it loads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Dimensions {
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Dimensions {
+    /// `None` unless both sides are positive, as TDLib sends 0 when unknown.
+    #[must_use]
+    pub fn new(width: i32, height: i32) -> Option<Self> {
+        let width = u32::try_from(width).ok().filter(|width| *width > 0)?;
+        let height = u32::try_from(height).ok().filter(|height| *height > 0)?;
+        Some(Self { width, height })
+    }
+}
+
 /// A blurred JPEG preview of at most 40x40 pixels, shown until the real
 /// image loads.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,6 +80,19 @@ impl Minithumbnail {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dimensions_need_both_sides() {
+        assert_eq!(
+            Dimensions::new(640, 427),
+            Some(Dimensions {
+                width: 640,
+                height: 427
+            })
+        );
+        assert_eq!(Dimensions::new(0, 427), None);
+        assert_eq!(Dimensions::new(640, -1), None);
+    }
 
     #[test]
     fn keeps_the_path_only_after_the_download_completed() {

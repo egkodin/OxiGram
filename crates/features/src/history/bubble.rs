@@ -2,9 +2,9 @@
 //! day, then the message in its bubble.
 
 use gpui::{
-    AnyElement, App, BoxShadow, ClickEvent, Div, ElementId, InteractiveElement as _, IntoElement,
-    MouseButton, ParentElement, Pixels, SharedString, StatefulInteractiveElement as _, Styled,
-    Window, div, point, prelude::FluentBuilder as _, px,
+    AnyElement, App, BoxShadow, ClickEvent, Corners, Div, ElementId, InteractiveElement as _,
+    IntoElement, MouseButton, ParentElement, Pixels, SharedString, StatefulInteractiveElement as _,
+    Styled, Window, div, point, prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::message::{Content, LinkPreview, Message, Sending};
@@ -20,10 +20,11 @@ use style::chat::{
 use style::chat_style::{
     HISTORY_BUBBLE_TAIL_IN_LEFT, HISTORY_BUBBLE_TAIL_IN_LEFT_SELECTED,
     HISTORY_BUBBLE_TAIL_OUT_RIGHT, HISTORY_BUBBLE_TAIL_OUT_RIGHT_SELECTED, HISTORY_RECEIVED_ICON,
-    HISTORY_RECEIVED_SELECTED_ICON, HISTORY_SENT_ICON, HISTORY_SENT_SELECTED_ICON,
-    HISTORY_VIEWS_IN_ICON, HISTORY_VIEWS_OUT_ICON,
+    HISTORY_RECEIVED_INVERTED_ICON, HISTORY_RECEIVED_SELECTED_ICON, HISTORY_SENT_ICON,
+    HISTORY_SENT_INVERTED_ICON, HISTORY_SENT_SELECTED_ICON, HISTORY_VIEWS_IN_ICON,
+    HISTORY_VIEWS_INVERTED_ICON, HISTORY_VIEWS_OUT_ICON,
 };
-use style::dialogs::HISTORY_SENDING_ICON;
+use style::dialogs::{HISTORY_SENDING_ICON, HISTORY_SENDING_INVERTED_ICON};
 use style::{ColorId, ColorRef};
 use ui::{Userpic, UserpicSource, color, font, font_height, icon, icon_size, peer_palette_index};
 
@@ -82,6 +83,8 @@ pub(super) struct Item<'a> {
     pub reactions: Vec<reactions::Button>,
     /// The file going up while the message is being sent.
     pub upload: Option<super::upload::Upload>,
+    /// A photo message's picture, once it is sent.
+    pub photo: Option<super::photo::Photo>,
     /// What follows the message in its row, as a thread's divider.
     pub after: Option<AnyElement>,
 }
@@ -106,7 +109,7 @@ const NAME_VIA_GAP: f32 = 4.0;
 /// U+2007 FIGURE SPACE: wide as a digit and never broken.
 const FIGURE_SPACE: char = '\u{2007}';
 
-fn palette(id: ColorId) -> ColorRef {
+pub(super) fn palette(id: ColorId) -> ColorRef {
     ColorRef::Palette(id)
 }
 
@@ -291,6 +294,33 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
         .child(bubble(item, out, cx))
 }
 
+/// A bubble's corners: its own side gets the run's, small where it joins a
+/// neighbor and none at the tail; the far side stays large.
+pub(super) fn corners(out: bool, run: &Run) -> Corners<Pixels> {
+    let (large, small) = (px_of(BUBBLE_RADIUS_LARGE), px_of(BUBBLE_RADIUS_SMALL));
+    let top = if run.is_attached_to_previous {
+        small
+    } else {
+        large
+    };
+    let bottom = if run.is_attached_to_next {
+        small
+    } else {
+        px(0.0)
+    };
+    let (top_left, top_right, bottom_left, bottom_right) = if out {
+        (large, top, large, bottom)
+    } else {
+        (top, large, bottom, large)
+    };
+    Corners {
+        top_left,
+        top_right,
+        bottom_right,
+        bottom_left,
+    }
+}
+
 /// A bubble's background, corners, shadow and tail for its side and run;
 /// also the text color that goes on it.
 pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, ColorId) {
@@ -316,25 +346,8 @@ pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, 
             ColorId::HistoryTextInFgSelected,
         ),
     };
-    let (large, small) = (px_of(BUBBLE_RADIUS_LARGE), px_of(BUBBLE_RADIUS_SMALL));
-    let top = if run.is_attached_to_previous {
-        small
-    } else {
-        large
-    };
-    let bottom = if run.is_attached_to_next {
-        small
-    } else {
-        large
-    };
     let has_tail = !run.is_attached_to_next;
-    // The bubble's own side gets the run's corners; the far side stays large.
-    let (top_left, top_right, bottom_left, bottom_right) = match (out, has_tail) {
-        (true, true) => (large, top, large, px(0.0)),
-        (true, false) => (large, top, large, bottom),
-        (false, true) => (top, large, px(0.0), large),
-        (false, false) => (top, large, bottom, large),
-    };
+    let corners = corners(out, run);
     let tail = has_tail.then(|| {
         let tail = match (out, is_selected) {
             (true, false) => HISTORY_BUBBLE_TAIL_OUT_RIGHT,
@@ -359,10 +372,10 @@ pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, 
         .pl(px_of(MSG_PADDING.left))
         .pr(px_of(MSG_PADDING.right))
         .bg(color(cx, palette(bg)))
-        .rounded_tl(top_left)
-        .rounded_tr(top_right)
-        .rounded_bl(bottom_left)
-        .rounded_br(bottom_right)
+        .rounded_tl(corners.top_left)
+        .rounded_tr(corners.top_right)
+        .rounded_bl(corners.bottom_left)
+        .rounded_br(corners.bottom_right)
         .shadow(vec![BoxShadow {
             color: color(cx, palette(shadow)),
             offset: point(px(0.0), px_of(MSG_SHADOW)),
@@ -375,10 +388,13 @@ pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, 
 }
 
 fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
+    if let Some(photo) = item.photo.take() {
+        return super::photo::bubble(item, out, photo, cx);
+    }
     let (frame, fg) = frame(out, item.is_selected, &item.run, cx);
     let name = name_line(item, out, cx);
     let info = info(item, out, cx);
-    let room = info_content(item, out, cx);
+    let room = info_content(item, out, InfoOn::Bubble, cx);
     let comments = item
         .comments
         .take()
@@ -396,14 +412,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         .children(headers)
         .children(upload)
         .children(web_page(item, out, Placement::AboveText, cx))
-        .child(
-            div()
-                .font(font(MSG_FONT))
-                .text_size(px_of(MSG_FONT.size))
-                .line_height(font_height(MSG_FONT))
-                .text_color(color(cx, palette(fg)))
-                .child(body),
-        )
+        .child(text_style(fg, cx).child(body))
         .children(web_page(item, out, Placement::BelowText, cx))
         .map(|this| {
             let reactions = std::mem::take(&mut item.reactions);
@@ -420,7 +429,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
 /// The sender's name and "via @bot" after it (`HistoryMessageVia`); the
 /// via label stands alone when no name shows above a message.
 // shortcut: a forwarded message's via label is dropped, tdesktop appends it to the forward line; with forward headers in M5.
-fn name_line(item: &Item<'_>, out: bool, cx: &App) -> Option<Div> {
+pub(super) fn name_line(item: &Item<'_>, out: bool, cx: &App) -> Option<Div> {
     let author = item
         .author
         .as_ref()
@@ -460,7 +469,7 @@ fn name_line(item: &Item<'_>, out: bool, cx: &App) -> Option<Div> {
 }
 
 /// The forward line and the reply box, in the bubble's colors.
-fn headers(item: &Item<'_>, out: bool, cx: &App) -> Vec<AnyElement> {
+pub(super) fn headers(item: &Item<'_>, out: bool, cx: &App) -> Vec<AnyElement> {
     let forward_fg = palette(if out {
         ColorId::MsgOutServiceFg
     } else {
@@ -577,18 +586,30 @@ pub(super) fn name_color(color_index: i32) -> ColorId {
     NAME_COLORS[peer_palette_index(color_index)]
 }
 
+/// The message text in its font and color.
+pub(super) fn text_block(item: &Item<'_>, out: bool, fg: ColorId, cx: &App) -> Div {
+    text_style(fg, cx).child(text(item, out, cx))
+}
+
+fn text_style(fg: ColorId, cx: &App) -> Div {
+    div()
+        .font(font(MSG_FONT))
+        .text_size(px_of(MSG_FONT.size))
+        .line_height(font_height(MSG_FONT))
+        .text_color(color(cx, palette(fg)))
+}
+
 /// The message text with, made transparent, room for the time on the last
 /// line (`skipBlock`).
 // shortcut: figure spaces approximate the time's width in the text font; tdesktop reserves the exact width.
-fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
+pub(super) fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
     let preview;
     let text = match &item.message.content {
         Content::Text { text, .. } => text,
-        // The upload row stands for the file; only the caption follows it.
-        Content::Photo(media)
-        | Content::Video(media)
-        | Content::Animation(media)
-        | Content::Document { media, .. }
+        // The picture or the upload row stands for the file; only the
+        // caption follows it.
+        Content::Photo(media) => &media.caption,
+        Content::Video(media) | Content::Animation(media) | Content::Document { media, .. }
             if item.upload.is_some() =>
         {
             &media.caption
@@ -632,7 +653,7 @@ fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
     )
 }
 
-fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
+pub(super) fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
     // Over a link preview below the text the time sits on its last line.
     let preview_lift = if item.reactions.is_empty()
         && link_preview(item).is_some_and(|preview| !preview.is_above_text)
@@ -651,24 +672,40 @@ fn info(item: &Item<'_>, out: bool, cx: &App) -> Div {
         .absolute()
         .right(px_of(MSG_PADDING.right) - px_of(MSG_DATE_DELTA.x))
         .bottom(px_of(MSG_PADDING.bottom) - px_of(MSG_DATE_DELTA.y) + preview_lift + comments_lift)
-        .child(info_content(item, out, cx))
+        .child(info_content(item, out, InfoOn::Bubble, cx))
+}
+
+/// Where the time is drawn (`InfoDisplayType`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum InfoOn {
+    Bubble,
+    /// Over a photo, in white on its dark pill.
+    Image,
 }
 
 /// The views, the time and the sending state.
-fn info_content(item: &Item<'_>, out: bool, cx: &App) -> Div {
-    let date_fg = match (out, item.is_selected) {
-        (true, false) => ColorId::MsgOutDateFg,
-        (true, true) => ColorId::MsgOutDateFgSelected,
-        (false, false) => ColorId::MsgInDateFg,
-        (false, true) => ColorId::MsgInDateFgSelected,
+pub(super) fn info_content(item: &Item<'_>, out: bool, on: InfoOn, cx: &App) -> Div {
+    let date_fg = match (on, out, item.is_selected) {
+        (InfoOn::Image, ..) => ColorId::MsgDateImgFg,
+        (InfoOn::Bubble, true, false) => ColorId::MsgOutDateFg,
+        (InfoOn::Bubble, true, true) => ColorId::MsgOutDateFgSelected,
+        (InfoOn::Bubble, false, false) => ColorId::MsgInDateFg,
+        (InfoOn::Bubble, false, true) => ColorId::MsgInDateFgSelected,
     };
     // shortcut: a failed message shows the sending clock; the red failed mark comes with sending in M4.
-    let state = out.then_some(match (item.message.sending, item.is_selected) {
-        (Some(Sending::Pending | Sending::Failed), _) => HISTORY_SENDING_ICON,
-        (None, false) if item.is_read => HISTORY_RECEIVED_ICON,
-        (None, true) if item.is_read => HISTORY_RECEIVED_SELECTED_ICON,
-        (None, false) => HISTORY_SENT_ICON,
-        (None, true) => HISTORY_SENT_SELECTED_ICON,
+    let is_sending = matches!(
+        item.message.sending,
+        Some(Sending::Pending | Sending::Failed)
+    );
+    let state = out.then_some(match (on, is_sending, item.is_read, item.is_selected) {
+        (InfoOn::Image, true, ..) => HISTORY_SENDING_INVERTED_ICON,
+        (InfoOn::Image, false, true, _) => HISTORY_RECEIVED_INVERTED_ICON,
+        (InfoOn::Image, false, false, _) => HISTORY_SENT_INVERTED_ICON,
+        (InfoOn::Bubble, true, ..) => HISTORY_SENDING_ICON,
+        (InfoOn::Bubble, false, true, false) => HISTORY_RECEIVED_ICON,
+        (InfoOn::Bubble, false, true, true) => HISTORY_RECEIVED_SELECTED_ICON,
+        (InfoOn::Bubble, false, false, false) => HISTORY_SENT_ICON,
+        (InfoOn::Bubble, false, false, true) => HISTORY_SENT_SELECTED_ICON,
     });
     div()
         .flex()
@@ -678,10 +715,10 @@ fn info_content(item: &Item<'_>, out: bool, cx: &App) -> Div {
         .line_height(font_height(MSG_DATE_FONT))
         .text_color(color(cx, palette(date_fg)))
         .children(views(item).map(|views| {
-            let views_icon = if out {
-                HISTORY_VIEWS_OUT_ICON
-            } else {
-                HISTORY_VIEWS_IN_ICON
+            let views_icon = match (on, out) {
+                (InfoOn::Image, _) => HISTORY_VIEWS_INVERTED_ICON,
+                (InfoOn::Bubble, true) => HISTORY_VIEWS_OUT_ICON,
+                (InfoOn::Bubble, false) => HISTORY_VIEWS_IN_ICON,
             };
             div()
                 .flex()

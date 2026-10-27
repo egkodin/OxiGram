@@ -333,6 +333,7 @@ mod tests {
         let content = Content::Photo(Media {
             caption: FormattedText::plain("At the sea"),
             thumbnail: None,
+            dimensions: None,
             file: None,
         });
         let (preview, thumbnail) = super::content(&english(), &content);
@@ -351,6 +352,7 @@ mod tests {
         let content = Content::Photo(Media {
             caption: FormattedText::plain("At the sea"),
             thumbnail: Some(thumbnail.clone()),
+            dimensions: None,
             file: None,
         });
         let (preview, image) = super::content(&english(), &content);

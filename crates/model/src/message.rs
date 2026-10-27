@@ -5,7 +5,7 @@ use td_api::enums::{
     MessageSender, MessageSendingState, MessageTopic,
 };
 
-use crate::file::{File, Minithumbnail};
+use crate::file::{Dimensions, File, Minithumbnail};
 use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
 use crate::reaction::Reactions;
 use crate::text::FormattedText;
@@ -394,6 +394,7 @@ impl Service {
 pub struct Media {
     pub caption: FormattedText,
     pub thumbnail: Option<Minithumbnail>,
+    pub dimensions: Option<Dimensions>,
     /// The photo's largest size, or the video or file itself, as the
     /// message brought it; `updateFile` follows it in `Chats::file`.
     pub file: Option<File>,
@@ -539,10 +540,12 @@ fn media(
     caption: td_api::types::FormattedText,
     thumbnail: Option<Box<td_api::types::Minithumbnail>>,
     file: Option<td_api::types::File>,
+    dimensions: Option<Dimensions>,
 ) -> Media {
     Media {
         caption: FormattedText::from(caption),
         thumbnail: thumbnail.and_then(|thumbnail| Minithumbnail::from_td(*thumbnail)),
+        dimensions,
         file: file.map(File::from),
     }
 }
@@ -557,24 +560,36 @@ impl From<MessageContent> for Content {
                     .map(|preview| Box::new(LinkPreview::from(*preview))),
             },
             MessageContent::MessagePhoto(photo) => {
-                let largest = photo.photo.sizes.into_iter().last().map(|size| *size.photo);
-                Self::Photo(media(*photo.caption, photo.photo.minithumbnail, largest))
+                let largest = photo.photo.sizes.into_iter().last();
+                let dimensions = largest
+                    .as_ref()
+                    .and_then(|size| Dimensions::new(size.width, size.height));
+                let file = largest.map(|size| *size.photo);
+                Self::Photo(media(
+                    *photo.caption,
+                    photo.photo.minithumbnail,
+                    file,
+                    dimensions,
+                ))
             }
             MessageContent::MessageVideo(video) => Self::Video(media(
                 *video.caption,
                 video.video.minithumbnail,
                 Some(*video.video.video),
+                Dimensions::new(video.video.width, video.video.height),
             )),
             MessageContent::MessageAnimation(animation) => Self::Animation(media(
                 *animation.caption,
                 animation.animation.minithumbnail,
                 Some(*animation.animation.animation),
+                Dimensions::new(animation.animation.width, animation.animation.height),
             )),
             MessageContent::MessageDocument(document) => Self::Document {
                 media: media(
                     *document.caption,
                     document.document.minithumbnail,
                     Some(*document.document.document),
+                    None,
                 ),
                 name: document.document.file_name,
             },

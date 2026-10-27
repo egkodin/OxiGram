@@ -163,3 +163,14 @@ check on the live run: frame times while scrolling the panel quickly.
 - While recording, the history view asks for a frame every refresh (the
   time, the dot and the level); nothing animates once it stops. Not
   measured yet: CPU while recording on battery (live test 11).
+
+## M5: photos in the history
+
+- A photo's box comes from its dimensions, so the history does not jump
+  when the picture arrives. The file downloads once per history view at
+  priority 16 (userpics 1).
+- gpui decodes the downloaded file off the main thread and keeps it in its
+  global image cache with no eviction, at full size (TDLib's largest size,
+  up to 2560 px). Not measured yet: memory after scrolling a photo-heavy
+  channel (M5 live test 1); a per-history cache with eviction is the
+  upgrade if it grows.

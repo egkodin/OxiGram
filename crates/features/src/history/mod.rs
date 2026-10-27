@@ -22,6 +22,7 @@ mod jump;
 mod layout;
 mod link_menus;
 mod menu;
+mod photo;
 mod pinned;
 mod pinned_section;
 mod pull_next;
@@ -438,6 +439,7 @@ impl HistoryView {
         let comments = self.comments(&message, cx);
         let reactions = self.reaction_buttons(&message, cx);
         let upload = self.upload(&message, cx);
+        let photo = upload.is_none().then(|| self.photo(&message, cx)).flatten();
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -465,6 +467,7 @@ impl HistoryView {
                 comments,
                 reactions,
                 upload,
+                photo,
                 after: self.thread_divider(index, cx),
             },
             cx,
@@ -625,19 +628,21 @@ impl HistoryView {
     }
 
     pub(super) fn request_file(&mut self, file: FileId, cx: &mut Context<Self>) {
+        self.fetch(file, USERPIC_PRIORITY, cx);
+    }
+
+    /// Downloads a file once per history view.
+    pub(super) fn fetch(&mut self, file: FileId, priority: i32, cx: &mut Context<Self>) {
         if !self.requested_files.insert(file) {
             return;
         }
         let task = crate::store::spawn(
-            self.store
-                .read(cx)
-                .session()
-                .download_file(file, USERPIC_PRIORITY),
+            self.store.read(cx).session().download_file(file, priority),
             cx,
         );
         cx.spawn(async move |_, _| {
             if let Err(error) = task.await {
-                tracing::warn!(%error, "downloading a userpic failed");
+                tracing::warn!(%error, "downloading a file failed");
             }
         })
         .detach();
