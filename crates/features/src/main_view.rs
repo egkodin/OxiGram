@@ -125,7 +125,7 @@ impl MainView {
         }
         self.parents.clear();
         let (store, layers, focus) = (self.store.clone(), self.layers.clone(), self.focus.clone());
-        let history = cx.new(|cx| HistoryView::new(store, layers, chat.into(), focus, cx));
+        let history = cx.new(|cx| HistoryView::new(store, layers, chat.into(), focus, window, cx));
         self.show_history(history, window, cx);
     }
 
@@ -137,7 +137,7 @@ impl MainView {
             self.parents.push((parent, subscription));
         }
         let (store, layers, focus) = (self.store.clone(), self.layers.clone(), self.focus.clone());
-        let history = cx.new(|cx| HistoryView::thread(store, layers, start, focus, cx));
+        let history = cx.new(|cx| HistoryView::thread(store, layers, start, focus, window, cx));
         self.show_history(history, window, cx);
     }
 

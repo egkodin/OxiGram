@@ -14,9 +14,9 @@ use anyhow::Context as _;
 use features::settings::FoldersPlacement;
 use features::{Root, Store};
 use gpui::{
-    AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, Modifiers, MouseButton,
-    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, PlatformInput, Point, ScrollDelta,
-    ScrollEvent, Window, WindowBounds, WindowOptions, point, px, size,
+    AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, Keystroke, Modifiers,
+    MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, PlatformInput, Point,
+    ScrollDelta, ScrollEvent, Window, WindowBounds, WindowOptions, point, px, size,
 };
 use model::auth::{Code, Delivery, Password, Recovery, State, Terms, TermsId};
 use model::text::FormattedText;
@@ -45,10 +45,20 @@ struct Scenario {
     /// Then wheel scrolls at a point by pixels, up when positive; saved
     /// before the floating date hides.
     scrolls: Vec<(&'static str, WindowPoint, f32)>,
+    /// Then keys pressed and text typed into what has focus, each run saved.
+    keys: Vec<(&'static str, Vec<Input>)>,
     /// Set before the window opens; it stays for later windows.
     folders: FoldersPlacement,
     /// Loaded into open chats before the window opens, as TDLib's pages.
     histories: Vec<(model::ChatId, Vec<model::message::Message>)>,
+}
+
+/// Keyboard input for a step.
+enum Input {
+    /// Each character as a key press, as a keyboard types it.
+    Type(&'static str),
+    /// One key press, such as `shift-enter`.
+    Key(&'static str),
 }
 
 fn auth(state: State) -> Event {
@@ -71,6 +81,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
@@ -80,6 +91,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -95,6 +107,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![
@@ -107,6 +120,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -125,6 +139,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -145,6 +160,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
@@ -154,6 +170,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![(
@@ -168,6 +185,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: Vec::new(),
             drags: Vec::new(),
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![
@@ -220,9 +238,50 @@ fn scenarios() -> Vec<Scenario> {
                 ("37-drag-tab", WORK_TAB, CHANNELS_TAB),
             ],
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: Vec::new(),
             steps: vec![("20-pinned-chats", auth(State::Ready))],
+        },
+        // Types in Saved Messages' field: it grows, then scrolls; sending
+        // fails with no account, so the text comes back.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("78-compose-saved", MouseButton::Left, SAVED_ROW),
+                ("79-compose-focused", MouseButton::Left, COMPOSE_FIELD),
+            ],
+            drags: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                (
+                    "80-compose-typed",
+                    vec![Input::Type("Shopping for the weekend")],
+                ),
+                (
+                    "81-compose-lines",
+                    vec![
+                        Input::Key("shift-enter"),
+                        Input::Type("eggs, bread and coffee"),
+                        Input::Key("shift-enter"),
+                        Input::Type("and a cake"),
+                    ],
+                ),
+                (
+                    "82-compose-scrolled",
+                    (0..14)
+                        .flat_map(|_| [Input::Key("shift-enter"), Input::Type("one more line")])
+                        .collect(),
+                ),
+                ("83-compose-send-refused", vec![Input::Key("enter")]),
+                (
+                    "84-compose-cleared",
+                    vec![Input::Key("cmd-a"), Input::Key("backspace")],
+                ),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("77-compose-list", auth(State::Ready))],
         },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
@@ -253,13 +312,13 @@ fn scenarios() -> Vec<Scenario> {
                 ("61-history-pinned-closed", MouseButton::Left, SECTION_BACK),
                 ("62-history-search-open", MouseButton::Left, CHAT_SEARCH),
                 ("63-history-search-closed", MouseButton::Left, SECTION_BACK),
-                ("54-history-link-previews", MouseButton::Left, ANN_ROW),
                 ("55-history-calendar", MouseButton::Left, DATE_BADGE),
                 (
                     "56-history-calendar-closed",
                     MouseButton::Left,
                     CALENDAR_CLOSE,
                 ),
+                ("54-history-link-previews", MouseButton::Left, ANN_ROW),
                 ("64-history-comments", MouseButton::Left, LANDSCAPES_ROW),
                 ("65-history-date-menu", MouseButton::Left, WALK_DATE),
                 (
@@ -281,16 +340,17 @@ fn scenarios() -> Vec<Scenario> {
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: history::histories(),
             steps: vec![("41-chat-list", auth(State::Ready))],
             // In Maria Garcia's chat, which the last click opens.
             drags: vec![
-                ("46-history-text-selection", (330.0, 299.0), (440.0, 299.0)),
+                ("46-history-text-selection", (330.0, 253.0), (440.0, 253.0)),
                 (
                     "47-history-message-selection",
-                    (400.0, 299.0),
-                    (650.0, 382.0),
+                    (400.0, 253.0),
+                    (650.0, 336.0),
                 ),
             ],
         },
@@ -300,6 +360,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: vec![("75-history-pull-open", MouseButton::Left, LANDSCAPES_ROW)],
             drags: Vec::new(),
             scrolls: vec![("76-history-next-channel", HISTORY_MIDDLE, -150.0)],
+            keys: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: history::histories(),
             steps: vec![("74-history-pull-list", auth(State::Ready))],
@@ -310,6 +371,7 @@ fn scenarios() -> Vec<Scenario> {
             clicks: vec![("58-history-scroll-open", MouseButton::Left, HIKING_ROW)],
             drags: Vec::new(),
             scrolls: vec![("59-history-floating-date", HISTORY_MIDDLE, 120.0)],
+            keys: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: history::histories(),
             steps: vec![("57-history-scroll-list", auth(State::Ready))],
@@ -334,6 +396,7 @@ fn scenarios() -> Vec<Scenario> {
                 (100.0, 300.0),
             )],
             scrolls: Vec::new(),
+            keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
             steps: vec![("11-chat-list", auth(State::Ready))],
@@ -383,21 +446,21 @@ const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
 const BEN_ROW: (f32, f32) = (150.0, 490.0);
 const BLOCK_BUTTON: (f32, f32) = (672.0, 79.0);
-/// The date badge over Ann Lee's messages, and the calendar's Close.
-const DATE_BADGE: (f32, f32) = (543.0, 63.0);
+/// The date badge over Hiking Club's messages, and the calendar's Close.
+const DATE_BADGE: (f32, f32) = (543.0, 135.0);
 const CALENDAR_CLOSE: (f32, f32) = (538.0, 448.0);
 const ANN_ROW: (f32, f32) = (150.0, 304.0);
 const HIKING_ROW: (f32, f32) = (150.0, 366.0);
 /// The reply box of "Can't wait to see them" in Hiking Club.
-const GROUP_REPLY: (f32, f32) = (670.0, 328.0);
-const DOWN_BUTTON: (f32, f32) = (761.0, 565.0);
+const GROUP_REPLY: (f32, f32) = (670.0, 282.0);
+const DOWN_BUTTON: (f32, f32) = (761.0, 519.0);
 /// The forwarded link in Hiking Club once back from the reply, and empty
 /// space beside its date badge.
-const GROUP_LINK: (f32, f32) = (610.0, 513.0);
-const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
+const GROUP_LINK: (f32, f32) = (610.0, 467.0);
+const HISTORY_GAP: (f32, f32) = (420.0, 135.0);
 /// The time and the phone number in Daily Landscapes' last post.
-const WALK_DATE: (f32, f32) = (460.0, 427.0);
-const WALK_PHONE: (f32, f32) = (557.0, 427.0);
+const WALK_DATE: (f32, f32) = (460.0, 381.0);
+const WALK_PHONE: (f32, f32) = (557.0, 381.0);
 /// The three dots at the right of the chat's top bar.
 const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
 /// The middle of the chat's message list.
@@ -409,6 +472,8 @@ const PINNED_SHOW_ALL: (f32, f32) = (775.0, 80.0);
 const SECTION_BACK: (f32, f32) = (312.0, 27.0);
 /// The search button left of the chat's menu toggle.
 const CHAT_SEARCH: (f32, f32) = (736.0, 27.0);
+/// The message field under an open chat.
+const COMPOSE_FIELD: (f32, f32) = (543.0, 577.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {
@@ -500,7 +565,42 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             })?;
             settle_and_save(window, name, out, SCROLL_SETTLE, cx).await?;
         }
+        for (name, inputs) in scenario.keys {
+            window.update(cx, |_, window, cx| {
+                inputs.iter().try_for_each(|input| press(input, window, cx))
+            })??;
+            settle_and_save(window, name, out, SETTLE, cx).await?;
+        }
         window.update(cx, |_, window, _| window.remove_window())?;
+    }
+    Ok(())
+}
+
+fn press(input: &Input, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
+    match input {
+        Input::Type(text) => {
+            for c in text.chars() {
+                let key = if c == ' ' {
+                    "space".to_owned()
+                } else {
+                    c.to_lowercase().collect()
+                };
+                window.dispatch_keystroke(
+                    Keystroke {
+                        modifiers: Modifiers::default(),
+                        key,
+                        key_char: Some(c.to_string()),
+                    },
+                    cx,
+                );
+                window.draw(cx).clear(cx);
+            }
+        }
+        Input::Key(spec) => {
+            let keystroke = Keystroke::parse(spec).with_context(|| format!("key {spec}"))?;
+            window.dispatch_keystroke(keystroke, cx);
+            window.draw(cx).clear(cx);
+        }
     }
     Ok(())
 }

@@ -23,6 +23,7 @@ pub mod reaction;
 pub mod saved_tags;
 pub mod search;
 mod secret;
+pub mod send;
 mod session;
 pub mod sponsored;
 mod state;

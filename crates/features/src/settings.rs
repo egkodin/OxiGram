@@ -18,6 +18,25 @@ pub enum FoldersPlacement {
     Top,
 }
 
+/// Which Enter sends a message (`sendSubmitWay`); the other one starts a
+/// new line.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SendBy {
+    #[default]
+    Enter,
+    CtrlEnter,
+}
+
+impl SendBy {
+    #[must_use]
+    pub fn submit_key(self) -> ui::SubmitKey {
+        match self {
+            Self::Enter => ui::SubmitKey::Enter,
+            Self::CtrlEnter => ui::SubmitKey::CtrlEnter,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 struct Values {
@@ -34,6 +53,7 @@ struct Values {
     /// Hashtags searched for, most used first (`cRecentSearchHashtags`).
     // shortcut: app-wide; tdesktop keeps them per account, which matters once accounts switch in M8.
     recent_search_hashtags: crate::hashtags::Recent,
+    send_by: SendBy,
 }
 
 impl Default for Values {
@@ -45,6 +65,7 @@ impl Default for Values {
             dialogs_width_ratio: crate::columns::DEFAULT_RATIO,
             folders_placement: FoldersPlacement::Sidebar,
             recent_search_hashtags: Vec::new(),
+            send_by: SendBy::Enter,
         }
     }
 }
@@ -117,6 +138,17 @@ pub fn folders_placement(cx: &App) -> FoldersPlacement {
 pub fn set_folders_placement(placement: FoldersPlacement, cx: &mut App) {
     change(cx, |values| values.folders_placement = placement);
     cx.refresh_windows();
+}
+
+#[must_use]
+pub fn send_by(cx: &App) -> SendBy {
+    values(cx).map_or_else(SendBy::default, |values| values.send_by)
+}
+
+/// Takes effect in chats opened after it.
+// shortcut: no switch in the UI until the chat settings page (M6); snapshots set it.
+pub fn set_send_by(send_by: SendBy, cx: &mut App) {
+    change(cx, |values| values.send_by = send_by);
 }
 
 pub(crate) fn recent_search_hashtags(cx: &App) -> crate::hashtags::Recent {
@@ -217,6 +249,7 @@ mod tests {
             dialogs_width_ratio: 0.0,
             folders_placement: FoldersPlacement::Top,
             recent_search_hashtags: vec![("rust".to_owned(), 2)],
+            send_by: SendBy::CtrlEnter,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

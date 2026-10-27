@@ -200,10 +200,11 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| compose | Multi-line field with auto-grow and scroll | M4 | todo | |
+| compose | Multi-line field with auto-grow and scroll | M4 | in progress | snapshots 77-84 and unit tests (`cargo test -p ui text_`); not verified live yet |
+| compose | Send a text message, split past the length limit, the text kept when refused | M4 | in progress | unit tests (`cargo test -p model send`), snapshot 83 (a refused send gives the text back); not verified live yet |
 | compose | Formatting by shortcuts and context menu (bold, italic, underline, strike, mono, spoiler, quote, link, clear) | M4 | todo | |
 | compose | Markdown-style formatting while typing | M4 | todo | |
-| compose | Send with Enter or Ctrl+Enter, by setting | M4 | todo | |
+| compose | Send with Enter or Ctrl+Enter, by setting | M4 | in progress | unit tests (`cargo test -p ui submit`), snapshot 83 (Enter submits); the setting has no UI switch yet; not verified live yet |
 | compose | Send menu: silent, scheduled, when online | M4 | todo | |
 | compose | Schedule box and scheduled messages section (edit, send now, reschedule) | M4 | todo | |
 | compose | Reply panel, reply with a quote, reply in another chat | M4 | todo | |

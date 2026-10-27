@@ -49,7 +49,7 @@ actions!(
 );
 
 const CONTEXT: &str = "InputField";
-const BLINK_INTERVAL: Duration = Duration::from_millis(500);
+pub(crate) const BLINK_INTERVAL: Duration = Duration::from_millis(500);
 /// Qt's password character when the font has it (`QCommonStyle`).
 const PASSWORD_CHAR: char = '\u{2022}';
 
@@ -724,7 +724,7 @@ fn floor_char_boundary(text: &str, offset: usize) -> usize {
     offset
 }
 
-fn px_of(value: style::Px) -> Pixels {
+pub(crate) fn px_of(value: style::Px) -> Pixels {
     #[expect(clippy::cast_precision_loss, reason = "style sizes are small")]
     px(value.0 as f32)
 }
@@ -1275,7 +1275,7 @@ fn border_quads(
     quads
 }
 
-fn plain_run(len: usize, font: &gpui::Font, color: gpui::Hsla) -> TextRun {
+pub(crate) fn plain_run(len: usize, font: &gpui::Font, color: gpui::Hsla) -> TextRun {
     TextRun {
         len,
         font: font.clone(),
@@ -1288,7 +1288,7 @@ fn plain_run(len: usize, font: &gpui::Font, color: gpui::Hsla) -> TextRun {
 
 /// Runs for the field's text: selected text in the selection color, marked
 /// (composing) text underlined.
-fn text_runs(
+pub(crate) fn text_runs(
     text: &str,
     font: &gpui::Font,
     color: gpui::Hsla,

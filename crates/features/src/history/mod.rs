@@ -7,6 +7,7 @@ mod bubble;
 mod calendar;
 mod chat_search;
 mod comments;
+mod compose;
 mod contact_status;
 mod dates;
 mod delete;
@@ -140,6 +141,7 @@ pub(crate) struct HistoryView {
     thread: Option<thread_section::ThreadHead>,
     /// The ad after the last post, its item after the messages.
     ad: sponsored::Ad,
+    compose: compose::Compose,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -160,9 +162,12 @@ impl HistoryView {
         layers: Entity<Layers>,
         key: Key,
         focus: FocusHandle,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
         store.update(cx, |store, cx| store.open_chat(key, cx));
+        let placeholder = compose::placeholder(store.read(cx).state(), key, cx);
+        let compose = compose::Compose::new(placeholder, window, cx);
         cx.on_release(move |this, cx| {
             this.store.update(cx, |store, cx| store.close_chat(key, cx));
         })
@@ -216,6 +221,7 @@ impl HistoryView {
             pull: pull_next::Pull::default(),
             thread: None,
             ad: sponsored::Ad::default(),
+            compose,
             focus,
             _subscription: subscription,
         };
@@ -691,6 +697,7 @@ impl Render for HistoryView {
             )
             .children(self.pinned_section_button(cx))
             .children(self.search_results_bar(cx))
+            .children((is_chat && self.search.is_none()).then(|| self.compose_bar(cx)))
             .children(self.menu_overlay())
     }
 }

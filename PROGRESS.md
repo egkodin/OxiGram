@@ -1,5 +1,57 @@
 # Progress
 
+## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
+
+Built on the offline pattern (model, store, snapshots, tests) until the
+owner is back to sign in; every M4 row stays `in progress` until it runs
+live.
+
+### Done (code, checks green)
+
+- `ui::TextArea`: lib_ui's multi-line `InputField` on a shared
+  `text_buffer` (selection, graphemes, words, paragraphs, UTF-16 for the
+  IME). Wraps, grows from 28 px to `historyComposeFieldMaxHeight` and then
+  scrolls with the cursor kept in view; Up/Down keep their column, Home/End
+  go by visual row; the placeholder slides right and fades as typing
+  starts. Enter or Ctrl/Cmd+Enter submits by `SubmitKey`, the other one and
+  Shift+Enter break the line, Ctrl/Cmd+Shift+Enter always submits.
+- The compose bar under the history (`history::compose`): attach, field,
+  emoji, and send, which shows the microphone while the field is empty;
+  "Broadcast a message..." in channels. Hidden in the pinned section and
+  while searching.
+- `model::send`: `Session::send_text`, trimmed and split at 4096 UTF-16
+  units on line breaks, then spaces, sent in order. TDLib's pending, sent
+  and failed updates were already applied by the history. If TDLib refuses
+  the request, the text goes back into the field when it is still empty.
+- `settings::SendBy` (Enter or Ctrl+Enter), saved with the other settings.
+- Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
+  a refused send giving the text back, clearing. The snapshot harness now
+  types keys (`Input`). History click targets moved up by the bar's 46 px;
+  the calendar steps open from Hiking Club's date badge.
+
+### Half done (shortcuts in code)
+
+- Attach and emoji buttons do nothing yet; the microphone records nothing.
+- The bar shows in every chat; the Join, Mute, Unblock and Start bars that
+  replace it come next.
+- No UI switch for Enter or Ctrl+Enter yet (chat settings, M6).
+- `InputField` (single line) still has its own copy of the buffer logic;
+  move it onto `text_buffer` when it is next touched.
+
+### Live test list (M4, after M1-M3)
+
+Sending only in Saved Messages:
+1. Type, wrap a long line, Shift+Enter, grow to the maximum and scroll;
+   Up/Down/Home/End, selection by mouse and keys, copy, cut, paste with line
+   breaks; IME composition (e.g. Japanese input).
+2. Enter sends; with `send_by` set to Ctrl+Enter in `settings.json`, Enter
+   breaks the line and Ctrl/Cmd+Enter sends.
+3. The message appears with the clock, then the check; the list scrolls to
+   it. A text over 4096 characters arrives as several messages in order.
+4. The send button turns into the microphone when the field empties.
+5. In a channel the owner does not admin: placeholder and (once built) the
+   Join/Mute bar instead of the field; nothing is sent.
+
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 
 ### Done (code, checks green)
@@ -192,7 +244,7 @@ M3, history:
 
 ### Open questions for the owner
 
-- API credentials (asked once; still missing).
+- API credentials: provided; in `.env` and the Keychain (see Live run setup).
 - Syntax highlighting in code blocks: tdesktop uses libprisma through
   lib_spellcheck; both submodule folders are empty in the read-only
   checkout (lib_ui is there). Options: add the

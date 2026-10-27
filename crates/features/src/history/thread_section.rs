@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use gpui::{AnyElement, Context, Entity, FocusHandle, IntoElement as _};
+use gpui::{AnyElement, Context, Entity, FocusHandle, IntoElement as _, Window};
 use i18n::key;
 use model::message::Message;
 use model::thread::Thread;
@@ -29,9 +29,10 @@ impl HistoryView {
         layers: Entity<Layers>,
         thread: Thread,
         focus: FocusHandle,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Self {
-        let mut view = Self::new(store, layers, thread.key, focus, cx);
+        let mut view = Self::new(store, layers, thread.key, focus, window, cx);
         view.thread = Some(ThreadHead {
             starters: thread.starters.into_iter().map(Arc::new).collect(),
             count: thread.replies.map_or(0, |replies| replies.count),

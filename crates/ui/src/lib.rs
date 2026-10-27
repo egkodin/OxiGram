@@ -6,6 +6,7 @@ mod button;
 mod checkbox;
 mod font;
 mod icon;
+#[macro_use]
 mod input;
 mod label;
 mod layer;
@@ -14,6 +15,8 @@ mod qr;
 mod radial;
 mod ripple;
 mod settings_button;
+mod text_area;
+mod text_buffer;
 mod theme;
 mod userpic;
 
@@ -32,6 +35,7 @@ pub use popup_menu::{MenuTone, PopupMenu};
 pub use qr::{QrCode, QrData, QrError};
 pub use radial::{InfiniteRadial, RadialState, paint_arc};
 pub use settings_button::SettingsButton;
+pub use text_area::{SubmitKey, TextArea, TextAreaEvent};
 pub use theme::{Theme, color, hsla};
 pub use userpic::{Userpic, UserpicSource, initials, jpeg_image, peer_palette_index};
 
@@ -61,6 +65,7 @@ pub fn init(cx: &mut App) -> Result<(), FontError> {
         .map_err(|error| FontError(error.into()))?;
     cx.set_global(Theme::default());
     input::bind_keys(cx);
+    text_area::bind_keys(cx);
     popup_menu::bind_keys(cx);
     Ok(())
 }
