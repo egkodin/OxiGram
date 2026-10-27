@@ -22,6 +22,7 @@ mod read_date;
 mod scroll_date;
 mod selection;
 mod service;
+mod sponsored;
 mod sync;
 mod text;
 mod thread_section;
@@ -131,6 +132,8 @@ pub(crate) struct HistoryView {
     search: Option<chat_search::ChatSearch>,
     /// Set in a post's comments.
     thread: Option<thread_section::ThreadHead>,
+    /// The ad after the last post, its item after the messages.
+    ad: sponsored::Ad,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -172,6 +175,7 @@ impl HistoryView {
                     this.update_down_button(cx);
                     this.on_scroll_pins(cx);
                     this.on_scroll_date(cx);
+                    this.view_ad(cx);
                 });
             });
         });
@@ -204,6 +208,7 @@ impl HistoryView {
             section: pinned_section::Section::Chat,
             search: None,
             thread: None,
+            ad: sponsored::Ad::default(),
             focus,
             _subscription: subscription,
         };
@@ -217,6 +222,7 @@ impl HistoryView {
         if key.topic.is_none() {
             view.load_pins(cx);
         }
+        view.request_ad(cx);
         view
     }
 
@@ -269,6 +275,7 @@ impl HistoryView {
             self.land();
             cx.notify();
         }
+        self.place_ad(cx);
     }
 
     /// Loads the next page when the user nears an end that has more.
@@ -323,7 +330,7 @@ impl HistoryView {
 
     fn item(&mut self, index: usize, cx: &mut Context<Self>) -> AnyElement {
         let Some(message) = self.shown.get(index).cloned() else {
-            return div().into_any_element();
+            return self.ad_item(cx);
         };
         // Stories and unknown chats have no message to fetch.
         if let Some(reply_to) = message.reply_to.as_ref().filter(|r| r.message.0 != 0) {
@@ -584,6 +591,7 @@ impl Render for HistoryView {
                 let _ = weak.update(cx, |this, cx| {
                     this.preload(cx);
                     this.update_pins(cx);
+                    this.view_ad(cx);
                 });
             });
         }

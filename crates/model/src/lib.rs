@@ -22,6 +22,7 @@ pub mod reaction;
 pub mod search;
 mod secret;
 mod session;
+pub mod sponsored;
 mod state;
 pub mod text;
 pub mod text_links;

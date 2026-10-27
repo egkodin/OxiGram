@@ -70,6 +70,16 @@
 - Code block header (`body::pre_header`): tdesktop's band with the
   language or "copy" and the copy icon; a click copies the code with the
   "Code copied" toast. Syntax highlighting is not done (see open questions).
+- Sponsored messages (`model::sponsored`, `history::sponsored`): a broadcast
+  channel's first text ad shows after its last post once the newest posts
+  are loaded, as tdesktop's "Ad" link box with "what's this?" and the
+  button; the pill beside it hides (Premium) or explains that Premium hides
+  ads, and opens the ad menu (advertiser info, about, report, hide). The
+  report flow follows `ShowReportSponsoredBox` with TDLib's options.
+  Checked once with a temporary fixture ad, then restored.
+- Boxes no longer grow past the window: `BoxFrame` caps itself at the
+  window height inside the style's margin and scrolls its rows
+  (`updateMaxRealHeight`). The contacts box is 6 px shorter for it.
 
 ### Verified (macOS arm64, this machine)
 
@@ -89,21 +99,22 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: comments, Saved Messages sublists, sponsored messages.
+- M3 rows still todo in `docs/parity.md`: the contact status bar, Saved Messages tags search, "pull to next channel".
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. Sponsored messages in channels.
-2. The contact status bar (add, block, report) in private chats.
-3. Saved Messages tags search.
+1. The contact status bar (add, block, report) in private chats.
+2. Saved Messages tags search.
+3. "Pull to next channel" at the bottom of a read channel.
 
 ### Open questions for the owner
 
 - API credentials (asked once; still missing).
 - Syntax highlighting in code blocks: tdesktop uses libprisma through
-  lib_spellcheck, which the read-only checkout lacks. Options: add the
+  lib_spellcheck; both submodule folders are empty in the read-only
+  checkout (lib_ui is there). Options: add the
   `tdesktop` submodules locally, or pick a Rust highlighter (adds a
   dependency) with tdesktop's token colors.
 - Permission to download Telegram Desktop for screenshot comparison.

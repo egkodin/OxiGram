@@ -289,8 +289,10 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
         .child(bubble(item, out, cx))
 }
 
-fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
-    let (bg, shadow, fg) = match (out, item.is_selected) {
+/// A bubble's background, corners, shadow and tail for its side and run;
+/// also the text color that goes on it.
+pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, ColorId) {
+    let (bg, shadow, fg) = match (out, is_selected) {
         (true, false) => (
             ColorId::MsgOutBg,
             ColorId::MsgOutShadow,
@@ -313,17 +315,17 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         ),
     };
     let (large, small) = (px_of(BUBBLE_RADIUS_LARGE), px_of(BUBBLE_RADIUS_SMALL));
-    let top = if item.run.is_attached_to_previous {
+    let top = if run.is_attached_to_previous {
         small
     } else {
         large
     };
-    let bottom = if item.run.is_attached_to_next {
+    let bottom = if run.is_attached_to_next {
         small
     } else {
         large
     };
-    let has_tail = !item.run.is_attached_to_next;
+    let has_tail = !run.is_attached_to_next;
     // The bubble's own side gets the run's corners; the far side stays large.
     let (top_left, top_right, bottom_left, bottom_right) = match (out, has_tail) {
         (true, true) => (large, top, large, px(0.0)),
@@ -332,7 +334,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         (false, false) => (top, large, bottom, large),
     };
     let tail = has_tail.then(|| {
-        let tail = match (out, item.is_selected) {
+        let tail = match (out, is_selected) {
             (true, false) => HISTORY_BUBBLE_TAIL_OUT_RIGHT,
             (true, true) => HISTORY_BUBBLE_TAIL_OUT_RIGHT_SELECTED,
             (false, false) => HISTORY_BUBBLE_TAIL_IN_LEFT,
@@ -346,14 +348,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
             .when(!out, |this| this.left(-width))
             .child(icon(tail))
     });
-    let name = name_line(item, out, cx);
-    let info = info(item, out, cx);
-    let room = info_content(item, out, cx);
-    let comments = item
-        .comments
-        .take()
-        .map(|comments| super::comments::button(comments, item.message.id.0, item.is_selected, cx));
-    div()
+    let frame = div()
         .relative()
         .min_w_0()
         .max_w(px_of(MSG_MAX_WIDTH))
@@ -373,6 +368,20 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
             spread_radius: px(0.0),
             inset: false,
         }])
+        .children(tail);
+    (frame, fg)
+}
+
+fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
+    let (frame, fg) = frame(out, item.is_selected, &item.run, cx);
+    let name = name_line(item, out, cx);
+    let info = info(item, out, cx);
+    let room = info_content(item, out, cx);
+    let comments = item
+        .comments
+        .take()
+        .map(|comments| super::comments::button(comments, item.message.id.0, item.is_selected, cx));
+    frame
         .children(name)
         .children(headers(item, out, cx))
         .children(web_page(item, out, Placement::AboveText, cx))
@@ -395,7 +404,6 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         })
         .child(info)
         .children(comments)
-        .children(tail)
 }
 
 /// The sender's name and "via @bot" after it (`HistoryMessageVia`); the
@@ -515,6 +523,7 @@ fn web_page(item: &Item<'_>, out: bool, placement: Placement, cx: &App) -> Optio
             colors: [palette(tint), palette(name_fg), palette(text_fg)],
             room: (!is_above && item.reactions.is_empty()).then(|| time_room(item, out, cx)),
             on_link: item.on_link.clone(),
+            ad: None,
         },
         cx,
     ))

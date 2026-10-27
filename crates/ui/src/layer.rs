@@ -75,8 +75,11 @@ impl BoxFrame {
 }
 
 impl RenderOnce for BoxFrame {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+    fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
         let st = self.style;
+        // As tall as the window leaves inside the style's margin (`updateMaxRealHeight`).
+        let max_height =
+            window.viewport_size().height - px_of(st.margin.top.0) - px_of(st.margin.bottom.0);
         let padding = st.button_padding;
         let has_buttons = !self.buttons.is_empty();
         let title = self.title.map(|title| {
@@ -96,6 +99,7 @@ impl RenderOnce for BoxFrame {
         div()
             .id(self.id)
             .w(self.width)
+            .max_h(max_height)
             .flex()
             .flex_col()
             .rounded(px_of(BOX_RADIUS.0))
@@ -112,7 +116,15 @@ impl RenderOnce for BoxFrame {
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .children(title)
             .when(!has_title, |frame| frame.pt(px_of(BOX_TOP_MARGIN.0)))
-            .children(self.content)
+            // Rows taller than the window scroll between the title and the buttons.
+            .child(
+                div()
+                    .id("box-content")
+                    .flex_shrink_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .children(self.content),
+            )
             .when(has_buttons, |frame| {
                 frame.child(
                     div()
