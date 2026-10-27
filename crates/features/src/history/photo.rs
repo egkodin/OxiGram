@@ -19,9 +19,10 @@ use style::{ColorId, Px};
 use ui::color;
 
 use super::HistoryView;
-use super::bubble::{self, InfoOn, Item};
+use super::album::{self, Pictures};
+use super::bubble::{self, Foot, InfoOn, Item};
 use super::documents::current;
-use super::video::{self, Video};
+use super::video::Video;
 use crate::px_of;
 
 /// Photos in view load before userpics (TDLib's 1..=32, higher first).
@@ -134,7 +135,7 @@ impl HistoryView {
 }
 
 /// The picture with the bubble's corners where it meets the bubble's edge.
-fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
+pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     let (width, height) = (px_of(Px(photo.width)), px_of(Px(photo.height)));
     let Some(source) = photo.source else {
         return placeholder(corners, cx)
@@ -174,7 +175,7 @@ fn placeholder(corners: Corners<Pixels>, cx: &App) -> Div {
 }
 
 /// Each corner's own radius; `Styled` has no setter for all four.
-fn rounded<E: Styled>(element: E, corners: Corners<Pixels>) -> E {
+pub(super) fn rounded<E: Styled>(element: E, corners: Corners<Pixels>) -> E {
     element
         .rounded_tl(corners.top_left)
         .rounded_tr(corners.top_right)
@@ -202,13 +203,8 @@ fn info_over(item: &Item<'_>, out: bool, cx: &App) -> Div {
 
 /// The bubble: name and headers, the picture, then the caption and the
 /// reactions under it with the time.
-pub(super) fn bubble(item: &mut Item<'_>, out: bool, mut photo: Photo, cx: &App) -> Div {
-    let (frame, fg) = bubble::frame(out, item.is_selected, &item.run, cx);
-    let width = px_of(Px(photo.width));
-    let video = photo
-        .video
-        .take()
-        .map(|video| video::overlays(video, item.message.id.0, item.is_selected, cx));
+pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &App) -> Div {
+    let width = px_of(Px(pictures.width));
     let name = bubble::name_line(item, out, cx);
     let headers = bubble::headers(item, out, cx);
     let has_header = name.is_some() || !headers.is_empty();
@@ -218,7 +214,13 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, mut photo: Photo, cx: &App)
         .comments
         .take()
         .map(|comments| super::comments::button(comments, item.message.id.0, item.is_selected, cx));
-    let edges = bubble::corners(out, &item.run);
+    let foot = if has_below || comments.is_some() {
+        Foot::Tail
+    } else {
+        Foot::Media
+    };
+    let (frame, fg) = bubble::frame(out, item.is_selected, &item.run, foot, cx);
+    let edges = bubble::corners(out, &item.run, foot);
     let corners = Corners {
         top_left: if has_header { px(0.0) } else { edges.top_left },
         top_right: if has_header { px(0.0) } else { edges.top_right },
@@ -242,18 +244,15 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, mut photo: Photo, cx: &App)
             .children(name)
             .children(headers)
     });
-    let overlay = item.is_selected.then(|| {
-        div()
-            .absolute()
-            .inset_0()
-            .bg(color(cx, bubble::palette(ColorId::MsgSelectOverlay)))
-            .map(|this| rounded(this, corners))
-    });
+    // Media alone has no bubble behind it, nor its tail (`needsBubble`).
+    let frame = if has_header || has_below || comments.is_some() {
+        frame
+    } else {
+        div().relative()
+    };
     let picture = div()
         .relative()
-        .child(picture(photo, corners, cx))
-        .children(overlay)
-        .children(video.into_iter().flatten())
+        .child(album::mosaic(pictures, corners, item.is_selected, cx))
         .when(!has_below, |this| this.child(info_over(item, out, cx)));
     let below = has_below.then(|| {
         let room = bubble::info_content(item, out, InfoOn::Bubble, cx);

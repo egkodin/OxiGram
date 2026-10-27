@@ -2,6 +2,7 @@
 //! pinned to the bottom that loads older and newer pages as the user
 //! scrolls toward them.
 
+mod album;
 mod attach;
 mod body;
 mod bubble;
@@ -19,6 +20,7 @@ mod emoji_panel;
 mod field_bar;
 mod file_row;
 mod forwarding;
+mod grouped_layout;
 mod headers;
 mod jump;
 mod layout;
@@ -387,7 +389,14 @@ impl HistoryView {
     }
 
     fn item(&mut self, index: usize, cx: &mut Context<Self>) -> AnyElement {
-        let Some(message) = self.shown.get(index).cloned() else {
+        let album = self.album_rows(index);
+        let face = match &album {
+            Some(rows) if rows.start != index => return div().into_any_element(),
+            Some(rows) => self.album_face(rows),
+            None => index,
+        };
+        let last = album.as_ref().map_or(index, |rows| rows.end - 1);
+        let Some(message) = self.shown.get(face).cloned() else {
             return self.ad_item(cx);
         };
         // Stories and unknown chats have no message to fetch.
@@ -395,7 +404,7 @@ impl HistoryView {
             self.ensure_reference(reply_to.chat, reply_to.message, cx);
         }
         let previous = index.checked_sub(1).and_then(|i| self.shown.get(i));
-        let next = self.shown.get(index + 1);
+        let next = self.shown.get(last + 1);
         let now = Local::now();
         let tz = Local;
         let day = layout::day(message.date, &tz);
@@ -410,7 +419,7 @@ impl HistoryView {
         let run = Run {
             is_attached_to_previous: !has_unread_bar
                 && previous.is_some_and(|p| layout::is_attached(p, &message, &tz)),
-            is_attached_to_next: !self.has_unread_bar(index + 1)
+            is_attached_to_next: !self.has_unread_bar(last + 1)
                 && next.is_some_and(|n| layout::is_attached(&message, n, &tz)),
         };
         let state = self.store.read(cx).state();
@@ -441,10 +450,7 @@ impl HistoryView {
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
         let comments = self.comments(&message, cx);
         let reactions = self.reaction_buttons(&message, cx);
-        let file = self
-            .upload(&message, cx)
-            .or_else(|| self.document(&message, cx));
-        let photo = file.is_none().then(|| self.photo(&message, cx)).flatten();
+        let (file, photo) = self.media(album, &message, cx);
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);

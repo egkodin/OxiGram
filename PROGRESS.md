@@ -16,12 +16,17 @@
   as a photo, the middle button downloads, cancels with the arc, then
   plays in the system player; length and size on the corner pill.
   Snapshots 157-159.
+- Albums (`history/album.rs`, `grouped_layout.rs`): tdesktop's mosaic,
+  one message per album with the one caption; media alone has no bubble
+  or tail. Snapshots 160-162.
 
 ### Half done (shortcuts in code)
 
 - The minithumbnail is stretched, not blurred; no loading radial or
   cancel; no click to open; captions do not widen a photo and narrow
   windows do not shrink it.
+- Albums of files or music show as separate messages; the mosaic keeps
+  430 px in a narrow history; a late part does not re-measure the row.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 
@@ -40,6 +45,10 @@
    top left and an arrow in the middle; click: the arc and "x / y MB"
    move, the cross stops it; once loaded the play button opens it in the
    system player. A GIF says "GIF, size", then "GIF".
+4. Albums, read only: in a channel with albums, each album is one message
+   in a mosaic like Telegram Desktop's, with thin gaps, round outer
+   corners, one caption below; an album without a caption has no bubble.
+   Videos in it have their own button.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

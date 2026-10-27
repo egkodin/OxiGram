@@ -142,7 +142,7 @@ impl HistoryView {
             is_attached_to_previous: false,
             is_attached_to_next: false,
         };
-        let (frame, _) = bubble::frame(false, false, &run, cx);
+        let (frame, _) = bubble::frame(false, false, &run, bubble::Foot::Tail, cx);
         let weak = cx.weak_entity();
         let on_menu = move |_: &gpui::MouseDownEvent, window: &mut Window, cx: &mut gpui::App| {
             let _ = weak.update(cx, |this, cx| this.open_ad_menu(window, cx));

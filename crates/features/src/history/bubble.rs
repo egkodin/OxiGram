@@ -83,8 +83,8 @@ pub(super) struct Item<'a> {
     pub reactions: Vec<reactions::Button>,
     /// The file row: one going up, or a document message's file.
     pub file: Option<super::file_row::FileRow>,
-    /// A photo message's picture, once it is sent.
-    pub photo: Option<super::photo::Photo>,
+    /// A photo's, video's or album's pictures, once sent.
+    pub photo: Option<super::album::Pictures>,
     /// What follows the message in its row, as a thread's divider.
     pub after: Option<AnyElement>,
 }
@@ -294,19 +294,28 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
         .child(bubble(item, out, cx))
 }
 
+/// What ends a bubble on its own side at the bottom.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Foot {
+    Tail,
+    /// A picture reaching the bottom skips the tail and keeps the corner
+    /// round (`skipBubbleTail`).
+    Media,
+}
+
 /// A bubble's corners: its own side gets the run's, small where it joins a
 /// neighbor and none at the tail; the far side stays large.
-pub(super) fn corners(out: bool, run: &Run) -> Corners<Pixels> {
+pub(super) fn corners(out: bool, run: &Run, foot: Foot) -> Corners<Pixels> {
     let (large, small) = (px_of(BUBBLE_RADIUS_LARGE), px_of(BUBBLE_RADIUS_SMALL));
     let top = if run.is_attached_to_previous {
         small
     } else {
         large
     };
-    let bottom = if run.is_attached_to_next {
-        small
-    } else {
-        px(0.0)
+    let bottom = match (run.is_attached_to_next, foot) {
+        (true, _) => small,
+        (false, Foot::Tail) => px(0.0),
+        (false, Foot::Media) => large,
     };
     let (top_left, top_right, bottom_left, bottom_right) = if out {
         (large, top, large, bottom)
@@ -323,7 +332,13 @@ pub(super) fn corners(out: bool, run: &Run) -> Corners<Pixels> {
 
 /// A bubble's background, corners, shadow and tail for its side and run;
 /// also the text color that goes on it.
-pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, ColorId) {
+pub(super) fn frame(
+    out: bool,
+    is_selected: bool,
+    run: &Run,
+    foot: Foot,
+    cx: &App,
+) -> (Div, ColorId) {
     let (bg, shadow, fg) = match (out, is_selected) {
         (true, false) => (
             ColorId::MsgOutBg,
@@ -346,8 +361,8 @@ pub(super) fn frame(out: bool, is_selected: bool, run: &Run, cx: &App) -> (Div, 
             ColorId::HistoryTextInFgSelected,
         ),
     };
-    let has_tail = !run.is_attached_to_next;
-    let corners = corners(out, run);
+    let has_tail = !run.is_attached_to_next && foot == Foot::Tail;
+    let corners = corners(out, run, foot);
     let tail = has_tail.then(|| {
         let tail = match (out, is_selected) {
             (true, false) => HISTORY_BUBBLE_TAIL_OUT_RIGHT,
@@ -391,7 +406,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
     if let Some(photo) = item.photo.take() {
         return super::photo::bubble(item, out, photo, cx);
     }
-    let (frame, fg) = frame(out, item.is_selected, &item.run, cx);
+    let (frame, fg) = frame(out, item.is_selected, &item.run, Foot::Tail, cx);
     let name = name_line(item, out, cx);
     let info = info(item, out, cx);
     let room = info_content(item, out, InfoOn::Bubble, cx);

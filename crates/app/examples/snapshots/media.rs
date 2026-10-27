@@ -1,6 +1,6 @@
 //! Media in the history: photos in Saved Messages, one known only by its
 //! minithumbnail and two downloaded; files in Maria's chat; videos and a GIF
-//! in Saved Messages.
+//! in Saved Messages; albums there too.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -63,6 +63,19 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), videos(&photo))],
             steps: vec![("157-videos-list", auth(State::Ready))],
+        },
+        // Albums: a portrait beside two landscapes with one caption, and
+        // four without a caption or a bubble, one of them a video.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("161-albums-saved", MouseButton::Left, SAVED_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("162-albums-scrolled", CHAT_AREA, 300.0)],
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), albums(&photo))],
+            steps: vec![("160-albums-list", auth(State::Ready))],
         },
     ]
 }
@@ -182,6 +195,35 @@ fn video(
             None => Content::Animation(media),
         },
     )
+}
+
+fn albums(downloaded: &Path) -> Vec<Message> {
+    let part = |id: i64, ago: i32, album: i64, caption: &str, dimensions: (i32, i32)| {
+        let file = file(i32::try_from(990 + id).unwrap_or(990), Some(downloaded));
+        Message {
+            album: Some(album),
+            ..photo(id, ago, caption, dimensions, file)
+        }
+    };
+    let clip = Message {
+        album: Some(2),
+        ..video(
+            8,
+            HOUR,
+            "",
+            Some(42),
+            [file(998, Some(downloaded)), file(999, None)],
+        )
+    };
+    vec![
+        part(1, 3 * HOUR, 1, "", (720, 1280)),
+        part(2, 3 * HOUR, 1, "Three views from the ridge", (1280, 853)),
+        part(3, 3 * HOUR, 1, "", (1280, 853)),
+        part(5, HOUR, 2, "", (1280, 720)),
+        part(6, HOUR, 2, "", (1000, 1000)),
+        part(7, HOUR, 2, "", (1000, 1000)),
+        clip,
+    ]
 }
 
 fn videos(still: &Path) -> Vec<Message> {
