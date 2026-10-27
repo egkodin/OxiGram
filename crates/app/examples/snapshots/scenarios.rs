@@ -363,6 +363,24 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: history::histories(),
             steps: vec![("122-photo-list", auth(State::Ready))],
         },
+        // Voice, from preset samples instead of the microphone: holding the
+        // microphone and leaving the field (release cancels), back in the
+        // field (release sends), then up past the lock.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("125-voice-chat", MouseButton::Left, SAVED_ROW)],
+            drags: vec![
+                ("126-voice-outside", COMPOSE_MIC, (776.0, 520.0)),
+                ("127-voice-in-field", COMPOSE_MIC, (700.0, 577.0)),
+                ("128-voice-locked", COMPOSE_MIC, ABOVE_LOCK),
+            ],
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: history::uploads(),
+            steps: vec![("125-voice-list", auth(State::Ready))],
+        },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
             setup: chats::events(),
@@ -573,6 +591,9 @@ const SELECTION_FORWARD: (f32, f32) = (350.0, 27.0);
 const BOX_SAVED_ROW: (f32, f32) = (360.0, 125.0);
 /// The message field under an open chat.
 const COMPOSE_FIELD: (f32, f32) = (543.0, 577.0);
+/// The microphone in the send button's place, and above it past the lock.
+const COMPOSE_MIC: (f32, f32) = (776.0, 577.0);
+const ABOVE_LOCK: (f32, f32) = (776.0, 380.0);
 /// The emoji button right of the field.
 const COMPOSE_EMOJI: (f32, f32) = (731.0, 577.0);
 /// The first recent emoji in the panel.

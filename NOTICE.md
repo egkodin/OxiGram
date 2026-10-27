@@ -55,6 +55,14 @@ Levin and Arseny Smirnov, is distributed under the Boost Software License 1.0.
 `crates/td-api/tl/td_api.tl` is copied from TDLib at the commit in
 `tdlib/COMMIT`.
 
+## Opus
+
+Voice messages are encoded with libopus (<https://opus-codec.org>), Copyright
+Xiph.Org Foundation, Skype Limited, Octasic, Jean-Marc Valin, Timothy B.
+Terriberry, CSIRO, Gregory Maxwell, Mark Borgerding, Erik de Castro Lopo and
+others, licensed under the BSD 3-Clause License. The `opusic-sys` crate builds
+it from source and links it statically.
+
 ## Rust crates
 
 Third-party crates keep their own licenses; `cargo deny check licenses` verifies

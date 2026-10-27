@@ -154,3 +154,12 @@ check on the live run: frame times while scrolling the panel quickly.
 - The upload row reads the file's state from `Chats::file` per frame of
   the visible bubble only; `updateFile` notifies the history once per
   update. Not measured yet with a large live upload (live test 10).
+
+## M4: voice recording
+
+- The audio callback only mixes to mono and sends one `Vec` per buffer to
+  the encoder thread; resampling, Opus and the OGG writes run there.
+  Progress comes back through atomics, so the UI never waits on audio.
+- While recording, the history view asks for a frame every refresh (the
+  time, the dot and the level); nothing animates once it stops. Not
+  measured yet: CPU while recording on battery (live test 11).

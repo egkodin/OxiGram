@@ -28,16 +28,18 @@ const FIELD_MARGIN: f32 = 4.0;
 
 /// The send button's microphone (`SendButton::paintRecord`), drawn from
 /// tdesktop's icon where tdesktop plays a Lottie animation.
-// shortcut: a still icon with no voice-to-round morph; the Lottie comes with voice recording (M4).
+// shortcut: a still icon with no voice-to-round morph; round video messages come with M5.
+pub(super) const RECORD_ICON: Icon = Icon::new(&[MonoIcon::new(
+    IconMask::File {
+        name: "chat/input_record",
+        modifiers: &[],
+    },
+    ColorRef::Palette(ColorId::HistoryComposeIconFg),
+    Margins::new(0, 0, 0, 0),
+)]);
+
 static HISTORY_RECORD: IconButtonStyle = IconButtonStyle {
-    icon: Icon::new(&[MonoIcon::new(
-        IconMask::File {
-            name: "chat/input_record",
-            modifiers: &[],
-        },
-        ColorRef::Palette(ColorId::HistoryComposeIconFg),
-        Margins::new(0, 0, 0, 0),
-    )]),
+    icon: RECORD_ICON,
     icon_over: Icon::new(&[MonoIcon::new(
         IconMask::File {
             name: "chat/input_record",
@@ -133,42 +135,15 @@ impl HistoryView {
     }
 
     /// The field with its buttons, or the bar that replaces it.
-    pub(super) fn compose_bar(&self, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn compose_bar(&self, window: &Window, cx: &mut Context<Self>) -> AnyElement {
         let writing = self.store.read(cx).state().chats.writing(self.chat);
         if let Some(bar) = self.write_bar(writing, cx) {
             return bar;
         }
-        let field = self.compose.field.clone();
-        let is_forwarding = matches!(self.compose.bar, Some(FieldBar::Forward(_)));
-        let send = if field.read(cx).text().is_empty() && !is_forwarding {
-            // shortcut: shows the microphone but records nothing; voice recording comes later in M4.
-            IconButton::new("compose-record", &HISTORY_RECORD)
-        } else {
-            let weak = cx.weak_entity();
-            IconButton::new("compose-send", &HISTORY_SEND.inner).on_click(move |_, _, cx| {
-                let _ = weak.update(cx, |this, cx| this.send(cx));
-            })
+        let row = match self.voice_bar(window, cx) {
+            Some(bar) => bar,
+            None => self.field_row(cx),
         };
-        let side = px_of(HISTORY_SEND_RIGHT);
-        let row = div()
-            .flex()
-            .items_end()
-            .px(side)
-            .child({
-                let weak = cx.weak_entity();
-                IconButton::new("compose-attach", &HISTORY_ATTACH).on_click(move |_, window, cx| {
-                    let _ = weak.update(cx, |this, cx| this.choose_files(window, cx));
-                })
-            })
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .py(px_of(HISTORY_SEND_PADDING))
-                    .child(field),
-            )
-            .child(self.emoji_button(cx))
-            .child(send);
         div()
             .flex_none()
             .flex()
@@ -186,6 +161,42 @@ impl HistoryView {
             .bg(color(cx, ColorRef::Palette(ColorId::HistoryReplyBg)))
             .children(self.field_bar(cx))
             .child(row)
+            .into_any_element()
+    }
+
+    /// Attach, the field, emoji, and send or the microphone.
+    fn field_row(&self, cx: &mut Context<Self>) -> AnyElement {
+        let field = self.compose.field.clone();
+        let is_forwarding = matches!(self.compose.bar, Some(FieldBar::Forward(_)));
+        let send = if field.read(cx).text().is_empty() && !is_forwarding {
+            self.record_button(IconButton::new("compose-record", &HISTORY_RECORD), cx)
+        } else {
+            let weak = cx.weak_entity();
+            IconButton::new("compose-send", &HISTORY_SEND.inner)
+                .on_click(move |_, _, cx| {
+                    let _ = weak.update(cx, |this, cx| this.send(cx));
+                })
+                .into_any_element()
+        };
+        let weak = cx.weak_entity();
+        div()
+            .flex()
+            .items_end()
+            .px(px_of(HISTORY_SEND_RIGHT))
+            .child(IconButton::new("compose-attach", &HISTORY_ATTACH).on_click(
+                move |_, window, cx| {
+                    let _ = weak.update(cx, |this, cx| this.choose_files(window, cx));
+                },
+            ))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .py(px_of(HISTORY_SEND_PADDING))
+                    .child(field),
+            )
+            .child(self.emoji_button(cx))
+            .child(send)
             .into_any_element()
     }
 }

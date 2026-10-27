@@ -227,7 +227,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Drag and drop files into the chat (compressed or as files zones) | M4 | in progress | snapshots 119, 124 |
 | compose | Upload progress and cancel | M4 | in progress | snapshot 118: still arc, size text, cancel deletes the pending message |
 | compose | Send a GIF with a caption | M5 | todo | |
-| compose | Voice recording: hold, lock, cancel, preview, view once | M4 | todo | |
+| compose | Voice recording: hold, lock, cancel, preview, view once | M4 | in progress | snapshots 125-128 from preset samples: hold, release in or outside the field, lock, Cancel; no preview, pause or view once yet |
 | compose | Round video recording | M5 | todo | |
 | compose | Send-as chooser (send as a channel) | M4 | todo | |
 | compose | Slow mode countdown and send restrictions | M4 | todo | |

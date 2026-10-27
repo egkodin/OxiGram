@@ -139,14 +139,7 @@ impl Session {
                 self.client().request(&SendMessage {
                     chat_id: chat.0,
                     topic_id: topic.map(|topic| Box::new(topic.to_td())),
-                    reply_to: reply_to.map(|message| {
-                        Box::new(InputMessageReplyTo::Message(InputMessageReplyToMessage {
-                            message_id: message.0,
-                            quote: None,
-                            checklist_task_id: 0,
-                            poll_option_id: String::new(),
-                        }))
-                    }),
+                    reply_to: reply(reply_to),
                     options: None,
                     reply_markup: None,
                     // The draft goes with the first part.
@@ -162,6 +155,18 @@ impl Session {
             Ok(())
         }
     }
+}
+
+/// A plain reply to `message` in the same chat.
+pub(crate) fn reply(message: Option<MessageId>) -> Option<Box<InputMessageReplyTo>> {
+    message.map(|message| {
+        Box::new(InputMessageReplyTo::Message(InputMessageReplyToMessage {
+            message_id: message.0,
+            quote: None,
+            checklist_task_id: 0,
+            poll_option_id: String::new(),
+        }))
+    })
 }
 
 fn input_text(text: String, clear_draft: bool) -> InputMessageContent {

@@ -28,6 +28,7 @@ const STYLE_ROOTS: &[&str] = &[
     "dialogs/dialogs.style",
     "dialogs/dialogs_widget.style",
     "dialogs/ui/dialogs_layout.style",
+    "history/view/controls/history_view_voice_record_bar.style",
     "info/info.style",
     "intro/intro.style",
     "ui/boxes/country_select_box.style",

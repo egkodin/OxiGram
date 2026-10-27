@@ -41,6 +41,9 @@ mod top_bar;
 mod unread;
 mod upload;
 mod userpics_row;
+mod voice;
+
+pub use voice::preset_voice_samples;
 mod web_page;
 mod who_reacted;
 mod write_bars;
@@ -153,6 +156,7 @@ pub(crate) struct HistoryView {
     compose: compose::Compose,
     emoji: emoji_panel::EmojiPanel,
     drop_zones: Option<drop_area::DropZones>,
+    voice: voice::Voice,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -246,6 +250,7 @@ impl HistoryView {
             compose,
             emoji: emoji_panel::EmojiPanel::new(),
             drop_zones: None,
+            voice: voice::Voice::default(),
             focus,
             _subscription: subscription,
         };
@@ -624,6 +629,7 @@ fn sender_color(state: &State, message: &Message) -> i32 {
 
 impl Render for HistoryView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.tick_voice(window, cx);
         if std::mem::take(&mut self.needs_preload_check) {
             // New items are measured only by this frame's layout.
             let weak = cx.weak_entity();
@@ -733,9 +739,10 @@ impl Render for HistoryView {
             )
             .children(self.pinned_section_button(cx))
             .children(self.search_results_bar(cx))
-            .children(has_field.then(|| self.compose_bar(cx)))
+            .children(has_field.then(|| self.compose_bar(window, cx)))
             .children(has_field.then(|| self.emoji_panel(window, cx)).flatten())
             .children(can_attach.then(|| self.drop_area(cx)).flatten())
+            .children(can_attach.then(|| self.voice_overlay(cx)).flatten())
             .children(self.menu_overlay())
     }
 }

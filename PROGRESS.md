@@ -69,6 +69,20 @@ live.
   cancels (deletes the pending message). Snapshots 117-124 (harness drops
   files through gpui's `FileDropEvent`); the harness's scenarios moved to
   `scenarios.rs`.
+- Voice messages (`history::voice`, new `media` crate, ADR 0006): holding
+  the microphone 120 ms starts recording; the bar replaces the field (the
+  blinking dot, the time with tenths, "Release outside this field to
+  cancel"), the round button over the send button grows with the level and
+  turns red outside the field, the lock rises above it. Releasing in the
+  field sends, outside cancels; dragging up to the lock keeps recording,
+  then the button sends and Cancel discards. A quick click shows the hold
+  tip, a microphone that does not open shows tdesktop's problem toast.
+  `media` reads the default input with cpal, mixes to mono, resamples to
+  48 kHz and encodes on a worker like tdesktop (400 ms skipped, 300 ms
+  fades, under a second dropped, Opus 32 kbit/s in OGG, the 5-bit
+  waveform); `Session::send_voice` sends it as `inputMessageVoiceNote`.
+  Snapshots 125-128 record preset samples (`preset_voice_samples`), never
+  the microphone.
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -76,7 +90,11 @@ live.
 
 ### Half done (shortcuts in code)
 
-- The microphone records nothing yet.
+- Voice: no preview after locking (stop, play, trim), pause, view once,
+  round videos, "recording voice" chat action, Enter/Escape while locked,
+  or the hold tip as a tooltip (it is a toast); the blobs are plain circles
+  and the padlock does not open or tilt; recordings stay in the temp folder;
+  the resampler is linear.
 - Attachments: photos and videos show as file rows in the box and while
   uploading (large previews, album grids and media bubbles come with M5);
   the arc stands still; videos go without duration, size or thumbnail, and
@@ -137,6 +155,13 @@ Sending only in Saved Messages:
     bubble's arc and "x / y MB" advance; press the cross: the message goes
     and the upload stops. Type a caption in the field first: it moves into
     the box and back on Cancel.
+11. Voice in Saved Messages (macOS asks for microphone access first): click
+    the microphone, the hold tip shows; hold and speak, the time runs and
+    the button pulses; release on the field: it arrives as a voice message
+    with a waveform and plays on the phone. Hold, drag left out of the
+    field, release: nothing is sent. Hold, drag up past the lock, let go:
+    still recording; Send sends, Cancel discards. Try a 44.1 kHz input
+    (e.g. a USB headset) for the resampler.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 

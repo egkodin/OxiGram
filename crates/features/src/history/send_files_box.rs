@@ -400,13 +400,7 @@ impl HistoryView {
         grouping: Grouping,
         cx: &mut Context<Self>,
     ) {
-        let reply = match self.compose.bar {
-            Some(FieldBar::Reply(reply)) => {
-                self.compose.bar = None;
-                Some(reply)
-            }
-            _ => None,
-        };
+        let reply = self.take_reply();
         let request = self.store.read(cx).session().send_files(
             self.chat,
             self.topic,

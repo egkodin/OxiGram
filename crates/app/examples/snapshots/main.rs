@@ -84,6 +84,7 @@ fn main() -> anyhow::Result<()> {
             return;
         }
         features::init(cx);
+        features::preset_voice_samples(VOICE_RATE, voice_samples(), cx);
         let session = Session::new(client);
         cx.spawn(async move |cx| {
             if let Err(error) = run(session, &out, cx).await {
@@ -301,6 +302,21 @@ fn release(position: Point<Pixels>, window: &mut Window, cx: &mut App) {
         }),
         cx,
     );
+}
+
+const VOICE_RATE: u32 = 48_000;
+
+/// Three seconds of a tone that swells and fades, recorded in place of the
+/// microphone.
+fn voice_samples() -> std::sync::Arc<[f32]> {
+    (0..VOICE_RATE * 3)
+        .map(|index| {
+            #[expect(clippy::cast_precision_loss, reason = "a test tone")]
+            let time = index as f32 / VOICE_RATE as f32;
+            let swell = (time * std::f32::consts::PI / 3.0).sin();
+            (time * 220.0 * std::f32::consts::TAU).sin() * swell * 0.6
+        })
+        .collect()
 }
 
 fn open(store: Entity<Store>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {

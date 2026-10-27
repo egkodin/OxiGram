@@ -87,6 +87,18 @@ impl HistoryView {
         self.store.read(cx).state().history(self.key())?.message(id)
     }
 
+    /// The message the bar replies to, closing the bar, for what is sent
+    /// apart from the field's text.
+    pub(super) fn take_reply(&mut self) -> Option<MessageId> {
+        match self.compose.bar {
+            Some(FieldBar::Reply(reply)) => {
+                self.compose.bar = None;
+                Some(reply)
+            }
+            _ => None,
+        }
+    }
+
     pub(super) fn focus_field(&self, window: &mut Window, cx: &mut Context<Self>) {
         let field = self.compose.field.clone();
         field.update(cx, |field, cx| field.focus(window, cx));

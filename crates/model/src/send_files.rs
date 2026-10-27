@@ -7,15 +7,17 @@ use std::future::Future;
 use std::ops::Range;
 use std::path::PathBuf;
 
-use td_api::enums::{InputFile, InputMessageContent, InputMessageReplyTo};
+use base64::Engine as _;
+use td_api::enums::{InputFile, InputMessageContent};
 use td_api::functions::{SendMessage, SendMessageAlbum};
 use td_api::types::{
     FormattedText, InputDocument, InputFileLocal, InputMessageDocument, InputMessagePhoto,
-    InputMessageReplyToMessage, InputMessageVideo, InputPhoto, InputVideo,
+    InputMessageVideo, InputMessageVoiceNote, InputPhoto, InputVideo, InputVoiceNote,
 };
 
 use crate::ids::{ChatId, MessageId};
 use crate::message::Topic;
+use crate::send::reply;
 use crate::session::{RequestError, Session};
 
 /// An album holds at most this many (`kMaxAlbumCount`).
@@ -171,16 +173,7 @@ impl Session {
         let groups = groups(attachments, grouping);
         let caption_at = captioned(&groups).filter(|_| !caption.trim().is_empty());
         let caption = caption.trim().to_owned();
-        let reply = || {
-            reply_to.map(|message| {
-                Box::new(InputMessageReplyTo::Message(InputMessageReplyToMessage {
-                    message_id: message.0,
-                    quote: None,
-                    checklist_task_id: 0,
-                    poll_option_id: String::new(),
-                }))
-            })
-        };
+        let reply = || reply(reply_to);
         let topic = || topic.map(|topic| Box::new(topic.to_td()));
         let mut requests = Vec::new();
         for (range, album) in groups {
@@ -222,6 +215,49 @@ impl Session {
             }
             Ok(())
         }
+    }
+}
+
+/// A recorded voice message (`inputMessageVoiceNote`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VoiceNote {
+    /// OGG Opus, one channel.
+    pub path: PathBuf,
+    pub duration: std::time::Duration,
+    /// 5 bits per value.
+    pub waveform: Vec<u8>,
+}
+
+impl Session {
+    /// Sends `voice` to `chat` or its topic, replying to `reply_to`.
+    pub fn send_voice(
+        &self,
+        chat: ChatId,
+        topic: Option<Topic>,
+        reply_to: Option<MessageId>,
+        voice: &VoiceNote,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let content = InputMessageContent::InputMessageVoiceNote(InputMessageVoiceNote {
+            voice_note: Box::new(InputVoiceNote {
+                voice_note: Box::new(InputFile::Local(InputFileLocal {
+                    path: voice.path.to_string_lossy().into_owned(),
+                })),
+                duration: i32::try_from(voice.duration.as_secs()).unwrap_or(i32::MAX),
+                // TDLib's JSON carries bytes in base64.
+                waveform: base64::engine::general_purpose::STANDARD.encode(&voice.waveform),
+            }),
+            caption: None,
+            self_destruct_type: None,
+        });
+        let request = self.client().request(&SendMessage {
+            chat_id: chat.0,
+            topic_id: topic.map(|topic| Box::new(topic.to_td())),
+            reply_to: reply(reply_to),
+            options: None,
+            reply_markup: None,
+            input_message_content: Box::new(content),
+        });
+        async move { request.await.map(drop).map_err(RequestError::from) }
     }
 }
 
