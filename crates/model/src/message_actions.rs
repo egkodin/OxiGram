@@ -29,6 +29,9 @@ pub struct Abilities {
     pub can_be_deleted_for_all_users: bool,
     pub can_get_link: bool,
     pub can_be_pinned: bool,
+    pub can_be_replied: bool,
+    pub can_be_edited: bool,
+    pub can_be_forwarded: bool,
     /// An outgoing message in a private chat whose read date TDLib keeps.
     pub can_get_read_date: bool,
     /// An outgoing message in a small group whose viewers TDLib keeps.
@@ -50,6 +53,9 @@ impl From<MessageProperties> for Abilities {
             can_be_deleted_for_all_users: properties.can_be_deleted_for_all_users,
             can_get_link: properties.can_get_link,
             can_be_pinned: properties.can_be_pinned,
+            can_be_replied: properties.can_be_replied,
+            can_be_edited: properties.can_be_edited,
+            can_be_forwarded: properties.can_be_forwarded,
             can_get_read_date: properties.can_get_read_date,
             can_get_viewers: properties.can_get_viewers,
         }

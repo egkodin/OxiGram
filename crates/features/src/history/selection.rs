@@ -8,13 +8,15 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::{Local, TimeZone as _};
-use gpui::{App, Context, Window};
+use gpui::{AnyElement, App, Context, Window};
 
 use super::menu::Hit;
 use model::MessageId;
 use model::message::{Content, Message};
 
 use super::HistoryView;
+use super::top_bar::{self, OnBack, SelectionActions};
+use model::message_actions::Abilities;
 
 /// What is selected.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -147,7 +149,71 @@ pub(super) fn copied_text(
     }
 }
 
+/// Whether a message may be forwarded as tdesktop decides on its own
+/// (`HistoryItem::allowsForward`): sent, not a service message, and not
+/// protected.
+fn allows_forward(message: &Message) -> bool {
+    !matches!(message.content, Content::Service(_))
+        && message.sending.is_none()
+        && message.can_be_saved
+}
+
 impl HistoryView {
+    fn selected_ids(&self) -> Vec<MessageId> {
+        match &self.selection {
+            Selection::Messages(ids) => ids.iter().copied().collect(),
+            Selection::None | Selection::Text { .. } => Vec::new(),
+        }
+    }
+
+    /// The bar over the history while messages are selected.
+    pub(super) fn selection_bar(&self, cx: &mut Context<Self>) -> AnyElement {
+        let ids = self.selected_ids();
+        let can_forward = ids.iter().all(|id| {
+            self.shown
+                .iter()
+                .any(|message| message.id == *id && allows_forward(message))
+        });
+        let on = |run: fn(&mut Self, &mut Window, &mut Context<Self>)| -> OnBack {
+            let weak = cx.weak_entity();
+            Box::new(move |_, window, cx| {
+                let _ = weak.update(cx, |this, cx| run(this, window, cx));
+            })
+        };
+        let actions = SelectionActions {
+            count: ids.len(),
+            on_forward: can_forward.then(|| {
+                on(|this, window, cx| {
+                    let ids = this.selected_ids();
+                    this.forward(ids, window, cx);
+                })
+            }),
+            on_delete: on(Self::delete_selected),
+            on_cancel: on(|this, _, cx| {
+                this.clear_selection(cx);
+            }),
+        };
+        top_bar::selection_bar(actions, cx)
+    }
+
+    /// Asks TDLib whether every selected message may be deleted, then
+    /// confirms (`confirmDeleteSelected`).
+    fn delete_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let ids = self.selected_ids();
+        let task = self.abilities_of(&ids, cx);
+        cx.spawn_in(window, async move |this, cx| {
+            let abilities = task.await;
+            if abilities.is_empty() || !abilities.iter().all(Abilities::can_be_deleted) {
+                return;
+            }
+            // The view is gone once its chat closed; nothing to delete then.
+            let _ = this.update_in(cx, |this, window, cx| {
+                this.confirm_delete(&ids, &abilities, window, cx);
+            });
+        })
+        .detach();
+    }
+
     pub(super) fn on_pointer(
         &mut self,
         index: usize,

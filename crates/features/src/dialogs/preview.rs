@@ -38,6 +38,31 @@ pub(crate) enum SpanKind {
 }
 
 impl Preview {
+    /// The text with its spoilers covered, for lines that draw plain text.
+    // shortcut: a spoiler becomes ░ marks; the particle animation comes with M3's spoilers.
+    pub(crate) fn hiding_spoilers(self) -> String {
+        let mut spoilers: Vec<_> = self
+            .spans
+            .iter()
+            .filter(|span| span.kind == SpanKind::Spoiler)
+            .map(|span| span.range.clone())
+            .collect();
+        // From the end, so the ranges before stay where they were.
+        spoilers.sort_by_key(|range| std::cmp::Reverse(range.start));
+        let mut text = self.text;
+        for range in spoilers {
+            let Some(hidden) = text.get(range.clone()) else {
+                continue;
+            };
+            let covered: String = hidden
+                .chars()
+                .map(|c| if c.is_whitespace() { c } else { '░' })
+                .collect();
+            text.replace_range(range, &covered);
+        }
+        text
+    }
+
     fn colorized(text: &str) -> Self {
         Self {
             text: text.to_owned(),
@@ -281,6 +306,19 @@ mod tests {
     use super::*;
     use model::text::Entity;
     use model::{ChatId, MessageId, UserId};
+
+    #[test]
+    fn plain_lines_cover_spoilers() {
+        let spoiler = |range| Span {
+            range,
+            kind: SpanKind::Spoiler,
+        };
+        let preview = Preview {
+            text: "seats 12 and 13, gate é".to_owned(),
+            spans: vec![spoiler(6..15), spoiler(22..24)],
+        };
+        assert_eq!(preview.hiding_spoilers(), "seats ░░ ░░░ ░░, gate ░");
+    }
 
     fn english() -> Strings {
         Strings::english()

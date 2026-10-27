@@ -103,6 +103,11 @@ impl TextArea {
     }
 
     pub(super) fn up(&mut self, _: &Up, window: &mut Window, cx: &mut Context<Self>) {
+        // An empty field leaves Up to its owner, which edits the last message.
+        if self.buffer.text.is_empty() {
+            cx.propagate();
+            return;
+        }
         self.vertical_move(-1, window, cx);
     }
 
@@ -194,6 +199,11 @@ impl TextArea {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        // Cmd+Up in an empty field replies to a message (`eventFilter`).
+        if self.buffer.text.is_empty() {
+            cx.propagate();
+            return;
+        }
         self.move_to(0, window, cx);
     }
 
@@ -203,6 +213,10 @@ impl TextArea {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.buffer.text.is_empty() {
+            cx.propagate();
+            return;
+        }
         self.move_to(self.buffer.text.len(), window, cx);
     }
 

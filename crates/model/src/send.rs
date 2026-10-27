@@ -4,14 +4,16 @@
 
 use std::future::Future;
 
-use td_api::enums::{DraftMessageContent, InputMessageContent, MessageTopic};
-use td_api::functions::{SendBotStartMessage, SendMessage, SetChatDraftMessage};
+use td_api::enums::{DraftMessageContent, InputMessageContent, InputMessageReplyTo, MessageTopic};
+use td_api::functions::{
+    EditMessageText, ForwardMessages, SendBotStartMessage, SendMessage, SetChatDraftMessage,
+};
 use td_api::types::{
-    DraftMessage, DraftMessageContentText, FormattedText, InputMessageText,
-    MessageTopicSavedMessages, MessageTopicThread,
+    DraftMessage, DraftMessageContentText, FormattedText, InputMessageReplyToMessage,
+    InputMessageText, MessageTopicSavedMessages, MessageTopicThread,
 };
 
-use crate::ids::{ChatId, UserId};
+use crate::ids::{ChatId, MessageId, UserId};
 use crate::message::Topic;
 use crate::session::{RequestError, Session};
 
@@ -80,12 +82,54 @@ impl Session {
         async move { request.await.map(drop).map_err(RequestError::from) }
     }
 
+    /// Forwards `messages` of chat `from` to `chat` or its topic
+    /// (`forwardMessages`), with their senders shown.
+    pub fn forward_messages(
+        &self,
+        chat: ChatId,
+        topic: Option<Topic>,
+        from: ChatId,
+        messages: &[MessageId],
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let mut message_ids: Vec<i64> = messages.iter().map(|message| message.0).collect();
+        // TDLib wants them oldest first.
+        message_ids.sort_unstable();
+        let request = self.client().request(&ForwardMessages {
+            chat_id: chat.0,
+            topic_id: topic.map(|topic| Box::new(topic.to_td())),
+            from_chat_id: from.0,
+            message_ids,
+            options: None,
+            send_copy: false,
+            remove_caption: false,
+        });
+        async move { request.await.map(drop).map_err(RequestError::from) }
+    }
+
+    /// Replaces a message's text (`editMessageText`), trimmed.
+    pub fn edit_text(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+        text: &str,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let request = self.client().request(&EditMessageText {
+            chat_id: chat.0,
+            message_id: message.0,
+            reply_markup: None,
+            input_message_content: Box::new(input_text(text.trim().to_owned(), false)),
+        });
+        async move { request.await.map(drop).map_err(RequestError::from) }
+    }
+
     /// Sends `text` without its outer whitespace, split into as many
-    /// messages as its length needs, in order; nothing when it is blank.
+    /// messages as its length needs, in order, each replying to `reply_to`
+    /// as tdesktop's parts do; nothing when it is blank.
     pub fn send_text(
         &self,
         chat: ChatId,
         topic: Option<Topic>,
+        reply_to: Option<MessageId>,
         text: &str,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         let requests: Vec<_> = split_for_sending(text, MAX_MESSAGE_LENGTH)
@@ -95,20 +139,18 @@ impl Session {
                 self.client().request(&SendMessage {
                     chat_id: chat.0,
                     topic_id: topic.map(|topic| Box::new(topic.to_td())),
-                    reply_to: None,
+                    reply_to: reply_to.map(|message| {
+                        Box::new(InputMessageReplyTo::Message(InputMessageReplyToMessage {
+                            message_id: message.0,
+                            quote: None,
+                            checklist_task_id: 0,
+                            poll_option_id: String::new(),
+                        }))
+                    }),
                     options: None,
                     reply_markup: None,
-                    input_message_content: Box::new(InputMessageContent::InputMessageText(
-                        InputMessageText {
-                            text: Box::new(FormattedText {
-                                text: part,
-                                entities: Vec::new(),
-                            }),
-                            link_preview_options: None,
-                            // The draft goes with the first part.
-                            clear_draft: index == 0,
-                        },
-                    )),
+                    // The draft goes with the first part.
+                    input_message_content: Box::new(input_text(part, index == 0)),
                 })
             })
             .collect();
@@ -120,6 +162,17 @@ impl Session {
             Ok(())
         }
     }
+}
+
+fn input_text(text: String, clear_draft: bool) -> InputMessageContent {
+    InputMessageContent::InputMessageText(InputMessageText {
+        text: Box::new(FormattedText {
+            text,
+            entities: Vec::new(),
+        }),
+        link_preview_options: None,
+        clear_draft,
+    })
 }
 
 /// `text` trimmed and cut into parts of at most `max` UTF-16 units, each

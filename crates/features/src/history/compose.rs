@@ -3,8 +3,8 @@
 //! shows a microphone while the field is empty.
 
 use gpui::{
-    AnyElement, App, AppContext as _, Context, Entity, IntoElement as _, ParentElement as _,
-    SharedString, Styled as _, Subscription, Window, div, px,
+    AnyElement, App, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, SharedString, Styled as _, Subscription, Window, div, px,
 };
 use i18n::key;
 use model::chat::ChatKind;
@@ -19,9 +19,9 @@ use ui::{IconButton, TextArea, TextAreaEvent, color};
 
 use super::HistoryView;
 use super::drafts::Draft;
+use super::field_bar::{self, FieldBar};
 use crate::lang::tr;
 use crate::px_of;
-use crate::store::spawn;
 
 /// Around the text in the field (`InitMessageFieldGeometry`).
 const FIELD_MARGIN: f32 = 4.0;
@@ -51,6 +51,7 @@ static HISTORY_RECORD: IconButtonStyle = IconButtonStyle {
 
 pub(super) struct Compose {
     pub(super) field: Entity<TextArea>,
+    pub(super) bar: Option<FieldBar>,
     pub(super) draft: Draft,
     _subscription: Subscription,
 }
@@ -85,6 +86,7 @@ impl Compose {
         });
         Self {
             field,
+            bar: None,
             draft,
             _subscription: subscription,
         }
@@ -104,39 +106,30 @@ pub(super) fn placeholder(state: &model::State, key: Key, cx: &App) -> SharedStr
     tr(cx, key)
 }
 
-impl HistoryView {
-    /// Sends the field's text and empties it; puts the text back if TDLib
-    /// refused it before making a message of it.
-    fn send(&mut self, cx: &mut Context<Self>) {
-        let field = self.compose.field.clone();
-        let text = field.read(cx).text().to_owned();
-        if text.trim().is_empty() {
-            return;
+impl Compose {
+    /// What the draft holds: the field, or while editing what the field
+    /// held before.
+    pub(super) fn draft_text(&self, cx: &App) -> String {
+        match &self.bar {
+            Some(FieldBar::Edit { stash, .. }) => stash.clone(),
+            _ => self.field.read(cx).text().to_owned(),
         }
-        self.compose.draft.sent();
-        field.update(cx, |field, cx| field.set_text("", cx));
-        let task = spawn(
-            self.store
-                .read(cx)
-                .session()
-                .send_text(self.chat, self.topic, &text),
-            cx,
-        );
-        self.scroll_down(cx);
-        cx.spawn(async move |_, cx| {
-            let Err(error) = task.await else {
-                return;
-            };
-            tracing::warn!(%error, "sending a message failed");
-            cx.update(|cx| {
-                field.update(cx, |field, cx| {
-                    if field.text().is_empty() {
-                        field.set_text(&text, cx);
-                    }
-                });
-            });
-        })
-        .detach();
+    }
+}
+
+impl HistoryView {
+    /// Sends the field's text, as a reply if one is open, with the
+    /// forward after it; while editing, saves the edit instead.
+    fn send(&mut self, cx: &mut Context<Self>) {
+        let text = self.compose.field.read(cx).text().to_owned();
+        let is_blank = text.trim().is_empty();
+        match self.compose.bar {
+            Some(FieldBar::Edit { message, .. }) if !is_blank => self.save_edit(message, text, cx),
+            Some(FieldBar::Edit { .. }) => {}
+            Some(FieldBar::Forward(_)) => self.send_with_bar(text, cx),
+            Some(FieldBar::Reply(_)) | None if !is_blank => self.send_with_bar(text, cx),
+            Some(FieldBar::Reply(_)) | None => {}
+        }
     }
 
     /// The field with its buttons, or the bar that replaces it.
@@ -146,8 +139,8 @@ impl HistoryView {
             return bar;
         }
         let field = self.compose.field.clone();
-        let is_empty = field.read(cx).text().is_empty();
-        let send = if is_empty {
+        let is_forwarding = matches!(self.compose.bar, Some(FieldBar::Forward(_)));
+        let send = if field.read(cx).text().is_empty() && !is_forwarding {
             // shortcut: shows the microphone but records nothing; voice recording comes later in M4.
             IconButton::new("compose-record", &HISTORY_RECORD)
         } else {
@@ -157,12 +150,10 @@ impl HistoryView {
             })
         };
         let side = px_of(HISTORY_SEND_RIGHT);
-        div()
-            .flex_none()
+        let row = div()
             .flex()
             .items_end()
             .px(side)
-            .bg(color(cx, ColorRef::Palette(ColorId::HistoryReplyBg)))
             // shortcut: attach and emoji do nothing yet; files come later in M4, the emoji panel in M5.
             .child(IconButton::new("compose-attach", &HISTORY_ATTACH))
             .child(
@@ -176,7 +167,18 @@ impl HistoryView {
                 "compose-emoji",
                 &HISTORY_ATTACH_EMOJI.inner,
             ))
-            .child(send)
+            .child(send);
+        div()
+            .flex_none()
+            .flex()
+            .flex_col()
+            .key_context(field_bar::CONTEXT)
+            .on_action(cx.listener(Self::edit_last))
+            .on_action(cx.listener(Self::reply_previous))
+            .on_action(cx.listener(Self::reply_next))
+            .bg(color(cx, ColorRef::Palette(ColorId::HistoryReplyBg)))
+            .children(self.field_bar(cx))
+            .child(row)
             .into_any_element()
     }
 }

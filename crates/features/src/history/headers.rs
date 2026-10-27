@@ -57,7 +57,11 @@ pub(super) fn reply(
     match (replied, reply_to.external.as_deref()) {
         (Replied::Loaded(message), _) => {
             let text = reply_to.quote.as_ref().map_or_else(
-                || content_preview(strings, &message.content).0.text,
+                || {
+                    content_preview(strings, &message.content)
+                        .0
+                        .hiding_spoilers()
+                },
                 |quote| quote.text.clone(),
             );
             Reply {
@@ -98,7 +102,7 @@ fn external_reply(
                 .map(|quote| quote.text.clone())
                 .or_else(|| {
                     let media = media.as_ref()?.without_caption();
-                    Some(content_preview(strings, &media).0.text)
+                    Some(content_preview(strings, &media).0.hiding_spoilers())
                 })
                 .unwrap_or_default();
             let color = match origin {
@@ -129,7 +133,7 @@ fn chat_title(chats: &Chats, chat: model::ChatId) -> String {
 }
 
 /// Who sent a message elsewhere, by name.
-fn origin_name(strings: &Strings, chats: &Chats, origin: &Origin) -> String {
+pub(super) fn origin_name(strings: &Strings, chats: &Chats, origin: &Origin) -> String {
     match origin {
         Origin::User(user) => user_name(strings, chats, *user),
         Origin::HiddenUser(name) => name.clone(),
@@ -137,7 +141,7 @@ fn origin_name(strings: &Strings, chats: &Chats, origin: &Origin) -> String {
     }
 }
 
-fn first_line(text: &str) -> &str {
+pub(super) fn first_line(text: &str) -> &str {
     text.lines().next().unwrap_or_default()
 }
 
@@ -177,7 +181,7 @@ pub(super) fn forwarded(strings: &Strings, chats: &Chats, forward: &Forward) -> 
     i18n::fill(strings.text(key), &[("user", &name), ("channel", &name)])
 }
 
-fn line(text: SharedString, line_font: Font, fg: gpui::Hsla) -> AnyElement {
+pub(super) fn line(text: SharedString, line_font: Font, fg: gpui::Hsla) -> AnyElement {
     div()
         .truncate()
         .font(font(line_font))

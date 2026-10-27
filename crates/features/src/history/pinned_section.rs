@@ -99,10 +99,14 @@ impl HistoryView {
         cx.notify();
     }
 
-    /// Escape: drops the selection, else closes the search, else leaves the
-    /// section; `false` when there was none of them.
+    /// Escape: drops the selection, else closes the search, else cancels
+    /// the reply or edit, else leaves the section (`HistoryWidget::escape`);
+    /// `false` when there was none of them.
     pub(crate) fn escape(&mut self, cx: &mut Context<Self>) -> bool {
-        self.clear_selection(cx) || self.close_search(cx) || self.close_section(cx)
+        self.clear_selection(cx)
+            || self.close_search(cx)
+            || self.cancel_field_bar(cx)
+            || self.close_section(cx)
     }
 
     /// The section's bar: "3 pinned messages" after the back arrow.

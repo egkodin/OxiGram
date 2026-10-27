@@ -12,6 +12,8 @@ mod contact_status;
 mod dates;
 mod delete;
 mod drafts;
+mod field_bar;
+mod forwarding;
 mod headers;
 mod jump;
 mod layout;
@@ -38,7 +40,6 @@ mod web_page;
 mod who_reacted;
 mod write_bars;
 
-pub(crate) use self::delete::bind_keys;
 pub(crate) use self::headers::Replied;
 pub(crate) use self::service::text as service_text;
 pub(crate) use self::text::Link;
@@ -156,6 +157,11 @@ impl std::fmt::Debug for HistoryView {
     }
 }
 
+pub(crate) fn bind_keys(cx: &mut gpui::App) {
+    delete::bind_keys(cx);
+    field_bar::bind_keys(cx);
+}
+
 impl HistoryView {
     /// `focus` is the window's main view, which takes keys such as Ctrl+C
     /// once the chat is clicked.
@@ -179,6 +185,7 @@ impl HistoryView {
         let subscription = cx.observe(&store, |this, _, cx| {
             this.sync(cx);
             this.sync_draft(cx);
+            this.take_forwarding(cx);
         });
         let list = ListState::new(0, ListAlignment::Bottom, px(OVERDRAW));
         let weak = cx.weak_entity();
@@ -243,6 +250,7 @@ impl HistoryView {
             view.load_pins(cx);
         }
         view.request_ad(cx);
+        view.take_forwarding(cx);
         view
     }
 
@@ -624,13 +632,7 @@ impl Render for HistoryView {
         });
         let is_chat = self.section == pinned_section::Section::Chat;
         let bar = if self.selection.selected_count() > 0 {
-            let weak = cx.weak_entity();
-            top_bar::selection_bar(
-                move |_, _, cx| {
-                    let _ = weak.update(cx, |this, cx| this.clear_selection(cx));
-                },
-                cx,
-            )
+            self.selection_bar(cx)
         } else if !is_chat {
             self.pinned_section_bar(cx)
         } else if let Some(bar) = self.search_bar(cx).or_else(|| self.thread_bar(cx)) {

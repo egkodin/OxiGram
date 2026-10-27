@@ -36,6 +36,16 @@ live.
   five after the first unsaved one) and on leaving the chat, only when the
   text changed; a draft changed on another device replaces the field unless
   something typed here waits to be saved. Sending drops it (`clear_draft`).
+- The bar over the field (`history::field_bar`, `history::forwarding`):
+  reply (menu, Ctrl/Cmd+Up and Down through the history), edit (menu, Up
+  in an empty field; plain text only; Escape gives back what the field
+  held), forward (menu, Forward selected, the selection bar's Forward N)
+  through "Choose recipient..." (`recipients_box`: Saved Messages, then
+  the main list, writable chats only, name search). Sending a forward sends
+  the typed text first. Escape cancels the bar after the selection and
+  search. The selection bar also has Delete N. Reply previews cover
+  spoilers. `peer_list` holds the rows the contacts and recipients boxes
+  share. Snapshots 90-109.
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -44,6 +54,9 @@ live.
 ### Half done (shortcuts in code)
 
 - Attach and emoji buttons do nothing yet; the microphone records nothing.
+- Edit keeps no formatting, so formatted messages and captions are not
+  offered for editing; no quotes, reply in another chat, forward options,
+  several recipients or global search in the box yet.
 - Topic and thread drafts are saved but not loaded back (forum topics are
   not in the model yet); drafts keep no formatting or reply yet.
 - The bars read only basic-message rights; media rights come with
@@ -75,6 +88,11 @@ Sending only in Saved Messages:
 7. Drafts in Saved Messages: type, switch chats, come back: the text is
    there and the list shows "Draft:". Type on the phone in Saved Messages
    while rgram has it open: the field follows. Send: the draft goes.
+8. In Saved Messages: reply to a message from the menu and with Cmd+Up,
+   send; edit the last message with Up, change it, Enter; Escape while
+   editing gives the field back. Forward a message from another chat to
+   Saved Messages (menu and the selection bar), with and without a comment.
+   Delete N in the selection bar, only in Saved Messages.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 

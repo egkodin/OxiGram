@@ -6,29 +6,24 @@ use std::rc::Rc;
 
 use chrono::Local;
 use gpui::{
-    App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, ParentElement,
-    Render, SharedString, Styled, Subscription, WeakEntity, Window, div, prelude::*, px,
-    uniform_list,
+    App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement, Render, Styled,
+    Subscription, WeakEntity, Window, prelude::*, uniform_list,
 };
 use i18n::key;
 use model::user::User;
 use model::{FileId, UserId};
-use style::basic::{NO_CONTACTS_COLOR, NO_CONTACTS_FONT, NO_CONTACTS_HEIGHT};
-use style::boxes::{CONTACTS_STATUS_FONT, CONTACTS_WITH_STORIES};
-use style::layers::{BOX_MAX_LIST_HEIGHT, DEFAULT_BOX};
+use style::layers::DEFAULT_BOX;
 use style::widgets::DEFAULT_MULTI_SELECT;
-use ui::{BoxFrame, InputEvent, InputField, RoundButton, Userpic, color, font, font_height};
+use ui::{BoxFrame, InputEvent, InputField, RoundButton};
 
 use crate::Store;
 use crate::dialogs::photo_userpic;
 use crate::intro::country_box::search_words;
 use crate::lang::{strings, tr};
 use crate::layers::{Dismiss, Layers};
-use crate::px_of;
+use crate::peer_list;
 use crate::status::{sort_value, status};
 
-/// Room the box leaves around itself in a short window.
-const WINDOW_MARGIN: f32 = 160.0;
 /// Userpics wait behind what the user opened.
 const USERPIC_PRIORITY: i32 = 8;
 
@@ -166,80 +161,24 @@ impl ContactsBox {
     }
 
     fn row(&mut self, user: &User, index: usize, cx: &mut Context<Self>) -> gpui::AnyElement {
-        let st = &CONTACTS_WITH_STORIES.item;
         let chats = &self.store.read(cx).state().chats;
         let name = user.name();
-        let (source, download) =
+        let (userpic, download) =
             photo_userpic(chats, user.photo.as_ref(), user.accent_color, &name);
         let line = status(strings(cx), user, &Local::now());
         if let Some(file) = download {
             self.download(file, cx);
         }
-        let is_hovered = self.hovered == Some(index);
-        let status_fg = if line.is_online {
-            st.status_fg_active
-        } else if is_hovered {
-            st.status_fg_over
-        } else {
-            st.status_fg
+        let look = peer_list::Look {
+            name: name.into(),
+            userpic,
+            status: line.text.into(),
+            is_active: line.is_online,
         };
-        let name_font = st.name_style.font;
-        let status_font = CONTACTS_STATUS_FONT;
         let user_id = user.id;
-        div()
-            .id(("contact", index))
-            .relative()
-            .h(px_of(st.height))
-            .w_full()
-            .bg(color(
-                cx,
-                if is_hovered {
-                    st.button.text_bg_over
-                } else {
-                    CONTACTS_WITH_STORIES.bg
-                },
-            ))
-            .child(
-                div()
-                    .absolute()
-                    .left(px_of(st.photo_position.x))
-                    .top(px_of(st.photo_position.y))
-                    .child(Userpic::new(px_of(st.photo_size), source)),
-            )
-            .child(
-                div()
-                    .absolute()
-                    .left(px_of(st.name_position.x))
-                    .top(px_of(st.name_position.y))
-                    .right(px(0.0))
-                    .pr(px_of(st.photo_position.x))
-                    .font(font(name_font))
-                    .text_size(px_of(name_font.size))
-                    .line_height(font_height(name_font))
-                    .text_color(color(cx, st.name_fg))
-                    .whitespace_nowrap()
-                    .overflow_hidden()
-                    .text_ellipsis()
-                    .child(SharedString::from(name)),
-            )
-            .child(
-                div()
-                    .absolute()
-                    .left(px_of(st.status_position.x))
-                    .top(px_of(st.status_position.y))
-                    .font(font(status_font))
-                    .text_size(px_of(status_font.size))
-                    .line_height(font_height(status_font))
-                    .text_color(color(cx, status_fg))
-                    .whitespace_nowrap()
-                    .child(SharedString::from(line.text)),
-            )
+        peer_list::row(("contact", index), look, self.hovered == Some(index), cx)
             .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                let next = if *hovered {
-                    Some(index)
-                } else {
-                    this.hovered.filter(|was| *was != index)
-                };
+                let next = peer_list::hovered_after(this.hovered, index, *hovered);
                 if this.hovered != next {
                     this.hovered = next;
                     cx.notify();
@@ -252,24 +191,8 @@ impl ContactsBox {
 
 impl Render for ContactsBox {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let st = &DEFAULT_MULTI_SELECT;
-        let search_height =
-            px_of(st.field.height_min) + px_of(st.padding.top) + px_of(st.padding.bottom);
-        let window_room = window.viewport_size().height - px(WINDOW_MARGIN);
-        let list_height = (px_of(BOX_MAX_LIST_HEIGHT) - search_height)
-            .min(window_room)
-            .max(px(100.0));
-        let search = div()
-            .bg(color(cx, st.bg))
-            .pl(px_of(st.padding.left))
-            .pr(px_of(st.padding.right))
-            .pt(px_of(st.padding.top))
-            .pb(px_of(st.padding.bottom))
-            .flex()
-            .items_center()
-            .gap(px_of(st.field_icon_skip))
-            .child(ui::icon(st.field_icon))
-            .child(div().flex_1().child(self.search.clone()));
+        let list_height = peer_list::list_height(window);
+        let search = peer_list::search_row(self.search.clone(), cx);
 
         let state = self.store.read(cx).state();
         let now = Local::now().timestamp();
@@ -285,16 +208,7 @@ impl Render for ContactsBox {
             } else {
                 key::lng_blocked_list_not_found
             };
-            div()
-                .h(px_of(NO_CONTACTS_HEIGHT))
-                .flex()
-                .items_center()
-                .justify_center()
-                .font(font(NO_CONTACTS_FONT))
-                .text_size(px_of(NO_CONTACTS_FONT.size))
-                .text_color(color(cx, NO_CONTACTS_COLOR))
-                .child(tr(cx, text))
-                .into_any_element()
+            peer_list::empty(tr(cx, text), cx)
         } else {
             uniform_list(
                 "contacts",

@@ -224,6 +224,9 @@ mod tests {
             can_be_deleted_for_all_users: for_all,
             can_get_link: false,
             can_be_pinned: false,
+            can_be_replied: false,
+            can_be_edited: false,
+            can_be_forwarded: false,
             can_get_read_date: false,
             can_get_viewers: false,
         }

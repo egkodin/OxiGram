@@ -9,6 +9,7 @@ use gpui::{App, Context, Task};
 use model::thread::Key;
 
 use super::HistoryView;
+use super::field_bar::FieldBar;
 
 /// `kSaveDraftTimeout`.
 const SAVE_DELAY: Duration = Duration::from_secs(1);
@@ -93,7 +94,7 @@ impl HistoryView {
 
     /// Hands the field's text to TDLib unless it has it already.
     pub(super) fn save_draft(&mut self, cx: &mut App) {
-        let text = self.compose.field.read(cx).text().to_owned();
+        let text = self.compose.draft_text(cx);
         let draft = &mut self.compose.draft;
         draft.unsaved_since = None;
         draft.timer = None;
@@ -122,6 +123,10 @@ impl HistoryView {
     /// Takes a draft changed elsewhere, unless the user has typed something
     /// here that is not saved yet.
     pub(super) fn sync_draft(&mut self, cx: &mut Context<Self>) {
+        // While editing the field holds the message; the draft waits.
+        if matches!(self.compose.bar, Some(FieldBar::Edit { .. })) {
+            return;
+        }
         let cloud = cloud_text(self.store.read(cx).state(), self.key());
         if cloud == self.compose.draft.seen {
             return;

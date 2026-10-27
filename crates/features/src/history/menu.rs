@@ -20,7 +20,8 @@ use model::reaction::AddedReactions;
 use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
-    MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_LINK, MENU_ICON_SELECT,
+    MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_EDIT, MENU_ICON_FORWARD, MENU_ICON_LINK,
+    MENU_ICON_REPLY, MENU_ICON_SELECT,
 };
 use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
 use ui::{MenuTone, PopupMenu};
@@ -28,7 +29,7 @@ use ui::{MenuTone, PopupMenu};
 use super::read_date::WhoRead;
 use super::selection::Selection;
 use super::who_reacted::WhoLine;
-use super::{HistoryView, Link, delete, read_date, text};
+use super::{HistoryView, Link, delete, field_bar, read_date, text};
 use crate::lang::{strings, tr};
 use crate::peer_menu::PeerMenu;
 use crate::px_of;
@@ -103,11 +104,15 @@ impl LinkCopy {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Item {
+    Reply,
+    Edit,
     CopySelectedText,
     CopySelectedMessages,
     CopyText,
     CopyLink(LinkCopy),
     CopyMessageLink,
+    Forward,
+    ForwardSelected,
     Delete,
     DeleteSelected,
     Select,
@@ -118,7 +123,7 @@ pub(super) enum Item {
 /// The menu's items in tdesktop's order. `abilities` are those of the
 /// message, or of every selected one over a selected message; empty when
 /// TDLib did not tell, which offers only what needs no permission.
-// shortcut: no Reply, Edit, Forward, Pin or Report yet; they come with sending (M4) and the pinned bar.
+// shortcut: no Pin or Report yet; they come with the pinned bar and reports (M6).
 pub(super) fn items(
     upon: Upon,
     has_text: bool,
@@ -127,7 +132,10 @@ pub(super) fn items(
 ) -> Vec<Item> {
     let can_copy = abilities.iter().all(|a| a.can_be_copied);
     let can_delete = !abilities.is_empty() && abilities.iter().all(Abilities::can_be_deleted);
+    let can_forward = !abilities.is_empty() && abilities.iter().all(|a| a.can_be_forwarded);
     let can_get_link = abilities.first().is_some_and(|a| a.can_get_link);
+    let can_reply = abilities.first().is_some_and(|a| a.can_be_replied);
+    let can_edit = abilities.first().is_some_and(|a| a.can_be_edited);
     let link_item = |is_message_link_allowed: bool| {
         link.clone()
             .map(Item::CopyLink)
@@ -138,6 +146,7 @@ pub(super) fn items(
         Upon::SelectedMessage => {
             items.extend(can_copy.then_some(Item::CopySelectedMessages));
             items.extend(link_item(false));
+            items.extend(can_forward.then_some(Item::ForwardSelected));
             items.extend(can_delete.then_some(Item::DeleteSelected));
             items.push(Item::ClearSelection);
         }
@@ -146,6 +155,8 @@ pub(super) fn items(
             items.extend([Item::Select, Item::SelectUpTo]);
         }
         Upon::SelectedText | Upon::OtherText | Upon::Nothing => {
+            items.extend(can_reply.then_some(Item::Reply));
+            items.extend(can_edit.then_some(Item::Edit));
             if upon == Upon::SelectedText && can_copy {
                 items.push(Item::CopySelectedText);
             }
@@ -153,6 +164,7 @@ pub(super) fn items(
                 items.push(Item::CopyText);
             }
             items.extend(link_item(true));
+            items.extend(can_forward.then_some(Item::Forward));
             items.extend(can_delete.then_some(Item::Delete));
             items.push(Item::Select);
         }
@@ -187,6 +199,33 @@ impl LinkCopy {
 }
 
 impl HistoryView {
+    /// What the user may do with each of `ids`, from TDLib; empty when it
+    /// did not tell for any of them.
+    pub(super) fn abilities_of(
+        &self,
+        ids: &[MessageId],
+        cx: &App,
+    ) -> impl std::future::Future<Output = Vec<Abilities>> + use<> {
+        let session = self.store.read(cx).session().clone();
+        let tasks: Vec<_> = ids
+            .iter()
+            .map(|id| spawn(session.message_abilities(self.chat, *id), cx))
+            .collect();
+        async move {
+            let mut abilities = Vec::new();
+            for task in tasks {
+                match task.await {
+                    Ok(ability) => abilities.push(ability),
+                    Err(error) => {
+                        tracing::warn!(%error, "message abilities unknown");
+                        return Vec::new();
+                    }
+                }
+            }
+            abilities
+        }
+    }
+
     /// Asks TDLib what the user may do, then opens the menu at the pointer.
     pub(super) fn open_menu(&mut self, hit: Hit, window: &mut Window, cx: &mut Context<Self>) {
         let Some(message) = self.shown.get(hit.index).cloned() else {
@@ -200,11 +239,7 @@ impl HistoryView {
             (Selection::Messages(ids), Upon::SelectedMessage) => ids.iter().copied().collect(),
             _ => vec![message.id],
         };
-        let session = self.store.read(cx).session().clone();
-        let tasks: Vec<_> = ids
-            .iter()
-            .map(|id| spawn(session.message_abilities(self.chat, *id), cx))
-            .collect();
+        let abilities_task = self.abilities_of(&ids, cx);
         let is_single = ids.len() == 1;
         let who_read_task = (is_single && message.is_outgoing).then(|| self.who_read(&message, cx));
         let reactors_task = (is_single && !self.is_private(cx))
@@ -213,17 +248,7 @@ impl HistoryView {
         let position = window.mouse_position();
         let generation = self.generation;
         cx.spawn_in(window, async move |this, cx| {
-            let mut abilities = Vec::new();
-            for task in tasks {
-                match task.await {
-                    Ok(ability) => abilities.push(ability),
-                    Err(error) => {
-                        tracing::warn!(%error, "message abilities unknown");
-                        abilities.clear();
-                        break;
-                    }
-                }
-            }
+            let abilities = abilities_task.await;
             let who_read = match who_read_task {
                 Some(task) => task.await,
                 None => None,
@@ -324,7 +349,10 @@ impl HistoryView {
                 .and_then(|(_, link)| LinkCopy::of(&link))
         });
         let abilities = facts.abilities;
-        let items = items(upon, text.is_some(), link, abilities);
+        let mut items = items(upon, text.is_some(), link, abilities);
+        if field_bar::editable_text(&message).is_none() {
+            items.retain(|item| *item != Item::Edit);
+        }
         let weak = cx.weak_entity();
         let is_megagroup = self.is_megagroup(cx);
         let menu = cx.new(|cx| {
@@ -442,6 +470,8 @@ impl HistoryView {
         cx: &mut Context<Self>,
     ) {
         match item {
+            Item::Reply => self.reply_to(message.id, window, cx),
+            Item::Edit => self.edit(message.id, window, cx),
             Item::CopySelectedText | Item::CopySelectedMessages => {
                 self.copy_selection(cx);
             }
@@ -454,6 +484,13 @@ impl HistoryView {
                 cx.write_to_clipboard(ClipboardItem::new_string(copy.text().to_owned()));
             }
             Item::CopyMessageLink => self.copy_message_link(message.id, cx),
+            Item::Forward => self.forward(vec![message.id], window, cx),
+            Item::ForwardSelected => {
+                if let Selection::Messages(ids) = &self.selection {
+                    let ids = ids.iter().copied().collect();
+                    self.forward(ids, window, cx);
+                }
+            }
             Item::Delete => self.confirm_delete(&[message.id], abilities, window, cx),
             Item::DeleteSelected => {
                 if let Selection::Messages(ids) = &self.selection {
@@ -520,7 +557,7 @@ impl HistoryView {
         .detach();
     }
 
-    fn confirm_delete(
+    pub(super) fn confirm_delete(
         &mut self,
         ids: &[MessageId],
         abilities: &[Abilities],
@@ -577,6 +614,8 @@ impl HistoryView {
 fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon, MenuTone) {
     let normal = |text, icon| (tr(cx, text), icon, MenuTone::Normal);
     match item {
+        Item::Reply => normal(key::lng_context_reply_msg, MENU_ICON_REPLY),
+        Item::Edit => normal(key::lng_context_edit_msg, MENU_ICON_EDIT),
         Item::CopySelectedText => normal(key::lng_context_copy_selected, MENU_ICON_COPY),
         Item::CopySelectedMessages => normal(key::lng_context_copy_selected_items, MENU_ICON_COPY),
         Item::CopyText => normal(key::lng_context_copy_text, MENU_ICON_COPY),
@@ -585,6 +624,8 @@ fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon
             normal(key::lng_context_copy_message_link, MENU_ICON_LINK)
         }
         Item::CopyMessageLink => normal(key::lng_context_copy_post_link, MENU_ICON_LINK),
+        Item::Forward => normal(key::lng_context_forward_msg, MENU_ICON_FORWARD),
+        Item::ForwardSelected => normal(key::lng_context_forward_selected, MENU_ICON_FORWARD),
         Item::Delete => (
             tr(cx, key::lng_context_delete_msg),
             MENU_ICON_DELETE_ATTENTION,
@@ -611,6 +652,9 @@ mod tests {
         can_be_deleted_for_all_users: true,
         can_get_link: true,
         can_be_pinned: true,
+        can_be_replied: true,
+        can_be_edited: true,
+        can_be_forwarded: true,
         can_get_read_date: false,
         can_get_viewers: false,
     };
@@ -620,8 +664,11 @@ mod tests {
         assert_eq!(
             items(Upon::Nothing, true, None, &[ALL]),
             [
+                Item::Reply,
+                Item::Edit,
                 Item::CopyText,
                 Item::CopyMessageLink,
+                Item::Forward,
                 Item::Delete,
                 Item::Select
             ]
@@ -634,8 +681,11 @@ mod tests {
         assert_eq!(
             items(Upon::Nothing, true, Some(link.clone()), &[ALL]),
             [
+                Item::Reply,
+                Item::Edit,
                 Item::CopyText,
                 Item::CopyLink(link),
+                Item::Forward,
                 Item::Delete,
                 Item::Select
             ]
@@ -658,7 +708,14 @@ mod tests {
         };
         assert_eq!(
             items(Upon::SelectedText, true, None, &[protected]),
-            [Item::CopyMessageLink, Item::Delete, Item::Select]
+            [
+                Item::Reply,
+                Item::Edit,
+                Item::CopyMessageLink,
+                Item::Forward,
+                Item::Delete,
+                Item::Select
+            ]
         );
     }
 
@@ -671,7 +728,11 @@ mod tests {
         };
         assert_eq!(
             items(Upon::SelectedMessage, true, None, &[ALL, kept]),
-            [Item::CopySelectedMessages, Item::ClearSelection]
+            [
+                Item::CopySelectedMessages,
+                Item::ForwardSelected,
+                Item::ClearSelection
+            ]
         );
         assert_eq!(
             items(Upon::OtherMessages, true, None, &[ALL]),

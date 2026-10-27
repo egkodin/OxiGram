@@ -1,13 +1,14 @@
 //! The UI's copy of the model: TDLib events are applied here, and screens
 //! send their actions through it.
 
+use std::collections::HashMap;
 use std::future::Future;
 
 use gpui::{App, Context, EventEmitter, Task};
 use model::history::Page;
 use model::message::Message;
 use model::thread::Key;
-use model::{Environment, Event, Session, State, auth};
+use model::{ChatId, Environment, Event, MessageId, Session, State, auth};
 
 /// The model state and the session that changes it.
 #[derive(Debug)]
@@ -15,6 +16,19 @@ pub struct Store {
     state: State,
     session: Session,
     environment: Environment,
+    /// Messages picked for forwarding, by the chat they go to, until that
+    /// chat's field takes them (`History::setForwardDraft`).
+    forwarding: HashMap<ChatId, Forwarding>,
+}
+
+/// Messages of one chat waiting to be forwarded, with the bar's lines,
+/// made where the messages were shown.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Forwarding {
+    pub from: ChatId,
+    pub messages: Vec<MessageId>,
+    pub title: String,
+    pub text: String,
 }
 
 /// What changed in the store, for screens that react to transitions.
@@ -34,7 +48,22 @@ impl Store {
             state: State::default(),
             session,
             environment,
+            forwarding: HashMap::new(),
         }
+    }
+
+    pub fn set_forwarding(&mut self, to: ChatId, forwarding: Forwarding, cx: &mut Context<Self>) {
+        self.forwarding.insert(to, forwarding);
+        cx.notify();
+    }
+
+    #[must_use]
+    pub fn has_forwarding(&self, to: ChatId) -> bool {
+        self.forwarding.contains_key(&to)
+    }
+
+    pub fn take_forwarding(&mut self, to: ChatId) -> Option<Forwarding> {
+        self.forwarding.remove(&to)
     }
 
     #[must_use]

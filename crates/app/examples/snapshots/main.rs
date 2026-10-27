@@ -300,6 +300,54 @@ fn scenarios() -> Vec<Scenario> {
             histories: history::histories(),
             steps: vec![("85-write-list", auth(State::Ready))],
         },
+        // The bar over the field: Up edits the last own message, Escape
+        // gives the field back, Cmd+Up walks the reply up the history, and
+        // a refused reply keeps both the text and the reply.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("91-bar-chat", MouseButton::Left, MARIA_ROW),
+                ("92-bar-focused", MouseButton::Left, COMPOSE_FIELD),
+            ],
+            drags: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                ("93-bar-edit-last", vec![Input::Key("up")]),
+                ("94-bar-edit-typed", vec![Input::Type(", or 9")]),
+                ("95-bar-edit-cancelled", vec![Input::Key("escape")]),
+                ("96-bar-reply", vec![Input::Key(SECONDARY_UP)]),
+                ("97-bar-reply-previous", vec![Input::Key(SECONDARY_UP)]),
+                ("98-bar-reply-typed", vec![Input::Type("On my way")]),
+                ("99-bar-reply-refused", vec![Input::Key("enter")]),
+                ("100-bar-reply-cancelled", vec![Input::Key("escape")]),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("90-bar-list", auth(State::Ready))],
+        },
+        // Forwarding: select a message, Forward in the selection bar, pick
+        // Saved Messages in the box, which opens with the forward over its
+        // field; sending fails with no account and keeps it.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("102-forward-chat", MouseButton::Left, MARIA_ROW),
+                ("103-forward-menu", MouseButton::Right, SEATS_MESSAGE),
+                ("104-forward-selected", MouseButton::Left, MENU_SELECT),
+                ("105-forward-box", MouseButton::Left, SELECTION_FORWARD),
+                ("106-forward-bar", MouseButton::Left, BOX_SAVED_ROW),
+                ("107-forward-focused", MouseButton::Left, COMPOSE_FIELD),
+            ],
+            drags: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                ("108-forward-comment", vec![Input::Type("For the trip")]),
+                ("109-forward-refused", vec![Input::Key("enter")]),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("101-forward-list", auth(State::Ready))],
+        },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
             setup: chats::events(),
@@ -490,6 +538,20 @@ const PINNED_SHOW_ALL: (f32, f32) = (775.0, 80.0);
 const SECTION_BACK: (f32, f32) = (312.0, 27.0);
 /// The search button left of the chat's menu toggle.
 const CHAT_SEARCH: (f32, f32) = (736.0, 27.0);
+/// Ctrl+Up, Cmd+Up on macOS: reply to the message above.
+const SECONDARY_UP: &str = if cfg!(target_os = "macos") {
+    "cmd-up"
+} else {
+    "ctrl-up"
+};
+/// "Yes, two seats in row 5" in Maria's chat.
+const SEATS_MESSAGE: (f32, f32) = (640.0, 295.0);
+/// "Select" in the menu that opens there.
+const MENU_SELECT: (f32, f32) = (712.0, 351.0);
+/// "Forward 1" in the selection bar.
+const SELECTION_FORWARD: (f32, f32) = (350.0, 27.0);
+/// Saved Messages, first in "Forward to...".
+const BOX_SAVED_ROW: (f32, f32) = (360.0, 125.0);
 /// The message field under an open chat.
 const COMPOSE_FIELD: (f32, f32) = (543.0, 577.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);

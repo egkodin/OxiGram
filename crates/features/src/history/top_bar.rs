@@ -20,6 +20,7 @@ use style::info::{
     TOP_BAR_HEIGHT, TOP_BAR_INFO_BUTTON, TOP_BAR_MENU_TOGGLE, TOP_BAR_NAME_RIGHT_PADDING,
     TOP_BAR_SEARCH,
 };
+use style::widgets::DEFAULT_ACTIVE_BUTTON;
 use style::{ColorId, ColorRef, Font};
 use ui::{IconButton, RoundButton, Userpic, UserpicSource, color, font, font_height};
 
@@ -187,25 +188,62 @@ pub(super) fn section_bar(title: SharedString, on_back: OnBack, cx: &App) -> Any
         .into_any_element()
 }
 
-/// The bar while messages are selected (`TopBarWidget::showSelected`).
-// shortcut: no Forward and Delete buttons, which also show the count; they come with forwarding and deleting in M4.
-pub(super) fn selection_bar(
-    on_cancel: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
-    cx: &App,
-) -> AnyElement {
+/// What the selection bar's buttons do; Forward shows only when every
+/// selected message may be forwarded.
+pub(super) struct SelectionActions {
+    pub count: usize,
+    pub on_forward: Option<OnBack>,
+    pub on_delete: OnBack,
+    pub on_cancel: OnBack,
+}
+
+/// The bar while messages are selected (`TopBarWidget::showSelected`):
+/// "Forward 2" and "Delete 2" on the left, "Cancel" on the right.
+// shortcut: Delete shows for any selection and checks with TDLib on click, where tdesktop hides it up front; plain corners.
+pub(super) fn selection_bar(actions: SelectionActions, cx: &App) -> AnyElement {
+    let SelectionActions {
+        count,
+        on_forward,
+        on_delete,
+        on_cancel,
+    } = actions;
+    let strings = strings(cx);
+    let counted = |key| format!("{} {count}", strings.text(key));
+    let skip = px_of(TOP_BAR_ACTION_SKIP);
     div()
         .flex_none()
         .flex()
         .items_center()
-        .justify_end()
+        .gap(skip)
         .h(px_of(TOP_BAR_HEIGHT))
-        .pr(px_of(TOP_BAR_ACTION_SKIP))
+        .px(skip)
         .bg(color(cx, ColorRef::Palette(ColorId::TopBarBg)))
+        .when_some(on_forward, |this, on_forward| {
+            this.child(
+                RoundButton::new(
+                    "history-selection-forward",
+                    &DEFAULT_ACTIVE_BUTTON,
+                    counted(key::lng_selected_forward),
+                )
+                .uppercase()
+                .on_click(on_forward),
+            )
+        })
+        .child(
+            RoundButton::new(
+                "history-selection-delete",
+                &DEFAULT_ACTIVE_BUTTON,
+                counted(key::lng_selected_delete),
+            )
+            .uppercase()
+            .on_click(on_delete),
+        )
+        .child(div().flex_1())
         .child(
             RoundButton::new(
                 "history-selection-clear",
                 &TOP_BAR_CLEAR_BUTTON,
-                strings(cx).text(key::lng_selected_clear).to_owned(),
+                strings.text(key::lng_selected_clear).to_owned(),
             )
             .uppercase()
             .on_click(on_cancel),
