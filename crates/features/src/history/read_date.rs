@@ -1,11 +1,22 @@
-//! When the other user read an outgoing message, as the message menu's
-//! first line says it (`WhenAction`, `FormatReadDate`).
+//! Who saw an outgoing message, as the message menu's first line says it:
+//! when the other user read it in a private chat (`WhenAction`,
+//! `FormatReadDate`), who saw it in a small group (`WhoReadContextAction`).
 
 use chrono::{DateTime, Datelike as _, Days, TimeZone};
 use i18n::{Key, Strings, key};
+use model::UserId;
+use model::chats::Chats;
 use model::message_actions::ReadDate;
 
 use super::layout;
+use super::service::{plural, user_name};
+
+/// What TDLib told about who saw a message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum WhoRead {
+    Date(ReadDate),
+    Viewers(Vec<UserId>),
+}
 
 const SMALL_MONTHS: [Key; 12] = [
     key::lng_month1_small,
@@ -63,6 +74,20 @@ where
     })
 }
 
+/// The one viewer's name, "3 Seen" or "Nobody Viewed" (`refreshText`).
+// shortcut: no viewer userpics and no submenu listing them; with the reactions list (who reacted) in M3's reactions row.
+pub(super) fn seen(strings: &Strings, chats: &Chats, viewers: &[UserId]) -> String {
+    match viewers {
+        [] => strings.text(key::lng_context_seen_text_none).to_owned(),
+        [only] => user_name(strings, chats, *only),
+        _ => plural(
+            strings,
+            key::lng_context_seen_text,
+            i32::try_from(viewers.len()).unwrap_or(i32::MAX),
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::FixedOffset;
@@ -101,5 +126,15 @@ mod tests {
             Some("read")
         );
         assert_eq!(text(&strings, ReadDate::TooOld, &now), None);
+    }
+
+    #[test]
+    fn seen_names_one_viewer_and_counts_more() {
+        let strings = Strings::english();
+        let mut chats = Chats::default();
+        chats.apply(super::super::service::tests::user(2, "Maria"));
+        assert_eq!(seen(&strings, &chats, &[]), "Nobody Viewed");
+        assert_eq!(seen(&strings, &chats, &[UserId(2)]), "Maria");
+        assert_eq!(seen(&strings, &chats, &[UserId(2), UserId(3)]), "2 Seen");
     }
 }

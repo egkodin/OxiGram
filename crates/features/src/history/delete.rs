@@ -225,6 +225,7 @@ mod tests {
             can_get_link: false,
             can_be_pinned: false,
             can_get_read_date: false,
+            can_get_viewers: false,
         }
     }
 

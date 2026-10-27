@@ -40,7 +40,8 @@
 - The read date of an outgoing message at the top of its menu in private
   chats (`read_date`).
 - "via @bot" after the sender's name; Ctrl+C refuses protected messages
-  with tdesktop's toast; the floating date while scrolling (`scroll_date`).
+  with tdesktop's toast; the floating date while scrolling (`scroll_date`);
+  who saw an outgoing group message in its menu (`read_date::seen`).
   The snapshot runner gained wheel-scroll steps (57-59).
 
 ### Verified (macOS arm64, this machine)
@@ -61,15 +62,14 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: who-read in groups, the pinned section,
+- Many M3 rows in `docs/parity.md` are still todo: the pinned section,
   comments, Saved Messages sublists, sponsored messages.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. Who-read in small groups (getMessageViewers) and the pinned messages
-   section.
+1. The pinned messages section (the pinned bar's list button).
 2. Search in a chat (the top bar's search button) and replies to other
    chats.
 3. Comments (channel post threads) and Saved Messages sublists.

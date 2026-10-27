@@ -6,12 +6,13 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::MessageReadDate;
 use td_api::functions::{
-    DeleteMessages, GetMessageLink, GetMessageProperties, GetMessageReadDate, UnpinChatMessage,
+    DeleteMessages, GetMessageLink, GetMessageProperties, GetMessageReadDate, GetMessageViewers,
+    UnpinChatMessage,
 };
 use td_api::types::MessageProperties;
 
 use crate::chat_actions::done;
-use crate::ids::{ChatId, MessageId};
+use crate::ids::{ChatId, MessageId, UserId};
 use crate::session::{RequestError, Session};
 
 /// What the user may do with one message (`messageProperties`), the part
@@ -30,6 +31,8 @@ pub struct Abilities {
     pub can_be_pinned: bool,
     /// An outgoing message in a private chat whose read date TDLib keeps.
     pub can_get_read_date: bool,
+    /// An outgoing message in a small group whose viewers TDLib keeps.
+    pub can_get_viewers: bool,
 }
 
 impl Abilities {
@@ -48,6 +51,7 @@ impl From<MessageProperties> for Abilities {
             can_get_link: properties.can_get_link,
             can_be_pinned: properties.can_be_pinned,
             can_get_read_date: properties.can_get_read_date,
+            can_get_viewers: properties.can_get_viewers,
         }
     }
 }
@@ -157,6 +161,30 @@ impl Session {
                 message_id: message.0,
             })
             .map(|result| result.map(ReadDate::from).map_err(RequestError::from))
+    }
+
+    /// Who in a small group saw an outgoing message, most recent first.
+    pub fn message_viewers(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<Vec<UserId>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessageViewers {
+                chat_id: chat.0,
+                message_id: message.0,
+            })
+            .map(|result| {
+                result
+                    .map(|viewers| {
+                        viewers
+                            .viewers
+                            .into_iter()
+                            .map(|viewer| UserId(viewer.user_id))
+                            .collect()
+                    })
+                    .map_err(RequestError::from)
+            })
     }
 
     /// Unpins a message; the pinned bar follows the update.

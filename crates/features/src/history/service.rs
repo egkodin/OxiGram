@@ -14,7 +14,7 @@ const MINUTE: i32 = 60;
 const HOUR: i32 = 3600;
 const DAY: i32 = 86_400;
 
-fn plural(strings: &Strings, key: Key, count: i32) -> String {
+pub(super) fn plural(strings: &Strings, key: Key, count: i32) -> String {
     i18n::fill(
         strings.plural(key, i64::from(count)),
         &[("count", &count.to_string())],
