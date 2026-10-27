@@ -245,6 +245,12 @@ fn scenarios() -> Vec<Scenario> {
                 ),
                 ("52-history-pinned-jump", MouseButton::Left, PINNED_BAR),
                 ("53-history-pinned-previous", MouseButton::Left, PINNED_BAR),
+                (
+                    "60-history-pinned-section",
+                    MouseButton::Left,
+                    PINNED_SHOW_ALL,
+                ),
+                ("61-history-pinned-closed", MouseButton::Left, SECTION_BACK),
                 ("54-history-link-previews", MouseButton::Left, ANN_ROW),
                 ("55-history-calendar", MouseButton::Left, DATE_BADGE),
                 (
@@ -360,8 +366,11 @@ const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
 const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
 /// The middle of the chat's message list.
 const HISTORY_MIDDLE: (f32, f32) = (543.0, 400.0);
-/// The pinned message bar under the chat's top bar.
+/// The pinned message bar under the chat's top bar, the button at its
+/// right that lists all pins, and a section's back arrow.
 const PINNED_BAR: (f32, f32) = (560.0, 80.0);
+const PINNED_SHOW_ALL: (f32, f32) = (775.0, 80.0);
+const SECTION_BACK: (f32, f32) = (312.0, 27.0);
 const FIRST_ARCHIVED: (f32, f32) = (150.0, 85.0);
 
 fn main() -> anyhow::Result<()> {

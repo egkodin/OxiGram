@@ -7,7 +7,7 @@ use futures::FutureExt as _;
 use td_api::enums::MessageReadDate;
 use td_api::functions::{
     DeleteMessages, GetMessageLink, GetMessageProperties, GetMessageReadDate, GetMessageViewers,
-    UnpinChatMessage,
+    UnpinAllChatMessages, UnpinChatMessage,
 };
 use td_api::types::MessageProperties;
 
@@ -198,6 +198,16 @@ impl Session {
                 chat_id: chat.0,
                 message_id: message.0,
             })
+            .map(done)
+    }
+
+    /// Unpins every message of a chat.
+    pub fn unpin_all_messages(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&UnpinAllChatMessages { chat_id: chat.0 })
             .map(done)
     }
 }

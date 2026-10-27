@@ -149,6 +149,19 @@ impl History {
         &self.pinned
     }
 
+    /// The pinned messages of `chat` that are loaded or referenced, oldest
+    /// first.
+    #[must_use]
+    pub fn pinned_list(&self, chat: ChatId) -> Vec<Arc<Message>> {
+        self.pinned
+            .iter()
+            .filter_map(|&id| match self.index(id) {
+                Ok(index) => Some(Arc::clone(&self.messages[index])),
+                Err(_) => self.references.get(&(chat, id)).cloned(),
+            })
+            .collect()
+    }
+
     /// Replaces the pinned messages with loaded ones, keeping them as
     /// references so the pinned bar can show them.
     pub fn set_pinned(&mut self, messages: Vec<Message>) {
@@ -579,5 +592,11 @@ mod tests {
             messages: vec![MessageId(30)],
         });
         assert_eq!(history.pinned(), [MessageId(20), MessageId(25)]);
+        let listed: Vec<i64> = history
+            .pinned_list(ChatId(1))
+            .iter()
+            .map(|message| message.id.0)
+            .collect();
+        assert_eq!(listed, [20], "a pin never loaded is not listed");
     }
 }

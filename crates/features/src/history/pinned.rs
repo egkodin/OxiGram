@@ -173,9 +173,7 @@ impl HistoryView {
             };
             this.update_in(cx, |this, window, cx| {
                 if !can_unpin {
-                    // shortcut: hidden until rgram restarts; tdesktop keeps it in the session settings, which come with M7.
-                    this.pins.hidden = Some(id);
-                    cx.notify();
+                    this.hide_pinned_bar(cx);
                     return;
                 }
                 let mut args = ConfirmArgs::new(ui::Markup::plain(
@@ -192,8 +190,15 @@ impl HistoryView {
         .detach();
     }
 
+    /// Hides the bar until a newer message is pinned.
+    // shortcut: hidden until rgram restarts; tdesktop keeps it in the session settings, which come with M7.
+    pub(super) fn hide_pinned_bar(&mut self, cx: &mut Context<Self>) {
+        let history = self.store.read(cx).state().history(self.chat);
+        self.pins.hidden = history.and_then(|history| history.pinned().last().copied());
+        cx.notify();
+    }
+
     /// The bar, while the chat has pins the user did not hide.
-    // shortcut: no "show all" button with several pins, which opens the pinned section (M3, later).
     pub(super) fn pinned_bar(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let history = self.store.read(cx).state().history(self.chat)?;
         let newest = history.pinned().last().copied();
@@ -220,7 +225,8 @@ impl HistoryView {
             .child(line(title(shown, cx), st.title.font, st.title_fg, cx))
             .child(line(text, st.text.font, st.text_fg, cx));
         let weak = cx.weak_entity();
-        let close = (shown.count == 1).then(|| {
+        // One pin closes; several list in the pinned section.
+        let button = if shown.count == 1 {
             let weak = weak.clone();
             IconButton::new("history-pinned-close", &HISTORY_REPLY_CANCEL).on_click(
                 move |_, window, cx| {
@@ -228,7 +234,9 @@ impl HistoryView {
                     let _ = weak.update(cx, |this, cx| this.close_pin(shown.id, window, cx));
                 },
             )
-        });
+        } else {
+            self.show_all_pins_button(cx)
+        };
         Some(
             div()
                 .id("history-pinned")
@@ -243,7 +251,7 @@ impl HistoryView {
                 })
                 .child(bar(shown, cx))
                 .child(body)
-                .children(close)
+                .child(button)
                 .into_any_element(),
         )
     }

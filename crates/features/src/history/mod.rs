@@ -11,6 +11,7 @@ mod jump;
 mod layout;
 mod menu;
 mod pinned;
+mod pinned_section;
 mod read_date;
 mod scroll_date;
 mod selection;
@@ -112,6 +113,7 @@ pub(crate) struct HistoryView {
     /// The message jumped to, shaded for a moment.
     highlight: Option<MessageId>,
     scroll_date: scroll_date::ScrollDate,
+    section: pinned_section::Section,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -182,6 +184,7 @@ impl HistoryView {
             pins: pinned::Pins::default(),
             highlight: None,
             scroll_date: scroll_date::ScrollDate::default(),
+            section: pinned_section::Section::Chat,
             focus,
             _subscription: subscription,
         };
@@ -208,9 +211,21 @@ impl HistoryView {
         let Some(history) = self.store.read(cx).state().history(self.chat) else {
             return;
         };
-        if sync::apply(&self.list, &self.shown, history.messages()) {
-            self.shown = history.messages().to_vec();
-            self.unread_bar_index = self.unread_bar.and_then(|after| {
+        let pinned;
+        let messages = if self.section == pinned_section::Section::Chat {
+            history.messages()
+        } else {
+            pinned = history.pinned_list(self.chat);
+            if pinned.is_empty() {
+                self.close_section(cx);
+                return;
+            }
+            &pinned
+        };
+        if sync::apply(&self.list, &self.shown, messages) {
+            self.shown = messages.to_vec();
+            let is_chat = self.section == pinned_section::Section::Chat;
+            self.unread_bar_index = self.unread_bar.filter(|_| is_chat).and_then(|after| {
                 let start = self.shown.partition_point(|message| message.id <= after);
                 (start..self.shown.len()).find(|&index| !self.shown[index].is_outgoing)
             });
@@ -225,6 +240,10 @@ impl HistoryView {
         let Some(history) = self.store.read(cx).state().history(self.chat) else {
             return;
         };
+        // The pinned section shows every pin TDLib gave at once.
+        if self.section != pinned_section::Section::Chat {
+            return;
+        }
         let count = self.list.item_count();
         let near_top = self.list.item_is_above_viewport(PRELOAD.min(count)) == Some(false);
         let near_bottom = count
@@ -539,6 +558,7 @@ impl Render for HistoryView {
             });
             on_back
         });
+        let is_chat = self.section == pinned_section::Section::Chat;
         let bar = if self.selection.selected_count() > 0 {
             let weak = cx.weak_entity();
             top_bar::selection_bar(
@@ -547,6 +567,8 @@ impl Render for HistoryView {
                 },
                 cx,
             )
+        } else if !is_chat {
+            self.pinned_section_bar(cx)
         } else {
             let weak = cx.weak_entity();
             let on_menu: top_bar::OnBack = Box::new(move |_, window, cx| {
@@ -564,7 +586,7 @@ impl Render for HistoryView {
             .bg(color(cx, ColorRef::Palette(ColorId::WindowBgOver)))
             .capture_any_mouse_down(move |_, window, cx| focus.focus(window, cx))
             .child(bar)
-            .children(self.pinned_bar(cx))
+            .children(is_chat.then(|| self.pinned_bar(cx)).flatten())
             .child(
                 div()
                     .h(px(1.0))
@@ -585,8 +607,15 @@ impl Render for HistoryView {
                         .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM)),
                     )
                     .children(self.floating_date(cx))
-                    .children(self.corner_buttons(cx)),
+                    // shortcut: no down button in the pinned section; it comes with the section stack (M8).
+                    .children(
+                        is_chat
+                            .then(|| self.corner_buttons(cx))
+                            .into_iter()
+                            .flatten(),
+                    ),
             )
+            .children(self.pinned_section_button(cx))
             .children(self.menu_overlay())
     }
 }

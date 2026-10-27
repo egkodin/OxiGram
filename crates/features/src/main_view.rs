@@ -161,10 +161,10 @@ impl MainView {
     /// Escape: clears the search, else leaves the archive.
     fn cancel_search(&mut self, _: &CancelSearch, window: &mut Window, cx: &mut Context<Self>) {
         let is_search_focused = self.search.read(cx).focus_handle(cx).is_focused(window);
-        // Escape drops a selection before it closes the chat.
+        // Escape drops a selection and leaves a section before it closes the chat.
         if let Some(history) = &self.history
             && !is_search_focused
-            && history.update(cx, |history, cx| history.clear_selection(cx))
+            && history.update(cx, |history, cx| history.escape(cx))
         {
             return;
         }

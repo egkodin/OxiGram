@@ -152,6 +152,31 @@ pub(super) fn top_bar(
         .into_any_element()
 }
 
+/// A section's bar: the back arrow and its title, such as "3 pinned
+/// messages" (`TopBarWidget` with a custom title).
+pub(super) fn section_bar(title: SharedString, on_back: OnBack, cx: &App) -> AnyElement {
+    div()
+        .flex_none()
+        .flex()
+        .items_center()
+        .h(px_of(TOP_BAR_HEIGHT))
+        .bg(color(cx, ColorRef::Palette(ColorId::TopBarBg)))
+        .child(IconButton::new("history-back", &HISTORY_TOP_BAR_BACK).on_click(on_back))
+        .child(
+            div()
+                .flex_1()
+                .min_w_0()
+                .pr(px_of(TOP_BAR_NAME_RIGHT_PADDING))
+                .child(text(
+                    title,
+                    HISTORY_SAVED_FONT,
+                    ColorRef::Palette(ColorId::DialogsNameFg),
+                    cx,
+                )),
+        )
+        .into_any_element()
+}
+
 /// The bar while messages are selected (`TopBarWidget::showSelected`).
 // shortcut: no Forward and Delete buttons, which also show the count; they come with forwarding and deleting in M4.
 pub(super) fn selection_bar(

@@ -41,14 +41,15 @@
   chats (`read_date`).
 - "via @bot" after the sender's name; Ctrl+C refuses protected messages
   with tdesktop's toast; the floating date while scrolling (`scroll_date`);
-  who saw an outgoing group message in its menu (`read_date::seen`).
+  who saw an outgoing group message in its menu (`read_date::seen`); the
+  pinned messages section (`pinned_section`), a mode of the history view.
   The snapshot runner gained wheel-scroll steps (57-59).
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-59 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-61 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -62,17 +63,16 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: the pinned section,
-  comments, Saved Messages sublists, sponsored messages.
+- Many M3 rows in `docs/parity.md` are still todo: comments, Saved Messages sublists, sponsored messages.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. The pinned messages section (the pinned bar's list button).
-2. Search in a chat (the top bar's search button) and replies to other
+1. Search in a chat (the top bar's search button) and replies to other
    chats.
-3. Comments (channel post threads) and Saved Messages sublists.
+2. Comments (channel post threads) and Saved Messages sublists.
+3. Reactions under messages and who reacted.
 
 ### Open questions for the owner
 
