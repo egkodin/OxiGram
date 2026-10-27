@@ -118,7 +118,7 @@ impl Session {
 }
 
 impl ReactionKind {
-    fn to_td(&self) -> ReactionType {
+    pub(crate) fn to_td(&self) -> ReactionType {
         match self {
             Self::Emoji(emoji) => ReactionType::Emoji(ReactionTypeEmoji {
                 emoji: emoji.clone(),

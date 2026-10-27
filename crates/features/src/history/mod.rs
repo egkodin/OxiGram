@@ -21,6 +21,7 @@ mod reactions;
 mod reactions_box;
 mod read_date;
 mod scroll_date;
+mod search_tags;
 mod selection;
 mod service;
 mod sponsored;

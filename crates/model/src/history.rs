@@ -456,14 +456,8 @@ impl Session {
         chat: ChatId,
         query: String,
     ) -> impl Future<Output = Result<FoundMessages, RequestError>> + Send + use<> {
-        self.search_chat_messages(chat, query, None).map(|result| {
-            result.map(|found| FoundMessages {
-                total_count: found.total_count,
-                messages: found.messages.into_iter().map(Message::from).collect(),
-                next_offset: (found.next_from_message_id != 0)
-                    .then(|| found.next_from_message_id.to_string()),
-            })
-        })
+        self.search_chat_messages(chat, query, None)
+            .map(|result| result.map(FoundMessages::from))
     }
 
     fn filtered_messages(
@@ -550,6 +544,17 @@ impl Session {
         self.client()
             .request(&CloseChat { chat_id: chat.0 })
             .map(done)
+    }
+}
+
+impl From<FoundChatMessages> for FoundMessages {
+    fn from(found: FoundChatMessages) -> Self {
+        Self {
+            total_count: found.total_count,
+            messages: found.messages.into_iter().map(Message::from).collect(),
+            next_offset: (found.next_from_message_id != 0)
+                .then(|| found.next_from_message_id.to_string()),
+        }
     }
 }
 

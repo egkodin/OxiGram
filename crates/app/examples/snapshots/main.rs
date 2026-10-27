@@ -276,6 +276,8 @@ fn scenarios() -> Vec<Scenario> {
                 ("69-history-contact-status", MouseButton::Left, BEN_ROW),
                 ("70-history-block-confirm", MouseButton::Left, BLOCK_BUTTON),
                 ("71-history-block-cancelled", MouseButton::Left, OUTSIDE_BOX),
+                ("72-history-saved", MouseButton::Left, SAVED_ROW),
+                ("73-history-saved-search", MouseButton::Left, CHAT_SEARCH),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             scrolls: Vec::new(),

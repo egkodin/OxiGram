@@ -22,8 +22,8 @@ use style::widgets::{DEFAULT_SETTINGS_RIGHT_LABEL, IconButton as IconButtonStyle
 use style::{ColorId, ColorRef, Icon};
 use ui::{IconButton, InputEvent, InputField, color, font, font_height};
 
-use super::HistoryView;
 use super::calendar::disabled_arrow;
+use super::{HistoryView, search_tags};
 use crate::lang::{strings, tr};
 use crate::px_of;
 use crate::store::spawn;
@@ -38,6 +38,8 @@ pub(super) struct ChatSearch {
     found: Option<Found>,
     /// Counts queries, so only the answer to the latest one counts.
     requests: u64,
+    /// In Saved Messages: the tags to search by.
+    pub(super) tags: Option<search_tags::Tags>,
     _subscription: Subscription,
 }
 
@@ -89,12 +91,17 @@ impl HistoryView {
             _ => {}
         });
         field.update(cx, |field, cx| field.focus(window, cx));
+        let is_saved = self.is_saved_messages(cx);
         self.search = Some(ChatSearch {
             field,
             found: None,
             requests: 0,
+            tags: is_saved.then(search_tags::Tags::default),
             _subscription: subscription,
         });
+        if is_saved {
+            self.load_search_tags(cx);
+        }
         cx.notify();
     }
 
@@ -124,22 +131,29 @@ impl HistoryView {
         .detach();
     }
 
-    fn search_now(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn search_now(&mut self, cx: &mut Context<Self>) {
         let Some(search) = &mut self.search else {
             return;
         };
         search.requests += 1;
         let request = search.requests;
         let query = search.field.read(cx).text().trim().to_owned();
-        if query.is_empty() {
+        let tag = search.tags.as_ref().and_then(|tags| tags.selected.clone());
+        if query.is_empty() && tag.is_none() {
             search.found = None;
             cx.notify();
             return;
         }
-        let task = spawn(
-            self.store.read(cx).session().search_chat(self.chat, query),
-            cx,
-        );
+        let session = self.store.read(cx).session();
+        let task = if search.tags.is_some() {
+            let topic = match self.topic {
+                Some(model::message::Topic::Saved(topic)) => Some(topic),
+                _ => None,
+            };
+            spawn(session.search_saved(topic, tag.as_ref(), query), cx)
+        } else {
+            spawn(session.search_chat(self.chat, query), cx)
+        };
         cx.spawn(async move |this, cx| {
             let result = task.await;
             let _ = this.update(cx, |this, cx| {
@@ -187,33 +201,40 @@ impl HistoryView {
         cx.notify();
     }
 
-    /// The field over the history, after a back arrow.
-    // shortcut: no "from" filter and no Saved Messages tags; with the member list (M6) and tags (M3, later).
+    /// The field over the history, after a back arrow, and the tags under
+    /// it in Saved Messages.
+    // shortcut: no "from" filter; with the member list (M6).
     pub(super) fn search_bar(&self, cx: &Context<Self>) -> Option<AnyElement> {
         let search = self.search.as_ref()?;
         let weak = cx.weak_entity();
         let st = &SEARCH_IN_CHAT_MULTI_SELECT;
+        let field = div()
+            .flex_none()
+            .flex()
+            .items_center()
+            .h(px_of(TOP_BAR_HEIGHT))
+            .child(
+                IconButton::new("history-search-cancel", &HISTORY_TOP_BAR_BACK).on_click(
+                    move |_, _, cx| {
+                        let _ = weak.update(cx, |this, cx| this.close_search(cx));
+                    },
+                ),
+            )
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .pr(px_of(st.padding.right))
+                    .child(search.field.clone()),
+            );
         Some(
             div()
                 .flex_none()
                 .flex()
-                .items_center()
-                .h(px_of(TOP_BAR_HEIGHT))
+                .flex_col()
                 .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
-                .child(
-                    IconButton::new("history-search-cancel", &HISTORY_TOP_BAR_BACK).on_click(
-                        move |_, _, cx| {
-                            let _ = weak.update(cx, |this, cx| this.close_search(cx));
-                        },
-                    ),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .pr(px_of(st.padding.right))
-                        .child(search.field.clone()),
-                )
+                .child(field)
+                .children(self.search_tags(cx))
                 .into_any_element(),
         )
     }

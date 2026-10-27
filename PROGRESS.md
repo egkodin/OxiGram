@@ -85,12 +85,15 @@
   and confirmations (block, report and leave, share the phone number, the
   join-request note); close removes the bar. Users now carry their phone
   number as a `Secret`, for the share confirmation.
+- Saved Messages tags in the chat search (`model::saved_tags`,
+  `history::search_tags`): the tag pills under the field, search by the
+  picked tag, and the lock pill leading to what tags are without Premium.
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-71 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-73 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -104,15 +107,15 @@
 
 ### Half done
 
-- M3 rows still todo in `docs/parity.md`: Saved Messages tags search, "pull to next channel".
+- M3 rows still todo in `docs/parity.md`: "pull to next channel".
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. Saved Messages tags search.
-2. "Pull to next channel" at the bottom of a read channel.
-3. The M3 rows still in progress: what each one lacks, then the M3 perf and done-criterion run.
+1. "Pull to next channel" at the bottom of a read channel.
+2. The M3 rows still in progress: what each one lacks, then the M3 perf and done-criterion run.
+3. M4 (compose and sending), which unblocks many M3 shortcuts.
 
 ### Open questions for the owner
 

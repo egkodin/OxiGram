@@ -272,9 +272,23 @@ impl HistoryView {
 
     // shortcut: a box with tdesktop's "No Ads" text instead of the Premium preview box (M13).
     fn show_no_ads(&self, window: &mut Window, cx: &mut Context<Self>) {
-        let mut args =
-            ConfirmArgs::new(Markup::plain(tr(cx, key::lng_premium_summary_about_no_ads)));
-        args.title = Some(tr(cx, key::lng_premium_summary_subtitle_no_ads));
+        let feature = (
+            key::lng_premium_summary_subtitle_no_ads,
+            key::lng_premium_summary_about_no_ads,
+        );
+        self.show_premium_feature(feature, window, cx);
+    }
+
+    /// A Premium feature's title and what it gives, for a user without it.
+    // shortcut: a plain box instead of the Premium preview with its video and subscribe button; with Premium (M13).
+    pub(super) fn show_premium_feature(
+        &self,
+        (title, about): (i18n::Key, i18n::Key),
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let mut args = ConfirmArgs::new(Markup::plain(tr(cx, about)));
+        args.title = Some(tr(cx, title));
         boxes::confirm(&self.layers, args, window, cx);
     }
 
