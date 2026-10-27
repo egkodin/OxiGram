@@ -11,6 +11,7 @@ use crate::chat::{self, Chat, ChatKind, ChatList, Draft, Folder, Position};
 use crate::file::File;
 use crate::ids::{BasicGroupId, ChatId, FileId, MessageId, SupergroupId, UserId};
 use crate::message::{Content, Message, Sender};
+use crate::rights::{MemberStatus, Permissions};
 use crate::user::{Photo, User, UserStatus};
 
 /// A change to chats, users or files.
@@ -18,15 +19,27 @@ use crate::user::{Photo, User, UserStatus};
 #[non_exhaustive]
 pub enum Change {
     Chat(Box<Chat>),
-    /// A basic group's member count.
-    GroupMembers {
+    /// A basic group's member count and the user's standing in it.
+    Group {
         group: BasicGroupId,
         count: i32,
+        status: MemberStatus,
     },
-    /// A supergroup's member or channel's subscriber count; 0 when unknown.
-    SupergroupMembers {
+    /// A supergroup's member or channel's subscriber count (0 when
+    /// unknown) and the user's standing in it.
+    Supergroup {
         supergroup: SupergroupId,
         count: i32,
+        status: MemberStatus,
+    },
+    Permissions {
+        chat: ChatId,
+        permissions: Permissions,
+    },
+    /// The user blocked or unblocked the chat's other user.
+    Blocked {
+        chat: ChatId,
+        is_blocked: bool,
     },
     Title {
         chat: ChatId,
@@ -159,8 +172,8 @@ pub struct Chats {
     actions: HashMap<ChatId, Vec<(Sender, ChatAction)>>,
     folders: Vec<Folder>,
     unread: HashMap<ChatList, Unread>,
-    group_members: HashMap<BasicGroupId, i32>,
-    supergroup_members: HashMap<SupergroupId, i32>,
+    group_members: HashMap<BasicGroupId, (i32, MemberStatus)>,
+    supergroup_members: HashMap<SupergroupId, (i32, MemberStatus)>,
 }
 
 impl Chats {
@@ -178,13 +191,26 @@ impl Chats {
     #[must_use]
     pub fn member_count(&self, chat: &Chat) -> Option<i32> {
         match chat.kind {
-            ChatKind::Group { group } => self.group_members.get(&group).copied(),
-            ChatKind::Supergroup { supergroup, .. } => {
-                self.supergroup_members.get(&supergroup).copied()
-            }
+            ChatKind::Group { group } => self.group_members.get(&group).map(|(count, _)| *count),
+            ChatKind::Supergroup { supergroup, .. } => self
+                .supergroup_members
+                .get(&supergroup)
+                .map(|(count, _)| *count),
             ChatKind::Private { .. } | ChatKind::Secret { .. } => None,
         }
         .filter(|count| *count > 0)
+    }
+
+    #[must_use]
+    pub fn group_status(&self, group: BasicGroupId) -> Option<MemberStatus> {
+        self.group_members.get(&group).map(|(_, status)| *status)
+    }
+
+    #[must_use]
+    pub fn supergroup_status(&self, supergroup: SupergroupId) -> Option<MemberStatus> {
+        self.supergroup_members
+            .get(&supergroup)
+            .map(|(_, status)| *status)
     }
 
     /// Every user TDLib has told about, in no particular order.
@@ -351,11 +377,29 @@ impl Chats {
             Change::User(user) => {
                 self.users.insert(user.id, *user);
             }
-            Change::GroupMembers { group, count } => {
-                self.group_members.insert(group, count);
+            Change::Group {
+                group,
+                count,
+                status,
+            } => {
+                self.group_members.insert(group, (count, status));
             }
-            Change::SupergroupMembers { supergroup, count } => {
-                self.supergroup_members.insert(supergroup, count);
+            Change::Supergroup {
+                supergroup,
+                count,
+                status,
+            } => {
+                self.supergroup_members.insert(supergroup, (count, status));
+            }
+            Change::Permissions { chat, permissions } => {
+                if let Some(chat) = self.chats.get_mut(&chat) {
+                    chat.permissions = permissions;
+                }
+            }
+            Change::Blocked { chat, is_blocked } => {
+                if let Some(chat) = self.chats.get_mut(&chat) {
+                    chat.is_blocked = is_blocked;
+                }
             }
             Change::UserStatus { user, status } => {
                 if let Some(user) = self.users.get_mut(&user) {
@@ -505,13 +549,23 @@ impl Change {
                 },
             },
             Update::User(update) => Self::User(Box::new(User::from(*update.user))),
-            Update::BasicGroup(update) => Self::GroupMembers {
+            Update::BasicGroup(update) => Self::Group {
                 group: BasicGroupId(update.basic_group.id),
                 count: update.basic_group.member_count,
+                status: MemberStatus::from(*update.basic_group.status),
             },
-            Update::Supergroup(update) => Self::SupergroupMembers {
+            Update::Supergroup(update) => Self::Supergroup {
                 supergroup: SupergroupId(update.supergroup.id),
                 count: update.supergroup.member_count,
+                status: MemberStatus::from(*update.supergroup.status),
+            },
+            Update::ChatPermissions(update) => Self::Permissions {
+                chat: ChatId(update.chat_id),
+                permissions: Permissions::from(*update.permissions),
+            },
+            Update::ChatBlockList(update) => Self::Blocked {
+                chat: ChatId(update.chat_id),
+                is_blocked: update.block_list.is_some(),
             },
             Update::UserStatus(update) => Self::UserStatus {
                 user: UserId(update.user_id),
@@ -552,27 +606,16 @@ mod tests {
 
     fn chat(id: i64, order: i64) -> Change {
         Change::Chat(Box::new(Chat {
-            id: ChatId(id),
-            kind: ChatKind::Private { user: UserId(id) },
-            title: format!("chat {id}"),
-            photo: None,
-            accent_color: 0,
-            last_message: None,
             positions: vec![Position {
                 list: ChatList::Main,
                 order,
                 is_pinned: false,
             }],
-            unread_count: 0,
-            last_read_inbox: MessageId(0),
-            last_read_outbox: MessageId(0),
-            unread_mentions: 0,
-            unread_reactions: 0,
-            is_marked_as_unread: false,
-            mute_for: 0,
-            uses_default_mute: true,
-            draft: None,
-            action_bar: None,
+            ..Chat::new(
+                ChatId(id),
+                ChatKind::Private { user: UserId(id) },
+                format!("chat {id}"),
+            )
         }))
     }
 

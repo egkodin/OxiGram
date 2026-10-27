@@ -35,6 +35,7 @@ mod unread;
 mod userpics_row;
 mod web_page;
 mod who_reacted;
+mod write_bars;
 
 pub(crate) use self::delete::bind_keys;
 pub(crate) use self::headers::Replied;

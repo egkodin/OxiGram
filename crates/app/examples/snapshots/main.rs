@@ -283,6 +283,23 @@ fn scenarios() -> Vec<Scenario> {
             histories: history::histories(),
             steps: vec![("77-compose-list", auth(State::Ready))],
         },
+        // The bars in place of the field: Ben blocked, the bot never
+        // started, the channel left, the group closed to members.
+        Scenario {
+            setup: [chats::events(), write_restrictions()].concat(),
+            clicks: vec![
+                ("86-write-unblock", MouseButton::Left, BEN_ROW),
+                ("87-write-start-bot", MouseButton::Left, BOT_ROW),
+                ("88-write-join", MouseButton::Left, LANDSCAPES_ROW),
+                ("89-write-restricted", MouseButton::Left, HIKING_ROW),
+            ],
+            drags: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("85-write-list", auth(State::Ready))],
+        },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
             setup: chats::events(),
@@ -445,6 +462,7 @@ const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 const MARIA_ROW: (f32, f32) = (150.0, 242.0);
 const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
 const BEN_ROW: (f32, f32) = (150.0, 490.0);
+const BOT_ROW: (f32, f32) = (150.0, 552.0);
 const BLOCK_BUTTON: (f32, f32) = (672.0, 79.0);
 /// The date badge over Hiking Club's messages, and the calendar's Close.
 const DATE_BADGE: (f32, f32) = (543.0, 135.0);
@@ -728,4 +746,32 @@ fn unread_channel() -> Event {
         last_read: model::MessageId(0),
         unread_count: 5,
     })
+}
+
+/// Ben blocked, the bot's chat empty, Daily Landscapes left and Hiking Club
+/// closed to its members.
+fn write_restrictions() -> Vec<Event> {
+    use model::chats::Change;
+    vec![
+        Event::Chats(Change::Blocked {
+            chat: model::ChatId(4),
+            is_blocked: true,
+        }),
+        Event::Chats(Change::LastMessage {
+            chat: model::ChatId(5),
+            message: None,
+            positions: Vec::new(),
+        }),
+        Event::Chats(Change::Supergroup {
+            supergroup: model::SupergroupId(200),
+            count: 48_210,
+            status: model::rights::MemberStatus::Left,
+        }),
+        Event::Chats(Change::Permissions {
+            chat: model::ChatId(-100),
+            permissions: model::rights::Permissions {
+                can_send_basic_messages: false,
+            },
+        }),
+    ]
 }

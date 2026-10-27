@@ -1,5 +1,6 @@
 //! Preset chats for the chat list snapshot: one of each kind of row.
 
+use model::rights::MemberStatus;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{Local, TimeZone as _};
@@ -75,10 +76,6 @@ fn text(text: &str) -> Content {
 
 fn chat(id: i64, kind: ChatKind, title: &str, order: i64, last: Option<Message>) -> Chat {
     Chat {
-        id: ChatId(id),
-        kind,
-        title: title.to_owned(),
-        photo: None,
         accent_color: i32::try_from(id % 7).unwrap_or(0),
         last_message: last,
         positions: vec![Position {
@@ -86,16 +83,7 @@ fn chat(id: i64, kind: ChatKind, title: &str, order: i64, last: Option<Message>)
             order,
             is_pinned: false,
         }],
-        unread_count: 0,
-        last_read_inbox: MessageId(0),
-        last_read_outbox: MessageId(0),
-        unread_mentions: 0,
-        unread_reactions: 0,
-        is_marked_as_unread: false,
-        mute_for: 0,
-        uses_default_mute: true,
-        draft: None,
-        action_bar: None,
+        ..Chat::new(ChatId(id), kind, title)
     }
 }
 
@@ -384,17 +372,20 @@ pub(crate) fn events() -> Vec<Event> {
         mute_for: 0,
     }));
     events.extend([
-        Event::Chats(Change::GroupMembers {
+        Event::Chats(Change::Group {
             group: BasicGroupId(100),
             count: 12,
+            status: MemberStatus::Member,
         }),
-        Event::Chats(Change::SupergroupMembers {
+        Event::Chats(Change::Supergroup {
             supergroup: SupergroupId(200),
             count: 48_210,
+            status: MemberStatus::Member,
         }),
-        Event::Chats(Change::SupergroupMembers {
+        Event::Chats(Change::Supergroup {
             supergroup: SupergroupId(300),
             count: 9,
+            status: MemberStatus::Member,
         }),
     ]);
     for chat in [saved, maria, ann, group, channel, ben, bot, team, scam]

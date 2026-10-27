@@ -20,6 +20,7 @@ pub mod message;
 pub mod message_actions;
 pub mod phone;
 pub mod reaction;
+pub mod rights;
 pub mod saved_tags;
 pub mod search;
 mod secret;

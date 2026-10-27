@@ -6,8 +6,8 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::{BlockList, MessageSender, MessageSource};
 use td_api::functions::{
-    AddChatToList, DeleteChatFolder, DeleteChatHistory, GetChat, LeaveChat, ReadAllChatMentions,
-    ReadAllChatReactions, ReorderChatFolders, SetChatNotificationSettings,
+    AddChatToList, DeleteChatFolder, DeleteChatHistory, GetChat, JoinChat, LeaveChat,
+    ReadAllChatMentions, ReadAllChatReactions, ReorderChatFolders, SetChatNotificationSettings,
     SetMessageSenderBlockList, SetPinnedChats, ToggleChatIsMarkedAsUnread, ToggleChatIsPinned,
     ViewMessages,
 };
@@ -280,5 +280,28 @@ impl Session {
                 block_list: Some(Box::new(BlockList::Main(BlockListMain {}))),
             })
             .map(done)
+    }
+
+    pub fn unblock_user(
+        &self,
+        user: UserId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&SetMessageSenderBlockList {
+                sender_id: Box::new(MessageSender::User(MessageSenderUser { user_id: user.0 })),
+                block_list: None,
+            })
+            .map(done)
+    }
+
+    /// Joins a public group or channel (`joinChat`); TDLib reports the new
+    /// standing in an update.
+    pub fn join_chat(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&JoinChat { chat_id: chat.0 })
+            .map(|result| result.map(drop).map_err(RequestError::from))
     }
 }

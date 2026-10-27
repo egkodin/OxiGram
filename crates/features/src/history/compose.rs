@@ -130,7 +130,12 @@ impl HistoryView {
         .detach();
     }
 
+    /// The field with its buttons, or the bar that replaces it.
     pub(super) fn compose_bar(&self, cx: &mut Context<Self>) -> AnyElement {
+        let writing = self.store.read(cx).state().chats.writing(self.chat);
+        if let Some(bar) = self.write_bar(writing, cx) {
+            return bar;
+        }
         let field = self.compose.field.clone();
         let is_empty = field.read(cx).text().is_empty();
         let send = if is_empty {

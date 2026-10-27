@@ -43,7 +43,7 @@ enum Offer {
 }
 
 /// A request that runs after another one.
-type Step =
+pub(super) type Step =
     std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), model::RequestError>> + Send>>;
 
 /// A button's action.
@@ -413,7 +413,7 @@ impl HistoryView {
     }
 
     /// Runs `task`, then `next`; toasts `done` once `task` succeeds.
-    fn after(
+    pub(super) fn after(
         &self,
         task: impl std::future::Future<Output = Result<(), model::RequestError>> + Send + 'static,
         what: &'static str,
@@ -450,7 +450,7 @@ impl HistoryView {
 
 /// A full-width flat button of the bar (`FlatButton`).
 // shortcut: no ripple on press; ripples come with M8 polish.
-fn flat_button(
+pub(super) fn flat_button(
     id: (&'static str, usize),
     text: String,
     st: &'static FlatButton,

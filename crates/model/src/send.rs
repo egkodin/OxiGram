@@ -5,12 +5,12 @@
 use std::future::Future;
 
 use td_api::enums::{InputMessageContent, MessageTopic};
-use td_api::functions::SendMessage;
+use td_api::functions::{SendBotStartMessage, SendMessage};
 use td_api::types::{
     FormattedText, InputMessageText, MessageTopicSavedMessages, MessageTopicThread,
 };
 
-use crate::ids::ChatId;
+use crate::ids::{ChatId, UserId};
 use crate::message::Topic;
 use crate::session::{RequestError, Session};
 
@@ -32,6 +32,20 @@ impl Topic {
 }
 
 impl Session {
+    /// Sends /start to a bot (`sendBotStartMessage`), for the Start bar.
+    pub fn start_bot(
+        &self,
+        bot: UserId,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let request = self.client().request(&SendBotStartMessage {
+            bot_user_id: bot.0,
+            chat_id: chat.0,
+            parameter: String::new(),
+        });
+        async move { request.await.map(drop).map_err(RequestError::from) }
+    }
+
     /// Sends `text` without its outer whitespace, split into as many
     /// messages as its length needs, in order; nothing when it is blank.
     pub fn send_text(

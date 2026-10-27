@@ -6,6 +6,7 @@ use crate::action_bar::ActionBar;
 use crate::file::Minithumbnail;
 use crate::ids::{BasicGroupId, ChatId, FileId, FolderId, MessageId, SupergroupId, UserId};
 use crate::message::Message;
+use crate::rights::Permissions;
 use crate::text::FormattedText;
 use crate::user::Photo;
 
@@ -30,6 +31,9 @@ pub struct Chat {
     pub uses_default_mute: bool,
     pub draft: Option<Draft>,
     pub action_bar: Option<ActionBar>,
+    pub permissions: Permissions,
+    /// The other user of a private chat is blocked.
+    pub is_blocked: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,6 +112,8 @@ impl Chat {
             uses_default_mute: true,
             draft: None,
             action_bar: None,
+            permissions: Permissions::default(),
+            is_blocked: false,
         }
     }
 
@@ -161,6 +167,8 @@ impl From<td_api::types::Chat> for Chat {
             uses_default_mute: notifications.use_default_mute_for,
             draft: chat.draft_message.and_then(|draft| draft_of(*draft)),
             action_bar: chat.action_bar.and_then(|bar| ActionBar::from_td(*bar)),
+            permissions: Permissions::from(*chat.permissions),
+            is_blocked: chat.block_list.is_some(),
         }
     }
 }

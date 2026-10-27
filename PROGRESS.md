@@ -24,6 +24,13 @@ live.
   and failed updates were already applied by the history. If TDLib refuses
   the request, the text goes back into the field when it is still empty.
 - `settings::SendBy` (Enter or Ctrl+Enter), saved with the other settings.
+- `model::rights` and `HistoryView::write_bar`: in tdesktop's order, Unblock
+  (blocked user), Restart bot (blocked bot, unblocks then sends /start),
+  Join channel/group (not a member), Mute/Unmute (a channel the user cannot
+  post in), Start (a bot with no messages), else the field, or why the
+  admins closed it (restricted until a date, by admins, for all). Member
+  status, chat permissions and the block list follow their updates.
+  Snapshots 85-89.
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -32,8 +39,9 @@ live.
 ### Half done (shortcuts in code)
 
 - Attach and emoji buttons do nothing yet; the microphone records nothing.
-- The bar shows in every chat; the Join, Mute, Unblock and Start bars that
-  replace it come next.
+- The bars read only basic-message rights; media rights come with
+  attachments; slow mode and the "only premium may write" state are not
+  shown yet.
 - No UI switch for Enter or Ctrl+Enter yet (chat settings, M6).
 - `InputField` (single line) still has its own copy of the buffer logic;
   move it onto `text_buffer` when it is next touched.
@@ -49,8 +57,14 @@ Sending only in Saved Messages:
 3. The message appears with the clock, then the check; the list scrolls to
    it. A text over 4096 characters arrives as several messages in order.
 4. The send button turns into the microphone when the field empties.
-5. In a channel the owner does not admin: placeholder and (once built) the
-   Join/Mute bar instead of the field; nothing is sent.
+5. In a channel the owner does not admin: the Mute/Unmute bar instead of
+   the field; nothing is sent. Pressing Mute only in a channel the owner
+   agrees to mute (it changes the account).
+6. A public channel or group the owner is not in (open it from search): the
+   Join bar; do not press it without the owner's say-so. A blocked user or
+   bot shows Unblock / Restart bot; a bot never started shows Start (press
+   only with the owner's say-so). A group where the owner is restricted
+   shows the restriction text.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 
