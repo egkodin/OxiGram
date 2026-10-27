@@ -12,7 +12,8 @@ is the definition of done: rgram is finished when every row is `done`, or
   the rest, M14 parity sweep.
 - Status: `todo`, `in progress`, `done`, `not applicable`.
 - Verified: how the row was checked on a live account (or why it could not be).
-  A row is `done` only after it ran in the real app.
+  A row is `done` only after it ran in the real app on a live account;
+  snapshots, fixtures and unit tests alone leave it `in progress`.
 - Every row was checked against `td_api.tl`: unless a row says otherwise, TDLib
   exposes what it needs.
 
@@ -168,7 +169,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Protected content (no forwards, no copy, no screenshots) | M3 | in progress | unit test (`cargo test -p features protected_messages`); messages TDLib marks as not saveable offer no Copy in the menu, and Ctrl+C over them copies nothing and shows "Copying is not allowed…" for the chat's kind; not verified: no API credentials, so no live protected chat; forwarding is not built yet (M4), screenshots are the M7 platform row |
 | history | "Pull to next channel" at the bottom of a read channel | M3 | in progress | unit tests (`cargo test -p features pull_next`); snapshots 75-76: scrolling on past the end of a channel grows the capsule with the arrow and the next channel's userpic, past 96 px shows its userpic, unread count and name (or a check and "You have no unread channels"), and letting go (trackpad lift or a 250 ms pause) opens it; the stages were checked by eye with a longer pause; the next channel is the first unread channel in the main list, then folders, then the archive; not verified: no API credentials, so not on a live account, and the trackpad lift is not exercised (snapshots send single wheel events); no expand, release or bounce animations; no "Pull up" / "Release" hint over the compose area until the compose bar (M4); the open folder does not come first; no setting to turn it off (M6); forum topics are not pulled through |
 | history | Swipe back gesture | M8 | todo | |
-| history | Unsupported message notice | M3 | done | snapshot 54 and a unit test (`cargo test -p features unsupported`); tdesktop's italic notice with its link, in the bubble and the chat list preview; not verified live (no API credentials) |
+| history | Unsupported message notice | M3 | in progress | snapshot 54 and a unit test (`cargo test -p features unsupported`); tdesktop's italic notice with its link, in the bubble and the chat list preview; not verified live (no API credentials) |
 | history | Bot "about" card in an empty bot chat and start button | M10 | todo | |
 | history | Sensitive (18+) media blurred, with the show setting | M5 | todo | |
 | history | Message effects on send (Premium) | M13 | todo | |

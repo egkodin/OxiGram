@@ -1,6 +1,6 @@
 # Progress
 
-## M3: Chat history (in progress; the done-criterion run passed)
+## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 
 ### Done (code, checks green)
 
@@ -98,7 +98,8 @@
 - Snapshots 41-76 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
-  near the top changes no history pixel.
+  near the top changes no history pixel. Rerun once after the pull handler
+  (160 Hz display): frame build p99 2.93 ms, max 7.93 ms, no late frames.
 
 ### Not verified
 
@@ -109,15 +110,74 @@
 
 ### Half done
 
-- M3 rows still todo in `docs/parity.md`: none; the rest are in progress.
+- M3 rows: none todo; all in progress until the live run below. No row in
+  `docs/parity.md` is `done`: the unsupported-message row went back to
+  in progress, since it never ran on a live account.
+- M2 rows still todo: chat preview (peek), search in one chat by sender
+  (needs the member list, M6), default one- or two-column interface.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. The M3 rows still in progress: what each one lacks that needs no other milestone.
-2. The M3 perf numbers and the done-criterion run.
-3. M4 (compose and sending), which unblocks many M3 shortcuts.
+1. With API credentials: the live run below, updating each parity row's
+   Verified column and marking `done` what passes.
+2. Measure on the live account: cold start to the chat list, idle RSS,
+   opening a chat from the TDLib cache (`docs/perf.md`).
+3. M4 (compose and sending), only when the owner says to start it.
+
+### Live run order (once credentials are set)
+
+M1, sign-in (the owner enters codes and the 2FA password):
+1. Start without credentials: the startup error; then with them.
+2. Welcome screen, language offer; phone entry with the country from
+   `getCountryCode`, picker search and the format mask.
+3. QR login: code shown, refresh on expiry, finish after scanning on a phone.
+4. Log out, then phone login: code to the app, resend countdown and the next
+   method, wrong-code error, auto-submit at full length.
+5. 2FA password with its hint (recovery and account reset only if the owner
+   wants them exercised).
+6. Restart: stays signed in. Log out confirmation at the end of the session.
+7. Error paths that can be produced safely: invalid number, network off.
+   Sign-up, terms, Fragment, login email and FLOOD_WAIT stay unverified
+   unless they happen naturally.
+
+M2, chat list:
+1. Cold start to the list: server order, rows (userpic, name, time, preview
+   with sender and entities, media previews, badges, unread and mention
+   counters, read checks, drafts, online dots, mute and pin icons).
+2. Live updates from a second device: new message, edit, delete, read state,
+   typing, reordering.
+3. Connecting / Updating / Waiting for network by toggling the network.
+4. Folders: tabs on top and in the sidebar, counts, tab menu, reorder.
+5. Archive: open, collapse, hide into the main menu; archive and unarchive.
+6. Chat menus: pin, unpin, drag order, mute, mark read and unread, add to
+   folder (destructive items only on a test chat the owner names).
+7. Search: chats, contacts, global, messages with filters, hashtags, recent
+   searches, top peers, suggestions; contacts list; empty states.
+8. Layouts: one, two, three columns, resize, narrow mode; main menu, night
+   mode, toasts.
+
+M3, history:
+1. Open chats of each kind: private, group, channel, Saved Messages; title
+   bar status and typing; opening at the first unread under the bar.
+2. Scroll up and down through real pages: no jumps; date badges, the
+   floating date, the scroll-down button with its counter, mention and
+   reaction jumps, the calendar.
+3. Message rendering on real content: bubbles, names and titles, service
+   messages, outgoing states, edited, views, signatures, forwards, replies
+   (also cross-chat and story replies), via-bot, every entity kind,
+   spoilers, quotes, dates, link previews, reactions and who reacted.
+4. Selection and copy (text and messages), the context menu, link, phone
+   and card menus, read dates and who read.
+5. Pinned bar, pinned section, unpin (on Saved Messages).
+6. Channel comments and the replies section; sponsored messages in a large
+   channel; protected content in a chat that forbids saving.
+7. Chat search with results stepping; Saved Messages tags search.
+8. Contact status bar, from a chat with someone not in contacts (actions
+   that change the account only with the owner's say-so).
+9. Pull to next channel with a trackpad, with and without unread channels.
+10. Perf: opening a chat from the TDLib cache.
 
 ### Open questions for the owner
 
