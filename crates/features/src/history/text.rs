@@ -31,6 +31,12 @@ pub(crate) enum Link {
     Username(String),
     User(UserId),
     Hashtag(String),
+    /// Opens a menu to copy the number or reach whoever has it.
+    Phone(String),
+    /// Opens a menu with the card's bank and its links.
+    BankCard(String),
+    /// Opens a menu to copy the date.
+    Date(i32),
     Spoiler,
 }
 
@@ -118,6 +124,7 @@ fn is_link(kind: &EntityKind) -> bool {
             | EntityKind::Cashtag
             | EntityKind::BotCommand
             | EntityKind::MediaTimestamp { .. }
+            | EntityKind::DateTime { .. }
     )
 }
 
@@ -212,7 +219,7 @@ fn with_scheme(url: &str) -> String {
 
 /// The clickable ranges inside `range`, shifted to start at 0, with what
 /// each opens.
-// shortcut: phone numbers, bank cards, cashtags, bot commands and timestamps look like links but do nothing until sending (M4) and media (M5).
+// shortcut: cashtags, bot commands and timestamps look like links but do nothing until sending (M4) and media (M5).
 pub(super) fn links(
     text: &FormattedText,
     range: Range<usize>,
@@ -232,6 +239,9 @@ pub(super) fn links(
                 EntityKind::Mention => Link::Username(shown.trim_start_matches('@').to_owned()),
                 EntityKind::MentionName { user } => Link::User(*user),
                 EntityKind::Hashtag => Link::Hashtag(shown.to_owned()),
+                EntityKind::PhoneNumber => Link::Phone(shown.to_owned()),
+                EntityKind::BankCardNumber => Link::BankCard(shown.to_owned()),
+                EntityKind::DateTime { unix_time, .. } => Link::Date(*unix_time),
                 _ => return None,
             };
             let shifted = entity.range.start - range.start..entity.range.end - range.start;
@@ -357,6 +367,24 @@ mod tests {
             [
                 (4..8, Link::Url("https://t.me".to_owned())),
                 (12..16, Link::HiddenUrl("https://example.org".to_owned())),
+            ]
+        );
+    }
+
+    #[test]
+    fn phone_numbers_and_bank_cards_open_their_menus() {
+        let message = text(
+            "call +1 555 0100, pay 4242 4242 4242 4242",
+            &[
+                (5..16, EntityKind::PhoneNumber),
+                (22..41, EntityKind::BankCardNumber),
+            ],
+        );
+        assert_eq!(
+            links(&message, 0..41, false),
+            [
+                (5..16, Link::Phone("+1 555 0100".to_owned())),
+                (22..41, Link::BankCard("4242 4242 4242 4242".to_owned())),
             ]
         );
     }

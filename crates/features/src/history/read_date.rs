@@ -4,7 +4,7 @@
 //! (`WhoReactedContextAction`).
 
 use chrono::{DateTime, Datelike as _, Days, TimeZone};
-use i18n::{Key, Strings, key};
+use i18n::{Strings, key};
 use model::UserId;
 use model::message_actions::ReadDate;
 
@@ -17,21 +17,6 @@ pub(super) enum WhoRead {
     Date(ReadDate),
     Viewers(Vec<UserId>),
 }
-
-const SMALL_MONTHS: [Key; 12] = [
-    key::lng_month1_small,
-    key::lng_month2_small,
-    key::lng_month3_small,
-    key::lng_month4_small,
-    key::lng_month5_small,
-    key::lng_month6_small,
-    key::lng_month7_small,
-    key::lng_month8_small,
-    key::lng_month9_small,
-    key::lng_month10_small,
-    key::lng_month11_small,
-    key::lng_month12_small,
-];
 
 /// "today at 14:05", "yesterday at 9:30" or "Oct 3 at 18:00"; "read"
 /// when either side hides read dates; none while unread or too old.
@@ -65,7 +50,7 @@ where
         fill(key::lng_mediaview_yesterday, &[])
     } else {
         // shortcut: no year; TDLib keeps read dates for a week, so it never differs.
-        let month = strings.text(SMALL_MONTHS[day.month0() as usize]);
+        let month = strings.text(layout::SMALL_MONTHS[day.month0() as usize]);
         let date = i18n::fill(
             strings.text(key::lng_month_day),
             &[("month", month), ("day", &day.day().to_string())],

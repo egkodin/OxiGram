@@ -137,11 +137,11 @@ is the definition of done: rgram is finished when every row is `done`, or
 | history | Entities: bold, italic, underline, strikethrough, code, pre | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; underline, strikethrough and pre not in the fixtures |
 | history | Entities: syntax highlighting in pre blocks with copy button | M3 | todo | |
 | history | Entities: links, text links, mentions, hashtags, cashtags, bot commands | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; links, text links (confirm box), mentions, hashtags open; cashtags and bot commands are inert |
-| history | Entities: emails, phone numbers, bank cards with their menus | M3 | todo | |
+| history | Entities: emails, phone numbers, bank cards with their menus | M3 | in progress | unit test (`cargo test -p features phone_numbers_and_bank_cards`); snapshots 67/68: a phone opens "Copy Phone Number" over who has the number ("This number is not on Telegram" in the runner); emails open mail and copy from the message menu; bank cards open "Copy Card Number" with the bank's links and name from `getBankCardInfo`; not verified: no API credentials, so no live lookups; no "Add to contacts" (M6); the found user opens their chat, not the profile (M6); menus open once TDLib answers instead of showing "Loading..." |
 | history | Entities: spoilers with the reveal animation | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; click reveals, no particle animation |
 | history | Entities: block quotes and expandable quotes | M3 | in progress | snapshot only (`cargo run -p rgram --example snapshots`, 42/43); not verified: no API credentials, so no live chat; expandable quotes do not collapse |
 | history | Entities: custom emoji in text | M5 | todo | |
-| history | Entities: formatted dates and timestamps (timecodes) | M3 | todo | |
+| history | Entities: formatted dates and timestamps (timecodes) | M3 | in progress | unit tests (`cargo test -p features dates`: relative and absolute formats, entities moved around the new text); snapshots 64-66: "6:30 pm" sent with a time-only format reads "18:30" as a link and opens "Copy Date"; not verified: no API credentials; relative dates refresh with the history, not on a timer; captions keep dates as sent (M5); 24-hour times for every locale (M7); no "Add to Calendar" (M7) or "Set a Reminder" (M4); timecodes wait for media players (M5) |
 | history | Large single emoji and animated emoji | M5 | todo | |
 | history | Emoji interactions (click an animated emoji, see the partner's) | M5 | todo | |
 | history | Link previews: small or large media, above or below the text | M3 | in progress | snapshot 54 and a unit test (`cargo test -p features web_page`); site name, title and description in a tinted box above or below the text, the time on its last line, a click opens the link (asking first unless TDLib says the text shows it); not verified: no API credentials, so no real linkPreview from TDLib; no media (small or large), no type-specific button, description without entities, line limits estimated |
@@ -466,7 +466,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | platform | Outdated OS warning bar | M7 | todo | |
 | links | `tg://` links and `https://t.me` links open in rgram | M7 | todo | |
 | links | All internal link types: users, chats, messages, invites, stickers, proxies, themes, settings, bots, games, stories, boosts, gifts | M7 | todo | |
-| links | Phone number and bank card menus from text | M3 | todo | |
+| links | Phone number and bank card menus from text | M3 | in progress | see the history row on emails, phone numbers and bank cards |
 | core | Single instance: a second launch activates the running one and passes links | M7 | todo | |
 | core | Keyboard shortcuts as in tdesktop (quit, lock, search, folders, chat navigation) | M8 | todo | |
 | core | Accessibility: screen readers through AccessKit | M8 | todo | |

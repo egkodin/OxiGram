@@ -50,6 +50,8 @@ enum Item {
         handler: Handler,
     },
     Separator,
+    /// An inert line, such as what a lookup found nothing for.
+    Note(SharedString),
 }
 
 pub struct PopupMenu {
@@ -120,6 +122,12 @@ impl PopupMenu {
         self.items.push(Item::Separator);
     }
 
+    /// Adds a line that does nothing, centered in the shortcut color
+    /// (`ResolvePhoneAction`'s "not on Telegram").
+    pub fn note(&mut self, text: impl Into<SharedString>) {
+        self.items.push(Item::Note(text.into()));
+    }
+
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.items.is_empty()
@@ -146,6 +154,22 @@ impl PopupMenu {
                         .bg(color(cx, st.separator.fg)),
                 )
                 .into_any_element(),
+            Item::Note(text) => {
+                let text_font = st.item_style.font;
+                div()
+                    .pl(px_of(st.item_padding.left))
+                    .pr(px_of(st.item_padding.right))
+                    .pt(px_of(st.item_padding.top))
+                    .pb(px_of(st.item_padding.bottom))
+                    .bg(color(cx, st.item_bg))
+                    .text_center()
+                    .font(font(text_font))
+                    .text_size(px_of(text_font.size))
+                    .line_height(font_height(text_font))
+                    .text_color(color(cx, st.item_fg_shortcut))
+                    .child(text.clone())
+                    .into_any_element()
+            }
             Item::Action {
                 text,
                 icon: shown,

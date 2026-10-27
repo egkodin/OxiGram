@@ -261,6 +261,18 @@ fn scenarios() -> Vec<Scenario> {
                     CALENDAR_CLOSE,
                 ),
                 ("64-history-comments", MouseButton::Left, LANDSCAPES_ROW),
+                ("65-history-date-menu", MouseButton::Left, WALK_DATE),
+                (
+                    "66-history-date-menu-closed",
+                    MouseButton::Left,
+                    HISTORY_GAP,
+                ),
+                ("67-history-phone-menu", MouseButton::Left, WALK_PHONE),
+                (
+                    "68-history-phone-menu-closed",
+                    MouseButton::Left,
+                    HISTORY_GAP,
+                ),
                 ("43-history-private", MouseButton::Left, MARIA_ROW),
             ],
             scrolls: Vec::new(),
@@ -366,6 +378,9 @@ const DOWN_BUTTON: (f32, f32) = (761.0, 565.0);
 /// space beside its date badge.
 const GROUP_LINK: (f32, f32) = (610.0, 513.0);
 const HISTORY_GAP: (f32, f32) = (420.0, 181.0);
+/// The time and the phone number in Daily Landscapes' last post.
+const WALK_DATE: (f32, f32) = (460.0, 555.0);
+const WALK_PHONE: (f32, f32) = (557.0, 555.0);
 /// The three dots at the right of the chat's top bar.
 const HISTORY_MENU_TOGGLE: (f32, f32) = (778.0, 27.0);
 /// The middle of the chat's message list.
@@ -494,6 +509,8 @@ fn click(button: MouseButton, position: Point<Pixels>, window: &mut Window, cx: 
         }),
         cx,
     );
+    // Text links listen for the release only from the frame after the press.
+    window.draw(cx).clear(cx);
     window.dispatch_event(
         PlatformInput::MouseUp(MouseUpEvent {
             button,

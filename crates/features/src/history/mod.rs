@@ -7,10 +7,12 @@ mod bubble;
 mod calendar;
 mod chat_search;
 mod comments;
+mod dates;
 mod delete;
 mod headers;
 mod jump;
 mod layout;
+mod link_menus;
 mod menu;
 mod pinned;
 mod pinned_section;
@@ -255,8 +257,9 @@ impl HistoryView {
             }
             &pinned
         };
-        if sync::apply(&self.list, &self.shown, messages) {
-            self.shown = messages.to_vec();
+        let messages = dates::with_dates(messages, &self.shown, strings(cx), &Local::now());
+        if sync::apply(&self.list, &self.shown, &messages) {
+            self.shown = messages.into_owned();
             let is_chat = self.section == pinned_section::Section::Chat;
             self.unread_bar_index = self.unread_bar.filter(|_| is_chat).and_then(|after| {
                 let start = self.shown.partition_point(|message| message.id <= after);
@@ -445,12 +448,15 @@ impl HistoryView {
 
     fn on_link(&self, message: MessageId, cx: &Context<Self>) -> body::OnLink {
         let weak = cx.weak_entity();
-        Rc::new(move |link, _, cx| {
+        Rc::new(move |link, window, cx| {
             let _ = weak.update(cx, |this, cx| match link {
                 Link::Spoiler => {
                     this.revealed_spoilers.insert(message);
                     cx.notify();
                 }
+                Link::Phone(phone) => this.open_phone_menu(phone, window, cx),
+                Link::BankCard(number) => this.open_bank_card_menu(number, window, cx),
+                Link::Date(unix_time) => this.show_date_menu(unix_time, window, cx),
                 link => cx.emit(HistoryEvent::Link(link)),
             });
         })

@@ -24,6 +24,7 @@ mod secret;
 mod session;
 mod state;
 pub mod text;
+pub mod text_links;
 pub mod thread;
 pub mod user;
 

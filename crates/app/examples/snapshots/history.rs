@@ -7,7 +7,7 @@ use model::message::{
     Content, External, Forward, LinkPreview, Message, Origin, Replies, ReplyTo, Sender, Service,
 };
 use model::reaction::{Reaction, ReactionKind, Reactions};
-use model::text::{Entity, EntityKind, FormattedText};
+use model::text::{DateFormat, Entity, EntityKind, FormattedText, Precision};
 use model::{ChatId, MessageId, UserId};
 
 use crate::chats::{GIF_BOT, HOUR, ME, now};
@@ -316,7 +316,27 @@ fn landscapes() -> Vec<Message> {
         replies: Some(Replies::default()),
         ..post(48, 28 * HOUR, "Morning mist over the lake.")
     };
-    vec![quiet, commented]
+    let time_only = DateFormat::Absolute {
+        time: Precision::Short,
+        date: Precision::None,
+        has_day_of_week: false,
+    };
+    let walk = post(
+        50,
+        2 * HOUR,
+        "Sunset walk today at 6:30 pm. Seats: +1 555 0100, card 4242 4242 4242 4242.",
+    );
+    let walk = entity(
+        walk,
+        "6:30 pm",
+        EntityKind::DateTime {
+            unix_time: now() + 6 * HOUR + 30 * MINUTE,
+            format: Some(time_only),
+        },
+    );
+    let walk = entity(walk, "+1 555 0100", EntityKind::PhoneNumber);
+    let walk = entity(walk, "4242 4242 4242 4242", EntityKind::BankCardNumber);
+    vec![quiet, commented, walk]
 }
 
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {

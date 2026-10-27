@@ -2,7 +2,7 @@
 
 use std::ops::Range;
 
-use td_api::enums::TextEntityType;
+use td_api::enums::{DateTimeFormattingType, DateTimePartPrecision, TextEntityType};
 
 use crate::ids::{CustomEmojiId, UserId};
 
@@ -37,14 +37,71 @@ pub enum EntityKind {
     Strikethrough,
     Spoiler,
     Code,
-    Pre { language: Option<String> },
+    Pre {
+        language: Option<String>,
+    },
     BlockQuote(Quote),
-    TextUrl { url: String },
-    MentionName { user: UserId },
-    CustomEmoji { id: CustomEmojiId },
-    MediaTimestamp { seconds: i32 },
-    // shortcut: drops the formatting type; add it when M3 renders dates in text.
-    DateTime { unix_time: i32 },
+    TextUrl {
+        url: String,
+    },
+    MentionName {
+        user: UserId,
+    },
+    CustomEmoji {
+        id: CustomEmojiId,
+    },
+    MediaTimestamp {
+        seconds: i32,
+    },
+    /// A date the client shows in its own words; `format` none keeps the
+    /// text as sent.
+    DateTime {
+        unix_time: i32,
+        format: Option<DateFormat>,
+    },
+}
+
+/// How a date in text reads (`dateTimeFormattingType`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DateFormat {
+    /// "in 5 minutes", "2 days ago".
+    Relative,
+    Absolute {
+        time: Precision,
+        date: Precision,
+        has_day_of_week: bool,
+    },
+}
+
+/// How much of a date or time part shows (`dateTimePartPrecision`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Precision {
+    None,
+    Short,
+    Long,
+}
+
+impl From<DateTimePartPrecision> for Precision {
+    fn from(precision: DateTimePartPrecision) -> Self {
+        match precision {
+            DateTimePartPrecision::None(_) => Self::None,
+            DateTimePartPrecision::Short(_) => Self::Short,
+            DateTimePartPrecision::Long(_) => Self::Long,
+        }
+    }
+}
+
+impl From<DateTimeFormattingType> for DateFormat {
+    fn from(format: DateTimeFormattingType) -> Self {
+        match format {
+            DateTimeFormattingType::Relative(_) => Self::Relative,
+            DateTimeFormattingType::Absolute(absolute) => Self::Absolute {
+                time: Precision::from(*absolute.time_precision),
+                date: Precision::from(*absolute.date_precision),
+                has_day_of_week: absolute.show_day_of_week,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,6 +179,7 @@ impl From<TextEntityType> for EntityKind {
             },
             TextEntityType::DateTime(date) => Self::DateTime {
                 unix_time: date.unix_time,
+                format: date.formatting_type.map(|format| DateFormat::from(*format)),
             },
         }
     }

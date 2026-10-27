@@ -48,8 +48,9 @@ pub(crate) fn open(link: Link, targets: &Targets, window: &mut Window, cx: &mut 
             let task = targets.store.read(cx).session().create_private_chat(user);
             open_chat_when(spawn(task, cx), targets, None, cx);
         }
-        // Spoilers reveal in the message itself.
-        Link::Spoiler => {}
+        // Spoilers reveal in the message itself; phones, cards and dates
+        // open their menus there.
+        Link::Spoiler | Link::Phone(_) | Link::BankCard(_) | Link::Date(_) => {}
     }
 }
 

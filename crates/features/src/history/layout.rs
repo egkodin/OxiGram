@@ -50,8 +50,26 @@ pub(crate) fn date_badge<Tz: TimeZone>(
     date: NaiveDate,
     now: &DateTime<Tz>,
 ) -> String {
+    month_day(strings, date, now, month_day_key(date.month()))
+}
+
+/// "Oct 26", with the year once it is far from today (`langDayOfMonth`).
+pub(crate) fn short_date<Tz: TimeZone>(
+    strings: &Strings,
+    date: NaiveDate,
+    now: &DateTime<Tz>,
+) -> String {
+    month_day(strings, date, now, SMALL_MONTHS[date.month0() as usize])
+}
+
+fn month_day<Tz: TimeZone>(
+    strings: &Strings,
+    date: NaiveDate,
+    now: &DateTime<Tz>,
+    month: Key,
+) -> String {
     let today = now.date_naive();
-    let month = strings.text(month_day_key(date.month()));
+    let month = strings.text(month);
     let day = date.day().to_string();
     if is_year_shown(date, today) {
         i18n::fill(
@@ -77,6 +95,21 @@ fn is_year_shown(date: NaiveDate, today: NaiveDate) -> bool {
     let (year, current) = (date.year(), today.year());
     year != current && ((year - current).abs() > 1 || (months(date) - months(today)).abs() > 3)
 }
+
+pub(crate) const SMALL_MONTHS: [Key; 12] = [
+    key::lng_month1_small,
+    key::lng_month2_small,
+    key::lng_month3_small,
+    key::lng_month4_small,
+    key::lng_month5_small,
+    key::lng_month6_small,
+    key::lng_month7_small,
+    key::lng_month8_small,
+    key::lng_month9_small,
+    key::lng_month10_small,
+    key::lng_month11_small,
+    key::lng_month12_small,
+];
 
 fn month_day_key(month: u32) -> Key {
     match month {

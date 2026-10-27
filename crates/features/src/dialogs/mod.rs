@@ -729,7 +729,7 @@ fn date_text(strings: &Strings, date: i32, now: &DateTime<Local>) -> SharedStrin
     }
 }
 
-fn weekday_key(day: u32) -> Key {
+pub(crate) fn weekday_key(day: u32) -> Key {
     match day {
         1 => key::lng_weekday1,
         2 => key::lng_weekday2,

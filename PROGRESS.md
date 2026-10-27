@@ -61,12 +61,18 @@
   "All" and a tab per reaction, the most used first, pages of 50 from
   `getMessageAddedReactions`. Checked once with a temporary fixture (the
   runner gets no TDLib answers), then restored.
+- Phone numbers, bank cards and dates in text (`link_menus`, `dates`):
+  phones and cards open tdesktop's menus with TDLib's lookups; dates read
+  in the reader's words (relative or absolute) and open "Copy Date". The
+  history formats dates once at `sync`, so layout, selection and copy see
+  one text. The snapshot runner now draws between press and release, as
+  gpui's text links need; before, link clicks never fired in it.
 
 ### Verified (macOS arm64, this machine)
 
 - `cargo fmt`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` green.
-- Snapshots 41-64 compared by eye with tdesktop's style and layout code.
+- Snapshots 41-68 compared by eye with tdesktop's style and layout code.
 - `scripts/history-perf.sh`, three runs at 120 Hz: frame build p99 5.44 ms,
   no dropped refreshes over 60 s of scrolling, and adding 50 older messages
   near the top changes no history pixel.
@@ -86,7 +92,7 @@
 
 ### Next steps
 
-1. Entities: emails, phones, bank cards, dates, code highlighting.
+1. Code blocks: syntax highlighting and the copy button.
 2. Sponsored messages in channels.
 3. The contact status bar (add, block, report) in private chats.
 

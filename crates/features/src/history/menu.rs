@@ -36,7 +36,7 @@ use crate::store::spawn;
 
 /// Keeps the menu off the window edges.
 const EDGE_MARGIN: f32 = 8.0;
-const TOAST_DURATION: Duration = Duration::from_millis(1500);
+pub(super) const TOAST_DURATION: Duration = Duration::from_millis(1500);
 
 /// What TDLib told about the messages a menu is for.
 pub(super) struct Facts<'a> {
@@ -89,7 +89,9 @@ impl LinkCopy {
             Link::Email(email) => Self::Email(email.clone()),
             Link::Username(name) => Self::Mention(format!("@{name}")),
             Link::Hashtag(tag) => Self::Hashtag(tag.clone()),
-            Link::User(_) | Link::Spoiler => return None,
+            Link::User(_) | Link::Phone(_) | Link::BankCard(_) | Link::Date(_) | Link::Spoiler => {
+                return None;
+            }
         })
     }
 }
@@ -378,7 +380,7 @@ impl HistoryView {
         self.present_menu(menu, position, Anchor::TopRight, window, cx);
     }
 
-    fn present_menu(
+    pub(super) fn present_menu(
         &mut self,
         menu: Entity<PopupMenu>,
         position: Point<Pixels>,
