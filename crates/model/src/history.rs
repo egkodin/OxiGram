@@ -18,8 +18,15 @@ use crate::session::{RequestError, Session};
 
 /// How many messages one page asks for; TDLib may return fewer.
 pub const PAGE: i32 = 50;
-/// The most pinned messages one request returns (`searchChatMessages`).
-const PINNED_LIMIT: i32 = 100;
+/// The most messages one `searchChatMessages` request returns.
+const SEARCH_LIMIT: i32 = 100;
+
+/// Messages the chat counts as unread besides its messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Unread {
+    Mentions,
+    Reactions,
+}
 
 /// A change to messages that only the history shows.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -362,6 +369,35 @@ impl Session {
         &self,
         chat: ChatId,
     ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
+        self.filtered_messages(
+            chat,
+            SearchMessagesFilter::Pinned(td_api::types::SearchMessagesFilterPinned {}),
+        )
+    }
+
+    /// `chat`'s unread mentions or reactions, newest first.
+    // shortcut: only the newest 100; the oldest beyond them waits until these are read.
+    pub fn unread_messages(
+        &self,
+        chat: ChatId,
+        unread: Unread,
+    ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
+        let filter = match unread {
+            Unread::Mentions => SearchMessagesFilter::UnreadMention(
+                td_api::types::SearchMessagesFilterUnreadMention {},
+            ),
+            Unread::Reactions => SearchMessagesFilter::UnreadReaction(
+                td_api::types::SearchMessagesFilterUnreadReaction {},
+            ),
+        };
+        self.filtered_messages(chat, filter)
+    }
+
+    fn filtered_messages(
+        &self,
+        chat: ChatId,
+        filter: SearchMessagesFilter,
+    ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
         self.client()
             .request(&SearchChatMessages {
                 chat_id: chat.0,
@@ -370,10 +406,8 @@ impl Session {
                 sender_id: None,
                 from_message_id: 0,
                 offset: 0,
-                limit: PINNED_LIMIT,
-                filter: Some(Box::new(SearchMessagesFilter::Pinned(
-                    td_api::types::SearchMessagesFilterPinned {},
-                ))),
+                limit: SEARCH_LIMIT,
+                filter: Some(Box::new(filter)),
             })
             .map(|result| {
                 result

@@ -11,7 +11,9 @@ use td_api::functions::{
     SetMessageSenderBlockList, SetPinnedChats, ToggleChatIsMarkedAsUnread, ToggleChatIsPinned,
     ViewMessages,
 };
-use td_api::types::{BlockListMain, MessageSenderUser, MessageSourceChatList};
+use td_api::types::{
+    BlockListMain, MessageSenderUser, MessageSourceChatHistory, MessageSourceChatList,
+};
 
 use crate::chat::ChatList;
 use crate::ids::{ChatId, FolderId, MessageId, UserId};
@@ -167,6 +169,25 @@ impl Session {
             .request(&ToggleChatIsMarkedAsUnread {
                 chat_id: chat.0,
                 is_marked_as_unread: mark == UnreadMark::Marked,
+            })
+            .map(done)
+    }
+
+    /// Tells TDLib the user saw `message` in the chat, which reads it and
+    /// its mention or reactions.
+    pub fn view_message(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&ViewMessages {
+                chat_id: chat.0,
+                message_ids: vec![message.0],
+                source: Some(Box::new(MessageSource::ChatHistory(
+                    MessageSourceChatHistory {},
+                ))),
+                force_read: false,
             })
             .map(done)
     }

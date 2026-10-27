@@ -485,27 +485,6 @@ impl HistoryView {
     }
 }
 
-impl HistoryView {
-    fn down_button(&self, cx: &mut Context<Self>) -> AnyElement {
-        let unread = self
-            .store
-            .read(cx)
-            .state()
-            .chats
-            .chat(self.chat)
-            .filter(|chat| chat.unread_count > 0)
-            .map(|chat| (chat.unread_count.to_string().into(), chat.is_muted()));
-        let weak = cx.weak_entity();
-        unread::down_button(
-            unread,
-            move |_, _, cx| {
-                let _ = weak.update(cx, |this, cx| this.scroll_down(cx));
-            },
-            cx,
-        )
-    }
-}
-
 /// The color of whoever sent `message` (`colorIndex`).
 fn sender_color(state: &State, message: &Message) -> i32 {
     match message.sender {
@@ -578,7 +557,7 @@ impl Render for HistoryView {
                         .size_full()
                         .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM)),
                     )
-                    .children(self.is_down_shown.then(|| self.down_button(cx))),
+                    .children(self.corner_buttons(cx)),
             )
             .children(self.menu_overlay())
     }

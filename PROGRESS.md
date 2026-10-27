@@ -32,6 +32,8 @@
 - Link previews (`web_page`): site, title and description above or below
   the text, the time on the box's last line; the unsupported message notice
   as tdesktop words it (`dialogs::unsupported_text`).
+- Corner buttons for unread mentions and reactions over the down button
+  (`unread`); a click jumps to the oldest unread one and reads it.
 
 ### Verified (macOS arm64, this machine)
 
@@ -51,16 +53,14 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: jumps to
-  mentions and reactions, the calendar, read dates, the pinned section,
+- Many M3 rows in `docs/parity.md` are still todo: the calendar, read dates, the pinned section,
   comments, Saved Messages sublists, sponsored messages, protected content.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. Jumps to unread mentions and reactions (the buttons over the down
-   button) and the calendar jump from a date badge.
+1. The calendar jump from a date badge.
 2. Read dates in private chats and the pinned messages section.
 3. Search in a chat (the top bar's search button) and replies to other
    chats.
