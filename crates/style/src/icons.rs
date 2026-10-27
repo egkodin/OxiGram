@@ -183,6 +183,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x3: Some(include_bytes!("../icons/chat/input_link_settings@3x.png")),
         },
         "chat/input_paid" => IconFiles::Svg(include_bytes!("../icons/chat/input_paid.svg")),
+        "chat/input_record" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/input_record.png"),
+            x2: Some(include_bytes!("../icons/chat/input_record@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/input_record@3x.png")),
+        },
         "chat/input_replace" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/input_replace.png"),
             x2: Some(include_bytes!("../icons/chat/input_replace@2x.png")),

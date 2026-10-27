@@ -47,6 +47,10 @@ const LOGO_ICONS: &[&str] = &[
     "intro_qr_plane",
 ];
 
+/// Icons tdesktop draws from code or Lottie rather than a style, which
+/// rgram draws as masks: the send button's microphone (`paintRecord`).
+const CODE_ICONS: &[&str] = &["chat/input_record"];
+
 fn main() -> anyhow::Result<()> {
     let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let tdesktop = env::args_os()
@@ -87,7 +91,16 @@ fn main() -> anyhow::Result<()> {
         }
     }
     let provenance = format!("tdesktop {}, lib_ui {lib_ui_head}", git_head(&tdesktop)?);
-    let emitted = style::emit::emit(&modules, &provenance)?;
+    let mut emitted = style::emit::emit(&modules, &provenance)?;
+    for name in CODE_ICONS {
+        let path = loader
+            .find_icon(name)
+            .with_context(|| format!("icon {name} not found"))?;
+        emitted.icons.insert(IconFile {
+            name: (*name).to_owned(),
+            path,
+        });
+    }
     for (name, code) in &emitted.modules {
         write(&style_crate.join(format!("src/{name}.rs")), code)?;
     }

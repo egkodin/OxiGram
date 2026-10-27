@@ -265,7 +265,7 @@ impl Loader {
             .ok_or_else(|| anyhow!("{name} not found in the include directories"))
     }
 
-    fn find_icon(&self, name: &str) -> Option<PathBuf> {
+    pub(crate) fn find_icon(&self, name: &str) -> Option<PathBuf> {
         self.icon_dirs.iter().find_map(|dir| {
             ["png", "svg"]
                 .iter()
