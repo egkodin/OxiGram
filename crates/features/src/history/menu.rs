@@ -20,9 +20,9 @@ use model::reaction::AddedReactions;
 use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
-    MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_EDIT, MENU_ICON_FORWARD, MENU_ICON_LINK,
-    MENU_ICON_REPLY, MENU_ICON_RESCHEDULE, MENU_ICON_SELECT, MENU_ICON_SEND,
-    MENU_ICON_SHOW_IN_FOLDER,
+    MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_DOWNLOAD, MENU_ICON_EDIT,
+    MENU_ICON_FORWARD, MENU_ICON_LINK, MENU_ICON_REPLY, MENU_ICON_RESCHEDULE, MENU_ICON_SELECT,
+    MENU_ICON_SEND, MENU_ICON_SHOW_IN_FOLDER,
 };
 use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
 use ui::{MenuTone, PopupMenu};
@@ -123,6 +123,7 @@ pub(super) enum Item {
     Reschedule,
     /// A downloaded file in Finder, or the file manager elsewhere.
     ShowInFolder(std::path::PathBuf),
+    SaveAs(super::save_as::Saving),
 }
 
 /// A scheduled message's menu: send now and reschedule, then copying and
@@ -374,16 +375,13 @@ impl HistoryView {
         if field_bar::editable_text(&message).is_none() {
             items.retain(|item| *item != Item::Edit);
         }
-        if let Some(path) = self
-            .document_path(&message, cx)
-            .filter(|_| upon == Upon::Nothing)
-        {
-            // After Reply and Edit, as tdesktop adds the document's actions.
+        if upon == Upon::Nothing {
+            // After Reply and Edit, as tdesktop adds the media's actions.
             let at = items
                 .iter()
                 .take_while(|i| matches!(i, Item::Reply | Item::Edit))
                 .count();
-            items.insert(at, Item::ShowInFolder(path));
+            items.splice(at..at, self.file_items(&message, cx));
         }
         if message.schedule.is_some() {
             items = scheduled_items(items);
@@ -541,6 +539,7 @@ impl HistoryView {
             Item::SendNow => self.send_scheduled_now(message.id, window, cx),
             Item::Reschedule => self.reschedule(message.id, window, cx),
             Item::ShowInFolder(path) => cx.reveal_path(path),
+            Item::SaveAs(saving) => self.save_as(saving, cx),
             Item::ClearSelection => {
                 self.clear_selection(cx);
             }
@@ -683,6 +682,7 @@ fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon
             normal(key::lng_context_show_in_finder, MENU_ICON_SHOW_IN_FOLDER)
         }
         Item::ShowInFolder(_) => normal(key::lng_context_show_in_folder, MENU_ICON_SHOW_IN_FOLDER),
+        Item::SaveAs(saving) => normal(saving.label, MENU_ICON_DOWNLOAD),
     }
 }
 

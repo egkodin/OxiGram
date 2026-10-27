@@ -108,15 +108,6 @@ impl HistoryView {
         .detach();
     }
 
-    /// Where a document message's file is, once it is on disk.
-    pub(super) fn document_path(&self, message: &Message, cx: &Context<Self>) -> Option<PathBuf> {
-        let Content::Document { media, .. } = &message.content else {
-            return None;
-        };
-        let file = current(self, media.file.as_ref()?, cx);
-        file.path.clone().map(PathBuf::from)
-    }
-
     pub(super) fn open_file(
         &mut self,
         path: &Path,

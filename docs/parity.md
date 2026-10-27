@@ -281,7 +281,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | media | Call messages (missed, outgoing, duration) | M12 | todo | |
 | media | TON transfer messages | M13 | todo | |
 | media | Theme documents in messages | M6 | todo | |
-| media | "Save as" for files and media | M5 | todo | |
+| media | "Save as" for files and media | M5 | in progress | unit test (`cargo test -p features save_as`: each kind's label); snapshot 156: "Save As..." under "Show in Finder" in a downloaded file's menu, also for photos, videos and voices; the save box opens in Downloads with the file's name (a photo's `photo_<date>.jpg`) and copies the file; protected chats get no item; not verified: no live save yet (the save box needs a person); only files already on disk, tdesktop downloads straight to the chosen path |
 | media | Auto-download by chat type, media type and size | M6 | todo | |
 | media | Download manager with the downloads list | M5 | todo | |
 

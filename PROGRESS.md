@@ -25,6 +25,9 @@
 - Contacts in messages (`history/contact.rs`): tdesktop's card with the
   userpic, name and phone; MESSAGE opens the account's chat, ADD adds
   it under the card's name. Snapshots 165-166.
+- "Save As..." in the menu of a downloaded photo, video, voice or file
+  (`history/save_as.rs`): the system save box in Downloads, then a copy.
+  Snapshot 156.
 
 ### Half done (shortcuts in code)
 
@@ -39,6 +42,7 @@
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
   account has no VIEW CONTACT (vCard) box; no ripple.
+- "Save As..." only for files already on disk.
 
 ### Live test list (M5)
 
@@ -67,6 +71,9 @@
 6. Contacts: in Saved Messages share a contact (from a phone): the card
    shows the userpic, name and phone; MESSAGE opens their chat; ADD
    shows only for someone not in contacts. Read only elsewhere.
+7. Save As: right click a downloaded photo, video, voice and file:
+   "Save As..." opens the save box in Downloads with a sensible name;
+   save, and the copy opens. In a chat that forbids saving there is none.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
