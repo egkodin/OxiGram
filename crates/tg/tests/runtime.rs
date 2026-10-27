@@ -45,6 +45,22 @@ fn lifecycle() {
     assert!(matches!(Runtime::start(), Err(StartError::AlreadyRunning)));
     let (client, mut updates) = runtime.create_client();
 
+    // TDLib starts an instance on its first request; a new client must report
+    // its state before the caller sends anything.
+    // Option updates come first.
+    let first = block_on(async {
+        while let Some(update) = updates.next().await {
+            if let Update::AuthorizationState(update) = update {
+                return Some(*update.authorization_state);
+            }
+        }
+        None
+    });
+    assert!(
+        matches!(first, Some(AuthorizationState::WaitTdlibParameters(_))),
+        "{first:?}"
+    );
+
     let version = block_on(client.request(&GetOption {
         name: "version".to_owned(),
     }))
@@ -69,10 +85,6 @@ fn lifecycle() {
             .collect(),
     );
     // The stream ends right after the client reports that it is closed.
-    assert!(matches!(
-        states.first(),
-        Some(AuthorizationState::WaitTdlibParameters(_))
-    ));
     assert!(matches!(states.last(), Some(AuthorizationState::Closed(_))));
 
     let after_close = block_on(client.request(&GetOption {

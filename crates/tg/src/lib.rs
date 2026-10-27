@@ -25,6 +25,7 @@ use std::time::Duration;
 use futures_channel::{mpsc, oneshot};
 use td_api::Function;
 use td_api::enums::{AuthorizationState, Update};
+use td_api::functions::GetOption;
 use td_sys::{ClientId, Receiver};
 
 pub use error::{DecodeError, TdError};
@@ -110,6 +111,12 @@ impl Runtime {
             id,
             shared: Arc::clone(&self.shared),
         };
+        // TDLib starts an instance only on its first request (`td_create_client_id`),
+        // so until then no `authorizationStateWaitTdlibParameters` comes; the answer
+        // is not needed.
+        drop(client.send(&GetOption {
+            name: "version".to_owned(),
+        }));
         (client, Updates(receiver))
     }
 }

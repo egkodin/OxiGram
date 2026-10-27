@@ -2,6 +2,7 @@
 
 mod client;
 mod credentials;
+mod device;
 mod paths;
 mod shutdown;
 
@@ -114,9 +115,8 @@ fn parameters(
         api_id: credentials.id,
         api_hash: Secret::new(credentials.hash),
         system_language: paths::system_language(),
-        // TDLib detects the device and OS when these are empty.
-        device_model: String::new(),
-        system_version: String::new(),
+        device_model: device::model(),
+        system_version: device::system_version(),
         application_version: env!("CARGO_PKG_VERSION").to_owned(),
         views: match std::env::var(WITHHOLD_VIEWS_VAR).as_deref() {
             Ok("1" | "true") => model::Views::Withhold,

@@ -52,6 +52,7 @@ pub struct Parameters {
     pub api_hash: Secret,
     /// IETF tag of the system language.
     pub system_language: String,
+    /// Must not be empty: TDLib refuses the parameters.
     pub device_model: String,
     pub system_version: String,
     pub application_version: String,
@@ -129,10 +130,12 @@ impl Session {
                 application_version: parameters.application_version.clone(),
             })
             .map(|result| result.map(drop).map_err(RequestError));
+        // TDLib answers options only once it takes the parameters, so their
+        // rejection comes first.
         async move {
+            tdlib.await?;
             target.await?;
-            database.await?;
-            tdlib.await
+            database.await
         }
     }
 
