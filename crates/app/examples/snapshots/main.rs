@@ -114,7 +114,11 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             continue;
         };
         let folders = scenario.folders;
-        cx.update(|cx| features::settings::set_folders_placement(folders, cx));
+        cx.update(|cx| {
+            features::settings::set_folders_placement(folders, cx);
+            // A scenario that switches it must not change the next one's Enter.
+            features::settings::set_send_by(features::settings::SendBy::Enter, cx);
+        });
         let store = cx.new(|cx| {
             let mut store = Store::new(session.clone(), Environment::Production);
             for event in setup {

@@ -59,7 +59,7 @@ pub(super) struct Compose {
     pub(super) field: Entity<TextArea>,
     pub(super) bar: Option<FieldBar>,
     pub(super) draft: Draft,
-    _subscription: Subscription,
+    _subscriptions: [Subscription; 2],
 }
 
 impl Compose {
@@ -81,6 +81,13 @@ impl Compose {
             field.set_text(draft.text(), cx);
             field
         });
+        let send_by = {
+            let field = field.clone();
+            cx.observe_global::<crate::settings::Settings>(move |_, cx| {
+                let key = crate::settings::send_by(cx).submit_key();
+                field.update(cx, |field, _| field.set_submit_key(key));
+            })
+        };
         let subscription = cx.subscribe(&field, |this, _, event, cx| match event {
             TextAreaEvent::Submitted => this.send(SendOptions::default(), cx),
             TextAreaEvent::Changed => {
@@ -94,7 +101,7 @@ impl Compose {
             field,
             bar: None,
             draft,
-            _subscription: subscription,
+            _subscriptions: [subscription, send_by],
         }
     }
 }

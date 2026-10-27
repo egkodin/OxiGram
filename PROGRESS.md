@@ -24,6 +24,10 @@ live.
   and failed updates were already applied by the history. If TDLib refuses
   the request, the text goes back into the field when it is still empty.
 - `settings::SendBy` (Enter or Ctrl+Enter), saved with the other settings.
+- The switch (`settings_box`): the main menu's Settings opens "Messages"
+  with "Send with Enter" and "Send with Cmd+Enter" (Ctrl+Enter off
+  macOS) as radios (`ui::Checkbox::radio`), and Log Out; open fields
+  follow a change at once. Snapshots 143-150.
 - `model::rights` and `HistoryView::write_bar`: in tdesktop's order, Unblock
   (blocked user), Restart bot (blocked bot, unblocks then sends /start),
   Join channel/group (not a member), Mute/Unmute (a channel the user cannot
@@ -138,7 +142,9 @@ live.
 - The bars read only basic-message rights; media rights come with
   attachments; slow mode and the "only premium may write" state are not
   shown yet.
-- No UI switch for Enter or Ctrl+Enter yet (chat settings, M6).
+- Settings opens a box (Messages: Enter or Ctrl/Cmd+Enter, and Log Out)
+  until the settings screen (M7); its radios have no toggle animation and
+  use the box checkbox's text offset, not `settingsCheckbox`'s.
 - `InputField` (single line) still has its own copy of the buffer logic;
   move it onto `text_buffer` when it is next touched.
 
@@ -201,6 +207,10 @@ Sending only in Saved Messages:
     "Scheduled for" days. Right click one, Reschedule to another day: it
     moves. Right click, Send Now, confirm: it leaves the list and shows in
     the chat. Delete the last one: the section closes and the button goes.
+
+14. Send by Cmd+Enter: with Saved Messages open, main menu, Settings, pick
+    "Send with Cmd+Enter", Close. Enter breaks the line; Cmd+Enter sends.
+    Quit and start again: the choice stays. Set it back to Enter.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 

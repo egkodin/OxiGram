@@ -203,6 +203,43 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("20-pinned-chats", auth(State::Ready))],
         },
+        // Settings: Cmd+Enter sends, so Enter in the open field breaks the
+        // line; Cmd+Enter then sends (refused with no account).
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("143-settings-chat", MouseButton::Left, SAVED_ROW),
+                ("144-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("145-settings-box", MouseButton::Left, SETTINGS_ROW),
+                (
+                    "146-settings-cmd-enter",
+                    MouseButton::Left,
+                    SEND_BY_CTRL_ENTER,
+                ),
+                ("147-settings-closed", MouseButton::Left, SETTINGS_CLOSE),
+                ("148-settings-focused", MouseButton::Left, COMPOSE_FIELD),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                (
+                    "149-settings-enter-breaks",
+                    vec![
+                        Input::Type("Two"),
+                        Input::Key("enter"),
+                        Input::Type("lines"),
+                    ],
+                ),
+                (
+                    "150-settings-cmd-enter-sends",
+                    vec![Input::Key("cmd-enter")],
+                ),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("143-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -598,6 +635,11 @@ const FIRST_MENU_ITEM: (f32, f32) = (200.0, 144.0);
 const SECOND_MENU_ITEM: (f32, f32) = (200.0, 178.0);
 /// The main menu's first row, under its cover.
 const FIRST_MAIN_MENU_ROW: (f32, f32) = (100.0, 154.0);
+/// The main menu's Settings row, and in the settings box the Cmd+Enter
+/// choice and Close.
+const SETTINGS_ROW: (f32, f32) = (100.0, 407.0);
+const SEND_BY_CTRL_ENTER: (f32, f32) = (330.0, 326.0);
+const SETTINGS_CLOSE: (f32, f32) = (516.0, 377.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 /// The chat list's right edge at the default width (5/14 of 800), and in

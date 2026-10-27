@@ -269,8 +269,13 @@ impl MainView {
                             .update(cx, |dialogs, cx| dialogs.select(chat, cx));
                     }
                 }
-                // shortcut: Settings asks to log out until the settings screen lands in M7.
-                MenuAction::Settings => this.confirm_logout(window, cx),
+                MenuAction::Settings => {
+                    let weak = cx.weak_entity();
+                    let on_logout: boxes::Callback = Rc::new(move |window, cx| {
+                        let _ = weak.update(cx, |this, cx| this.confirm_logout(window, cx));
+                    });
+                    crate::settings_box::show(&this.layers, on_logout, window, cx);
+                }
             }
         })
         .detach();

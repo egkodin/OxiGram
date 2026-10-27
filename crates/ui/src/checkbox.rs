@@ -1,4 +1,5 @@
-//! lib_ui's `Checkbox` with a `CheckView`: a rounded square and a label.
+//! lib_ui's `Checkbox` with a `CheckView` (a rounded square) or a
+//! `RadioView` (a ring), and a label.
 
 use std::rc::Rc;
 
@@ -8,7 +9,7 @@ use gpui::{
 };
 use style::ColorRef;
 use style::basic::ROUND_RADIUS_SMALL;
-use style::widgets::{Check, Checkbox as CheckboxStyle};
+use style::widgets::{Check, Checkbox as CheckboxStyle, Radio};
 
 use crate::font::{font, font_height};
 use crate::icon::icon;
@@ -28,12 +29,20 @@ pub enum Checked {
     No,
 }
 
-/// A checkbox; the owner keeps the state and flips it in `on_toggle`.
+/// What sits left of the label.
+#[derive(Debug, Clone, Copy)]
+enum Mark {
+    Check(&'static Check),
+    Radio(&'static Radio),
+}
+
+/// A checkbox or a radio button; the owner keeps the state and flips it in
+/// `on_toggle`.
 #[derive(IntoElement)]
 pub struct Checkbox {
     id: ElementId,
     style: &'static CheckboxStyle,
-    check: &'static Check,
+    mark: Mark,
     text: SharedString,
     checked: Checked,
     /// Paints the empty box in this color (`setUntoggledOverride`).
@@ -49,11 +58,32 @@ impl Checkbox {
         text: impl Into<SharedString>,
         checked: Checked,
     ) -> Self {
+        Self::with_mark(id.into(), style, Mark::Check(check), text.into(), checked)
+    }
+
+    /// One choice of a group (`Radioenum`); the owner unticks the others.
+    pub fn radio(
+        id: impl Into<ElementId>,
+        style: &'static CheckboxStyle,
+        radio: &'static Radio,
+        text: impl Into<SharedString>,
+        checked: Checked,
+    ) -> Self {
+        Self::with_mark(id.into(), style, Mark::Radio(radio), text.into(), checked)
+    }
+
+    fn with_mark(
+        id: ElementId,
+        style: &'static CheckboxStyle,
+        mark: Mark,
+        text: SharedString,
+        checked: Checked,
+    ) -> Self {
         Self {
-            id: id.into(),
+            id,
             style,
-            check,
-            text: text.into(),
+            mark,
+            text,
             checked,
             untoggled_override: None,
             on_toggle: None,
@@ -82,10 +112,8 @@ impl std::fmt::Debug for Checkbox {
     }
 }
 
-impl RenderOnce for Checkbox {
-    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
-        let st = self.style;
-        let check = self.check;
+impl Checkbox {
+    fn square(&self, check: &'static Check, cx: &App) -> gpui::Div {
         let diameter = px_of(check.diameter);
         let is_checked = self.checked == Checked::Yes;
         let border = if is_checked {
@@ -93,7 +121,7 @@ impl RenderOnce for Checkbox {
         } else {
             self.untoggled_override.unwrap_or(check.untoggled_fg)
         };
-        let square = div()
+        div()
             .size(diameter)
             .flex_none()
             .rounded(px_of(ROUND_RADIUS_SMALL))
@@ -110,7 +138,52 @@ impl RenderOnce for Checkbox {
                 } else {
                     square.bg(color(cx, check.bg))
                 }
-            });
+            })
+    }
+
+    /// A ring inset by `outer_skip`, and a dot inset by `skip` when ticked
+    /// (both in tenths of a pixel, as `RadioView::paint` reads them).
+    // shortcut: no toggle animation, as the checkbox has none either; add both together.
+    fn ring(&self, radio: &'static Radio, cx: &App) -> gpui::Div {
+        let diameter = px_of(radio.diameter);
+        let outer = gpui::px(tenths(radio.outer_skip));
+        let dot = diameter - gpui::px(tenths(radio.skip)) * 2.0;
+        let is_checked = self.checked == Checked::Yes;
+        let fg = if is_checked {
+            radio.toggled_fg
+        } else {
+            self.untoggled_override.unwrap_or(radio.untoggled_fg)
+        };
+        div().size(diameter).flex_none().p(outer).child(
+            div()
+                .size_full()
+                .rounded_full()
+                .border(px_of(radio.thickness))
+                .border_color(color(cx, fg))
+                .bg(color(cx, radio.bg))
+                .flex()
+                .items_center()
+                .justify_center()
+                .when(is_checked, |ring| {
+                    ring.child(div().size(dot).rounded_full().bg(color(cx, fg)))
+                }),
+        )
+    }
+}
+
+fn tenths(value: style::Px) -> f32 {
+    #[expect(clippy::cast_precision_loss, reason = "style sizes are small")]
+    let value = value.0 as f32;
+    value / 10.0
+}
+
+impl RenderOnce for Checkbox {
+    fn render(self, _: &mut Window, cx: &mut App) -> impl IntoElement {
+        let st = self.style;
+        let square = match self.mark {
+            Mark::Check(check) => self.square(check, cx),
+            Mark::Radio(radio) => self.ring(radio, cx),
+        };
         let on_toggle = self.on_toggle;
         let text_font = st.style.font;
         div()

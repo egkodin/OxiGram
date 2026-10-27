@@ -148,8 +148,7 @@ pub fn send_by(cx: &App) -> SendBy {
     values(cx).map_or_else(SendBy::default, |values| values.send_by)
 }
 
-/// Takes effect in chats opened after it.
-// shortcut: no switch in the UI until the chat settings page (M6); snapshots set it.
+/// Open fields follow it (they observe [`Settings`]).
 pub fn set_send_by(send_by: SendBy, cx: &mut App) {
     change(cx, |values| values.send_by = send_by);
 }

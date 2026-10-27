@@ -204,7 +204,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Send a text message, split past the length limit, the text kept when refused | M4 | in progress | unit tests (`cargo test -p model send`), snapshot 83 (a refused send gives the text back); not verified live yet |
 | compose | Formatting by shortcuts and context menu (bold, italic, underline, strike, mono, spoiler, quote, link, clear) | M4 | todo | |
 | compose | Markdown-style formatting while typing | M4 | todo | |
-| compose | Send with Enter or Ctrl+Enter, by setting | M4 | in progress | unit tests (`cargo test -p ui submit`), snapshot 83 (Enter submits); the setting has no UI switch yet; not verified live yet |
+| compose | Send with Enter or Ctrl+Enter, by setting | M4 | in progress | unit tests (`cargo test -p ui submit`), snapshot 83 (Enter submits), snapshots 143-150 (the switch in the settings box, an open field follows it); not verified live yet |
 | compose | Send menu: silent, scheduled, when online | M4 | in progress | snapshots 129-138: right click on send in the field and in the files box; Saved Messages offers only a reminder; not verified live yet |
 | compose | Schedule box and scheduled messages section (edit, send now, reschedule) | M4 | in progress | snapshots 131-142: the box (day over the calendar, time, silent bell, send when online); the section from the button by the field, "Scheduled for" days, Send Now and Reschedule; no editing yet; not verified live yet |
 | compose | Reply panel, reply with a quote, reply in another chat | M4 | in progress | snapshots 96-100 (Ctrl/Cmd+Up and Down, refused send keeps the reply); the panel and reply from the menu; no quote or reply in another chat yet |
@@ -397,7 +397,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Chat settings: text and emoji options, large emoji, replace emoji | M6 | todo | |
 | settings | Chat settings: stickers suggestions, loop animated stickers | M6 | todo | |
 | settings | Chat settings: default reaction (quick reaction) | M6 | todo | |
-| settings | Chat settings: send by Enter or Ctrl+Enter | M6 | todo | |
+| settings | Chat settings: send by Enter or Ctrl+Enter | M6 | in progress | snapshots 143-146: the radios in a settings box from the main menu, until the settings screen; not verified live yet |
 | settings | Auto-download and autoplay settings | M6 | todo | |
 | settings | Download folder and "ask where to save" | M6 | todo | |
 | settings | Archive settings (keep unmuted chats archived, folders) | M6 | todo | |
