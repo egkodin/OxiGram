@@ -3,6 +3,8 @@
 
 use std::time::Duration;
 
+use chrono::Local;
+
 use gpui::{
     Anchor, AnyElement, App, AppContext as _, ClipboardItem, Context, DismissEvent, Entity,
     Focusable as _, IntoElement, ParentElement, Pixels, Point, SharedString, Subscription, Window,
@@ -13,6 +15,7 @@ use model::MessageId;
 use model::chat::ChatKind;
 use model::message::{Content, Message};
 use model::message_actions::Abilities;
+use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
     MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_LINK, MENU_ICON_SELECT,
@@ -21,8 +24,8 @@ use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
 use ui::{MenuTone, PopupMenu};
 
 use super::selection::Selection;
-use super::{HistoryView, Link, delete, text};
-use crate::lang::tr;
+use super::{HistoryView, Link, delete, read_date, text};
+use crate::lang::{strings, tr};
 use crate::peer_menu::PeerMenu;
 use crate::px_of;
 use crate::store::spawn;
@@ -30,6 +33,14 @@ use crate::store::spawn;
 /// Keeps the menu off the window edges.
 const EDGE_MARGIN: f32 = 8.0;
 const TOAST_DURATION: Duration = Duration::from_millis(1500);
+
+/// What TDLib told about the messages a menu is for.
+pub(super) struct Facts<'a> {
+    /// Empty when unknown.
+    abilities: &'a [Abilities],
+    /// When the other user read the message, in a private chat.
+    read_date: Option<String>,
+}
 
 /// A menu over the history, at the window point its `corner` sits on.
 pub(super) struct OpenMenu {
@@ -176,6 +187,9 @@ impl HistoryView {
             .iter()
             .map(|id| spawn(session.message_abilities(self.chat, *id), cx))
             .collect();
+        // Asked alongside; used only when the abilities allow it.
+        let read_task = (ids.len() == 1 && message.is_outgoing && self.is_private(cx))
+            .then(|| spawn(session.message_read_date(self.chat, message.id), cx));
         let position = window.mouse_position();
         let generation = self.generation;
         cx.spawn_in(window, async move |this, cx| {
@@ -190,9 +204,20 @@ impl HistoryView {
                     }
                 }
             }
+            let can_read_date = abilities.first().is_some_and(|a| a.can_get_read_date);
+            let read_date = match read_task {
+                Some(task) if can_read_date => task.await.ok(),
+                _ => None,
+            };
             this.update_in(cx, |this, window, cx| {
                 if this.generation == generation {
-                    this.show_menu(hit, upon, &abilities, position, window, cx);
+                    let read_date = read_date
+                        .and_then(|date| read_date::text(strings(cx), date, &Local::now()));
+                    let facts = Facts {
+                        abilities: &abilities,
+                        read_date,
+                    };
+                    this.show_menu(hit, upon, facts, position, window, cx);
                 }
             })
         })
@@ -215,7 +240,7 @@ impl HistoryView {
         &mut self,
         hit: Hit,
         upon: Upon,
-        abilities: &[Abilities],
+        facts: Facts<'_>,
         position: Point<Pixels>,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -234,11 +259,17 @@ impl HistoryView {
                 .find(|(range, _)| range.contains(&offset))
                 .and_then(|(_, link)| LinkCopy::of(&link))
         });
+        let abilities = facts.abilities;
         let items = items(upon, text.is_some(), link, abilities);
         let weak = cx.weak_entity();
         let is_megagroup = self.is_megagroup(cx);
         let menu = cx.new(|cx| {
             let mut menu = PopupMenu::new(&POPUP_MENU_WITH_ICONS, cx);
+            if let Some(read_date) = facts.read_date {
+                // shortcut: an inert line; tdesktop's "show when" link for hidden own read dates comes with privacy settings (M7).
+                menu.action(read_date, WHO_READ_CHECKS, MenuTone::Normal, |_, _| {});
+                menu.separator();
+            }
             for item in items {
                 let (label, icon, tone) = look(&item, is_megagroup, cx);
                 let (weak, message, abilities) =
@@ -321,6 +352,15 @@ impl HistoryView {
                 }
             )
         })
+    }
+
+    /// A one-to-one chat, where read dates exist.
+    fn is_private(&self, cx: &App) -> bool {
+        let state = self.store.read(cx).state();
+        state
+            .chats
+            .chat(self.chat)
+            .is_some_and(|chat| matches!(chat.kind, ChatKind::Private { .. }))
     }
 
     fn run(
@@ -486,6 +526,7 @@ mod tests {
         can_be_deleted_for_all_users: true,
         can_get_link: true,
         can_be_pinned: true,
+        can_get_read_date: false,
     };
 
     #[test]

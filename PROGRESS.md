@@ -37,6 +37,8 @@
 - The calendar a date badge opens (`calendar`); a chosen day jumps to its
   first message. Snapshot fixtures now count from noon today, so day badges
   stay put whatever time the snapshots run.
+- The read date of an outgoing message at the top of its menu in private
+  chats (`read_date`).
 
 ### Verified (macOS arm64, this machine)
 
@@ -56,14 +58,15 @@
 
 ### Half done
 
-- Many M3 rows in `docs/parity.md` are still todo: read dates, the pinned section,
+- Many M3 rows in `docs/parity.md` are still todo: who-read in groups, the pinned section,
   comments, Saved Messages sublists, sponsored messages, protected content.
 - Forward and Delete on the selection bar wait for M4 (sending) and the
   message context menu.
 
 ### Next steps
 
-1. Read dates in private chats and the pinned messages section.
+1. Who-read in small groups (getMessageViewers) and the pinned messages
+   section.
 2. Search in a chat (the top bar's search button) and replies to other
    chats.
 3. Comments (channel post threads) and Saved Messages sublists.

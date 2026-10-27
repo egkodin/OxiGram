@@ -4,7 +4,10 @@
 use std::future::Future;
 
 use futures::FutureExt as _;
-use td_api::functions::{DeleteMessages, GetMessageLink, GetMessageProperties, UnpinChatMessage};
+use td_api::enums::MessageReadDate;
+use td_api::functions::{
+    DeleteMessages, GetMessageLink, GetMessageProperties, GetMessageReadDate, UnpinChatMessage,
+};
 use td_api::types::MessageProperties;
 
 use crate::chat_actions::done;
@@ -25,6 +28,8 @@ pub struct Abilities {
     pub can_be_deleted_for_all_users: bool,
     pub can_get_link: bool,
     pub can_be_pinned: bool,
+    /// An outgoing message in a private chat whose read date TDLib keeps.
+    pub can_get_read_date: bool,
 }
 
 impl Abilities {
@@ -42,6 +47,32 @@ impl From<MessageProperties> for Abilities {
             can_be_deleted_for_all_users: properties.can_be_deleted_for_all_users,
             can_get_link: properties.can_get_link,
             can_be_pinned: properties.can_be_pinned,
+            can_get_read_date: properties.can_get_read_date,
+        }
+    }
+}
+
+/// When the other user read an outgoing message (`messageReadDate`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadDate {
+    /// Read at this Unix time.
+    Read(i32),
+    Unread,
+    TooOld,
+    /// The other user hides when they read.
+    Hidden,
+    /// The user hides their own read dates, so sees no one else's.
+    MyHidden,
+}
+
+impl From<MessageReadDate> for ReadDate {
+    fn from(date: MessageReadDate) -> Self {
+        match date {
+            MessageReadDate::Read(read) => Self::Read(read.read_date),
+            MessageReadDate::Unread(_) => Self::Unread,
+            MessageReadDate::TooOld(_) => Self::TooOld,
+            MessageReadDate::UserPrivacyRestricted(_) => Self::Hidden,
+            MessageReadDate::MyPrivacyRestricted(_) => Self::MyHidden,
         }
     }
 }
@@ -113,6 +144,19 @@ impl Session {
                 revoke: deletion == Deletion::ForEveryone,
             })
             .map(done)
+    }
+
+    pub fn message_read_date(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<ReadDate, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessageReadDate {
+                chat_id: chat.0,
+                message_id: message.0,
+            })
+            .map(|result| result.map(ReadDate::from).map_err(RequestError::from))
     }
 
     /// Unpins a message; the pinned bar follows the update.

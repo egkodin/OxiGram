@@ -11,6 +11,7 @@ mod jump;
 mod layout;
 mod menu;
 mod pinned;
+mod read_date;
 mod selection;
 mod service;
 mod sync;
