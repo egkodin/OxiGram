@@ -34,7 +34,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["clock", "s
 futures = "0.3.34"
 futures-channel = "0.3.34"
 # The version gpui uses, so `render_to_image` results can be saved.
-image = { version = "0.25.10", default-features = false, features = ["png"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "bmp"] }
 insta = "1.43"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"

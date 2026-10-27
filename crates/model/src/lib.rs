@@ -25,6 +25,7 @@ pub mod saved_tags;
 pub mod search;
 mod secret;
 pub mod send;
+pub mod send_files;
 mod session;
 pub mod sponsored;
 mod state;

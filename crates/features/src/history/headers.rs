@@ -342,6 +342,7 @@ mod tests {
             media: Some(model::message::Content::Photo(model::message::Media {
                 caption: model::text::FormattedText::plain("Sunrise"),
                 thumbnail: None,
+                file: None,
             })),
         });
         let header = reply(&strings, &chats, &post, Replied::Deleted, |_| 0);

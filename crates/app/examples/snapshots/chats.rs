@@ -207,6 +207,7 @@ pub(crate) fn events() -> Vec<Event> {
     let photo = Content::Photo(Media {
         caption: FormattedText::plain("Sunrise over the valley"),
         thumbnail: None,
+        file: None,
     });
     let channel = chat(
         -200,

@@ -80,6 +80,8 @@ pub(super) struct Item<'a> {
     /// The comments button under a channel post.
     pub comments: Option<Comments>,
     pub reactions: Vec<reactions::Button>,
+    /// The file going up while the message is being sent.
+    pub upload: Option<super::upload::Upload>,
     /// What follows the message in its row, as a thread's divider.
     pub after: Option<AnyElement>,
 }
@@ -381,9 +383,18 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         .comments
         .take()
         .map(|comments| super::comments::button(comments, item.message.id.0, item.is_selected, cx));
+    let headers = headers(item, out, cx);
+    let has_header = name.is_some() || !headers.is_empty();
+    // Before the upload is taken: with one, only the caption shows.
+    let body = text(item, out, cx);
+    let upload = item
+        .upload
+        .take()
+        .map(|upload| super::upload::row(upload, item.message.id.0 as u64, has_header, cx));
     frame
         .children(name)
-        .children(headers(item, out, cx))
+        .children(headers)
+        .children(upload)
         .children(web_page(item, out, Placement::AboveText, cx))
         .child(
             div()
@@ -391,7 +402,7 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
                 .text_size(px_of(MSG_FONT.size))
                 .line_height(font_height(MSG_FONT))
                 .text_color(color(cx, palette(fg)))
-                .child(text(item, out, cx)),
+                .child(body),
         )
         .children(web_page(item, out, Placement::BelowText, cx))
         .map(|this| {
@@ -573,6 +584,15 @@ fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
     let preview;
     let text = match &item.message.content {
         Content::Text { text, .. } => text,
+        // The upload row stands for the file; only the caption follows it.
+        Content::Photo(media)
+        | Content::Video(media)
+        | Content::Animation(media)
+        | Content::Document { media, .. }
+            if item.upload.is_some() =>
+        {
+            &media.caption
+        }
         Content::Unsupported => {
             preview = crate::dialogs::unsupported_text(strings(cx));
             &preview

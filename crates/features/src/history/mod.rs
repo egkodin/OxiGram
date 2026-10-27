@@ -2,6 +2,7 @@
 //! pinned to the bottom that loads older and newer pages as the user
 //! scrolls toward them.
 
+mod attach;
 mod body;
 mod bubble;
 mod calendar;
@@ -12,6 +13,7 @@ mod contact_status;
 mod dates;
 mod delete;
 mod drafts;
+mod drop_area;
 mod emoji_panel;
 mod field_bar;
 mod forwarding;
@@ -29,6 +31,7 @@ mod read_date;
 mod scroll_date;
 mod search_tags;
 mod selection;
+mod send_files_box;
 mod service;
 mod sponsored;
 mod sync;
@@ -36,6 +39,7 @@ mod text;
 mod thread_section;
 mod top_bar;
 mod unread;
+mod upload;
 mod userpics_row;
 mod web_page;
 mod who_reacted;
@@ -50,6 +54,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use chrono::Local;
+use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, App, Context, Entity, EventEmitter, FocusHandle, InteractiveElement as _,
     IntoElement, ListAlignment, ListState, ParentElement, Render, SharedString, Styled,
@@ -147,6 +152,7 @@ pub(crate) struct HistoryView {
     ad: sponsored::Ad,
     compose: compose::Compose,
     emoji: emoji_panel::EmojiPanel,
+    drop_zones: Option<drop_area::DropZones>,
     focus: FocusHandle,
     _subscription: Subscription,
 }
@@ -239,6 +245,7 @@ impl HistoryView {
             ad: sponsored::Ad::default(),
             compose,
             emoji: emoji_panel::EmojiPanel::new(),
+            drop_zones: None,
             focus,
             _subscription: subscription,
         };
@@ -409,6 +416,7 @@ impl HistoryView {
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
         let comments = self.comments(&message, cx);
         let reactions = self.reaction_buttons(&message, cx);
+        let upload = self.upload(&message, cx);
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -435,6 +443,7 @@ impl HistoryView {
                 on_pointer: self.on_pointer_at(index, cx),
                 comments,
                 reactions,
+                upload,
                 after: self.thread_divider(index, cx),
             },
             cx,
@@ -660,8 +669,21 @@ impl Render for HistoryView {
         let focus = self.focus.clone();
         // shortcut: a plain color instead of the chat wallpaper, which comes with backgrounds in M6.
         let has_field = is_chat && self.search.is_none();
+        let can_attach = has_field
+            && self.store.read(cx).state().chats.writing(self.chat)
+                == model::rights::Writing::Field;
         div()
             .relative()
+            .when(can_attach, |view| {
+                view.on_drag_move(cx.listener(
+                    |this, event: &gpui::DragMoveEvent<gpui::ExternalPaths>, _, cx| {
+                        this.drag_moved(event, cx)
+                    },
+                ))
+                .on_drop(cx.listener(
+                    |this, paths: &gpui::ExternalPaths, window, cx| this.dropped(paths, window, cx),
+                ))
+            })
             .size_full()
             .flex()
             .flex_col()
@@ -713,6 +735,7 @@ impl Render for HistoryView {
             .children(self.search_results_bar(cx))
             .children(has_field.then(|| self.compose_bar(cx)))
             .children(has_field.then(|| self.emoji_panel(window, cx)).flatten())
+            .children(can_attach.then(|| self.drop_area(cx)).flatten())
             .children(self.menu_overlay())
     }
 }

@@ -143,3 +143,14 @@ check on the live run: frame times while scrolling the panel quickly.
   `vmmap --summary <pid>`, and idle wakeups from
   `top -l 3 -s 5 -pid <pid> -stats pid,cpu,idlew`.
 - Redraws after idle: the `frame-wake` example (ADR 0005).
+
+## M4: attachments
+
+- Picked, pasted and dropped files are read (metadata, image dimensions
+  from the header only via `image::image_dimensions`) on the background
+  executor; the send box opens when that finishes.
+- Box thumbnails load through gpui's image cache from the path, scaled
+  with `ObjectFit::Cover`; nothing is decoded on the main thread by us.
+- The upload row reads the file's state from `Chats::file` per frame of
+  the visible bubble only; `updateFile` notifies the history once per
+  update. Not measured yet with a large live upload (live test 10).

@@ -221,11 +221,11 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Sticker suggestions by emoji | M5 | todo | |
 | compose | Character counter and limits for text and captions | M4 | todo | |
 | compose | Emoji, sticker and GIF button with the tabbed panel | M5 | in progress | snapshots 110-116: hover shows, click toggles, leaving hides; emoji only, no Stickers/GIFs tabs or animation yet |
-| compose | Attach: photos and videos (compressed or as files), files, albums | M4 | todo | |
-| compose | Send files box: grouping, spoiler, caption above or below, reorder | M4 | todo | |
-| compose | Paste images and files from the clipboard | M4 | todo | |
-| compose | Drag and drop files into the chat (compressed or as files zones) | M4 | todo | |
-| compose | Upload progress and cancel | M4 | todo | |
+| compose | Attach: photos and videos (compressed or as files), files, albums | M4 | in progress | picker, grouping and album sending; videos without metadata, media as file rows until M5 |
+| compose | Send files box: grouping, spoiler, caption above or below, reorder | M4 | in progress | snapshots 119-124: grouping, as documents, caption; no spoiler, caption above or reorder yet |
+| compose | Paste images and files from the clipboard | M4 | in progress | unit-tested; not run live |
+| compose | Drag and drop files into the chat (compressed or as files zones) | M4 | in progress | snapshots 119, 124 |
+| compose | Upload progress and cancel | M4 | in progress | snapshot 118: still arc, size text, cancel deletes the pending message |
 | compose | Send a GIF with a caption | M5 | todo | |
 | compose | Voice recording: hold, lock, cancel, preview, view once | M4 | todo | |
 | compose | Round video recording | M5 | todo | |

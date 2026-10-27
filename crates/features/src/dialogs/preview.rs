@@ -333,6 +333,7 @@ mod tests {
         let content = Content::Photo(Media {
             caption: FormattedText::plain("At the sea"),
             thumbnail: None,
+            file: None,
         });
         let (preview, thumbnail) = super::content(&english(), &content);
         assert_eq!(preview.text, "Photo, At the sea");
@@ -350,6 +351,7 @@ mod tests {
         let content = Content::Photo(Media {
             caption: FormattedText::plain("At the sea"),
             thumbnail: Some(thumbnail.clone()),
+            file: None,
         });
         let (preview, image) = super::content(&english(), &content);
         assert_eq!(preview.text, "At the sea");

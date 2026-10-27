@@ -1499,6 +1499,7 @@ dependencies = [
  "chrono",
  "gpui",
  "i18n",
+ "image",
  "model",
  "serde",
  "serde_json",

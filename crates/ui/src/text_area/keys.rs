@@ -268,7 +268,7 @@ impl TextArea {
     }
 
     pub(super) fn paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
-        // shortcut: text only; images and files come with attachments (M4).
+        // Files and images are taken before this by the view that owns the field.
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
             self.replace_text_in_range(None, &normalize_newlines(&text), window, cx);
         }

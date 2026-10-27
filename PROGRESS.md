@@ -55,6 +55,20 @@ live.
   an emoji types it at the cursor. The categories are generated from
   `lib_ui/emoji.txt` by style-gen (`crates/style/src/emoji.rs`). The ranking
   is shared with recent hashtags (`ranked`). Snapshots 110-116.
+- Attachments: the attach button opens the system picker; pasting files or
+  an image (saved to a temp file) and dropping files on the chat
+  (`drop_area`: one zone for files, or for images "without compression"
+  over "in a quick way") open the send box (`send_files_box`): title by
+  kind and count, file rows with photo thumbnails and sizes, Group items
+  and Send as documents, the caption taken from the field and given back
+  on Cancel/Escape. `model::send_files` groups like tdesktop (albums of
+  photos and videos or of files, 10 at most, caption on the last group)
+  and sends with `sendMessageAlbum`/`sendMessage`, replying to the bar's
+  message. While a file goes up its bubble shows the file row with the
+  progress arc, "1.1 / 3.3 MB" from `updateFile`, and the cross that
+  cancels (deletes the pending message). Snapshots 117-124 (harness drops
+  files through gpui's `FileDropEvent`); the harness's scenarios moved to
+  `scenarios.rs`.
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -62,7 +76,13 @@ live.
 
 ### Half done (shortcuts in code)
 
-- The attach button does nothing yet; the microphone records nothing.
+- The microphone records nothing yet.
+- Attachments: photos and videos show as file rows in the box and while
+  uploading (large previews, album grids and media bubbles come with M5);
+  the arc stands still; videos go without duration, size or thumbnail, and
+  music and GIFs as plain files; kinds are told by extension; folders are
+  skipped, not zipped; no spoiler, caption above, reorder or per-file
+  remove in the box; pasted images stay in the temp folder.
 - Emoji panel: no Stickers/GIFs tabs (M5), search, skin tones, custom
   emoji, show/hide animation, scrollbar, or third-column mode in wide
   windows; Recent refreshes when the panel opens, not while it is shown.
@@ -109,6 +129,14 @@ Sending only in Saved Messages:
    out, it hides; click an emoji, it is typed at the cursor; send it in
    Saved Messages; reopen: it leads Recent. Footer icons jump to their
    category and light up while scrolling. Glyphs render in color.
+10. Attachments, only in Saved Messages: the attach button picks a photo and
+    a text file; the box shows both, Send arrives as two messages (or an
+    album of files with Group items). Paste a copied image and a file
+    copied in Finder. Drag a photo onto each zone: compressed arrives as a
+    photo, the top zone as a file. Send a large file (tens of MB): the
+    bubble's arc and "x / y MB" advance; press the cross: the message goes
+    and the upload stops. Type a caption in the field first: it moves into
+    the box and back on Cancel.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 

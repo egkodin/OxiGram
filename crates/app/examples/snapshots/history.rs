@@ -2,13 +2,15 @@
 //! two days and a private chat, both ending in their chat's last message.
 
 use model::Event;
+use model::file::File;
 use model::history::Change;
 use model::message::{
-    Content, External, Forward, LinkPreview, Message, Origin, Replies, ReplyTo, Sender, Service,
+    Content, External, Forward, LinkPreview, Media, Message, Origin, Replies, ReplyTo, Sender,
+    Sending, Service,
 };
 use model::reaction::{Reaction, ReactionKind, Reactions};
 use model::text::{DateFormat, Entity, EntityKind, FormattedText, Precision};
-use model::{ChatId, MessageId, UserId};
+use model::{ChatId, FileId, MessageId, UserId};
 
 use crate::chats::{GIF_BOT, HOUR, ME, now};
 
@@ -217,6 +219,7 @@ fn ann() -> Vec<Message> {
             media: Some(Content::Photo(model::message::Media {
                 caption: FormattedText::plain("Sunrise over the valley"),
                 thumbnail: None,
+                file: None,
             })),
         },
     );
@@ -344,6 +347,32 @@ fn landscapes() -> Vec<Message> {
         },
     );
     vec![quiet, commented, walk, code]
+}
+
+/// Saved Messages with a file a third of the way up.
+pub(crate) fn uploads() -> Vec<(ChatId, Vec<Message>)> {
+    let file = File {
+        id: FileId(900),
+        size: 3_565_158,
+        uploaded: 1_258_291,
+        is_uploading: true,
+        path: None,
+        is_downloading: false,
+    };
+    let sent = message(ME, 1, ME, 2 * HOUR, "Report for the trip");
+    let uploading = Message {
+        sending: Some(Sending::Pending),
+        content: Content::Document {
+            name: "trail-report.pdf".to_owned(),
+            media: Media {
+                caption: FormattedText::plain("Numbers for the Q3 hike"),
+                thumbnail: None,
+                file: Some(file),
+            },
+        },
+        ..message(ME, 2, ME, MINUTE, "")
+    };
+    vec![(ChatId(ME), vec![sent, uploading])]
 }
 
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {

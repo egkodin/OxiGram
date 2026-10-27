@@ -28,7 +28,7 @@ pub use button::{CrossButton, IconButton, LinkButton, RoundButton};
 pub use checkbox::{Checkbox, Checked};
 pub use font::{FONT_FAMILY, font, font_height, text_style};
 pub use icon::{IconView, icon, icon_size};
-pub use input::{Corrector, InputEvent, InputField, InputMode};
+pub use input::{Corrector, InputEvent, InputField, InputMode, Paste};
 pub use label::{FlatLabel, Markup};
 pub use layer::BoxFrame;
 pub use popup_menu::{MenuTone, PopupMenu};

@@ -154,8 +154,12 @@ impl HistoryView {
             .flex()
             .items_end()
             .px(side)
-            // shortcut: attach does nothing yet; files come later in M4.
-            .child(IconButton::new("compose-attach", &HISTORY_ATTACH))
+            .child({
+                let weak = cx.weak_entity();
+                IconButton::new("compose-attach", &HISTORY_ATTACH).on_click(move |_, window, cx| {
+                    let _ = weak.update(cx, |this, cx| this.choose_files(window, cx));
+                })
+            })
             .child(
                 div()
                     .flex_1()
@@ -173,6 +177,12 @@ impl HistoryView {
             .on_action(cx.listener(Self::edit_last))
             .on_action(cx.listener(Self::reply_previous))
             .on_action(cx.listener(Self::reply_next))
+            // Files and images in the clipboard go to the send box, text to the field.
+            .capture_action(cx.listener(|this, _: &ui::Paste, window, cx| {
+                if this.paste_files(window, cx) {
+                    cx.stop_propagation();
+                }
+            }))
             .bg(color(cx, ColorRef::Palette(ColorId::HistoryReplyBg)))
             .children(self.field_bar(cx))
             .child(row)

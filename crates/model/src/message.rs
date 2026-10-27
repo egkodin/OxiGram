@@ -5,7 +5,7 @@ use td_api::enums::{
     MessageSendingState, MessageTopic,
 };
 
-use crate::file::Minithumbnail;
+use crate::file::{File, Minithumbnail};
 use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
 use crate::reaction::Reactions;
 use crate::text::FormattedText;
@@ -371,6 +371,9 @@ impl Service {
 pub struct Media {
     pub caption: FormattedText,
     pub thumbnail: Option<Minithumbnail>,
+    /// The photo's largest size, or the video or file itself, as the
+    /// message brought it; `updateFile` follows it in `Chats::file`.
+    pub file: Option<File>,
 }
 
 impl Message {
@@ -504,10 +507,12 @@ impl From<MessageSender> for Sender {
 fn media(
     caption: td_api::types::FormattedText,
     thumbnail: Option<Box<td_api::types::Minithumbnail>>,
+    file: Option<td_api::types::File>,
 ) -> Media {
     Media {
         caption: FormattedText::from(caption),
         thumbnail: thumbnail.and_then(|thumbnail| Minithumbnail::from_td(*thumbnail)),
+        file: file.map(File::from),
     }
 }
 
@@ -521,16 +526,25 @@ impl From<MessageContent> for Content {
                     .map(|preview| Box::new(LinkPreview::from(*preview))),
             },
             MessageContent::MessagePhoto(photo) => {
-                Self::Photo(media(*photo.caption, photo.photo.minithumbnail))
+                let largest = photo.photo.sizes.into_iter().last().map(|size| *size.photo);
+                Self::Photo(media(*photo.caption, photo.photo.minithumbnail, largest))
             }
-            MessageContent::MessageVideo(video) => {
-                Self::Video(media(*video.caption, video.video.minithumbnail))
-            }
-            MessageContent::MessageAnimation(animation) => {
-                Self::Animation(media(*animation.caption, animation.animation.minithumbnail))
-            }
+            MessageContent::MessageVideo(video) => Self::Video(media(
+                *video.caption,
+                video.video.minithumbnail,
+                Some(*video.video.video),
+            )),
+            MessageContent::MessageAnimation(animation) => Self::Animation(media(
+                *animation.caption,
+                animation.animation.minithumbnail,
+                Some(*animation.animation.animation),
+            )),
             MessageContent::MessageDocument(document) => Self::Document {
-                media: media(*document.caption, document.document.minithumbnail),
+                media: media(
+                    *document.caption,
+                    document.document.minithumbnail,
+                    Some(*document.document.document),
+                ),
                 name: document.document.file_name,
             },
             MessageContent::MessageAudio(audio) => Self::Audio {

@@ -22,7 +22,7 @@ use crate::session::{RequestError, Session};
 pub const MAX_MESSAGE_LENGTH: usize = 4096;
 
 impl Topic {
-    fn to_td(self) -> MessageTopic {
+    pub(crate) fn to_td(self) -> MessageTopic {
         match self {
             Self::Thread(message) => MessageTopic::Thread(MessageTopicThread {
                 message_thread_id: message.0,
