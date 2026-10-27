@@ -83,6 +83,24 @@ live.
   waveform); `Session::send_voice` sends it as `inputMessageVoiceNote`.
   Snapshots 125-128 record preset samples (`preset_voice_samples`), never
   the microphone.
+- Scheduled and silent sending (`history::send_menu`, `schedule_box`): a
+  right click on send (in the field and in the files box) opens
+  "Send without sound", "Schedule message" and, to a user whose last seen
+  time shows, "Send when online"; Saved Messages only "Set a reminder".
+  The schedule box shows the day, which opens the calendar over the box,
+  "at" and the time ("H:MM", the colon typed for you), from ten seconds
+  to a year ahead, ten minutes on by default; the bell makes it silent,
+  as Ctrl/Cmd held on Schedule does, and the dots offer "Send when
+  online". `model::send::SendOptions` goes to every send request;
+  scheduled messages (`Message::schedule`) stay out of the history.
+  Layers now stack (`Layers::show_above`), so the calendar returns to the
+  box and the box to the files box.
+- Scheduled messages section (`history::scheduled_section`,
+  `model::scheduled`): a clock button by the field while the chat has
+  scheduled messages opens "Scheduled Messages" ("Reminders" in Saved
+  Messages), each day under "Scheduled for {date}" or "Scheduled until
+  online"; the menu adds Send Now (asks first) and Reschedule. Snapshots
+  139-142.
 - Snapshots 77-84: typing, line breaks, growth, scrolling at the maximum,
   a refused send giving the text back, clearing. The snapshot harness now
   types keys (`Input`). History click targets moved up by the bar's 46 px;
@@ -90,6 +108,14 @@ live.
 
 ### Half done (shortcuts in code)
 
+- Scheduling: the section has no field and no editing (Edit is not in
+  its menu); its list loads on open and after Reschedule, then follows
+  updates; scheduled silent messages show no silent mark; no repeat
+  period (Premium), no "Send without
+  sound" menu on the box's Schedule button, no send menu on a locked voice
+  recording; the bell is a still speaker icon with no tooltip; Tab into
+  the day does not open the calendar; the time field's cursor jumps to the
+  end after each edit.
 - Voice: no preview after locking (stop, play, trim), pause, view once,
   round videos, "recording voice" chat action, Enter/Escape while locked,
   or the hold tip as a tooltip (it is a toast); the blobs are plain circles
@@ -162,6 +188,19 @@ Sending only in Saved Messages:
     field, release: nothing is sent. Hold, drag up past the lock, let go:
     still recording; Send sends, Cancel discards. Try a 44.1 kHz input
     (e.g. a USB headset) for the resampler.
+
+12. Scheduling, in Saved Messages: with text in the field, right click
+    send: only "Set a reminder"; pick a day in the calendar and a time a
+    few minutes ahead, Schedule: the field clears, nothing shows in the
+    history, and the reminder arrives at that time on the phone too. To
+    test "Send without sound" and "Send when online", use the test DC
+    (`use_test_dc`), not a real chat.
+
+13. Scheduled section, in Saved Messages: set two reminders; the clock
+    button appears by the field; click it: "Reminders" lists both under
+    "Scheduled for" days. Right click one, Reschedule to another day: it
+    moves. Right click, Send Now, confirm: it leaves the list and shows in
+    the chat. Delete the last one: the section closes and the button goes.
 
 ## M3: Chat history (code complete; stopped here before M4 at the owner's request; waits on a live run)
 

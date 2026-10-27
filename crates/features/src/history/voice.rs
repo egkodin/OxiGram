@@ -16,6 +16,7 @@ use gpui::{
     px,
 };
 use i18n::key;
+use model::send::SendOptions;
 use model::send_files::VoiceNote;
 use style::basic::{SEMIBOLD_FONT, UNIVERSAL_DURATION};
 use style::chat_helpers::{
@@ -333,11 +334,13 @@ impl HistoryView {
                 waveform: recorded.waveform,
             };
             let Ok(task) = this.update(cx, |this, cx| {
-                let request = this
-                    .store
-                    .read(cx)
-                    .session()
-                    .send_voice(chat, topic, reply, &voice);
+                let request = this.store.read(cx).session().send_voice(
+                    chat,
+                    topic,
+                    reply,
+                    &voice,
+                    SendOptions::default(),
+                );
                 this.scroll_down(cx);
                 spawn(request, cx)
             }) else {

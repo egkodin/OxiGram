@@ -133,7 +133,7 @@ impl HistoryView {
         if previous_day != Some(day) && top.offset_in_item < bubble::date_row_height() {
             return None;
         }
-        let badge = self.date_badge(message.id, day, &Local::now(), cx);
+        let badge = self.date_badge(message, day, &Local::now(), cx);
         let id = ElementId::NamedInteger(
             if is_shown { "date-in" } else { "date-out" }.into(),
             state.shows,

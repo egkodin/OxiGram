@@ -22,6 +22,7 @@ pub mod phone;
 pub mod reaction;
 pub mod rights;
 pub mod saved_tags;
+pub mod scheduled;
 pub mod search;
 mod secret;
 pub mod send;

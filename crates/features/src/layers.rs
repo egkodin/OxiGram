@@ -1,6 +1,6 @@
 //! lib_ui's `LayerStackWidget`: one box at a time over the window, which
-//! dims behind it. Escape and a click outside close it unless the box is
-//! strict.
+//! dims behind it, with the boxes it opened waiting hidden below it.
+//! Escape and a click outside close it unless the box is strict.
 
 use std::time::Duration;
 
@@ -45,6 +45,7 @@ enum Placement {
 
 struct Shown {
     view: AnyView,
+    focus: FocusHandle,
     placement: Placement,
     dismiss: Dismiss,
     on_dismiss: Option<OnDismiss>,
@@ -53,6 +54,9 @@ struct Shown {
 /// The window's box layer.
 pub struct Layers {
     current: Option<Shown>,
+    /// Boxes under the current one, which come back as it closes
+    /// (`LayerOption::KeepOther`).
+    below: Vec<Shown>,
     /// A layer fading out after it closed.
     leaving: Option<(AnyView, Placement)>,
     background: Simple,
@@ -74,6 +78,7 @@ impl Layers {
     pub fn new() -> Self {
         Self {
             current: None,
+            below: Vec::new(),
             leaving: None,
             background: Simple::default(),
             layer: Simple::default(),
@@ -97,7 +102,21 @@ impl Layers {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.below.clear();
         self.show_at(view, Placement::Center, dismiss, on_dismiss, window, cx);
+    }
+
+    /// Shows `view` over the open box, which comes back when `view` closes.
+    pub fn show_above<V: Render + Focusable>(
+        &mut self,
+        view: Entity<V>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(shown) = self.current.take() {
+            self.below.push(shown);
+        }
+        self.show_at(view, Placement::Center, Dismiss::Allowed, None, window, cx);
     }
 
     /// Slides `view`, `width` wide, in from the left edge, as the main menu.
@@ -109,6 +128,7 @@ impl Layers {
         cx: &mut Context<Self>,
     ) {
         let placement = Placement::Left { width };
+        self.below.clear();
         self.show_at(view, placement, Dismiss::Allowed, None, window, cx);
     }
 
@@ -131,6 +151,7 @@ impl Layers {
         self.leaving = None;
         self.current = Some(Shown {
             view: view.into(),
+            focus: focus.clone(),
             placement,
             dismiss,
             on_dismiss,
@@ -144,6 +165,12 @@ impl Layers {
         let Some(shown) = self.current.take() else {
             return;
         };
+        if let Some(previous) = self.below.pop() {
+            previous.focus.focus(window, cx);
+            self.current = Some(previous);
+            cx.notify();
+            return;
+        }
         self.leaving = Some((shown.view, shown.placement));
         self.background
             .start(1.0, 0.0, BOX_DURATION, Easing::EaseOutCirc);

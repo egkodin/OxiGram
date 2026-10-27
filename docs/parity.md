@@ -205,8 +205,8 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Formatting by shortcuts and context menu (bold, italic, underline, strike, mono, spoiler, quote, link, clear) | M4 | todo | |
 | compose | Markdown-style formatting while typing | M4 | todo | |
 | compose | Send with Enter or Ctrl+Enter, by setting | M4 | in progress | unit tests (`cargo test -p ui submit`), snapshot 83 (Enter submits); the setting has no UI switch yet; not verified live yet |
-| compose | Send menu: silent, scheduled, when online | M4 | todo | |
-| compose | Schedule box and scheduled messages section (edit, send now, reschedule) | M4 | todo | |
+| compose | Send menu: silent, scheduled, when online | M4 | in progress | snapshots 129-138: right click on send in the field and in the files box; Saved Messages offers only a reminder; not verified live yet |
+| compose | Schedule box and scheduled messages section (edit, send now, reschedule) | M4 | in progress | snapshots 131-142: the box (day over the calendar, time, silent bell, send when online); the section from the button by the field, "Scheduled for" days, Send Now and Reschedule; no editing yet; not verified live yet |
 | compose | Reply panel, reply with a quote, reply in another chat | M4 | in progress | snapshots 96-100 (Ctrl/Cmd+Up and Down, refused send keeps the reply); the panel and reply from the menu; no quote or reply in another chat yet |
 | compose | Edit message panel, edit caption and media | M4 | in progress | snapshots 93-95 (Up in an empty field, Escape gives the field back); plain text only, no captions or media yet |
 | compose | Forward panel with options: hide sender, hide captions, change recipient | M4 | in progress | snapshots 106-109 (panel, comment sent first, refused send keeps it); no options menu yet |

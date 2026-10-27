@@ -29,6 +29,8 @@ pub(super) enum Section {
     Chat,
     /// The pins; whether the user may unpin them, once TDLib told.
     Pinned { can_unpin: Option<bool> },
+    /// Scheduled messages; whether TDLib sent the list yet.
+    Scheduled { is_loaded: bool },
 }
 
 impl HistoryView {
@@ -89,7 +91,7 @@ impl HistoryView {
         true
     }
 
-    fn set_section(&mut self, section: Section, cx: &mut Context<Self>) {
+    pub(super) fn set_section(&mut self, section: Section, cx: &mut Context<Self>) {
         self.section = section;
         self.clear_selection(cx);
         self.shown.clear();
@@ -111,6 +113,9 @@ impl HistoryView {
 
     /// The section's bar: "3 pinned messages" after the back arrow.
     pub(super) fn pinned_section_bar(&self, cx: &Context<Self>) -> AnyElement {
+        if let Section::Scheduled { .. } = self.section {
+            return self.scheduled_bar(cx);
+        }
         let count = i32::try_from(self.shown.len()).unwrap_or(i32::MAX);
         let title = plural(strings(cx), key::lng_pinned_messages_title, count);
         let weak = cx.weak_entity();

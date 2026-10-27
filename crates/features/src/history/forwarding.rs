@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use gpui::{App, Context, Window};
 use i18n::key;
+use model::send::SendOptions;
 use model::{MessageId, RequestError};
 
 use super::field_bar::{FieldBar, one_line};
@@ -121,7 +122,12 @@ impl HistoryView {
 
     /// Sends the typed text, as a reply if one is open, then the forward;
     /// gives back whatever TDLib refused.
-    pub(super) fn send_with_bar(&mut self, text: String, cx: &mut Context<Self>) {
+    pub(super) fn send_with_bar(
+        &mut self,
+        text: String,
+        options: SendOptions,
+        cx: &mut Context<Self>,
+    ) {
         let has_text = !text.trim().is_empty();
         let bar = self.compose.bar.take();
         let (reply, forwarding) = match &bar {
@@ -135,9 +141,11 @@ impl HistoryView {
             field.update(cx, |field, cx| field.set_text("", cx));
         }
         let session = self.store.read(cx).session();
-        let text_part = has_text.then(|| session.send_text(self.chat, self.topic, reply, &text));
+        let text_part =
+            has_text.then(|| session.send_text(self.chat, self.topic, reply, &text, options));
         let forward_part = forwarding.map(|forwarding| {
-            session.forward_messages(self.chat, self.topic, forwarding.from, &forwarding.messages)
+            let messages = &forwarding.messages;
+            session.forward_messages(self.chat, self.topic, forwarding.from, messages, options)
         });
         let task = spawn(
             async move {

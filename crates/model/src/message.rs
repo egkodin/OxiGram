@@ -1,8 +1,8 @@
 //! Messages as the chat list previews them and the history shows them.
 
 use td_api::enums::{
-    CallDiscardReason, MessageContent, MessageOrigin, MessageReplyTo, MessageSender,
-    MessageSendingState, MessageTopic,
+    CallDiscardReason, MessageContent, MessageOrigin, MessageReplyTo, MessageSchedulingState,
+    MessageSender, MessageSendingState, MessageTopic,
 };
 
 use crate::file::{File, Minithumbnail};
@@ -41,6 +41,29 @@ pub struct Message {
     /// Comments under a channel post, replies to a group message.
     pub replies: Option<Replies>,
     pub reactions: Option<Reactions>,
+    /// Set while it waits in the chat's scheduled messages.
+    pub schedule: Option<Schedule>,
+}
+
+/// When a scheduled message goes (`messageSchedulingState`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Schedule {
+    /// At this Unix time.
+    At(i32),
+    /// Once the other user comes online.
+    WhenOnline,
+}
+
+impl Schedule {
+    fn from_td(state: MessageSchedulingState) -> Option<Self> {
+        match state {
+            MessageSchedulingState::SendAtDate(state) => Some(Self::At(state.send_date)),
+            MessageSchedulingState::SendWhenOnline(_) => Some(Self::WhenOnline),
+            MessageSchedulingState::SendWhenVideoProcessed(state) => {
+                Some(Self::At(state.send_date))
+            }
+        }
+    }
 }
 
 /// A part of a chat with a history of its own.
@@ -401,6 +424,7 @@ impl Message {
             topic: None,
             replies: None,
             reactions: None,
+            schedule: None,
         }
     }
 }
@@ -426,7 +450,11 @@ impl From<td_api::types::Message> for Message {
             chat: ChatId(message.chat_id),
             sender: Sender::from(*message.sender_id),
             is_outgoing: message.is_outgoing,
-            date: message.date,
+            // TDLib dates scheduled messages 0; they show their send date.
+            date: match message.scheduling_state.as_deref() {
+                Some(MessageSchedulingState::SendAtDate(state)) => state.send_date,
+                _ => message.date,
+            },
             edit_date: message.edit_date,
             content: Content::from(*message.content),
             reply_to: message.reply_to.and_then(|reply| ReplyTo::from_td(*reply)),
@@ -447,6 +475,9 @@ impl From<td_api::types::Message> for Message {
             is_channel_post: message.is_channel_post,
             via_bot: Some(UserId(message.via_bot_user_id)).filter(|bot| bot.0 != 0),
             can_be_saved: message.can_be_saved,
+            schedule: message
+                .scheduling_state
+                .and_then(|state| Schedule::from_td(*state)),
         }
     }
 }

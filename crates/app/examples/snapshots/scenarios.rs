@@ -381,6 +381,68 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: history::uploads(),
             steps: vec![("125-voice-list", auth(State::Ready))],
         },
+        // The send menu on a right click with a draft in the field, and the
+        // schedule box it opens, to a user whose last seen time shows: the
+        // bell off, the calendar over the box and back, then the dots.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("129-send-chat", MouseButton::Left, BEN_ROW),
+                ("130-send-menu", MouseButton::Right, COMPOSE_MIC),
+                ("131-schedule-box", MouseButton::Left, SEND_MENU_SCHEDULE),
+                ("132-schedule-silent", MouseButton::Left, SCHEDULE_NOTIFY),
+                ("133-schedule-calendar", MouseButton::Left, SCHEDULE_DAY),
+                ("134-schedule-back", MouseButton::Left, CALENDAR_CLOSE),
+                ("135-schedule-menu", MouseButton::Left, SCHEDULE_DOTS),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("129-send-list", auth(State::Ready))],
+        },
+        // In Saved Messages the menu only sets a reminder.
+        Scenario {
+            setup: saved_draft(),
+            clicks: vec![
+                ("136-reminder-chat", MouseButton::Left, SAVED_ROW),
+                ("137-reminder-menu", MouseButton::Right, COMPOSE_MIC),
+                ("138-reminder-box", MouseButton::Left, REMINDER_ITEM),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("136-reminder-list", auth(State::Ready))],
+        },
+        // Reminders: the button by the field, the section with its day
+        // badges, and a reminder's menu.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("140-reminders-chat", MouseButton::Left, SAVED_ROW),
+                ("141-reminders", MouseButton::Left, COMPOSE_SCHEDULED),
+                ("142-reminder-actions", MouseButton::Right, FIRST_REMINDER),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: history::uploads(),
+            steps: [("139-reminders-list", auth(State::Ready))]
+                .into_iter()
+                .chain(
+                    history::reminders()
+                        .into_iter()
+                        .map(|event| ("139-reminders-set", event)),
+                )
+                .collect(),
+        },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
             setup: chats::events(),
@@ -595,6 +657,17 @@ const COMPOSE_FIELD: (f32, f32) = (543.0, 577.0);
 const COMPOSE_MIC: (f32, f32) = (776.0, 577.0);
 const ABOVE_LOCK: (f32, f32) = (776.0, 380.0);
 /// The emoji button right of the field.
+/// "Schedule message" in the send menu opened on the send button.
+const SEND_MENU_SCHEDULE: (f32, f32) = (690.0, 521.0);
+/// The schedule box's bell, dots and day field.
+const SCHEDULE_NOTIFY: (f32, f32) = (510.0, 228.0);
+const SCHEDULE_DOTS: (f32, f32) = (555.0, 228.0);
+const SCHEDULE_DAY: (f32, f32) = (334.0, 297.0);
+/// "Set a reminder", the Saved Messages send menu's one item.
+const REMINDER_ITEM: (f32, f32) = (690.0, 555.0);
+/// The scheduled button left of emoji, and the first reminder's bubble.
+const COMPOSE_SCHEDULED: (f32, f32) = (686.0, 577.0);
+const FIRST_REMINDER: (f32, f32) = (660.0, 495.0);
 const COMPOSE_EMOJI: (f32, f32) = (731.0, 577.0);
 /// The first recent emoji in the panel.
 const EMOJI_FIRST: (f32, f32) = (471.0, 154.0);
@@ -660,4 +733,18 @@ fn fixture_files() -> (PathBuf, PathBuf) {
         eprintln!("writing the drop fixtures: {error:#}");
     }
     (photo, notes)
+}
+
+/// The chat list with a draft in Saved Messages, so its send button shows.
+fn saved_draft() -> Vec<Event> {
+    let mut events = chats::events();
+    events.push(Event::Chats(model::chats::Change::Draft {
+        chat: model::ChatId(chats::ME),
+        draft: Some(model::chat::Draft {
+            date: chats::now(),
+            text: model::text::FormattedText::plain("Call the dentist"),
+        }),
+        positions: Vec::new(),
+    }));
+    events
 }

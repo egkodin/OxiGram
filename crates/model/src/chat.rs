@@ -34,6 +34,8 @@ pub struct Chat {
     pub permissions: Permissions,
     /// The other user of a private chat is blocked.
     pub is_blocked: bool,
+    /// Whether it has scheduled messages, which its field offers to show.
+    pub has_scheduled_messages: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,6 +116,7 @@ impl Chat {
             action_bar: None,
             permissions: Permissions::default(),
             is_blocked: false,
+            has_scheduled_messages: false,
         }
     }
 
@@ -169,6 +172,7 @@ impl From<td_api::types::Chat> for Chat {
             action_bar: chat.action_bar.and_then(|bar| ActionBar::from_td(*bar)),
             permissions: Permissions::from(*chat.permissions),
             is_blocked: chat.block_list.is_some(),
+            has_scheduled_messages: chat.has_scheduled_messages,
         }
     }
 }

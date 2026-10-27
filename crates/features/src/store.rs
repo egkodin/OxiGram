@@ -145,6 +145,11 @@ impl Store {
         cx.notify();
     }
 
+    pub fn set_scheduled(&mut self, key: Key, messages: Vec<Message>, cx: &mut Context<Self>) {
+        self.state.set_scheduled(key, messages);
+        cx.notify();
+    }
+
     pub fn add_reference(&mut self, key: Key, message: Message, cx: &mut Context<Self>) {
         self.state.add_reference(key, message);
         cx.notify();

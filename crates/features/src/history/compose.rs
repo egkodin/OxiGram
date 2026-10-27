@@ -2,12 +2,15 @@
 //! attach on the left, the field, then emoji and send on the right; send
 //! shows a microphone while the field is empty.
 
+use std::rc::Rc;
+
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, InteractiveElement as _, IntoElement as _,
-    ParentElement as _, SharedString, Styled as _, Subscription, Window, div, px,
+    MouseButton, ParentElement as _, SharedString, Styled as _, Subscription, Window, div, px,
 };
 use i18n::key;
 use model::chat::ChatKind;
+use model::send::SendOptions;
 use model::thread::Key;
 use style::chat_helpers::{
     HISTORY_ATTACH, HISTORY_COMPOSE_FIELD, HISTORY_COMPOSE_FIELD_MAX_HEIGHT, HISTORY_SEND,
@@ -20,6 +23,7 @@ use ui::{IconButton, TextArea, TextAreaEvent, color};
 use super::HistoryView;
 use super::drafts::Draft;
 use super::field_bar::{self, FieldBar};
+use super::send_menu::OnOptions;
 use crate::lang::tr;
 use crate::px_of;
 
@@ -78,7 +82,7 @@ impl Compose {
             field
         });
         let subscription = cx.subscribe(&field, |this, _, event, cx| match event {
-            TextAreaEvent::Submitted => this.send(cx),
+            TextAreaEvent::Submitted => this.send(SendOptions::default(), cx),
             TextAreaEvent::Changed => {
                 this.draft_changed(cx);
                 // The send button follows whether there is text.
@@ -122,14 +126,14 @@ impl Compose {
 impl HistoryView {
     /// Sends the field's text, as a reply if one is open, with the
     /// forward after it; while editing, saves the edit instead.
-    fn send(&mut self, cx: &mut Context<Self>) {
+    fn send(&mut self, options: SendOptions, cx: &mut Context<Self>) {
         let text = self.compose.field.read(cx).text().to_owned();
         let is_blank = text.trim().is_empty();
         match self.compose.bar {
             Some(FieldBar::Edit { message, .. }) if !is_blank => self.save_edit(message, text, cx),
             Some(FieldBar::Edit { .. }) => {}
-            Some(FieldBar::Forward(_)) => self.send_with_bar(text, cx),
-            Some(FieldBar::Reply(_)) | None if !is_blank => self.send_with_bar(text, cx),
+            Some(FieldBar::Forward(_)) => self.send_with_bar(text, options, cx),
+            Some(FieldBar::Reply(_)) | None if !is_blank => self.send_with_bar(text, options, cx),
             Some(FieldBar::Reply(_)) | None => {}
         }
     }
@@ -171,12 +175,7 @@ impl HistoryView {
         let send = if field.read(cx).text().is_empty() && !is_forwarding {
             self.record_button(IconButton::new("compose-record", &HISTORY_RECORD), cx)
         } else {
-            let weak = cx.weak_entity();
-            IconButton::new("compose-send", &HISTORY_SEND.inner)
-                .on_click(move |_, _, cx| {
-                    let _ = weak.update(cx, |this, cx| this.send(cx));
-                })
-                .into_any_element()
+            self.send_button(cx)
         };
         let weak = cx.weak_entity();
         div()
@@ -195,8 +194,34 @@ impl HistoryView {
                     .py(px_of(HISTORY_SEND_PADDING))
                     .child(field),
             )
+            .children(self.scheduled_button(cx))
             .child(self.emoji_button(cx))
             .child(send)
+            .into_any_element()
+    }
+
+    /// Send, with the send menu on a right click unless an edit is open.
+    fn send_button(&self, cx: &mut Context<Self>) -> AnyElement {
+        let weak = cx.weak_entity();
+        let button =
+            IconButton::new("compose-send", &HISTORY_SEND.inner).on_click(move |_, _, cx| {
+                let _ = weak.update(cx, |this, cx| this.send(SendOptions::default(), cx));
+            });
+        if matches!(self.compose.bar, Some(FieldBar::Edit { .. })) {
+            return button.into_any_element();
+        }
+        let weak = cx.weak_entity();
+        div()
+            .child(button)
+            .on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                let sender = weak.clone();
+                let on_send: OnOptions = Rc::new(move |options, _, cx| {
+                    let _ = sender.update(cx, |this, cx| this.send(options, cx));
+                });
+                let _ = weak.update(cx, |this, cx| {
+                    this.show_send_menu(on_send, event.position, window, cx);
+                });
+            })
             .into_any_element()
     }
 }

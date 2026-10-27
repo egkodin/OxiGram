@@ -375,6 +375,26 @@ pub(crate) fn uploads() -> Vec<(ChatId, Vec<Message>)> {
     vec![(ChatId(ME), vec![sent, uploading])]
 }
 
+/// Two reminders in Saved Messages, tomorrow and the day after, as TDLib
+/// reports them once set, and the chat's flag that it has some.
+pub(crate) fn reminders() -> Vec<Event> {
+    let day = 24 * HOUR;
+    let reminder = |id, at: i32, text| {
+        let mut message = message(ME, id, ME, 0, text);
+        message.date = now() + at;
+        message.schedule = Some(model::message::Schedule::At(now() + at));
+        Event::Messages(Change::New(Box::new(message)))
+    };
+    vec![
+        reminder(20, day + 2 * HOUR, "Call the dentist"),
+        reminder(21, 2 * day, "Pack the tent"),
+        Event::Chats(model::chats::Change::HasScheduled {
+            chat: ChatId(ME),
+            has: true,
+        }),
+    ]
+}
+
 pub(crate) fn histories() -> Vec<(ChatId, Vec<Message>)> {
     vec![
         (ChatId(-100), group()),

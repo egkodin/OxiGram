@@ -4,22 +4,81 @@
 
 use std::future::Future;
 
-use td_api::enums::{DraftMessageContent, InputMessageContent, InputMessageReplyTo, MessageTopic};
+use td_api::enums::{
+    DraftMessageContent, InputMessageContent, InputMessageReplyTo, MessageSchedulingState,
+    MessageTopic,
+};
 use td_api::functions::{
     EditMessageText, ForwardMessages, SendBotStartMessage, SendMessage, SetChatDraftMessage,
 };
 use td_api::types::{
     DraftMessage, DraftMessageContentText, FormattedText, InputMessageReplyToMessage,
-    InputMessageText, MessageTopicSavedMessages, MessageTopicThread,
+    InputMessageText, MessageSchedulingStateSendAtDate, MessageSchedulingStateSendWhenOnline,
+    MessageSendOptions, MessageTopicSavedMessages, MessageTopicThread,
 };
 
 use crate::ids::{ChatId, MessageId, UserId};
-use crate::message::Topic;
+use crate::message::{Schedule, Topic};
 use crate::session::{RequestError, Session};
 
 /// The longest text one message takes, in UTF-16 units (`MaxMessageSize`).
 // shortcut: the default limit; read the `message_text_length_max` option once options reach the model.
 pub const MAX_MESSAGE_LENGTH: usize = 4096;
+
+/// Whether the recipients hear the message arrive.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Sound {
+    #[default]
+    Normal,
+    /// "Send without sound" (`disable_notification`).
+    Silent,
+}
+
+/// How messages go (`Api::SendOptions`): now or later, with or without
+/// sound.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SendOptions {
+    pub sound: Sound,
+    pub schedule: Option<Schedule>,
+}
+
+impl SendOptions {
+    pub(crate) fn to_td(self) -> Option<Box<MessageSendOptions>> {
+        if self == Self::default() {
+            return None;
+        }
+        let scheduling_state = self.schedule.map(|schedule| Box::new(schedule.to_td()));
+        Some(Box::new(MessageSendOptions {
+            suggested_post_info: None,
+            disable_notification: self.sound == Sound::Silent,
+            from_background: false,
+            protect_content: false,
+            allow_paid_broadcast: false,
+            paid_message_star_count: 0,
+            update_order_of_installed_sticker_sets: false,
+            scheduling_state,
+            effect_id: 0,
+            sending_id: 0,
+            only_preview: false,
+        }))
+    }
+}
+
+impl Schedule {
+    pub(crate) fn to_td(self) -> MessageSchedulingState {
+        match self {
+            Self::At(date) => {
+                MessageSchedulingState::SendAtDate(MessageSchedulingStateSendAtDate {
+                    send_date: date,
+                    repeat_period: 0,
+                })
+            }
+            Self::WhenOnline => {
+                MessageSchedulingState::SendWhenOnline(MessageSchedulingStateSendWhenOnline {})
+            }
+        }
+    }
+}
 
 impl Topic {
     pub(crate) fn to_td(self) -> MessageTopic {
@@ -90,6 +149,7 @@ impl Session {
         topic: Option<Topic>,
         from: ChatId,
         messages: &[MessageId],
+        options: SendOptions,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         let mut message_ids: Vec<i64> = messages.iter().map(|message| message.0).collect();
         // TDLib wants them oldest first.
@@ -99,7 +159,7 @@ impl Session {
             topic_id: topic.map(|topic| Box::new(topic.to_td())),
             from_chat_id: from.0,
             message_ids,
-            options: None,
+            options: options.to_td(),
             send_copy: false,
             remove_caption: false,
         });
@@ -131,6 +191,7 @@ impl Session {
         topic: Option<Topic>,
         reply_to: Option<MessageId>,
         text: &str,
+        options: SendOptions,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         let requests: Vec<_> = split_for_sending(text, MAX_MESSAGE_LENGTH)
             .into_iter()
@@ -140,7 +201,7 @@ impl Session {
                     chat_id: chat.0,
                     topic_id: topic.map(|topic| Box::new(topic.to_td())),
                     reply_to: reply(reply_to),
-                    options: None,
+                    options: options.to_td(),
                     reply_markup: None,
                     // The draft goes with the first part.
                     input_message_content: Box::new(input_text(part, index == 0)),
@@ -221,6 +282,33 @@ fn utf16_prefix(text: &str, max: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn default_options_send_none_and_others_map_to_tdlib() {
+        assert_eq!(SendOptions::default().to_td(), None);
+        let options = SendOptions {
+            sound: Sound::Silent,
+            schedule: Some(Schedule::WhenOnline),
+        }
+        .to_td()
+        .expect("non-default options");
+        assert!(options.disable_notification);
+        assert!(matches!(
+            options.scheduling_state.as_deref(),
+            Some(MessageSchedulingState::SendWhenOnline(_))
+        ));
+        let at = SendOptions {
+            schedule: Some(Schedule::At(1_900_000_000)),
+            ..SendOptions::default()
+        }
+        .to_td()
+        .expect("non-default options");
+        assert!(!at.disable_notification);
+        assert!(matches!(
+            at.scheduling_state.as_deref(),
+            Some(MessageSchedulingState::SendAtDate(state)) if state.send_date == 1_900_000_000
+        ));
+    }
 
     #[test]
     fn blank_text_sends_nothing() {

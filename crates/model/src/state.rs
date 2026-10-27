@@ -123,6 +123,13 @@ impl State {
         }
     }
 
+    /// Sets an open chat's scheduled messages.
+    pub fn set_scheduled(&mut self, key: Key, messages: Vec<Message>) {
+        if let Some(history) = self.histories.get_mut(&key) {
+            history.set_scheduled(messages);
+        }
+    }
+
     /// Keeps a message that `chat`'s history points at.
     pub fn add_reference(&mut self, key: Key, message: Message) {
         if let Some(history) = self.histories.get_mut(&key) {

@@ -31,6 +31,7 @@ const STYLE_ROOTS: &[&str] = &[
     "history/view/controls/history_view_voice_record_bar.style",
     "info/info.style",
     "intro/intro.style",
+    "ui/boxes/choose_date_time.style",
     "ui/boxes/country_select_box.style",
     "ui/chat/chat.style",
     "ui/chat/chat_style.style",

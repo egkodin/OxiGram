@@ -19,6 +19,8 @@ use crate::ripple::{self, ButtonState, Shape, use_button_state};
 use crate::theme::{Theme, color, hsla};
 
 type ClickHandler = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
+/// Gets where the right click was, in window coordinates.
+type RightClickHandler = Rc<dyn Fn(gpui::Point<Pixels>, &mut Window, &mut App)>;
 
 pub(crate) fn px_of(value: style::Px) -> Pixels {
     #[expect(clippy::cast_precision_loss, reason = "style sizes are small")]
@@ -58,6 +60,7 @@ pub struct RoundButton {
     text: SharedString,
     uppercase: bool,
     on_click: Option<ClickHandler>,
+    on_right_click: Option<RightClickHandler>,
 }
 
 impl RoundButton {
@@ -72,6 +75,7 @@ impl RoundButton {
             text: text.into(),
             uppercase: false,
             on_click: None,
+            on_right_click: None,
         }
     }
 
@@ -88,6 +92,16 @@ impl RoundButton {
         handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
     ) -> Self {
         self.on_click = Some(Rc::new(handler));
+        self
+    }
+
+    /// A context menu's opener, such as the send menu's.
+    #[must_use]
+    pub fn on_right_click(
+        mut self,
+        handler: impl Fn(gpui::Point<Pixels>, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_right_click = Some(Rc::new(handler));
         self
     }
 
@@ -146,6 +160,7 @@ impl RenderOnce for RoundButton {
         };
         let text = self.display_text();
         let on_click = self.on_click.clone();
+        let on_right_click = self.on_right_click.clone();
 
         div()
             .id(self.id)
@@ -190,6 +205,11 @@ impl RenderOnce for RoundButton {
                 if let Some(on_click) = &on_click {
                     on_click(event, window, cx);
                 }
+            })
+            .when_some(on_right_click, |button, handler| {
+                button.on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                    handler(event.position, window, cx);
+                })
             })
     }
 }

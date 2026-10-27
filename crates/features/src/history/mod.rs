@@ -28,10 +28,13 @@ mod pull_next;
 mod reactions;
 mod reactions_box;
 mod read_date;
+mod schedule_box;
+mod scheduled_section;
 mod scroll_date;
 mod search_tags;
 mod selection;
 mod send_files_box;
+mod send_menu;
 mod service;
 mod sponsored;
 mod sync;
@@ -290,6 +293,7 @@ impl HistoryView {
         };
         let pinned;
         let thread;
+        let scheduled;
         let messages = if self.section == pinned_section::Section::Chat {
             match self.with_starters(history.messages(), history.has_oldest()) {
                 Some(messages) => {
@@ -298,6 +302,13 @@ impl HistoryView {
                 }
                 None => history.messages(),
             }
+        } else if let pinned_section::Section::Scheduled { .. } = self.section {
+            let Some(messages) = self.scheduled_list(cx) else {
+                self.close_section(cx);
+                return;
+            };
+            scheduled = messages;
+            &scheduled
         } else {
             pinned = history.pinned_list(self.chat);
             if pinned.is_empty() {
@@ -387,7 +398,7 @@ impl HistoryView {
         let date_badge = (previous.and_then(|p| layout::day(p.date, &tz)) != day)
             .then_some(day)
             .flatten()
-            .map(|day| self.date_badge(message.id, day, &now, cx));
+            .map(|day| self.date_badge(&message, day, &now, cx));
         let has_unread_bar = self.has_unread_bar(index);
         if let Content::Service(service) = &message.content {
             return self.service_item(&message, service, date_badge, has_unread_bar, cx);
@@ -403,8 +414,13 @@ impl HistoryView {
         let is_read = state
             .chats
             .chat(self.chat)
-            .is_some_and(|chat| chat.last_read_outbox >= message.id);
-        let time = layout::time(message.date, &tz);
+            .is_some_and(|chat| chat.last_read_outbox >= message.id)
+            // Nobody has read what is not sent yet.
+            && message.schedule.is_none();
+        let time = match message.schedule {
+            Some(model::message::Schedule::WhenOnline) => String::new(),
+            _ => layout::time(message.date, &tz),
+        };
         let color_index = sender_color(state, &message);
         let reply = message.reply_to.as_ref().map(|reply_to| {
             let replied = self.replied(state, reply_to.chat, reply_to.message);
@@ -457,17 +473,26 @@ impl HistoryView {
 
     fn date_badge(
         &self,
-        message: MessageId,
+        message: &Message,
         day: chrono::NaiveDate,
         now: &chrono::DateTime<Local>,
         cx: &Context<Self>,
     ) -> bubble::DateBadge {
         let weak = cx.weak_entity();
+        let is_scheduled = message.schedule.is_some();
+        let text = if is_scheduled {
+            scheduled_section::badge(strings(cx), message, day, now)
+        } else {
+            layout::date_badge(strings(cx), day, now)
+        };
         bubble::DateBadge {
-            text: layout::date_badge(strings(cx), day, now).into(),
-            id: ("date-badge", message.0.unsigned_abs()).into(),
+            text: text.into(),
+            id: ("date-badge", message.id.0.unsigned_abs()).into(),
+            // Scheduled days have no history to jump to.
             on_click: Rc::new(move |_, window, cx| {
-                let _ = weak.update(cx, |this, cx| this.show_calendar(day, window, cx));
+                if !is_scheduled {
+                    let _ = weak.update(cx, |this, cx| this.show_calendar(day, window, cx));
+                }
             }),
         }
     }

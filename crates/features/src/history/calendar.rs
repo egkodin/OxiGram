@@ -22,7 +22,7 @@ use ui::{BoxFrame, IconButton, RoundButton, color, font, font_height, icon};
 
 use super::HistoryView;
 use crate::lang::{strings, tr};
-use crate::layers::{Dismiss, Layers};
+use crate::layers::Layers;
 use crate::px_of;
 use crate::store::spawn;
 
@@ -315,7 +315,7 @@ pub(super) fn show(
         focus: cx.focus_handle(),
     });
     layers.update(cx, |layers, cx| {
-        layers.show(view, Dismiss::Allowed, None, window, cx);
+        layers.show_above(view, window, cx);
     });
 }
 

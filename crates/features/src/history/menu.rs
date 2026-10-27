@@ -21,7 +21,7 @@ use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
     MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_EDIT, MENU_ICON_FORWARD, MENU_ICON_LINK,
-    MENU_ICON_REPLY, MENU_ICON_SELECT,
+    MENU_ICON_REPLY, MENU_ICON_RESCHEDULE, MENU_ICON_SELECT, MENU_ICON_SEND,
 };
 use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
 use ui::{MenuTone, PopupMenu};
@@ -118,6 +118,24 @@ pub(super) enum Item {
     Select,
     SelectUpTo,
     ClearSelection,
+    SendNow,
+    Reschedule,
+}
+
+/// A scheduled message's menu: send now and reschedule, then copying and
+/// deleting (`ScheduledWidget`'s context menu).
+// shortcut: no Edit, as the section has no field yet.
+fn scheduled_items(items: Vec<Item>) -> Vec<Item> {
+    let kept = items.into_iter().filter(|item| {
+        matches!(
+            item,
+            Item::CopySelectedText | Item::CopyText | Item::CopyLink(_) | Item::Delete
+        )
+    });
+    [Item::SendNow, Item::Reschedule]
+        .into_iter()
+        .chain(kept)
+        .collect()
 }
 
 /// The menu's items in tdesktop's order. `abilities` are those of the
@@ -353,6 +371,9 @@ impl HistoryView {
         if field_bar::editable_text(&message).is_none() {
             items.retain(|item| *item != Item::Edit);
         }
+        if message.schedule.is_some() {
+            items = scheduled_items(items);
+        }
         let weak = cx.weak_entity();
         let is_megagroup = self.is_megagroup(cx);
         let menu = cx.new(|cx| {
@@ -503,6 +524,8 @@ impl HistoryView {
                 cx.notify();
             }
             Item::SelectUpTo => self.select_up_to(index, cx),
+            Item::SendNow => self.send_scheduled_now(message.id, window, cx),
+            Item::Reschedule => self.reschedule(message.id, window, cx),
             Item::ClearSelection => {
                 self.clear_selection(cx);
             }
@@ -639,6 +662,8 @@ fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon
         Item::Select => normal(key::lng_context_select_msg, MENU_ICON_SELECT),
         Item::SelectUpTo => normal(key::lng_context_select_msg_bulk, MENU_ICON_SELECT),
         Item::ClearSelection => normal(key::lng_context_clear_selection, MENU_ICON_SELECT),
+        Item::SendNow => normal(key::lng_context_send_now_msg, MENU_ICON_SEND),
+        Item::Reschedule => normal(key::lng_context_reschedule, MENU_ICON_RESCHEDULE),
     }
 }
 

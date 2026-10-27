@@ -19,6 +19,7 @@ use crate::chats;
 use crate::ids::{ChatId, MessageId};
 use crate::message::{Content, Message, Replies, Topic, interaction};
 use crate::reaction::Reactions;
+use crate::scheduled::Scheduled;
 use crate::search::FoundMessages;
 use crate::session::{RequestError, Session};
 
@@ -120,6 +121,7 @@ pub struct History {
     references: HashMap<(ChatId, MessageId), Arc<Message>>,
     /// The chat's pinned messages, oldest first.
     pinned: Vec<MessageId>,
+    scheduled: Scheduled,
     /// The topic it holds; new messages outside it stay out.
     topic: Option<Topic>,
 }
@@ -180,6 +182,16 @@ impl History {
 
     /// Replaces the pinned messages with loaded ones, keeping them as
     /// references so the pinned bar can show them.
+    /// The chat's scheduled messages, once the section loaded them.
+    #[must_use]
+    pub fn scheduled(&self) -> &[Arc<Message>] {
+        self.scheduled.messages()
+    }
+
+    pub(crate) fn set_scheduled(&mut self, messages: Vec<Message>) {
+        self.scheduled.set(messages);
+    }
+
     pub fn set_pinned(&mut self, messages: Vec<Message>) {
         let mut ids: Vec<MessageId> = messages.iter().map(|message| message.id).collect();
         ids.sort_unstable();
@@ -283,6 +295,13 @@ impl History {
     }
 
     pub(crate) fn apply(&mut self, change: Change) {
+        self.scheduled.apply(&change);
+        // Scheduled messages are a list of their own, never the history.
+        if let Change::New(message) | Change::SendFailed { message, .. } = &change
+            && message.schedule.is_some()
+        {
+            return;
+        }
         match change {
             Change::New(message) => {
                 if self.has_newest() && self.topic.is_none_or(|topic| message.topic == Some(topic))
@@ -325,6 +344,7 @@ impl History {
 
     /// The chat list changes that touch messages.
     pub(crate) fn observe(&mut self, change: &chats::Change) {
+        self.scheduled.observe(change);
         match change {
             chats::Change::MessageContent {
                 message, content, ..
@@ -612,6 +632,16 @@ mod tests {
         chat.add_page(Page::Newest, page([20]));
         chat.apply(Change::New(Box::new(message(25))));
         assert_eq!(ids(&chat), [20, 25], "the whole chat takes every message");
+    }
+
+    #[test]
+    fn scheduled_messages_stay_out_of_the_history() {
+        let mut history = History::default();
+        history.add_page(Page::Newest, page([20]));
+        let mut later = message(30);
+        later.schedule = Some(crate::message::Schedule::At(1_900_000_000));
+        history.apply(Change::New(Box::new(later)));
+        assert_eq!(ids(&history), [20]);
     }
 
     #[test]

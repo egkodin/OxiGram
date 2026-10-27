@@ -5,10 +5,11 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, FocusHandle, Focusable, IntoElement,
-    ObjectFit, Render, Styled, StyledImage as _, Subscription, WeakEntity, Window, div, img,
-    prelude::*, px,
+    ObjectFit, Pixels, Point, Render, Styled, StyledImage as _, Subscription, WeakEntity, Window,
+    div, img, prelude::*, px,
 };
 use i18n::key;
+use model::send::SendOptions;
 use model::send_files::{Attachment, AttachmentKind, Grouping};
 use style::Font;
 use style::basic::ROUND_RADIUS_SMALL;
@@ -25,6 +26,7 @@ use ui::{BoxFrame, Checkbox, Checked, RoundButton, TextArea, TextAreaEvent, colo
 use super::HistoryView;
 use super::attach::Prepared;
 use super::field_bar::FieldBar;
+use super::send_menu::OnOptions;
 use crate::file_sizes::size_text;
 use crate::lang::{tr, tr_plural};
 use crate::layers::{Dismiss, Layers, OnDismiss};
@@ -38,7 +40,9 @@ pub(super) enum Compression {
     AsFiles,
 }
 
-type OnSend = Rc<dyn Fn(Vec<Attachment>, String, Grouping, &mut Window, &mut App)>;
+type OnSend = Rc<dyn Fn(Vec<Attachment>, String, Grouping, SendOptions, &mut Window, &mut App)>;
+/// Opens the send menu at a point, for the box's send button.
+type OnMenu = Rc<dyn Fn(OnOptions, Point<Pixels>, &mut Window, &mut App)>;
 /// Takes back the caption of a box closed unsent.
 type GiveBack = Rc<dyn Fn(&str, &mut App)>;
 
@@ -49,6 +53,7 @@ pub(super) struct SendFilesBox {
     grouping: Grouping,
     caption: Entity<TextArea>,
     on_send: OnSend,
+    on_menu: OnMenu,
     give_back: GiveBack,
     _subscription: Subscription,
 }
@@ -97,7 +102,7 @@ impl SendFilesBox {
         self.close(window, cx);
     }
 
-    fn send(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn send(&mut self, options: SendOptions, window: &mut Window, cx: &mut Context<Self>) {
         let attachments = self
             .files
             .iter()
@@ -111,7 +116,7 @@ impl SendFilesBox {
             .collect();
         let caption = self.caption.read(cx).text().to_owned();
         self.close(window, cx);
-        (self.on_send)(attachments, caption, self.grouping, window, cx);
+        (self.on_send)(attachments, caption, self.grouping, options, window, cx);
     }
 
     fn has_media(&self) -> bool {
@@ -288,8 +293,7 @@ impl Render for SendFilesBox {
                     .w(px_of(SEND_MEDIA_PREVIEW_SIZE))
                     .child(self.caption.clone()),
             );
-        let send = cx.entity();
-        let cancel = cx.entity();
+        let (send, menu, cancel) = (cx.entity(), cx.entity(), cx.entity());
         BoxFrame::new("send-files-box", &DEFAULT_BOX)
             .width(px_of(BOX_WIDE_WIDTH))
             .title(title(&self.files, cx))
@@ -301,7 +305,17 @@ impl Render for SendFilesBox {
                     &DEFAULT_BOX.button,
                     tr(cx, key::lng_send_button),
                 )
-                .on_click(move |_, window, cx| send.update(cx, |this, cx| this.send(window, cx))),
+                .on_click(move |_, window, cx| {
+                    send.update(cx, |this, cx| this.send(SendOptions::default(), window, cx));
+                })
+                .on_right_click(move |position, window, cx| {
+                    let sender = menu.downgrade();
+                    let on_send: OnOptions = Rc::new(move |options, window, cx| {
+                        let _ = sender.update(cx, |this, cx| this.send(options, window, cx));
+                    });
+                    let on_menu = menu.read(cx).on_menu.clone();
+                    on_menu(on_send, position, window, cx);
+                }),
             )
             .button(
                 RoundButton::new(
@@ -337,10 +351,16 @@ impl HistoryView {
             text
         };
         let weak = cx.weak_entity();
-        let on_send: OnSend = Rc::new(move |attachments, caption, grouping, _, cx| {
+        let on_send: OnSend = Rc::new(move |attachments, caption, grouping, options, _, cx| {
             // The view is gone once its chat closed; nothing to send to then.
             let _ = weak.update(cx, |this, cx| {
-                this.send_files(attachments, caption, grouping, cx)
+                this.send_files(attachments, caption, grouping, options, cx)
+            });
+        });
+        let weak = cx.weak_entity();
+        let on_menu: OnMenu = Rc::new(move |on_send, position, window, cx| {
+            let _ = weak.update(cx, |this, cx| {
+                this.show_send_menu(on_send, position, window, cx);
             });
         });
         let give_back: GiveBack = Rc::new(move |text, cx| {
@@ -367,7 +387,7 @@ impl HistoryView {
                 window,
                 |this: &mut SendFilesBox, _, event: &TextAreaEvent, window, cx| {
                     if matches!(event, TextAreaEvent::Submitted) {
-                        this.send(window, cx);
+                        this.send(SendOptions::default(), window, cx);
                     }
                 },
             );
@@ -378,6 +398,7 @@ impl HistoryView {
                 grouping: Grouping::Albums,
                 caption,
                 on_send,
+                on_menu,
                 give_back,
                 _subscription: subscription,
             }
@@ -398,16 +419,17 @@ impl HistoryView {
         attachments: Vec<Attachment>,
         caption: String,
         grouping: Grouping,
+        options: SendOptions,
         cx: &mut Context<Self>,
     ) {
         let reply = self.take_reply();
         let request = self.store.read(cx).session().send_files(
-            self.chat,
-            self.topic,
+            self.key(),
             reply,
             &attachments,
             &caption,
             grouping,
+            options,
         );
         let task = spawn(request, cx);
         cx.spawn(async move |_, _| {

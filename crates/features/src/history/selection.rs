@@ -428,6 +428,7 @@ mod tests {
         let mut shown = shown(&["open", "protected"]);
         shown[1] = Arc::new(Message {
             can_be_saved: false,
+            schedule: None,
             ..(*shown[1]).clone()
         });
         let messages =

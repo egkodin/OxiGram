@@ -79,6 +79,10 @@ pub enum Change {
         chat: ChatId,
         is_marked: bool,
     },
+    HasScheduled {
+        chat: ChatId,
+        has: bool,
+    },
     ActionBar {
         chat: ChatId,
         bar: Option<ActionBar>,
@@ -332,6 +336,9 @@ impl Chats {
             Change::MarkedAsUnread { chat, is_marked } => {
                 self.update(chat, |chat| chat.is_marked_as_unread = is_marked);
             }
+            Change::HasScheduled { chat, has } => {
+                self.update(chat, |chat| chat.has_scheduled_messages = has);
+            }
             Change::ActionBar { chat, bar } => self.update(chat, |chat| chat.action_bar = bar),
             Change::Mute {
                 chat,
@@ -503,6 +510,10 @@ impl Change {
             Update::ChatIsMarkedAsUnread(update) => Self::MarkedAsUnread {
                 chat: ChatId(update.chat_id),
                 is_marked: update.is_marked_as_unread,
+            },
+            Update::ChatHasScheduledMessages(update) => Self::HasScheduled {
+                chat: ChatId(update.chat_id),
+                has: update.has_scheduled_messages,
             },
             Update::ChatNotificationSettings(update) => Self::Mute {
                 chat: ChatId(update.chat_id),

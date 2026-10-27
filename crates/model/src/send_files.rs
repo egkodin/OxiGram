@@ -17,8 +17,9 @@ use td_api::types::{
 
 use crate::ids::{ChatId, MessageId};
 use crate::message::Topic;
-use crate::send::reply;
+use crate::send::{SendOptions, reply};
 use crate::session::{RequestError, Session};
+use crate::thread::Key;
 
 /// An album holds at most this many (`kMaxAlbumCount`).
 pub const MAX_ALBUM_COUNT: usize = 10;
@@ -158,22 +159,23 @@ fn content(attachment: &Attachment, caption: Option<String>) -> InputMessageCont
 }
 
 impl Session {
-    /// Sends `attachments` to `chat` or its topic, replying to `reply_to`,
-    /// with `caption` where tdesktop puts it; one group at a time, so they
-    /// arrive in order.
+    /// Sends `attachments` to the chat or topic `to`, replying to
+    /// `reply_to`, with `caption` where tdesktop puts it; one group at a
+    /// time, so they arrive in order.
     pub fn send_files(
         &self,
-        chat: ChatId,
-        topic: Option<Topic>,
+        to: Key,
         reply_to: Option<MessageId>,
         attachments: &[Attachment],
         caption: &str,
         grouping: Grouping,
+        options: SendOptions,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         let groups = groups(attachments, grouping);
         let caption_at = captioned(&groups).filter(|_| !caption.trim().is_empty());
         let caption = caption.trim().to_owned();
         let reply = || reply(reply_to);
+        let Key { chat, topic } = to;
         let topic = || topic.map(|topic| Box::new(topic.to_td()));
         let mut requests = Vec::new();
         for (range, album) in groups {
@@ -186,7 +188,7 @@ impl Session {
                     chat_id: chat.0,
                     topic_id: topic(),
                     reply_to: reply(),
-                    options: None,
+                    options: options.to_td(),
                     input_message_contents: contents.collect(),
                 });
                 requests.push(futures::future::Either::Left(async move {
@@ -200,7 +202,7 @@ impl Session {
                     chat_id: chat.0,
                     topic_id: topic(),
                     reply_to: reply(),
-                    options: None,
+                    options: options.to_td(),
                     reply_markup: None,
                     input_message_content: Box::new(content),
                 });
@@ -236,6 +238,7 @@ impl Session {
         topic: Option<Topic>,
         reply_to: Option<MessageId>,
         voice: &VoiceNote,
+        options: SendOptions,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         let content = InputMessageContent::InputMessageVoiceNote(InputMessageVoiceNote {
             voice_note: Box::new(InputVoiceNote {
@@ -253,7 +256,7 @@ impl Session {
             chat_id: chat.0,
             topic_id: topic.map(|topic| Box::new(topic.to_td())),
             reply_to: reply(reply_to),
-            options: None,
+            options: options.to_td(),
             reply_markup: None,
             input_message_content: Box::new(content),
         });

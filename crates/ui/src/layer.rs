@@ -25,6 +25,7 @@ pub struct BoxFrame {
     title: Option<SharedString>,
     content: Vec<AnyElement>,
     buttons: Vec<RoundButton>,
+    top_buttons: Vec<AnyElement>,
 }
 
 impl std::fmt::Debug for BoxFrame {
@@ -45,6 +46,7 @@ impl BoxFrame {
             title: None,
             content: Vec::new(),
             buttons: Vec::new(),
+            top_buttons: Vec::new(),
         }
     }
 
@@ -72,6 +74,14 @@ impl BoxFrame {
         self.buttons.push(button);
         self
     }
+
+    /// Adds a button at the title's right; the first is the rightmost
+    /// (`addTopButton`).
+    #[must_use]
+    pub fn top_button(mut self, button: impl IntoElement) -> Self {
+        self.top_buttons.push(button.into_any_element());
+        self
+    }
 }
 
 impl RenderOnce for BoxFrame {
@@ -96,8 +106,18 @@ impl RenderOnce for BoxFrame {
             )
         });
         let has_title = title.is_some();
+        let top_buttons = (!self.top_buttons.is_empty()).then(|| {
+            div()
+                .absolute()
+                .top_0()
+                .right_0()
+                .flex()
+                .flex_row_reverse()
+                .children(self.top_buttons)
+        });
         div()
             .id(self.id)
+            .relative()
             .w(self.width)
             .max_h(max_height)
             .flex()
@@ -115,6 +135,7 @@ impl RenderOnce for BoxFrame {
             // A box swallows clicks, so they do not close the layer.
             .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .children(title)
+            .children(top_buttons)
             .when(!has_title, |frame| frame.pt(px_of(BOX_TOP_MARGIN.0)))
             // Rows taller than the window scroll between the title and the buttons.
             .child(
