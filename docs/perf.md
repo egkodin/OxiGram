@@ -199,3 +199,11 @@ check on the live run: frame times while scrolling the panel quickly.
   the viewer stays in gpui's image cache like the history's photos do.
   Not measured: paging through hundreds of large photos in one session;
   if RSS climbs, drop the image on page as the userpic cache does.
+- Video decoding (`media/src/video.rs`): one thread per playing video,
+  frames scaled to BGRA no larger than the size they show at and queued two
+  deep, so a 1280x720 video shown at 640x360 holds three 0.9 MB frames
+  (2.7 MB) beyond FFmpeg's own buffers; a paused video blocks its thread on
+  the full queue and decodes nothing. Hardware decoding (VideoToolbox here)
+  takes the decode off the CPU; the copy down and the swscale pass stay on
+  the decoder thread. Not measured yet: CPU and RSS while a long 1080p
+  video plays in the viewer (with the player).

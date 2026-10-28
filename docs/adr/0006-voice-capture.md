@@ -106,3 +106,22 @@ Known gaps:
 - The FFmpeg tarball's hash is checked against Homebrew's formula, not its
   GPG signature (no gpg on this machine).
 - The build is LGPL (no `--enable-gpl`), compatible with rgram's GPLv3.
+
+Linking, checked 2026-10-28: `media/static-ffmpeg` turns on ffmpeg-next's
+`static`; with `PKG_CONFIG_PATH=<prefix>/lib/pkgconfig` and `FFMPEG_DIR`
+unset, ffmpeg-sys-next links the archives through `pkg-config --static`,
+which brings dav1d and the system frameworks in order (with `FFMPEG_DIR` it
+skips pkg-config and dav1d is missing). The `media` tests pass on that
+build, and the test binary depends on no FFmpeg or Homebrew library. Its
+fixed macOS framework list names QTKit, which the linker warns about and
+ignores. CI builds the archives into `~/.cache/rgram-ffmpeg`, cached by
+`ffmpeg/SOURCES` and the script. Development builds without the feature
+use the system FFmpeg (Homebrew 9.0.2 here); ffmpeg-next 9 needs FFmpeg 9.
+
+Decoding (`media/src/video.rs`): a thread per video reads packets, decodes
+on the platform's device when one opens (FFmpeg falls back to software for
+streams the device cannot take; VideoToolbox decodes a 720p H.264 here, a
+64x36 one goes to software), copies hardware frames down, scales them with
+swscale to BGRA no larger than the size they show at, and hands them over
+through a two-frame bounded channel, so a video holds the frame on screen
+and two ahead. Seeks go to the keyframe before and skip to the target.

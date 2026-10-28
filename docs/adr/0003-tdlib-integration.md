@@ -61,7 +61,10 @@ tests), and the version mismatch alone rules out using its generated types.
   `Receiver` token that exists at most once per process and is `!Sync`. All
   `unsafe` in the workspace lives in this one module, each block with a
   `// SAFETY:` comment. The workspace lints deny `unsafe_code`; `td-sys` alone
-  allows it at its crate root.
+  allows it at its crate root. Revisited in M5: `media/src/hw.rs` is the one
+  other place, an `#![expect(unsafe_code)]` module for FFmpeg's hardware
+  device API (`av_hwdevice_ctx_create`, `av_hwframe_transfer_data`), which
+  ffmpeg-next does not wrap; same `// SAFETY:` rule.
 - `td-sys/build.rs` links `tdjson` from `$RGRAM_TDLIB_DIR` (or the script's
   default), checks that the install was built from `tdlib/COMMIT`, and copies the
   runtime library into `OUT_DIR`, which Cargo puts on the dynamic library path

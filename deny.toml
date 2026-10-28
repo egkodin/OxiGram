@@ -29,6 +29,12 @@ allow = [
     "Zlib",
 ]
 confidence-threshold = 0.9
+# The FFmpeg bindings (ADR 0006): WTFPL is permissive and GPL-compatible
+# (FSF list); allowed for them alone.
+exceptions = [
+    { allow = ["WTFPL"], crate = "ffmpeg-next" },
+    { allow = ["WTFPL"], crate = "ffmpeg-sys-next" },
+]
 
 [licenses.private]
 # rgram's own crates are GPL-3.0-or-later and never published.

@@ -9,7 +9,9 @@
 #   FFMPEG_DOWNLOADS  optional dir that already holds the tarballs
 #
 # Needs: a C compiler, make, pkg-config, meson and ninja (dav1d), nasm on x86.
-# Then build rgram with FFMPEG_DIR=<prefix> and `--features media/static-ffmpeg`.
+# Then build rgram with PKG_CONFIG_PATH=<prefix>/lib/pkgconfig and
+# `--features media/static-ffmpeg`; leave FFMPEG_DIR unset, or ffmpeg-sys-next
+# skips pkg-config and does not link dav1d.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
