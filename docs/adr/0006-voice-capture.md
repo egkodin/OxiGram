@@ -1,4 +1,4 @@
-# ADR 0006: Voice capture with cpal and libopus
+# ADR 0006: Voice capture with cpal and libopus; media decoding with FFmpeg
 
 - Status: accepted
 - Date: 2026-10-27
@@ -38,3 +38,71 @@ it and these crates go.
   `NSMicrophoneUsageDescription` in its Info.plist (packaging, M14).
 - `media::Source::Samples` lets tests and snapshots record without a
   microphone.
+
+## Revisited in M5: media decoding with FFmpeg
+
+- Status: accepted (the owner's choice, 2026-10-28)
+
+Video, round videos, GIFs, WebM stickers and music need a decoder. The owner
+picked FFmpeg through `ffmpeg-next` 9.x over a pure-Rust stack (H.264 only)
+and per-OS media APIs. Voice capture stays on cpal and libopus for now; voice
+playback and music may move to FFmpeg's Opus and MP3 decoders.
+
+Conditions:
+
+- Release builds do not depend on a system FFmpeg. `scripts/build-ffmpeg.sh`
+  builds a minimal static FFmpeg from the tarballs pinned with their SHA-256
+  in `ffmpeg/SOURCES` (FFmpeg 9.0.2, dav1d 1.5.4), and the app links it
+  (`FFMPEG_DIR=<prefix>`, feature `static-ffmpeg`). Development builds may
+  link the Homebrew FFmpeg of the same major version.
+- Hardware decoding where available (VideoToolbox, D3D11VA, VAAPI), with
+  FFmpeg's software decoders as the fallback.
+- Decoding runs off the main thread; only the frames on screen stay in
+  memory, within the budget in `docs/perf.md`.
+
+Configure flags (common):
+
+```
+--enable-static --disable-shared --enable-pic
+--disable-programs --disable-doc --disable-network --disable-autodetect
+--disable-everything --disable-avdevice --disable-avfilter
+--enable-swscale --enable-swresample
+--enable-protocol=file
+--enable-libdav1d
+--enable-decoder=h264,hevc,vp9,av1,libdav1d,aac,opus,mp3,mp3float,flac,vorbis
+--enable-demuxer=mov,matroska,ogg,mp3,flac,aac
+--enable-parser=h264,hevc,vp9,av1,aac,opus,mpegaudio,flac,vorbis
+```
+
+Per platform:
+
+- macOS: `--enable-videotoolbox --enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox,av1_videotoolbox`
+- Linux: `--enable-vaapi --enable-hwaccel=h264_vaapi,hevc_vaapi,vp9_vaapi,av1_vaapi`
+- Windows: `--toolchain=msvc --enable-d3d11va` with the `*_d3d11va` and
+  `*_d3d11va2` hwaccels for the same four codecs (not built yet).
+
+dav1d is built with meson as a static library (`-Denable_tools=false
+-Denable_tests=false`): FFmpeg's own `av1` decoder only drives hardware, so
+software AV1 needs it. The `mp3`, `flac` and `aac` demuxers are added to the
+three containers for music files; `vp9_superframe_split` comes in as the VP9
+decoder's dependency.
+
+Size, macOS arm64 (Apple M4), FFmpeg 9.0.2 + dav1d 1.5.4, 2026-10-28:
+
+- static archives: 34 MB (libavcodec 20 MB, libswscale 5.1 MB, libavformat
+  4.1 MB, libavutil 3.2 MB, libdav1d 1.0 MB, libswresample 0.4 MB), debug
+  info included;
+- a probe that opens a file, finds and opens every stream's decoder with a
+  VideoToolbox device, and creates a scaler and a resampler, linked with
+  `-dead_strip` and stripped: 6.2 MB, depending only on system frameworks
+  (VideoToolbox, CoreMedia, CoreVideo, CoreFoundation, CoreServices). It
+  decodes an H.264 MP4.
+
+Known gaps:
+
+- FFmpeg's `vp9` decoder ignores the alpha plane WebM stickers carry in
+  Matroska `BlockAdditional`. Either a second `vp9` decoder for that side
+  data, or libvpx as tdesktop links; decided with WebM stickers.
+- The FFmpeg tarball's hash is checked against Homebrew's formula, not its
+  GPG signature (no gpg on this machine).
+- The build is LGPL (no `--enable-gpl`), compatible with rgram's GPLv3.
