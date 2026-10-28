@@ -16,7 +16,11 @@ use crate::theme::Theme;
 /// Draws `icon` in its own colors.
 #[must_use]
 pub fn icon(icon: style::Icon) -> IconView {
-    IconView { icon, color: None }
+    IconView {
+        icon,
+        color: None,
+        side: None,
+    }
 }
 
 /// The size of `icon`'s box at 1x, as tdesktop computes it from the 1x mask.
@@ -41,6 +45,8 @@ pub fn icon_size(icon: style::Icon) -> Size<Pixels> {
 pub struct IconView {
     icon: style::Icon,
     color: Option<ColorRef>,
+    /// A square box the icon is scaled into.
+    side: Option<Pixels>,
 }
 
 impl IconView {
@@ -50,11 +56,21 @@ impl IconView {
         self.color = Some(color);
         self
     }
+
+    /// Scales the icon into a `side`-wide square, as tdesktop scales a large
+    /// mask down (`DownloadBar`'s `Make`).
+    #[must_use]
+    pub fn side(mut self, side: Pixels) -> Self {
+        self.side = Some(side);
+        self
+    }
 }
 
 impl RenderOnce for IconView {
     fn render(self, _: &mut Window, _: &mut App) -> impl IntoElement {
-        let box_size = icon_size(self.icon);
+        let box_size = self
+            .side
+            .map_or_else(|| icon_size(self.icon), |side| size(side, side));
         canvas(
             |_, _, _| {},
             move |bounds, (), window, cx| paint(&self, bounds, window, cx),
@@ -66,6 +82,10 @@ impl RenderOnce for IconView {
 
 fn paint(view: &IconView, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
     let scale = mask_scale(window.scale_factor());
+    let natural = icon_size(view.icon);
+    let zoom = view
+        .side
+        .map_or(1.0, |side| side / natural.width.max(px(1.0)));
     for part in view.icon.parts {
         let color = view
             .color
@@ -83,8 +103,8 @@ fn paint(view: &IconView, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut 
                 + point(
                     px(part.padding.left.0 as f32),
                     px(part.padding.top.0 as f32),
-                ),
-            size(px(width as f32), px(height as f32)),
+                ) * zoom,
+            size(px(width as f32 * zoom), px(height as f32 * zoom)),
         );
         if let Err(error) =
             window.paint_image(bounds, image_bounds, Corners::default(), image, 0, false)

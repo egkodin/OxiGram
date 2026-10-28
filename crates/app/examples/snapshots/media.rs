@@ -8,8 +8,10 @@ use std::path::Path;
 
 use features::settings::FoldersPlacement;
 use gpui::MouseButton;
+use model::Event;
 use model::auth::State;
 use model::checklist::{Checklist, Task};
+use model::downloads::{self, Download, Totals};
 use model::file::{Dimensions, File, Minithumbnail};
 use model::location::Point;
 use model::message::{
@@ -30,6 +32,8 @@ const MARIA: i64 = 2;
 const NOTES_ROW: (f32, f32) = (640.0, 520.0);
 /// The spoiler photo in Saved Messages.
 const SPOILER_PHOTO: (f32, f32) = (700.0, 250.0);
+/// The download bar under the chat list.
+const DOWNLOAD_BAR: (f32, f32) = (150.0, 577.0);
 /// Maria's view-once photo, the last message in her chat.
 const ONCE_PHOTO: (f32, f32) = (517.0, 400.0);
 /// "Summit at sunrise", the middle of the three photos.
@@ -265,6 +269,31 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), timestamped(&photo))],
             steps: vec![("195-timestamps-list", auth(State::Ready))],
+        },
+        // The download bar: one file loading, then a click opens its
+        // message in Maria's chat.
+        Scenario {
+            setup: downloading(1, (12_582_912, 50_331_648)),
+            clicks: vec![("198-download-opened", MouseButton::Left, DOWNLOAD_BAR)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), documents(&notes))],
+            steps: vec![("197-download-bar", auth(State::Ready))],
+        },
+        // Three files done: "3 files", "View in downloads", the full circle.
+        Scenario {
+            setup: downloading(3, (75_000_000, 75_000_000)),
+            clicks: Vec::new(),
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("199-downloads-done", auth(State::Ready))],
         },
     ]
 }
@@ -907,6 +936,24 @@ fn videos(still: &Path) -> Vec<Message> {
             [file(984, Some(still)), file(985, Some(still))],
         ),
     ]
+}
+
+/// The chat list's events with `count` files in TDLib's download list,
+/// the last one Maria's archive.
+fn downloading(count: i32, (downloaded_size, total_size): (i64, i64)) -> Vec<Event> {
+    let mut events = chats::events();
+    events.push(Event::Downloads(downloads::Change::Added(Download {
+        file: FileId(971),
+        chat: ChatId(MARIA),
+        message: MessageId(2),
+        name: "saturday-photos.zip".to_owned(),
+    })));
+    events.push(Event::Downloads(downloads::Change::Totals(Totals {
+        total_size,
+        total_count: count,
+        downloaded_size,
+    })));
+    events
 }
 
 fn timestamped(still: &Path) -> Vec<Message> {

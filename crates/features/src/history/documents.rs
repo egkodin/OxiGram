@@ -6,10 +6,10 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 use gpui::Context;
-use model::FileId;
 use model::file::File;
 use model::message::{Content, Message};
 use model::user::Badge;
+use model::{ChatId, FileId, MessageId};
 
 use super::HistoryView;
 use super::file_row::{FileRow, Thumb, Title, progress};
@@ -53,6 +53,7 @@ impl HistoryView {
         };
         let weak = cx.weak_entity();
         let id = file.id;
+        let (chat, message) = (message.chat, message.id);
         let path = file.path.clone().map(PathBuf::from);
         Some(FileRow {
             title: Title::Name(name.clone()),
@@ -61,7 +62,7 @@ impl HistoryView {
             thumb,
             on_click: Rc::new(move |_, window, cx| {
                 let _ = weak.update(cx, |this, cx| match thumb {
-                    Thumb::Download => this.start_download(id, CLICKED_PRIORITY, cx),
+                    Thumb::Download => this.add_to_downloads(id, (chat, message), cx),
                     Thumb::Cancel { .. } => this.cancel_download(id, cx),
                     Thumb::Document | Thumb::Play | Thumb::Pause => {
                         if let Some(path) = &path {
@@ -83,6 +84,19 @@ impl HistoryView {
         if self.requested_files.insert(file) {
             self.start_download(file, priority, cx);
         }
+    }
+
+    /// Downloads a file the user asked for into TDLib's download list, so
+    /// the download bar and section show it.
+    pub(super) fn add_to_downloads(
+        &mut self,
+        file: FileId,
+        (chat, message): (ChatId, MessageId),
+        cx: &mut Context<Self>,
+    ) {
+        let session = self.store.read(cx).session().clone();
+        let task = session.add_file_to_downloads(file, chat, message, CLICKED_PRIORITY);
+        crate::peer_menu::send(task, "adding a file to downloads", cx);
     }
 
     pub(super) fn start_download(&mut self, file: FileId, priority: i32, cx: &mut Context<Self>) {

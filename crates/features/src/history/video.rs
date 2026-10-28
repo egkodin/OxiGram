@@ -27,7 +27,7 @@ use ui::{color, font, font_height};
 
 use super::HistoryView;
 use super::bubble::OnClick;
-use super::documents::{CLICKED_PRIORITY, current};
+use super::documents::current;
 use super::file_row::progress;
 use super::photo::Photo;
 use crate::file_sizes::{progress_text, size_text};
@@ -104,7 +104,7 @@ impl HistoryView {
             }
             _ => return None,
         };
-        let id = message.id;
+        let (chat, id) = (message.chat, message.id);
         let file = current(self, media.file.as_ref()?, cx).clone();
         // TDLib's GIFs are muted loops, "GIF" stands for their length.
         let length = if is_gif {
@@ -132,7 +132,7 @@ impl HistoryView {
         let path = file.path.clone().map(PathBuf::from);
         let on_click: OnClick = Rc::new(move |_, window, cx| {
             let _ = weak.update(cx, |this, cx| match center {
-                Center::Download => this.start_download(file.id, CLICKED_PRIORITY, cx),
+                Center::Download => this.add_to_downloads(file.id, (chat, id), cx),
                 Center::Cancel { .. } => this.cancel_download(file.id, cx),
                 // shortcut: the system player plays it; inline playback comes with the media viewer (row 292).
                 Center::Play => {

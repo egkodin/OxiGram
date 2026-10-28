@@ -4,6 +4,7 @@
 mod action;
 mod archive;
 mod date;
+mod download_bar;
 mod folder_menu;
 mod hashtag_results;
 mod menu;
@@ -114,6 +115,11 @@ impl RowKey {
 pub(crate) struct OpenChat(pub ChatId);
 
 impl EventEmitter<OpenChat> for Dialogs {}
+
+/// Opens a chat at a message: the download bar's "View in chat".
+pub(crate) struct OpenMessage(pub ChatId, pub model::MessageId);
+
+impl EventEmitter<OpenMessage> for Dialogs {}
 
 pub(crate) struct Dialogs {
     store: Entity<Store>,
@@ -459,6 +465,7 @@ impl Render for Dialogs {
             .flex_col()
             .children(self.tabs_strip(window, cx))
             .child(div().flex_1().min_h_0().child(self.body(cx)))
+            .children(self.download_bar(cx))
             .children(self.menu_overlay())
     }
 }

@@ -25,7 +25,7 @@ use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_heig
 
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
-use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, OpenChat, is_sidebar_shown};
+use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, OpenChat, OpenMessage, is_sidebar_shown};
 use crate::history::{HistoryEvent, HistoryView, Placement};
 use crate::lang::tr;
 use crate::links;
@@ -56,7 +56,7 @@ pub struct MainView {
     /// its place for the way back.
     parents: Vec<(Entity<HistoryView>, Subscription)>,
     focus: FocusHandle,
-    _subscriptions: [Subscription; 4],
+    _subscriptions: [Subscription; 5],
     _history_subscription: Option<Subscription>,
 }
 
@@ -102,6 +102,18 @@ impl MainView {
         let open = cx.subscribe_in(&dialogs, window, |this, _, OpenChat(chat), window, cx| {
             this.open_chat(*chat, window, cx);
         });
+        let open_message = cx.subscribe_in(
+            &dialogs,
+            window,
+            |this, dialogs, OpenMessage(chat, message), window, cx| {
+                let (chat, message) = (*chat, *message);
+                dialogs.update(cx, |dialogs, cx| dialogs.select(chat, cx));
+                this.open_chat(chat, window, cx);
+                if let Some(history) = &this.history {
+                    history.update(cx, |history, cx| history.jump_to(message, cx));
+                }
+            },
+        );
         Self {
             store,
             layers,
@@ -110,7 +122,7 @@ impl MainView {
             history: None,
             parents: Vec::new(),
             focus,
-            _subscriptions: [subscription, observe_dialogs, complete, open],
+            _subscriptions: [subscription, observe_dialogs, complete, open, open_message],
             _history_subscription: None,
         }
     }

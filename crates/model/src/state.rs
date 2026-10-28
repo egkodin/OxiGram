@@ -4,6 +4,7 @@ use td_api::enums::ConnectionState as TdConnectionState;
 
 use crate::auth::{self, Terms, TermsId};
 use crate::chats::Chats;
+use crate::downloads::Downloads;
 use crate::event::Event;
 use crate::history::{History, Page};
 use crate::ids::{ChatId, UserId};
@@ -23,6 +24,8 @@ pub struct State {
     pub chats: Chats,
     /// The signed-in user, once TDLib told.
     pub me: Option<UserId>,
+    /// The download list's progress, for the bar under the chat list.
+    pub downloads: Downloads,
     /// The messages of open chats; others get none, so memory stays flat.
     histories: HashMap<Key, History>,
 }
@@ -53,6 +56,7 @@ impl State {
                 ) {
                     self.chats = Chats::default();
                     self.histories.clear();
+                    self.downloads = Downloads::default();
                     self.me = None;
                 }
                 self.auth = state;
@@ -67,6 +71,7 @@ impl State {
                 }
                 self.chats.apply(change);
             }
+            Event::Downloads(change) => self.downloads.apply(change),
             Event::Messages(change) => {
                 let chat = change.chat();
                 for (_, history) in self

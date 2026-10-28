@@ -63,6 +63,16 @@
 - Video covers and timestamps (`history/video.rs`, `Media::start_timestamp`):
   a cover the sender picked replaces TDLib's still; a start time shows as
   the line along the bottom. Snapshots 195-196.
+- Minimal static FFmpeg (`scripts/build-ffmpeg.sh`, `ffmpeg/SOURCES`, ADR
+  0006 "Revisited in M5"): FFmpeg 9.0.2 and dav1d 1.5.4 from checked
+  tarballs, only rgram's decoders, demuxers and parsers, VideoToolbox /
+  VAAPI / D3D11VA. Built and linked here: 34 MB of archives, 6.2 MB in a
+  stripped probe that decodes H.264.
+- Download bar (`dialogs/download_bar.rs`, `model::downloads`): downloads
+  from a file's or video's button go through TDLib's download list
+  (`addFileToDownloads`); the bar under the chat list shows the ring, the
+  file's name or "3 files", "x / y MB", then "View in chat" / "View in
+  downloads"; a click opens the one file's message. Snapshots 197-199.
 
 ### Half done (shortcuts in code)
 
@@ -102,23 +112,27 @@
   layer that hides the chat.
 - Video timestamps: the line's ends are cut square; playback does not
   start there until the in-app player.
+- Download bar: a still ring, no grow or fade when done, no thumbnail in
+  the circle; a click on several files opens nothing until the downloads
+  list; voice notes still download outside the list; the static FFmpeg
+  is not in CI yet and rgram does not link it yet.
 
-### Waiting on the owner (M5)
+### Decided by the owner (M5)
 
-- Video decoder (ADR 0006 deferred it to M5). It gates the in-app video
-  player (rows 292, 296, 259), inline round videos and GIF autoplay,
-  covered view-once videos, WebM stickers and the music player's MP3/M4A/
-  FLAC. Options: FFmpeg via `ffmpeg-next` (what tdesktop uses; every codec;
-  a system library, `brew install ffmpeg` here, GPL-compatible); platform
-  APIs per OS (three backends, `unsafe` FFI); pure Rust (`openh264` +
-  an MP4 demuxer + symphonia for audio; H.264 only, no HEVC or VP9).
-  Recommendation: FFmpeg. Not started until the owner picks.
+- Video decoder: FFmpeg via `ffmpeg-next`. Release builds link a minimal
+  FFmpeg built from source (no system FFmpeg), hardware decoding with a
+  software fallback, decoding off the main thread with only the frames on
+  screen kept.
 
-### Next steps (M5, offline)
+### Next steps (M5, offline), in the owner's order
 
-- Download manager with the downloads list (row 286).
-- Sticker and GIF panels in the emoji panel (rows after 286).
-- After the decoder: the video player in the viewer, then music.
+- The downloads list (row 286), which the bar's "View in downloads" opens.
+- The video player (`media` crate, `ffmpeg-next`, a `static-ffmpeg`
+  feature; CI builds FFmpeg cached and sets `FFMPEG_DIR`).
+- Round videos inline, GIF autoplay, WebM stickers (alpha: FFmpeg's vp9
+  ignores it), then audio and music.
+- The signal 11 when the snapshot example exits.
+- Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)
 
@@ -190,6 +204,11 @@
     that has a custom cover shows that cover, not the first frame; a
     link to a video with a time (or a forward with a start time) shows
     the blue line along the bottom up to that point.
+18. Download bar, only in Saved Messages (forward a file of a few MB
+    there first): click the file's download button: the bar shows under
+    the chat list with the ring, the name and "x / y MB"; when done it
+    says "View in chat", and a click opens the message; download two
+    files: it says "2 files". A minute after all are done it goes away.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

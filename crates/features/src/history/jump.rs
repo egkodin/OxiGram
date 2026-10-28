@@ -70,7 +70,7 @@ impl HistoryView {
         }
     }
 
-    pub(super) fn jump_to(&mut self, id: MessageId, cx: &mut Context<Self>) {
+    pub(crate) fn jump_to(&mut self, id: MessageId, cx: &mut Context<Self>) {
         self.highlight(id, cx);
         if let Some(item_ix) = self.shown.iter().position(|message| message.id == id) {
             self.list.scroll_to(ListOffset {
