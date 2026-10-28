@@ -68,7 +68,7 @@ impl HistoryView {
             .map_or(0, |reactions| reactions.list.iter().map(|r| r.count).sum());
         let kind = match (&viewers, &message.content) {
             (None, _) => SeenKind::Reacted,
-            (Some(_), Content::VideoNote) => SeenKind::Watched,
+            (Some(_), Content::VideoNote { .. }) => SeenKind::Watched,
             (Some(_), Content::Voice { .. }) => SeenKind::Listened,
             (Some(_), _) => SeenKind::Seen,
         };

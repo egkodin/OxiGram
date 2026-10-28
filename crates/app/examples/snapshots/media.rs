@@ -147,6 +147,47 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), stickers())],
             steps: vec![("173-stickers-list", auth(State::Ready))],
         },
+        // Round videos: one on disk nobody watched, one sent to download.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("176-rounds-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), rounds(&photo))],
+            steps: vec![("175-rounds-list", auth(State::Ready))],
+        },
+    ]
+}
+
+fn rounds(still: &Path) -> Vec<Message> {
+    let round = |id: i64, from: i64, ago: i32, duration: i32, file: File| {
+        let media = Media {
+            thumbnail: minithumbnail(),
+            dimensions: Dimensions::new(384, 384),
+            preview: Some(self::file(
+                950 + i32::try_from(id).unwrap_or(0),
+                Some(still),
+            )),
+            duration,
+            file: Some(file),
+            ..Media::default()
+        };
+        place(
+            id,
+            from,
+            ago,
+            Content::VideoNote {
+                media: Box::new(media),
+                is_viewed: false,
+            },
+        )
+    };
+    vec![
+        round(1, MARIA, 2 * HOUR, 9, file(955, Some(still))),
+        round(2, ME, HOUR, 21, file(956, None)),
     ]
 }
 

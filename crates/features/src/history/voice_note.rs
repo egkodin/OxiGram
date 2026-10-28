@@ -125,7 +125,7 @@ impl HistoryView {
         })
     }
 
-    fn mark_listened(&self, message: MessageId, cx: &mut Context<Self>) {
+    pub(super) fn mark_listened(&self, message: MessageId, cx: &mut Context<Self>) {
         let request = self
             .store
             .read(cx)

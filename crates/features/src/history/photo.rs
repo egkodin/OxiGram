@@ -107,7 +107,9 @@ impl HistoryView {
     pub(super) fn photo(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
         let photo = match &message.content {
             Content::Photo(media) => Some(self.still(media.file.as_ref(), media, cx)),
-            Content::Video(_) | Content::Animation(_) => self.video(message, cx),
+            Content::Video(_) | Content::Animation(_) | Content::VideoNote { .. } => {
+                self.video(message, cx)
+            }
             Content::Location(_) | Content::LiveLocation(_) | Content::Venue { .. } => {
                 self.map(message, cx)
             }
@@ -198,11 +200,19 @@ pub(super) fn rounded<E: Styled>(element: E, corners: Corners<Pixels>) -> E {
         .rounded_br(corners.bottom_right)
 }
 
+/// Stickers and round videos stand alone, outside any bubble
+/// (`UnwrappedMedia`).
+fn is_unwrapped(message: &Message) -> bool {
+    matches!(
+        message.content,
+        Content::Sticker { .. } | Content::VideoNote { .. }
+    )
+}
+
 /// The time on its pill in the photo's corner (`InfoDisplayType::Image`).
 fn info_over(item: &Item<'_>, out: bool, cx: &App) -> Div {
-    // A sticker's time is on the service pill (`InfoDisplayType::Background`).
-    let is_sticker = matches!(item.message.content, Content::Sticker { .. });
-    let bg = match (is_sticker, item.is_selected) {
+    // Unwrapped media have the time on the service pill (`InfoDisplayType::Background`).
+    let bg = match (is_unwrapped(item.message), item.is_selected) {
         (true, false) => ColorId::MsgServiceBg,
         (true, true) => ColorId::MsgServiceBgSelected,
         (false, true) => ColorId::MsgDateImgBgSelected,
@@ -239,10 +249,10 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
         Foot::Media
     };
     let (frame, fg) = bubble::frame(out, item.is_selected, &item.run, foot, cx);
-    let edges = if matches!(item.message.content, Content::Sticker { .. }) {
-        Corners::default()
-    } else {
-        bubble::corners(out, &item.run, foot)
+    let edges = match &item.message.content {
+        Content::Sticker { .. } => Corners::default(),
+        Content::VideoNote { .. } => Corners::all(px_of(Px(pictures.width)) / 2.0),
+        _ => bubble::corners(out, &item.run, foot),
     };
     let corners = Corners {
         top_left: if has_header { px(0.0) } else { edges.top_left },

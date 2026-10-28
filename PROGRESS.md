@@ -36,6 +36,9 @@
 - Stickers (`history/sticker.rs`, `model::sticker`): still WebP stickers
   alone at tdesktop's size with the time on the service pill; animated
   ones show their still. Snapshots 173-174.
+- Round video messages (`history/video.rs`): the circle with its still,
+  download and play buttons, the length and the unwatched dot. Snapshots
+  175-176.
 
 ### Half done (shortcuts in code)
 
@@ -56,6 +59,7 @@
 - Spoilers: the preview is not blurred and the dots stand still (M8).
 - Stickers: TGS and WebM do not play; replies and forwards put a sticker
   in a bubble; selection tints its square; no click to open the set.
+- Round videos play in the system player, not inline in the circle.
 
 ### Live test list (M5)
 
@@ -95,6 +99,9 @@
    no play button until revealed.
 10. Stickers, read only: a still sticker shows without a bubble, the
     time on a grey pill; an animated one shows its first frame.
+11. Round videos, read only: a round video shows as a circle with "0:09"
+    and a dot bottom left; play it: it opens in the player and the dot
+    goes (only when views are reported).
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

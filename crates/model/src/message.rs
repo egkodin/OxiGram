@@ -213,7 +213,11 @@ pub enum Content {
         caption: FormattedText,
         note: Box<VoiceNote>,
     },
-    VideoNote,
+    /// A round video message; `is_viewed` once someone played it.
+    VideoNote {
+        media: Box<Media>,
+        is_viewed: bool,
+    },
     Sticker {
         emoji: String,
         /// `None` only in fixtures that show the chat list.
@@ -324,6 +328,10 @@ impl Content {
             Self::Voice { note, .. } => Self::Voice {
                 caption: FormattedText::default(),
                 note: note.clone(),
+            },
+            Self::VideoNote { media, .. } => Self::VideoNote {
+                media: media.clone(),
+                is_viewed: true,
             },
             other => other.clone(),
         }
@@ -708,7 +716,22 @@ impl From<MessageContent> for Content {
                     is_listened: voice.is_listened,
                 }),
             },
-            MessageContent::MessageVideoNote(_) => Self::VideoNote,
+            MessageContent::MessageVideoNote(note) => {
+                let video = note.video_note;
+                Self::VideoNote {
+                    media: Box::new(Media {
+                        thumbnail: video
+                            .minithumbnail
+                            .and_then(|thumbnail| Minithumbnail::from_td(*thumbnail)),
+                        dimensions: Dimensions::new(video.length, video.length),
+                        preview: still(video.thumbnail),
+                        duration: video.duration,
+                        file: Some(File::from(*video.video)),
+                        ..Media::default()
+                    }),
+                    is_viewed: note.is_viewed,
+                }
+            }
             MessageContent::MessageSticker(sticker) => {
                 let sticker = *sticker.sticker;
                 Self::Sticker {

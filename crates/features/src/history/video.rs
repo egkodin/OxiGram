@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, App, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
     StatefulInteractiveElement as _, Styled as _, div,
@@ -12,7 +13,10 @@ use gpui::{
 use i18n::key;
 use model::message::{Content, Message};
 use style::basic::NORMAL_FONT;
-use style::chat::{MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT};
+use style::chat::{
+    MAX_VIDEO_MESSAGE_SIZE, MEDIA_UNREAD_SIZE, MEDIA_UNREAD_SKIP, MSG_DATE_IMG_DELTA,
+    MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT,
+};
 use style::chat_style::{
     HISTORY_FILE_THUMB_CANCEL, HISTORY_FILE_THUMB_CANCEL_SELECTED, HISTORY_FILE_THUMB_DOWNLOAD,
     HISTORY_FILE_THUMB_DOWNLOAD_SELECTED, HISTORY_FILE_THUMB_PLAY,
@@ -41,9 +45,19 @@ pub(super) enum Center {
     Play,
 }
 
+/// Where the status goes and how it looks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Shape {
+    /// A video or GIF: the pill top left.
+    Frame,
+    /// A round video: the service pill bottom left, a dot until viewed.
+    Round { is_unviewed: bool },
+}
+
 pub(super) struct Video {
     pub center: Center,
     pub status: String,
+    pub shape: Shape,
     pub on_click: OnClick,
 }
 
@@ -71,11 +85,16 @@ fn icon(center: Center, is_selected: bool) -> Icon {
 impl HistoryView {
     /// A video or GIF message's still with its button and status.
     pub(super) fn video(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
-        let (media, is_gif) = match &message.content {
-            Content::Video(media) => (media, false),
-            Content::Animation(media) => (media, true),
+        let (media, is_gif, shape) = match &message.content {
+            Content::Video(media) => (media, false, Shape::Frame),
+            Content::Animation(media) => (media, true, Shape::Frame),
+            Content::VideoNote { media, is_viewed } => {
+                let is_unviewed = !is_viewed && !message.is_outgoing;
+                (&**media, false, Shape::Round { is_unviewed })
+            }
             _ => return None,
         };
+        let id = message.id;
         let file = current(self, media.file.as_ref()?, cx).clone();
         // TDLib's GIFs are muted loops, "GIF" stands for their length.
         let length = if is_gif {
@@ -108,16 +127,24 @@ impl HistoryView {
                 // shortcut: the system player plays it; inline playback comes with the media viewer (row 292).
                 Center::Play => {
                     if let Some(path) = &path {
+                        if matches!(shape, Shape::Round { is_unviewed: true }) {
+                            this.mark_listened(id, cx);
+                        }
                         this.open_file(path, window, cx);
                     }
                 }
             });
         });
-        let still = self.still(media.preview.as_ref(), media, cx);
+        let mut still = self.still(media.preview.as_ref(), media, cx);
+        if let Shape::Round { .. } = shape {
+            // Round videos take one size whatever their length.
+            (still.width, still.height) = (MAX_VIDEO_MESSAGE_SIZE.0, MAX_VIDEO_MESSAGE_SIZE.0);
+        }
         Some(Photo {
             video: Some(Video {
                 center,
                 status,
+                shape,
                 on_click,
             }),
             ..still
@@ -173,22 +200,48 @@ pub(super) fn overlays(video: Video, id: i64, is_selected: bool, cx: &App) -> [A
             on_click(event, window, cx);
         })
         .into_any_element();
+    let (status_bg, status_fg) = match (video.shape, is_selected) {
+        (Shape::Frame, _) => (bg, ColorId::MsgDateImgFg),
+        (Shape::Round { .. }, false) => (palette(cx, ColorId::MsgServiceBg), ColorId::MsgServiceFg),
+        (Shape::Round { .. }, true) => (
+            palette(cx, ColorId::MsgServiceBgSelected),
+            ColorId::MsgServiceFg,
+        ),
+    };
+    let status_fg = palette(cx, status_fg);
+    let dot = matches!(video.shape, Shape::Round { is_unviewed: true }).then(|| {
+        div()
+            .ml(px_of(MEDIA_UNREAD_SKIP))
+            .size(px_of(MEDIA_UNREAD_SIZE))
+            .rounded_full()
+            .bg(status_fg)
+    });
     let status = div()
         .absolute()
         .left(px_of(MSG_DATE_IMG_DELTA))
-        .top(px_of(MSG_DATE_IMG_DELTA))
+        .map(|this| match video.shape {
+            Shape::Frame => this.top(px_of(MSG_DATE_IMG_DELTA)),
+            Shape::Round { .. } => this.bottom(px_of(MSG_DATE_IMG_DELTA)),
+        })
+        .flex()
+        .items_center()
         .px(px_of(MSG_DATE_IMG_PADDING.x))
         .py(px_of(MSG_DATE_IMG_PADDING.y))
         .rounded_full()
-        .bg(bg)
+        .bg(status_bg)
         .font(font(NORMAL_FONT))
         .text_size(px_of(NORMAL_FONT.size))
         .line_height(font_height(NORMAL_FONT))
-        .text_color(color(cx, ColorRef::Palette(ColorId::MsgDateImgFg)))
+        .text_color(status_fg)
         .whitespace_nowrap()
         .child(video.status)
+        .children(dot)
         .into_any_element();
     [button, status]
+}
+
+fn palette(cx: &App, id: ColorId) -> gpui::Hsla {
+    color(cx, ColorRef::Palette(id))
 }
 
 #[cfg(test)]
