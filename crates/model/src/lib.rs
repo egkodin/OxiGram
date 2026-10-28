@@ -31,6 +31,7 @@ pub mod send_files;
 mod session;
 pub mod sponsored;
 mod state;
+pub mod sticker;
 pub mod text;
 pub mod text_links;
 pub mod thread;

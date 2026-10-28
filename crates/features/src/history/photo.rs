@@ -27,7 +27,7 @@ use super::video::Video;
 use crate::px_of;
 
 /// Photos in view load before userpics (TDLib's 1..=32, higher first).
-const PHOTO_PRIORITY: i32 = 16;
+pub(super) const PHOTO_PRIORITY: i32 = 16;
 
 pub(super) struct Photo {
     pub width: i32,
@@ -39,8 +39,8 @@ pub(super) struct Photo {
     pub video: Option<Video>,
     /// A map's link to the point in Maps; the pin stands on it.
     pub map: Option<SharedString>,
-    /// What shows until the picture loads.
-    pub placeholder: ColorId,
+    /// What shows until the picture loads; nothing for a sticker.
+    pub placeholder: Option<ColorId>,
     /// Set while a spoiler hides it: the click that reveals it.
     pub spoiler: Option<bubble::OnClick>,
 }
@@ -111,6 +111,10 @@ impl HistoryView {
             Content::Location(_) | Content::LiveLocation(_) | Content::Venue { .. } => {
                 self.map(message, cx)
             }
+            Content::Sticker {
+                picture: Some(picture),
+                ..
+            } => Some(self.sticker(picture, cx)),
             _ => None,
         };
         photo.map(|photo| self.spoil(message, photo, cx))
@@ -142,7 +146,7 @@ impl HistoryView {
             thumbnail,
             video: None,
             map: None,
-            placeholder: ColorId::ImageBg,
+            placeholder: Some(ColorId::ImageBg),
             spoiler: None,
         }
     }
@@ -152,7 +156,10 @@ impl HistoryView {
 pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     let (width, height) = (px_of(Px(photo.width)), px_of(Px(photo.height)));
     let Some(source) = photo.source else {
-        return placeholder(photo.placeholder, corners, cx)
+        let bg = photo.placeholder.map(|bg| color(cx, bubble::palette(bg)));
+        return div()
+            .when_some(bg, |this, bg| this.bg(bg))
+            .map(|this| rounded(this, corners))
             .w(width)
             .h(height)
             .into_any_element();
@@ -182,12 +189,6 @@ pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyEl
         .into_any_element()
 }
 
-fn placeholder(bg: ColorId, corners: Corners<Pixels>, cx: &App) -> Div {
-    div()
-        .bg(color(cx, bubble::palette(bg)))
-        .map(|this| rounded(this, corners))
-}
-
 /// Each corner's own radius; `Styled` has no setter for all four.
 pub(super) fn rounded<E: Styled>(element: E, corners: Corners<Pixels>) -> E {
     element
@@ -199,10 +200,13 @@ pub(super) fn rounded<E: Styled>(element: E, corners: Corners<Pixels>) -> E {
 
 /// The time on its pill in the photo's corner (`InfoDisplayType::Image`).
 fn info_over(item: &Item<'_>, out: bool, cx: &App) -> Div {
-    let bg = if item.is_selected {
-        ColorId::MsgDateImgBgSelected
-    } else {
-        ColorId::MsgDateImgBg
+    // A sticker's time is on the service pill (`InfoDisplayType::Background`).
+    let is_sticker = matches!(item.message.content, Content::Sticker { .. });
+    let bg = match (is_sticker, item.is_selected) {
+        (true, false) => ColorId::MsgServiceBg,
+        (true, true) => ColorId::MsgServiceBgSelected,
+        (false, true) => ColorId::MsgDateImgBgSelected,
+        (false, false) => ColorId::MsgDateImgBg,
     };
     div()
         .absolute()
@@ -235,7 +239,11 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
         Foot::Media
     };
     let (frame, fg) = bubble::frame(out, item.is_selected, &item.run, foot, cx);
-    let edges = bubble::corners(out, &item.run, foot);
+    let edges = if matches!(item.message.content, Content::Sticker { .. }) {
+        Corners::default()
+    } else {
+        bubble::corners(out, &item.run, foot)
+    };
     let corners = Corners {
         top_left: if has_header { px(0.0) } else { edges.top_left },
         top_right: if has_header { px(0.0) } else { edges.top_right },

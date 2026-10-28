@@ -46,6 +46,7 @@ mod send_menu;
 mod service;
 mod spoiler;
 mod sponsored;
+mod sticker;
 mod sync;
 mod text;
 mod thread_section;

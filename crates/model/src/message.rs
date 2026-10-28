@@ -10,6 +10,7 @@ use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
 use crate::location::Point;
 use crate::reaction::Reactions;
 use crate::secret::Secret;
+use crate::sticker::StickerPicture;
 use crate::text::FormattedText;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,6 +216,8 @@ pub enum Content {
     VideoNote,
     Sticker {
         emoji: String,
+        /// `None` only in fixtures that show the chat list.
+        picture: Option<Box<StickerPicture>>,
     },
     /// An emoji sent alone, shown big; also dice.
     Emoji(String),
@@ -706,9 +709,13 @@ impl From<MessageContent> for Content {
                 }),
             },
             MessageContent::MessageVideoNote(_) => Self::VideoNote,
-            MessageContent::MessageSticker(sticker) => Self::Sticker {
-                emoji: sticker.sticker.emoji,
-            },
+            MessageContent::MessageSticker(sticker) => {
+                let sticker = *sticker.sticker;
+                Self::Sticker {
+                    emoji: sticker.emoji.clone(),
+                    picture: Some(Box::new(StickerPicture::from(sticker))),
+                }
+            }
             MessageContent::MessageAnimatedEmoji(emoji) => Self::Emoji(emoji.emoji),
             MessageContent::MessageDice(dice) => Self::Emoji(dice.emoji),
             MessageContent::MessageContact(contact) => {

@@ -173,10 +173,10 @@ pub(crate) fn content<'a>(
         }
         Content::Voice { caption, .. } => typed(key::lng_in_dlg_audio, caption),
         Content::VideoNote => typed(key::lng_in_dlg_video_message, &empty),
-        Content::Sticker { emoji } if emoji.is_empty() => {
+        Content::Sticker { emoji, .. } if emoji.is_empty() => {
             Preview::colorized(strings.text(key::lng_in_dlg_sticker))
         }
-        Content::Sticker { emoji } => Preview::colorized(&i18n::fill(
+        Content::Sticker { emoji, .. } => Preview::colorized(&i18n::fill(
             strings.text(key::lng_in_dlg_sticker_emoji),
             &[("emoji", emoji)],
         )),
@@ -414,6 +414,7 @@ mod tests {
             &english(),
             &Content::Sticker {
                 emoji: "😀".to_owned(),
+                picture: None,
             },
         );
         assert_eq!(preview.text, "😀 Sticker");

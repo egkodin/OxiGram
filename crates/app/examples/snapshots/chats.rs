@@ -296,6 +296,7 @@ pub(crate) fn events() -> Vec<Event> {
             9 * 24 * HOUR,
             Content::Sticker {
                 emoji: "👍".to_owned(),
+                picture: None,
             },
         )),
     );

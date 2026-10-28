@@ -33,6 +33,9 @@
   opens Maps. Snapshots 167-169.
 - Media spoilers (`history/spoiler.rs`): the preview under dots until a
   click reveals it. Snapshots 170-172.
+- Stickers (`history/sticker.rs`, `model::sticker`): still WebP stickers
+  alone at tdesktop's size with the time on the service pill; animated
+  ones show their still. Snapshots 173-174.
 
 ### Half done (shortcuts in code)
 
@@ -51,6 +54,8 @@
 - Live locations show as still points: no sender pin, updated line or
   countdown; the map picture is always TDLib's 2x one.
 - Spoilers: the preview is not blurred and the dots stand still (M8).
+- Stickers: TGS and WebM do not play; replies and forwards put a sticker
+  in a bubble; selection tints its square; no click to open the set.
 
 ### Live test list (M5)
 
@@ -88,6 +93,8 @@
 9. Spoilers, read only: a photo sent with a spoiler shows dots over a
    blurry picture; one click shows the photo; a video under a spoiler has
    no play button until revealed.
+10. Stickers, read only: a still sticker shows without a bubble, the
+    time on a grey pill; an animated one shows its first frame.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

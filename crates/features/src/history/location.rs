@@ -71,11 +71,11 @@ impl HistoryView {
         Some(Photo {
             map: Some(point.maps_url().into()),
             // The bubble's color until TDLib draws the map (`PaintBubble`).
-            placeholder: if message.is_outgoing {
+            placeholder: Some(if message.is_outgoing {
                 ColorId::MsgOutBg
             } else {
                 ColorId::MsgInBg
-            },
+            }),
             ..self.still(file.as_ref(), &media, cx)
         })
     }

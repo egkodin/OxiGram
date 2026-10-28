@@ -12,6 +12,7 @@ use model::auth::State;
 use model::file::{Dimensions, File, Minithumbnail};
 use model::location::Point;
 use model::message::{Content, Media, Message, Sender, SharedContact, VoiceNote};
+use model::sticker::{StickerKind, StickerPicture};
 use model::text::FormattedText;
 use model::{ChatId, FileId, MessageId, Secret, UserId};
 
@@ -134,6 +135,75 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(ME), spoilers(&photo))],
             steps: vec![("170-spoilers-list", auth(State::Ready))],
         },
+        // Stickers: a still one, and an animated one shown by its still.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("174-stickers-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), stickers())],
+            steps: vec![("173-stickers-list", auth(State::Ready))],
+        },
+    ]
+}
+
+/// A round face on a clear background, as a sticker's picture.
+fn sticker_file() -> Option<std::path::PathBuf> {
+    let path = std::env::temp_dir()
+        .join("rgram-snapshots")
+        .join("sticker.png");
+    let image = image::RgbaImage::from_fn(512, 512, |x, y| {
+        let distance = |cx: f32, cy: f32| {
+            #[expect(clippy::cast_precision_loss, reason = "pixel coordinates")]
+            let (x, y) = (x as f32, y as f32);
+            ((x - cx).powi(2) + (y - cy).powi(2)).sqrt()
+        };
+        if distance(186.0, 200.0) < 30.0 || distance(326.0, 200.0) < 30.0 {
+            image::Rgba([60, 40, 20, 255])
+        } else if distance(256.0, 256.0) < 240.0 {
+            image::Rgba([250, 200, 60, 255])
+        } else {
+            image::Rgba([0, 0, 0, 0])
+        }
+    });
+    image
+        .save(&path)
+        .inspect_err(|error| eprintln!("writing the sticker fixture: {error:#}"))
+        .ok()
+        .map(|()| path)
+}
+
+fn stickers() -> Vec<Message> {
+    let path = sticker_file();
+    let sticker = |id: i64, from: i64, ago: i32, kind: StickerKind, still: Option<File>| {
+        let picture = StickerPicture {
+            kind,
+            dimensions: Dimensions::new(512, 512),
+            file: file(i32::try_from(960 + id).unwrap_or(960), path.as_deref()),
+            still,
+        };
+        place(
+            id,
+            from,
+            ago,
+            Content::Sticker {
+                emoji: "😀".to_owned(),
+                picture: Some(Box::new(picture)),
+            },
+        )
+    };
+    vec![
+        sticker(1, MARIA, 2 * HOUR, StickerKind::Still, None),
+        sticker(
+            2,
+            ME,
+            HOUR,
+            StickerKind::Animated,
+            Some(file(969, path.as_deref())),
+        ),
     ]
 }
 
