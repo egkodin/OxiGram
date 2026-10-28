@@ -289,10 +289,10 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| media-view | Full-window viewer for photos and videos with paging | M5 | todo | |
-| media-view | Zoom, fit, rotate, fullscreen | M5 | todo | |
+| media-view | Full-window viewer for photos and videos with paging | M5 | in progress | unit tests (`cargo test -p features media_view`); snapshots 184-188: a photo opened from Saved Messages over the window in MediaviewBg, the side arrows (none past the ends), Right pages, Esc closes back to the chat; not verified: no live run yet; photos only, videos still open in the system player; pages through the loaded messages' photos, not the chat's shared media |
+| media-view | Zoom, fit, rotate, fullscreen | M5 | in progress | unit tests: tdesktop's `zoomIn`/`zoomOut`/`zoomReset` levels and `countZoomFor` fit; a photo opens fitted when bigger than the window, else at a point per pixel; Cmd+=/-/0 and Cmd+wheel, drag to move; not verified: no live run; no rotate or fullscreen; zoom keeps the middle, not the mouse point |
 | media-view | Album thumbnails strip | M5 | todo | |
-| media-view | Caption, sender and date; forward, delete, save, copy | M5 | todo | |
+| media-view | Caption, sender and date; forward, delete, save, copy | M5 | in progress | snapshots 186-187: "Photo 2 of 3" bold and "Alex Doe • today at 11:00" bottom left at tdesktop's offsets, the caption in its rounded box, the save icon bottom right (only when the chat allows saving) opens the save box; not verified: no live run; no forward, delete, copy or more menu; the caption is plain text |
 | media-view | Video controls: play, seek, volume, speed, quality | M5 | todo | |
 | media-view | Picture-in-picture | M5 | todo | |
 | media-view | Profile photo gallery in the viewer | M6 | todo | |

@@ -29,6 +29,7 @@ mod large_emoji;
 mod layout;
 mod link_menus;
 mod location;
+mod media_view;
 mod menu;
 mod photo;
 mod pinned;
@@ -194,6 +195,7 @@ impl std::fmt::Debug for HistoryView {
 
 pub(crate) fn bind_keys(cx: &mut gpui::App) {
     delete::bind_keys(cx);
+    media_view::bind_keys(cx);
     field_bar::bind_keys(cx);
 }
 

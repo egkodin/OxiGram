@@ -193,3 +193,9 @@ check on the live run: frame times while scrolling the panel quickly.
 - The same soak with eviction that drops the image without `drop_image`
   (the textures stay in the atlas) grows without bound: 133, 208, 249, 284,
   334, 369, 388, 400, 415, 428, 441, 455 MB in 165 s, about 2 MB a second.
+- Media viewer (`history/media_view.rs`): the full photo loads through
+  gpui's `img` by path, the same path the history bubble already decoded,
+  so opening a downloaded photo decodes nothing new; a photo seen only in
+  the viewer stays in gpui's image cache like the history's photos do.
+  Not measured: paging through hundreds of large photos in one session;
+  if RSS climbs, drop the image on page as the userpic cache does.

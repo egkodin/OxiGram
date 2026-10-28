@@ -36,11 +36,12 @@ pub enum Dismiss {
 pub type OnDismiss = Box<dyn FnOnce(&mut Window, &mut App)>;
 
 /// Where the layer sits: boxes in the middle, the main menu along the left
-/// edge, sliding in (`showMainMenu`).
+/// edge, sliding in (`showMainMenu`), the media viewer over all of it.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Placement {
     Center,
     Left { width: Pixels },
+    Full,
 }
 
 struct Shown {
@@ -130,6 +131,18 @@ impl Layers {
         let placement = Placement::Left { width };
         self.below.clear();
         self.show_at(view, placement, Dismiss::Allowed, None, window, cx);
+    }
+
+    /// Shows `view` over the whole window, fading in, with no dim behind it:
+    /// the view paints its own background.
+    pub fn show_full<V: Render + Focusable>(
+        &mut self,
+        view: Entity<V>,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.below.clear();
+        self.show_at(view, Placement::Full, Dismiss::Allowed, None, window, cx);
     }
 
     fn show_at<V: Render + Focusable>(
@@ -262,7 +275,11 @@ impl Layers {
             .or_else(|| self.leaving.clone());
         let (view, placement) = view?;
         let mut dim = hsla(cx.global::<ui::Theme>().palette.layer_bg);
-        dim.a *= background;
+        dim.a *= if placement == Placement::Full {
+            0.0
+        } else {
+            background
+        };
         div()
             .id("layers")
             .key_context(CONTEXT)
@@ -282,6 +299,7 @@ impl Layers {
                     .items_center()
                     .justify_center()
                     .child(div().opacity(opacity).child(view)),
+                Placement::Full => this.child(div().size_full().opacity(opacity).child(view)),
                 Placement::Left { width } => this.child(
                     div()
                         .relative()

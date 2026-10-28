@@ -7,8 +7,8 @@ use std::ops::Range;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, App, Context, Corners, IntoElement as _, ParentElement as _, Pixels, Styled as _,
-    div, px,
+    AnyElement, App, Context, Corners, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, div, px,
 };
 use model::message::{Content, Message};
 use style::chat::{HISTORY_GROUP_SKIP, HISTORY_GROUP_WIDTH_MAX, HISTORY_GROUP_WIDTH_MIN};
@@ -200,6 +200,17 @@ pub(super) fn mosaic(
             .video
             .take()
             .map(|video| super::video::overlays(video, part.id, is_selected, cx));
+        let open = part.photo.open.take().map(|on_click| {
+            div()
+                .id(("photo-open", part.id.unsigned_abs()))
+                .absolute()
+                .inset_0()
+                .cursor_pointer()
+                .on_click(move |event, window, cx| {
+                    cx.stop_propagation();
+                    on_click(event, window, cx);
+                })
+        });
         let spoiler = part
             .photo
             .spoiler
@@ -225,6 +236,7 @@ pub(super) fn mosaic(
             .h(px_of(Px(rect.height)))
             .child(photo::picture(part.photo, corners, cx))
             .children(map)
+            .children(open)
             .children(spoiler)
             .children(tint)
             .children(video.into_iter().flatten())

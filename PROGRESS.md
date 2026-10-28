@@ -49,6 +49,12 @@
 - Checklists (`history/checklist.rs`, `model::checklist`): tasks with
   their checks and completers, marked by a click; the status line.
   Snapshots 182-183.
+- Media viewer for photos (`history/media_view.rs`, `Layers::show_full`):
+  a click on a photo opens it over the window, fitted when bigger, else at
+  its own size; arrows and Left/Right page through the loaded photos;
+  Cmd+=/Cmd+-/Cmd+0 and Cmd+wheel zoom by tdesktop's levels, a drag moves
+  it; "Photo 2 of 3", the sender and the date bottom left, the caption
+  box, the save button; Esc or a click beside it closes. Snapshots 184-188.
 
 ### Half done (shortcuts in code)
 
@@ -77,6 +83,11 @@
 - Large emoji and dice do not animate (Lottie player); slot machines show
   their emoji; a reply or forward keeps emoji in a bubble.
 - Checklists: no completer's userpic, fireworks or adding tasks.
+- Media viewer: photos only, and only the loaded messages' (not the
+  chat's shared media), so "N of M" counts those; no rotate, more menu,
+  forward, delete or copy, no album strip, no fullscreen; the caption is
+  plain text; the sender's name opens nothing; the zoom does not follow
+  the mouse; no open/close animation beyond the fade.
 
 ### Live test list (M5)
 
@@ -131,6 +142,13 @@
 14. Checklists, only in Saved Messages (create one from a phone, Premium
     only): click a task: it gets a check and your name; click again:
     the check goes; the status line counts them.
+15. Media viewer, read only: in a chat with photos click one: it opens
+    over the window, a big photo fitted, a small one at its own size;
+    "Photo N of M", the sender and the date bottom left, the caption
+    below the photo; Left/Right and the side arrows page; Cmd+= and
+    Cmd+- zoom by steps, Cmd+0 toggles 1:1 and fit, drag moves it; the
+    download icon opens the save box (cancel it); Esc and a click beside
+    the photo close it.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

@@ -43,6 +43,8 @@ pub(super) struct Photo {
     pub placeholder: Option<ColorId>,
     /// Set while a spoiler hides it: the click that reveals it.
     pub spoiler: Option<bubble::OnClick>,
+    /// A photo's click, which opens it in the media viewer.
+    pub open: Option<bubble::OnClick>,
 }
 
 /// `QSize::scaled` with `Qt::KeepAspectRatio` (`expanding` false) or
@@ -106,7 +108,10 @@ impl HistoryView {
     /// A photo, video or GIF message's picture.
     pub(super) fn photo(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
         let photo = match &message.content {
-            Content::Photo(media) => Some(self.still(media.file.as_ref(), media, cx)),
+            Content::Photo(media) => Some(Photo {
+                open: Some(self.on_open_photo(message.id, cx)),
+                ..self.still(media.file.as_ref(), media, cx)
+            }),
             Content::Video(_) | Content::Animation(_) | Content::VideoNote { .. } => {
                 self.video(message, cx)
             }
@@ -159,6 +164,7 @@ impl HistoryView {
             map: None,
             placeholder: Some(ColorId::ImageBg),
             spoiler: None,
+            open: None,
         }
     }
 }

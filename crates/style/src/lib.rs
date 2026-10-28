@@ -7,6 +7,7 @@
 
 pub mod basic;
 pub mod boxes;
+pub mod calls;
 pub mod chat;
 pub mod chat_helpers;
 pub mod chat_style;
@@ -23,12 +24,15 @@ pub mod info;
 pub mod intro;
 pub mod layers;
 pub mod media_player;
+pub mod media_stories;
+pub mod media_view;
 pub mod menu_icons;
 pub mod overview;
 mod palette;
 pub mod polls;
 pub mod premium;
 pub mod premium_limits;
+pub mod settings;
 pub mod userpic_button;
 pub mod widgets;
 pub mod window;

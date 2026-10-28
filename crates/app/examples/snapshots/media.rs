@@ -18,9 +18,9 @@ use model::sticker::{StickerKind, StickerPicture};
 use model::text::FormattedText;
 use model::{ChatId, FileId, MessageId, Secret, UserId};
 
-use super::Scenario;
 use super::chats::{self, HOUR, ME, now};
 use super::scenarios::{CHAT_AREA, MARIA_ROW, SAVED_ROW, auth, fixture_files};
+use super::{Input, Scenario};
 
 /// Maria's chat, where the documents are.
 const MARIA: i64 = 2;
@@ -28,6 +28,8 @@ const MARIA: i64 = 2;
 const NOTES_ROW: (f32, f32) = (640.0, 520.0);
 /// The spoiler photo in Saved Messages.
 const SPOILER_PHOTO: (f32, f32) = (700.0, 250.0);
+/// "Summit at sunrise", the middle of the three photos.
+const CAPTIONED_PHOTO: (f32, f32) = (550.0, 150.0);
 
 pub(crate) fn scenarios() -> Vec<Scenario> {
     let (photo, notes) = fixture_files();
@@ -199,6 +201,25 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(MARIA), checklists())],
             steps: vec![("182-checklists-list", auth(State::Ready))],
+        },
+        // The media viewer: a photo opened from Saved Messages, the next
+        // one by the arrow key, then closed.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("185-viewer-chat", MouseButton::Left, SAVED_ROW),
+                ("186-viewer-photo", MouseButton::Left, CAPTIONED_PHOTO),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                ("187-viewer-next", vec![Input::Key("right")]),
+                ("188-viewer-closed", vec![Input::Key("escape")]),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), photos(&photo))],
+            steps: vec![("184-viewer-list", auth(State::Ready))],
         },
     ]
 }

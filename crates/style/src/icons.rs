@@ -82,10 +82,55 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/calls/call_camera_active@2x.png")),
             x3: Some(include_bytes!("../icons/calls/call_camera_active@3x.png")),
         },
+        "calls/call_camera_muted" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_camera_muted.png"),
+            x2: Some(include_bytes!("../icons/calls/call_camera_muted@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_camera_muted@3x.png")),
+        },
+        "calls/call_cancel" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_cancel.png"),
+            x2: Some(include_bytes!("../icons/calls/call_cancel@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_cancel@3x.png")),
+        },
+        "calls/call_discard" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_discard.png"),
+            x2: Some(include_bytes!("../icons/calls/call_discard@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_discard@3x.png")),
+        },
+        "calls/call_ended" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_ended.png"),
+            x2: Some(include_bytes!("../icons/calls/call_ended@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_ended@3x.png")),
+        },
         "calls/call_group" => IconFiles::Png {
             x1: include_bytes!("../icons/calls/call_group.png"),
             x2: Some(include_bytes!("../icons/calls/call_group@2x.png")),
             x3: Some(include_bytes!("../icons/calls/call_group@3x.png")),
+        },
+        "calls/call_message" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_message.png"),
+            x2: Some(include_bytes!("../icons/calls/call_message@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_message@3x.png")),
+        },
+        "calls/call_rating" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_rating.png"),
+            x2: Some(include_bytes!("../icons/calls/call_rating@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_rating@3x.png")),
+        },
+        "calls/call_rating_filled" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_rating_filled.png"),
+            x2: Some(include_bytes!("../icons/calls/call_rating_filled@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_rating_filled@3x.png")),
+        },
+        "calls/call_record_active" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_record_active.png"),
+            x2: Some(include_bytes!("../icons/calls/call_record_active@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_record_active@3x.png")),
+        },
+        "calls/call_record_muted" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/call_record_muted.png"),
+            x2: Some(include_bytes!("../icons/calls/call_record_muted@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/call_record_muted@3x.png")),
         },
         "calls/call_shadow_left" => IconFiles::Png {
             x1: include_bytes!("../icons/calls/call_shadow_left.png"),
@@ -102,13 +147,170 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/calls/call_shadow_top_left@2x.png")),
             x3: Some(include_bytes!("../icons/calls/call_shadow_top_left@3x.png")),
         },
+        "calls/calls_add_people" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_add_people.png"),
+            x2: Some(include_bytes!("../icons/calls/calls_add_people@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/calls_add_people@3x.png")),
+        },
+        "calls/calls_more" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_more.png"),
+            x2: Some(include_bytes!("../icons/calls/calls_more@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/calls_more@3x.png")),
+        },
+        "calls/calls_mute_tooltip" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_mute_tooltip.png"),
+            x2: Some(include_bytes!("../icons/calls/calls_mute_tooltip@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/calls_mute_tooltip@3x.png")),
+        },
+        "calls/calls_mute_userpic" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_mute_userpic.png"),
+            x2: Some(include_bytes!("../icons/calls/calls_mute_userpic@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/calls_mute_userpic@3x.png")),
+        },
+        "calls/calls_present" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_present.png"),
+            x2: Some(include_bytes!("../icons/calls/calls_present@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/calls_present@3x.png")),
+        },
+        "calls/calls_settings" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_settings.png"),
+            x2: Some(include_bytes!("../icons/calls/calls_settings@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/calls_settings@3x.png")),
+        },
+        "calls/calls_shadow_controls" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/calls_shadow_controls.png"),
+            x2: Some(include_bytes!(
+                "../icons/calls/calls_shadow_controls@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/calls/calls_shadow_controls@3x.png"
+            )),
+        },
         "calls/filled_stream_crown" => {
             IconFiles::Svg(include_bytes!("../icons/calls/filled_stream_crown.svg"))
         }
+        "calls/group_call_logo" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/group_call_logo.png"),
+            x2: Some(include_bytes!("../icons/calls/group_call_logo@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/group_call_logo@3x.png")),
+        },
+        "calls/group_calls_invited" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/group_calls_invited.png"),
+            x2: Some(include_bytes!("../icons/calls/group_calls_invited@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/group_calls_invited@3x.png")),
+        },
+        "calls/group_calls_raised_hand" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/group_calls_raised_hand.png"),
+            x2: Some(include_bytes!(
+                "../icons/calls/group_calls_raised_hand@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/calls/group_calls_raised_hand@3x.png"
+            )),
+        },
+        "calls/group_calls_share" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/group_calls_share.png"),
+            x2: Some(include_bytes!("../icons/calls/group_calls_share@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/group_calls_share@3x.png")),
+        },
+        "calls/group_calls_unmuted" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/group_calls_unmuted.png"),
+            x2: Some(include_bytes!("../icons/calls/group_calls_unmuted@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/group_calls_unmuted@3x.png")),
+        },
+        "calls/mini_calls_arrow" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/mini_calls_arrow.png"),
+            x2: Some(include_bytes!("../icons/calls/mini_calls_arrow@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/mini_calls_arrow@3x.png")),
+        },
+        "calls/navbar_column" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/navbar_column.png"),
+            x2: Some(include_bytes!("../icons/calls/navbar_column@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/navbar_column@3x.png")),
+        },
+        "calls/navbar_column_filled" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/navbar_column_filled.png"),
+            x2: Some(include_bytes!("../icons/calls/navbar_column_filled@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/navbar_column_filled@3x.png")),
+        },
+        "calls/navbar_more" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/navbar_more.png"),
+            x2: Some(include_bytes!("../icons/calls/navbar_more@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/navbar_more@3x.png")),
+        },
+        "calls/navbar_pin" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/navbar_pin.png"),
+            x2: Some(include_bytes!("../icons/calls/navbar_pin@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/navbar_pin@3x.png")),
+        },
+        "calls/navbar_pin_filled" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/navbar_pin_filled.png"),
+            x2: Some(include_bytes!("../icons/calls/navbar_pin_filled@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/navbar_pin_filled@3x.png")),
+        },
+        "calls/video_back" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_back.png"),
+            x2: Some(include_bytes!("../icons/calls/video_back@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_back@3x.png")),
+        },
+        "calls/video_large_paused" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_large_paused.png"),
+            x2: Some(include_bytes!("../icons/calls/video_large_paused@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_large_paused@3x.png")),
+        },
+        "calls/video_mini_invited" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_mini_invited.png"),
+            x2: Some(include_bytes!("../icons/calls/video_mini_invited@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_mini_invited@3x.png")),
+        },
+        "calls/video_mini_mute" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_mini_mute.png"),
+            x2: Some(include_bytes!("../icons/calls/video_mini_mute@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_mini_mute@3x.png")),
+        },
+        "calls/video_mini_screencast" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_mini_screencast.png"),
+            x2: Some(include_bytes!(
+                "../icons/calls/video_mini_screencast@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/calls/video_mini_screencast@3x.png"
+            )),
+        },
+        "calls/video_mini_speak" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_mini_speak.png"),
+            x2: Some(include_bytes!("../icons/calls/video_mini_speak@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_mini_speak@3x.png")),
+        },
+        "calls/video_mini_video" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_mini_video.png"),
+            x2: Some(include_bytes!("../icons/calls/video_mini_video@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_mini_video@3x.png")),
+        },
+        "calls/video_over_mute" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_over_mute.png"),
+            x2: Some(include_bytes!("../icons/calls/video_over_mute@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_over_mute@3x.png")),
+        },
+        "calls/video_over_pin" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/video_over_pin.png"),
+            x2: Some(include_bytes!("../icons/calls/video_over_pin@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/video_over_pin@3x.png")),
+        },
         "calls/video_tooltip" => IconFiles::Png {
             x1: include_bytes!("../icons/calls/video_tooltip.png"),
             x2: Some(include_bytes!("../icons/calls/video_tooltip@2x.png")),
             x3: Some(include_bytes!("../icons/calls/video_tooltip@3x.png")),
+        },
+        "calls/volume/speaker" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/volume/speaker.png"),
+            x2: Some(include_bytes!("../icons/calls/volume/speaker@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/volume/speaker@3x.png")),
+        },
+        "calls/volume/speaker_small" => IconFiles::Png {
+            x1: include_bytes!("../icons/calls/volume/speaker_small.png"),
+            x2: Some(include_bytes!("../icons/calls/volume/speaker_small@2x.png")),
+            x3: Some(include_bytes!("../icons/calls/volume/speaker_small@3x.png")),
         },
         "chat/ai_letters" => IconFiles::Svg(include_bytes!("../icons/chat/ai_letters.svg")),
         "chat/ai_star1" => IconFiles::Svg(include_bytes!("../icons/chat/ai_star1.svg")),
@@ -156,6 +358,16 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/chat/input_bot_keyboard_hide@3x.png"
             )),
         },
+        "chat/input_comments_expand" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/input_comments_expand.png"),
+            x2: Some(include_bytes!("../icons/chat/input_comments_expand@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/input_comments_expand@3x.png")),
+        },
+        "chat/input_comments_hide" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/input_comments_hide.png"),
+            x2: Some(include_bytes!("../icons/chat/input_comments_hide@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/input_comments_hide@3x.png")),
+        },
         "chat/input_discard" => IconFiles::Svg(include_bytes!("../icons/chat/input_discard.svg")),
         "chat/input_draw" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/input_draw.png"),
@@ -176,6 +388,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/chat/input_gift.png"),
             x2: Some(include_bytes!("../icons/chat/input_gift@2x.png")),
             x3: Some(include_bytes!("../icons/chat/input_gift@3x.png")),
+        },
+        "chat/input_like" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/input_like.png"),
+            x2: Some(include_bytes!("../icons/chat/input_like@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/input_like@3x.png")),
         },
         "chat/input_link_settings" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/input_link_settings.png"),
@@ -1239,6 +1456,15 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/info/edit/expand_arrow_small@3x.png"
             )),
         },
+        "info/edit/group_manage_links" => IconFiles::Png {
+            x1: include_bytes!("../icons/info/edit/group_manage_links.png"),
+            x2: Some(include_bytes!(
+                "../icons/info/edit/group_manage_links@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/info/edit/group_manage_links@3x.png"
+            )),
+        },
         "info/edit/links_copy" => IconFiles::Png {
             x1: include_bytes!("../icons/info/edit/links_copy.png"),
             x2: Some(include_bytes!("../icons/info/edit/links_copy@2x.png")),
@@ -1597,25 +1823,215 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/media_youtube_play_bg@2x.png")),
             x3: Some(include_bytes!("../icons/media_youtube_play_bg@3x.png")),
         },
+        "mediaview/download" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/download.png"),
+            x2: Some(include_bytes!("../icons/mediaview/download@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/download@3x.png")),
+        },
+        "mediaview/download_locked" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/download_locked.png"),
+            x2: Some(include_bytes!("../icons/mediaview/download_locked@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/download_locked@3x.png")),
+        },
         "mediaview/draw" => IconFiles::Png {
             x1: include_bytes!("../icons/mediaview/draw.png"),
             x2: Some(include_bytes!("../icons/mediaview/draw@2x.png")),
             x3: Some(include_bytes!("../icons/mediaview/draw@3x.png")),
+        },
+        "mediaview/file_corner" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/file_corner.png"),
+            x2: Some(include_bytes!("../icons/mediaview/file_corner@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/file_corner@3x.png")),
+        },
+        "mediaview/mini_close_friends" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/mini_close_friends.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/mini_close_friends@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/mini_close_friends@3x.png"
+            )),
+        },
+        "mediaview/mini_contacts" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/mini_contacts.png"),
+            x2: Some(include_bytes!("../icons/mediaview/mini_contacts@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/mini_contacts@3x.png")),
         },
         "mediaview/mini_repost" => IconFiles::Png {
             x1: include_bytes!("../icons/mediaview/mini_repost.png"),
             x2: Some(include_bytes!("../icons/mediaview/mini_repost@2x.png")),
             x3: Some(include_bytes!("../icons/mediaview/mini_repost@3x.png")),
         },
+        "mediaview/mini_selected_contacts" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/mini_selected_contacts.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/mini_selected_contacts@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/mini_selected_contacts@3x.png"
+            )),
+        },
         "mediaview/next" => IconFiles::Png {
             x1: include_bytes!("../icons/mediaview/next.png"),
             x2: Some(include_bytes!("../icons/mediaview/next@2x.png")),
             x3: Some(include_bytes!("../icons/mediaview/next@3x.png")),
         },
+        "mediaview/next_shadow" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/next_shadow.png"),
+            x2: Some(include_bytes!("../icons/mediaview/next_shadow@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/next_shadow@3x.png")),
+        },
+        "mediaview/recognize" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/recognize.png"),
+            x2: Some(include_bytes!("../icons/mediaview/recognize@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/recognize@3x.png")),
+        },
+        "mediaview/rotate" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/rotate.png"),
+            x2: Some(include_bytes!("../icons/mediaview/rotate@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/rotate@3x.png")),
+        },
         "mediaview/save_check" => IconFiles::Png {
             x1: include_bytes!("../icons/mediaview/save_check.png"),
             x2: Some(include_bytes!("../icons/mediaview/save_check@2x.png")),
             x3: Some(include_bytes!("../icons/mediaview/save_check@3x.png")),
+        },
+        "mediaview/shadow_bottom" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/shadow_bottom.png"),
+            x2: Some(include_bytes!("../icons/mediaview/shadow_bottom@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/shadow_bottom@3x.png")),
+        },
+        "mediaview/shadow_top" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/shadow_top.png"),
+            x2: Some(include_bytes!("../icons/mediaview/shadow_top@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/shadow_top@3x.png")),
+        },
+        "mediaview/title_button_close_mac" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_button_close_mac.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_button_close_mac@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_button_close_mac@3x.png"
+            )),
+        },
+        "mediaview/title_button_mac" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_button_mac.png"),
+            x2: Some(include_bytes!("../icons/mediaview/title_button_mac@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/title_button_mac@3x.png")),
+        },
+        "mediaview/title_button_maximize_mac" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_button_maximize_mac.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_button_maximize_mac@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_button_maximize_mac@3x.png"
+            )),
+        },
+        "mediaview/title_button_minimize_mac" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_button_minimize_mac.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_button_minimize_mac@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_button_minimize_mac@3x.png"
+            )),
+        },
+        "mediaview/title_button_shadow_mac" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_button_shadow_mac.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_button_shadow_mac@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_button_shadow_mac@3x.png"
+            )),
+        },
+        "mediaview/title_button_shrink_mac" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_button_shrink_mac.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_button_shrink_mac@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_button_shrink_mac@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_button_close" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_button_close.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_close@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_close@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_button_maximize" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_button_maximize.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_maximize@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_maximize@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_button_minimize" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_button_minimize.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_minimize@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_minimize@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_button_restore" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_button_restore.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_restore@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_button_restore@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_shadow_close" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_shadow_close.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_close@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_close@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_shadow_maximize" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_shadow_maximize.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_maximize@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_maximize@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_shadow_minimize" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_shadow_minimize.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_minimize@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_minimize@3x.png"
+            )),
+        },
+        "mediaview/title_viewer_shadow_restore" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/title_viewer_shadow_restore.png"),
+            x2: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_restore@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/mediaview/title_viewer_shadow_restore@3x.png"
+            )),
+        },
+        "mediaview/viewer_share" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/viewer_share.png"),
+            x2: Some(include_bytes!("../icons/mediaview/viewer_share@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/viewer_share@3x.png")),
         },
         "mediaview/views" => IconFiles::Png {
             x1: include_bytes!("../icons/mediaview/views.png"),
@@ -2707,6 +3123,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/player/player_forward@2x.png")),
             x3: Some(include_bytes!("../icons/player/player_forward@3x.png")),
         },
+        "player/player_fullscreen" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_fullscreen.png"),
+            x2: Some(include_bytes!("../icons/player/player_fullscreen@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_fullscreen@3x.png")),
+        },
         "player/player_mini_full" => IconFiles::Png {
             x1: include_bytes!("../icons/player/player_mini_full.png"),
             x2: Some(include_bytes!("../icons/player/player_mini_full@2x.png")),
@@ -2722,6 +3143,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/player/player_mini_off@2x.png")),
             x3: Some(include_bytes!("../icons/player/player_mini_off@3x.png")),
         },
+        "player/player_minimize" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_minimize.png"),
+            x2: Some(include_bytes!("../icons/player/player_minimize@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_minimize@3x.png")),
+        },
         "player/player_order" => IconFiles::Png {
             x1: include_bytes!("../icons/player/player_order.png"),
             x2: Some(include_bytes!("../icons/player/player_order@2x.png")),
@@ -2732,10 +3158,45 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/player/player_pause@2x.png")),
             x3: Some(include_bytes!("../icons/player/player_pause@3x.png")),
         },
+        "player/player_pause_big" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_pause_big.png"),
+            x2: Some(include_bytes!("../icons/player/player_pause_big@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_pause_big@3x.png")),
+        },
+        "player/player_pip" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_pip.png"),
+            x2: Some(include_bytes!("../icons/player/player_pip@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_pip@3x.png")),
+        },
+        "player/player_pip_close" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_pip_close.png"),
+            x2: Some(include_bytes!("../icons/player/player_pip_close@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_pip_close@3x.png")),
+        },
+        "player/player_pip_enlarge" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_pip_enlarge.png"),
+            x2: Some(include_bytes!("../icons/player/player_pip_enlarge@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_pip_enlarge@3x.png")),
+        },
+        "player/player_pip_pause" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_pip_pause.png"),
+            x2: Some(include_bytes!("../icons/player/player_pip_pause@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_pip_pause@3x.png")),
+        },
+        "player/player_pip_play" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_pip_play.png"),
+            x2: Some(include_bytes!("../icons/player/player_pip_play@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_pip_play@3x.png")),
+        },
         "player/player_play" => IconFiles::Png {
             x1: include_bytes!("../icons/player/player_play.png"),
             x2: Some(include_bytes!("../icons/player/player_play@2x.png")),
             x3: Some(include_bytes!("../icons/player/player_play@3x.png")),
+        },
+        "player/player_play_big" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_play_big.png"),
+            x2: Some(include_bytes!("../icons/player/player_play_big@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_play_big@3x.png")),
         },
         "player/player_repeat" => IconFiles::Png {
             x1: include_bytes!("../icons/player/player_repeat.png"),
@@ -2751,6 +3212,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/player/player_repeat_single@3x.png"
             )),
         },
+        "player/player_settings" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_settings.png"),
+            x2: Some(include_bytes!("../icons/player/player_settings@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_settings@3x.png")),
+        },
         "player/player_shuffle" => IconFiles::Png {
             x1: include_bytes!("../icons/player/player_shuffle.png"),
             x2: Some(include_bytes!("../icons/player/player_shuffle@2x.png")),
@@ -2760,6 +3226,21 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/player/player_speed.png"),
             x2: Some(include_bytes!("../icons/player/player_speed@2x.png")),
             x3: Some(include_bytes!("../icons/player/player_speed@3x.png")),
+        },
+        "player/player_volume_off" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_volume_off.png"),
+            x2: Some(include_bytes!("../icons/player/player_volume_off@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_volume_off@3x.png")),
+        },
+        "player/player_volume_on" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_volume_on.png"),
+            x2: Some(include_bytes!("../icons/player/player_volume_on@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_volume_on@3x.png")),
+        },
+        "player/player_volume_small" => IconFiles::Png {
+            x1: include_bytes!("../icons/player/player_volume_small.png"),
+            x2: Some(include_bytes!("../icons/player/player_volume_small@2x.png")),
+            x3: Some(include_bytes!("../icons/player/player_volume_small@3x.png")),
         },
         "player/playlist_cancel" => IconFiles::Png {
             x1: include_bytes!("../icons/player/playlist_cancel.png"),
@@ -2988,9 +3469,78 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
         "send_media/send_media_cross" => {
             IconFiles::Svg(include_bytes!("../icons/send_media/send_media_cross.svg"))
         }
+        "send_media/send_media_delete" => IconFiles::Png {
+            x1: include_bytes!("../icons/send_media/send_media_delete.png"),
+            x2: Some(include_bytes!(
+                "../icons/send_media/send_media_delete@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/send_media/send_media_delete@3x.png"
+            )),
+        },
         "send_media/send_media_more" => {
             IconFiles::Svg(include_bytes!("../icons/send_media/send_media_more.svg"))
         }
+        "send_media/send_media_replace" => IconFiles::Png {
+            x1: include_bytes!("../icons/send_media/send_media_replace.png"),
+            x2: Some(include_bytes!(
+                "../icons/send_media/send_media_replace@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/send_media/send_media_replace@3x.png"
+            )),
+        },
+        "settings/add" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/add.png"),
+            x2: Some(include_bytes!("../icons/settings/add@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/add@3x.png")),
+        },
+        "settings/devices/device_phone_android" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/devices/device_phone_android.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/devices/device_phone_android@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/devices/device_phone_android@3x.png"
+            )),
+        },
+        "settings/devices/device_phone_ios" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/devices/device_phone_ios.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/devices/device_phone_ios@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/devices/device_phone_ios@3x.png"
+            )),
+        },
+        "settings/earn" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/earn.png"),
+            x2: Some(include_bytes!("../icons/settings/earn@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/earn@3x.png")),
+        },
+        "settings/filled_verify_age" => {
+            IconFiles::Svg(include_bytes!("../icons/settings/filled_verify_age.svg"))
+        }
+        "settings/folder_links" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/folder_links.png"),
+            x2: Some(include_bytes!("../icons/settings/folder_links@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/folder_links@3x.png")),
+        },
+        "settings/gift" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/gift.png"),
+            x2: Some(include_bytes!("../icons/settings/gift@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/gift@3x.png")),
+        },
+        "settings/interface_scale" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/interface_scale.png"),
+            x2: Some(include_bytes!("../icons/settings/interface_scale@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/interface_scale@3x.png")),
+        },
+        "settings/mini_gift" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/mini_gift.png"),
+            x2: Some(include_bytes!("../icons/settings/mini_gift@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/mini_gift@3x.png")),
+        },
         "settings/photo" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/photo.png"),
             x2: Some(include_bytes!("../icons/settings/photo@2x.png")),
@@ -3001,9 +3551,91 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/settings/plus@2x.png")),
             x3: Some(include_bytes!("../icons/settings/plus@3x.png")),
         },
+        "settings/premium/arrow" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/arrow.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/arrow@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/arrow@3x.png")),
+        },
+        "settings/premium/business/business_away" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_away.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_away@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_away@3x.png"
+            )),
+        },
+        "settings/premium/business/business_chatbots" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_chatbots.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_chatbots@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_chatbots@3x.png"
+            )),
+        },
+        "settings/premium/business/business_hours" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_hours.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_hours@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_hours@3x.png"
+            )),
+        },
+        "settings/premium/business/business_intro" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_intro.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_intro@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_intro@3x.png"
+            )),
+        },
+        "settings/premium/business/business_links" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_links.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_links@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_links@3x.png"
+            )),
+        },
+        "settings/premium/business/business_location" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_location.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_location@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_location@3x.png"
+            )),
+        },
+        "settings/premium/business/business_quick" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/business_quick.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/business_quick@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/business_quick@3x.png"
+            )),
+        },
+        "settings/premium/business/earn_stars" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/business/earn_stars.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/business/earn_stars@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/business/earn_stars@3x.png"
+            )),
+        },
         "settings/premium/checklist" => {
             IconFiles::Svg(include_bytes!("../icons/settings/premium/checklist.svg"))
         }
+        "settings/premium/double" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/double.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/double@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/double@3x.png")),
+        },
         "settings/premium/features/feature_color_names" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/premium/features/feature_color_names.png"),
             x2: Some(include_bytes!(
@@ -3121,10 +3753,125 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/settings/premium/features/feature_wallpaper@3x.png"
             )),
         },
+        "settings/premium/promo/business_away" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_away.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_away@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_away@3x.png"
+            )),
+        },
+        "settings/premium/promo/business_chatbot" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_chatbot.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_chatbot@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_chatbot@3x.png"
+            )),
+        },
+        "settings/premium/promo/business_chatlink" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_chatlink.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_chatlink@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_chatlink@3x.png"
+            )),
+        },
+        "settings/premium/promo/business_hours" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_hours.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_hours@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_hours@3x.png"
+            )),
+        },
+        "settings/premium/promo/business_intro" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_intro.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_intro@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_intro@3x.png"
+            )),
+        },
+        "settings/premium/promo/business_location" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_location.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_location@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_location@3x.png"
+            )),
+        },
+        "settings/premium/promo/business_quickreply" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/promo/business_quickreply.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_quickreply@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/promo/business_quickreply@3x.png"
+            )),
+        },
         "settings/premium/star" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/premium/star.png"),
             x2: Some(include_bytes!("../icons/settings/premium/star@2x.png")),
             x3: Some(include_bytes!("../icons/settings/premium/star@3x.png")),
+        },
+        "settings/premium/status" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/status.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/status@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/status@3x.png")),
+        },
+        "settings/premium/stories_caption" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/stories_caption.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/stories_caption@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/stories_caption@3x.png"
+            )),
+        },
+        "settings/premium/stories_order" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/stories_order.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/stories_order@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/stories_order@3x.png"
+            )),
+        },
+        "settings/premium/tags" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/tags.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/tags@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/tags@3x.png")),
+        },
+        "settings/premium/timer" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/timer.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/timer@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/timer@3x.png")),
+        },
+        "settings/remove" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/remove.png"),
+            x2: Some(include_bytes!("../icons/settings/remove@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/remove@3x.png")),
+        },
+        "settings/ttl/autodelete_off" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/ttl/autodelete_off.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/ttl/autodelete_off@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/ttl/autodelete_off@3x.png"
+            )),
+        },
+        "settings/ttl/autodelete_on" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/ttl/autodelete_on.png"),
+            x2: Some(include_bytes!("../icons/settings/ttl/autodelete_on@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/ttl/autodelete_on@3x.png")),
         },
         "simple_close" => IconFiles::Png {
             x1: include_bytes!("../icons/simple_close.png"),
@@ -3165,6 +3912,31 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/stories/boosts_mini@2x.png")),
             x3: Some(include_bytes!("../icons/stories/boosts_mini@3x.png")),
         },
+        "stories/next" => IconFiles::Png {
+            x1: include_bytes!("../icons/stories/next.png"),
+            x2: Some(include_bytes!("../icons/stories/next@2x.png")),
+            x3: Some(include_bytes!("../icons/stories/next@3x.png")),
+        },
+        "stories/stealth_25m" => IconFiles::Png {
+            x1: include_bytes!("../icons/stories/stealth_25m.png"),
+            x2: Some(include_bytes!("../icons/stories/stealth_25m@2x.png")),
+            x3: Some(include_bytes!("../icons/stories/stealth_25m@3x.png")),
+        },
+        "stories/stealth_5m" => IconFiles::Png {
+            x1: include_bytes!("../icons/stories/stealth_5m.png"),
+            x2: Some(include_bytes!("../icons/stories/stealth_5m@2x.png")),
+            x3: Some(include_bytes!("../icons/stories/stealth_5m@3x.png")),
+        },
+        "stories/stealth_logo" => IconFiles::Png {
+            x1: include_bytes!("../icons/stories/stealth_logo.png"),
+            x2: Some(include_bytes!("../icons/stories/stealth_logo@2x.png")),
+            x3: Some(include_bytes!("../icons/stories/stealth_logo@3x.png")),
+        },
+        "theme_preview" => IconFiles::Png {
+            x1: include_bytes!("../icons/theme_preview.png"),
+            x2: Some(include_bytes!("../icons/theme_preview@2x.png")),
+            x3: Some(include_bytes!("../icons/theme_preview@3x.png")),
+        },
         "title_back" => IconFiles::Png {
             x1: include_bytes!("../icons/title_back.png"),
             x2: Some(include_bytes!("../icons/title_back@2x.png")),
@@ -3195,12 +3967,33 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/title_menu_dots@2x.png")),
             x3: Some(include_bytes!("../icons/title_menu_dots@3x.png")),
         },
+        "title_shadow_close" => IconFiles::Png {
+            x1: include_bytes!("../icons/title_shadow_close.png"),
+            x2: Some(include_bytes!("../icons/title_shadow_close@2x.png")),
+            x3: Some(include_bytes!("../icons/title_shadow_close@3x.png")),
+        },
+        "title_shadow_maximize" => IconFiles::Png {
+            x1: include_bytes!("../icons/title_shadow_maximize.png"),
+            x2: Some(include_bytes!("../icons/title_shadow_maximize@2x.png")),
+            x3: Some(include_bytes!("../icons/title_shadow_maximize@3x.png")),
+        },
+        "title_shadow_minimize" => IconFiles::Png {
+            x1: include_bytes!("../icons/title_shadow_minimize.png"),
+            x2: Some(include_bytes!("../icons/title_shadow_minimize@2x.png")),
+            x3: Some(include_bytes!("../icons/title_shadow_minimize@3x.png")),
+        },
+        "title_shadow_restore" => IconFiles::Png {
+            x1: include_bytes!("../icons/title_shadow_restore.png"),
+            x2: Some(include_bytes!("../icons/title_shadow_restore@2x.png")),
+            x3: Some(include_bytes!("../icons/title_shadow_restore@3x.png")),
+        },
         "toast/check" => IconFiles::Svg(include_bytes!("../icons/toast/check.svg")),
         "toast/info" => IconFiles::Png {
             x1: include_bytes!("../icons/toast/info.png"),
             x2: Some(include_bytes!("../icons/toast/info@2x.png")),
             x3: Some(include_bytes!("../icons/toast/info@3x.png")),
         },
+        "toast/star" => IconFiles::Svg(include_bytes!("../icons/toast/star.svg")),
         "top_bar_call" => IconFiles::Png {
             x1: include_bytes!("../icons/top_bar_call.png"),
             x2: Some(include_bytes!("../icons/top_bar_call@2x.png")),

@@ -60,6 +60,7 @@ impl HistoryView {
             map: None,
             placeholder: None,
             spoiler: None,
+            open: None,
         }
     }
 }
