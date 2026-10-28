@@ -180,7 +180,7 @@ pub(crate) fn content<'a>(
             strings.text(key::lng_in_dlg_sticker_emoji),
             &[("emoji", emoji)],
         )),
-        Content::Emoji(emoji) => Preview::of_text(&FormattedText::plain(emoji.clone())),
+        Content::Emoji { emoji, .. } => Preview::of_text(&FormattedText::plain(emoji.clone())),
         Content::Contact { .. } => typed(key::lng_in_dlg_contact, &empty),
         Content::Location(_) => typed(key::lng_maps_point, &empty),
         Content::LiveLocation(_) => typed(key::lng_live_location, &empty),

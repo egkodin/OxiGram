@@ -173,6 +173,19 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), polls())],
             steps: vec![("177-polls-list", auth(State::Ready))],
         },
+        // Big emoji: one, three, a die without its sticker, an animated
+        // emoji with one, a text with words, and one sent.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("181-emoji-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), big_emoji())],
+            steps: vec![("180-emoji-list", auth(State::Ready))],
+        },
     ]
 }
 
@@ -229,6 +242,42 @@ fn sticker_file() -> Option<std::path::PathBuf> {
         .inspect_err(|error| eprintln!("writing the sticker fixture: {error:#}"))
         .ok()
         .map(|()| path)
+}
+
+fn big_emoji() -> Vec<Message> {
+    let text =
+        |id, from, ago, text: &str| place(id, from, ago, Content::text(FormattedText::plain(text)));
+    let path = sticker_file();
+    let picture = StickerPicture {
+        kind: StickerKind::Animated,
+        dimensions: Dimensions::new(512, 512),
+        file: file(990, path.as_deref()),
+        still: Some(file(991, path.as_deref())),
+    };
+    vec![
+        text(1, MARIA, 5 * HOUR, "😂"),
+        text(2, MARIA, 4 * HOUR, "👍🏽❤\u{fe0f}🔥"),
+        place(
+            3,
+            MARIA,
+            3 * HOUR,
+            Content::Emoji {
+                emoji: "🎲".to_owned(),
+                sticker: None,
+            },
+        ),
+        place(
+            4,
+            MARIA,
+            2 * HOUR,
+            Content::Emoji {
+                emoji: "😀".to_owned(),
+                sticker: Some(Box::new(picture)),
+            },
+        ),
+        text(5, MARIA, 90 * 60, "ok 👍"),
+        text(6, ME, HOUR, "🎉"),
+    ]
 }
 
 fn stickers() -> Vec<Message> {

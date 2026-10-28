@@ -1,8 +1,8 @@
 //! Messages as the chat list previews them and the history shows them.
 
 use td_api::enums::{
-    CallDiscardReason, MessageContent, MessageOrigin, MessageReplyTo, MessageSchedulingState,
-    MessageSender, MessageSendingState, MessageTopic,
+    CallDiscardReason, DiceStickers, MessageContent, MessageOrigin, MessageReplyTo,
+    MessageSchedulingState, MessageSender, MessageSendingState, MessageTopic,
 };
 
 use crate::file::{Dimensions, File, Minithumbnail};
@@ -224,8 +224,12 @@ pub enum Content {
         /// `None` only in fixtures that show the chat list.
         picture: Option<Box<StickerPicture>>,
     },
-    /// An emoji sent alone, shown big; also dice.
-    Emoji(String),
+    /// An emoji sent alone, shown big, or a die thrown; with the sticker
+    /// that draws it, when TDLib has one.
+    Emoji {
+        emoji: String,
+        sticker: Option<Box<StickerPicture>>,
+    },
     Contact(Box<SharedContact>),
     Location(Point),
     LiveLocation(Point),
@@ -738,8 +742,23 @@ impl From<MessageContent> for Content {
                     picture: Some(Box::new(StickerPicture::from(sticker))),
                 }
             }
-            MessageContent::MessageAnimatedEmoji(emoji) => Self::Emoji(emoji.emoji),
-            MessageContent::MessageDice(dice) => Self::Emoji(dice.emoji),
+            MessageContent::MessageAnimatedEmoji(emoji) => Self::Emoji {
+                sticker: emoji
+                    .animated_emoji
+                    .sticker
+                    .map(|sticker| Box::new(StickerPicture::from(*sticker))),
+                emoji: emoji.emoji,
+            },
+            // shortcut: a slot machine shows its emoji, not its five layered reels; with the Lottie player (M8).
+            MessageContent::MessageDice(dice) => Self::Emoji {
+                sticker: match dice.final_state.map(|state| *state) {
+                    Some(DiceStickers::Regular(regular)) => {
+                        Some(Box::new(StickerPicture::from(*regular.sticker)))
+                    }
+                    _ => None,
+                },
+                emoji: dice.emoji,
+            },
             MessageContent::MessageContact(contact) => {
                 let contact = contact.contact;
                 Self::Contact(Box::new(SharedContact {

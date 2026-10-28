@@ -12,8 +12,8 @@ use gpui::{
 use model::file::{Dimensions, File};
 use model::message::{Content, Media, Message};
 use style::chat::{
-    HISTORY_PHOTO_BUBBLE_MIN_WIDTH, MAX_MEDIA_SIZE, MEDIA_CAPTION_SKIP, MEDIA_IN_BUBBLE_SKIP,
-    MIN_PHOTO_SIZE, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_PADDING,
+    HISTORY_PHOTO_BUBBLE_MIN_WIDTH, MAX_ANIMATED_EMOJI_SIZE, MAX_MEDIA_SIZE, MEDIA_CAPTION_SKIP,
+    MEDIA_IN_BUBBLE_SKIP, MIN_PHOTO_SIZE, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_PADDING,
     WEB_PAGE_DESCRIPTION_FONT, WEB_PAGE_TITLE_FONT,
 };
 use style::{ColorId, Px};
@@ -117,6 +117,15 @@ impl HistoryView {
                 picture: Some(picture),
                 ..
             } => Some(self.sticker(picture, cx)),
+            // `Sticker::EmojiSize`, for animated emoji and dice alike.
+            Content::Emoji {
+                sticker: Some(picture),
+                ..
+            } if super::large_emoji::is_drawable(picture) => Some(Photo {
+                width: MAX_ANIMATED_EMOJI_SIZE.0,
+                height: MAX_ANIMATED_EMOJI_SIZE.0,
+                ..self.sticker(picture, cx)
+            }),
             _ => None,
         };
         photo.map(|photo| self.spoil(message, photo, cx))
@@ -205,12 +214,20 @@ pub(super) fn rounded<E: Styled>(element: E, corners: Corners<Pixels>) -> E {
 fn is_unwrapped(message: &Message) -> bool {
     matches!(
         message.content,
-        Content::Sticker { .. } | Content::VideoNote { .. }
+        Content::Sticker { .. } | Content::VideoNote { .. } | Content::Emoji { .. }
     )
 }
 
 /// The time on its pill in the photo's corner (`InfoDisplayType::Image`).
 fn info_over(item: &Item<'_>, out: bool, cx: &App) -> Div {
+    info_pill(item, out, cx)
+        .absolute()
+        .right(px_of(MSG_DATE_IMG_DELTA))
+        .bottom(px_of(MSG_DATE_IMG_DELTA))
+}
+
+/// The time on its pill, wherever it goes.
+pub(super) fn info_pill(item: &Item<'_>, out: bool, cx: &App) -> Div {
     // Unwrapped media have the time on the service pill (`InfoDisplayType::Background`).
     let bg = match (is_unwrapped(item.message), item.is_selected) {
         (true, false) => ColorId::MsgServiceBg,
@@ -219,9 +236,6 @@ fn info_over(item: &Item<'_>, out: bool, cx: &App) -> Div {
         (false, false) => ColorId::MsgDateImgBg,
     };
     div()
-        .absolute()
-        .right(px_of(MSG_DATE_IMG_DELTA))
-        .bottom(px_of(MSG_DATE_IMG_DELTA))
         .px(px_of(MSG_DATE_IMG_PADDING.x))
         .py(px_of(MSG_DATE_IMG_PADDING.y))
         .rounded_full()
@@ -250,7 +264,7 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
     };
     let (frame, fg) = bubble::frame(out, item.is_selected, &item.run, foot, cx);
     let edges = match &item.message.content {
-        Content::Sticker { .. } => Corners::default(),
+        Content::Sticker { .. } | Content::Emoji { .. } => Corners::default(),
         Content::VideoNote { .. } => Corners::all(px_of(Px(pictures.width)) / 2.0),
         _ => bubble::corners(out, &item.run, foot),
     };

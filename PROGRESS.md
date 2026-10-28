@@ -43,6 +43,9 @@
   its kind, radios or checks to vote (several answers wait for Vote),
   results with percents, counts and bars, quiz marks and the explanation;
   Retract vote and Stop poll in the menu. Snapshots 177-179.
+- Large emoji and dice (`history/large_emoji.rs`): one to three emoji
+  alone show big without a bubble; animated emoji and dice show their
+  sticker's still at 112 px. Snapshots 180-181.
 
 ### Half done (shortcuts in code)
 
@@ -68,6 +71,8 @@
   ("View votes") or close timer; the explanation always shows instead of
   the bulb toggle; a vote on its way shows a still ring; long answers
   wrap before the vote count.
+- Large emoji and dice do not animate (Lottie player); slot machines show
+  their emoji; a reply or forward keeps emoji in a bubble.
 
 ### Live test list (M5)
 
@@ -116,6 +121,9 @@
     vote brings the radios back; Stop poll asks first, then shows "Final
     results". A quiz answered from the phone shows red/green marks and
     the explanation.
+13. Large emoji, only in Saved Messages: send one emoji, then three: they
+    show big without a bubble; send "🎲": the die shows (still), not a
+    text bubble.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

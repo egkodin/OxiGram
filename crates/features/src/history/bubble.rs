@@ -95,6 +95,7 @@ pub(super) struct Item<'a> {
 pub(super) enum Special {
     Contact(super::contact::Card),
     Poll(super::poll::View),
+    LargeEmoji(Vec<String>),
 }
 
 impl super::HistoryView {
@@ -105,7 +106,10 @@ impl super::HistoryView {
     ) -> Option<Special> {
         match self.contact(message, cx) {
             Some(card) => Some(Special::Contact(card)),
-            None => self.poll(message, cx).map(Special::Poll),
+            None => self
+                .poll(message, cx)
+                .map(Special::Poll)
+                .or_else(|| super::large_emoji::of(message).map(Special::LargeEmoji)),
         }
     }
 }
@@ -427,6 +431,14 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
     if let Some(photo) = item.photo.take() {
         return super::photo::bubble(item, out, photo, cx);
     }
+    // shortcut: emoji under a name, reply or forward stay in a bubble; tdesktop puts those beside them, as for stickers.
+    if matches!(item.special, Some(Special::LargeEmoji(_)))
+        && name_line(item, out, cx).is_none()
+        && headers(item, out, cx).is_empty()
+        && let Some(Special::LargeEmoji(emoji)) = item.special.take()
+    {
+        return super::large_emoji::bubble(item, out, emoji, cx);
+    }
     let (frame, fg) = frame(out, item.is_selected, &item.run, Foot::Tail, cx);
     let name = name_line(item, out, cx);
     let info = info(item, out, cx);
@@ -453,9 +465,13 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         super::file_row::row(file, &place, cx)
     });
     let id = item.message.id.0 as u64;
-    let special = item.special.take().map(|special| match special {
-        Special::Contact(card) => super::contact::element(card, id, out, item.is_selected, cx),
-        Special::Poll(poll) => super::poll::element(poll, id, out, item.is_selected, cx),
+    let special = item.special.take().and_then(|special| match special {
+        Special::Contact(card) => {
+            Some(super::contact::element(card, id, out, item.is_selected, cx))
+        }
+        Special::Poll(poll) => Some(super::poll::element(poll, id, out, item.is_selected, cx)),
+        // Under a header the emoji stay text.
+        Special::LargeEmoji(_) => None,
     });
     let shows_text = (file.is_none() || has_caption) && special.is_none();
     frame

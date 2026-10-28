@@ -24,6 +24,7 @@ mod forwarding;
 mod grouped_layout;
 mod headers;
 mod jump;
+mod large_emoji;
 mod layout;
 mod link_menus;
 mod location;
