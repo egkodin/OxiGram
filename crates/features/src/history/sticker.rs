@@ -61,6 +61,7 @@ impl HistoryView {
             placeholder: None,
             spoiler: None,
             open: None,
+            once: None,
         }
     }
 }

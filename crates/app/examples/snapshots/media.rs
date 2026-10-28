@@ -12,7 +12,9 @@ use model::auth::State;
 use model::checklist::{Checklist, Task};
 use model::file::{Dimensions, File, Minithumbnail};
 use model::location::Point;
-use model::message::{Content, Media, Message, Sender, SharedContact, VoiceNote};
+use model::message::{
+    Content, Expired, Media, Message, SelfDestruct, Sender, Service, SharedContact, VoiceNote,
+};
 use model::poll::{Poll, PollKind, PollOption};
 use model::sticker::{StickerKind, StickerPicture};
 use model::text::FormattedText;
@@ -28,6 +30,8 @@ const MARIA: i64 = 2;
 const NOTES_ROW: (f32, f32) = (640.0, 520.0);
 /// The spoiler photo in Saved Messages.
 const SPOILER_PHOTO: (f32, f32) = (700.0, 250.0);
+/// Maria's view-once photo, the last message in her chat.
+const ONCE_PHOTO: (f32, f32) = (517.0, 400.0);
 /// "Summit at sunrise", the middle of the three photos.
 const CAPTIONED_PHOTO: (f32, f32) = (550.0, 150.0);
 
@@ -220,6 +224,34 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), photos(&photo))],
             steps: vec![("184-viewer-list", auth(State::Ready))],
+        },
+        // View-once: Maria's photo under its fire with the "1", a timed
+        // one sent, two that expired; a click opens hers alone.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("190-once-chat", MouseButton::Left, MARIA_ROW),
+                ("191-once-viewer", MouseButton::Left, ONCE_PHOTO),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), view_once(&photo))],
+            steps: vec![("189-once-list", auth(State::Ready))],
+        },
+        // The same chat scrolled up to the expired ones.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("193-expired-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("194-expired-scrolled", CHAT_AREA, 400.0)],
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), view_once(&photo))],
+            steps: vec![("192-expired-list", auth(State::Ready))],
         },
     ]
 }
@@ -440,6 +472,36 @@ fn place(id: i64, from: i64, ago: i32, content: Content) -> Message {
             content,
         )
     }
+}
+
+fn view_once(downloaded: &Path) -> Vec<Message> {
+    let covered = |id: i64, from: i64, ago: i32, kind: SelfDestruct| {
+        let Content::Photo(media) = photo(
+            id,
+            ago,
+            "",
+            (640, 427),
+            file(960 + i32::try_from(id).unwrap_or(0), Some(downloaded)),
+        )
+        .content
+        else {
+            unreachable!("photo() makes a photo");
+        };
+        Message {
+            self_destruct: Some(kind),
+            can_be_saved: false,
+            ..place(id, from, ago, Content::Photo(media))
+        }
+    };
+    let expired = |id: i64, from: i64, ago: i32, kind: Expired| {
+        place(id, from, ago, Content::Service(Service::Expired(kind)))
+    };
+    vec![
+        expired(1, MARIA, 4 * HOUR, Expired::Photo),
+        expired(2, ME, 3 * HOUR, Expired::VoiceNote),
+        covered(3, ME, 2 * HOUR, SelfDestruct::Timer(10)),
+        covered(4, MARIA, HOUR, SelfDestruct::Immediately),
+    ]
 }
 
 fn places() -> Vec<Message> {

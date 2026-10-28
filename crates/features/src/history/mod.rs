@@ -60,6 +60,7 @@ mod unread;
 mod upload;
 mod userpics_row;
 mod video;
+mod view_once;
 mod voice;
 mod voice_note;
 mod waveform;

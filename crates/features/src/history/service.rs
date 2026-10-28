@@ -4,7 +4,7 @@
 use i18n::{Key, Strings, key};
 use model::chat::{Chat, ChatKind};
 use model::chats::Chats;
-use model::message::{Message, Sender, Service};
+use model::message::{Expired, Message, Sender, Service};
 use model::user::UserKind;
 
 use super::headers::Replied;
@@ -232,6 +232,14 @@ pub(crate) fn text(
             fill(key, &[("from", &from), ("duration", &duration)])
         }
         Service::Custom(text) => text.clone(),
+        Service::Expired(kind) => strings
+            .text(match kind {
+                Expired::Photo => key::lng_ttl_photo_expired,
+                Expired::Video => key::lng_ttl_video_expired,
+                Expired::VideoNote => key::lng_ttl_round_expired,
+                Expired::VoiceNote => key::lng_ttl_voice_expired,
+            })
+            .to_owned(),
         _ => return None,
     })
 }
@@ -323,6 +331,19 @@ pub(super) mod tests {
             Some("Ben left the group")
         );
         assert_eq!(render(&chats, &chat, service(1, Service::Upgraded)), None);
+    }
+
+    #[test]
+    fn expired_media_says_what_it_was() {
+        let chats = Chats::default();
+        let chat = group();
+        let expired = |kind| render(&chats, &chat, service(1, Service::Expired(kind)));
+        assert_eq!(expired(Expired::Photo).as_deref(), Some("Expired photo"));
+        assert_eq!(expired(Expired::Video).as_deref(), Some("Expired video"));
+        assert_eq!(
+            expired(Expired::VoiceNote).as_deref(),
+            Some("Voice message expired")
+        );
     }
 
     #[test]

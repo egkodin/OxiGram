@@ -45,6 +45,8 @@ pub(super) struct Photo {
     pub spoiler: Option<bubble::OnClick>,
     /// A photo's click, which opens it in the media viewer.
     pub open: Option<bubble::OnClick>,
+    /// Set on view-once and timed media: the fire over the cover.
+    pub once: Option<model::message::SelfDestruct>,
 }
 
 /// `QSize::scaled` with `Qt::KeepAspectRatio` (`expanding` false) or
@@ -133,7 +135,10 @@ impl HistoryView {
             }),
             _ => None,
         };
-        photo.map(|photo| self.spoil(message, photo, cx))
+        photo.map(|photo| match message.self_destruct {
+            Some(kind) => self.once(message, kind, photo, cx),
+            None => self.spoil(message, photo, cx),
+        })
     }
 
     /// `file` as `media`'s picture, downloading it the first time it shows.
@@ -165,6 +170,7 @@ impl HistoryView {
             placeholder: Some(ColorId::ImageBg),
             spoiler: None,
             open: None,
+            once: None,
         }
     }
 }

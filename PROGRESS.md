@@ -55,6 +55,11 @@
   Cmd+=/Cmd+-/Cmd+0 and Cmd+wheel zoom by tdesktop's levels, a drag moves
   it; "Photo 2 of 3", the sender and the date bottom left, the caption
   box, the save button; Esc or a click beside it closes. Snapshots 184-188.
+- View-once and timed media (`history/view_once.rs`, `model::SelfDestruct`,
+  `Service::Expired`): photos and videos under dots with the fire and the
+  "1" badge; a click opens a view-once photo alone in the viewer and
+  reports it opened; expired media show as "Expired photo" and the like.
+  Snapshots 189-194.
 
 ### Half done (shortcuts in code)
 
@@ -88,6 +93,10 @@
   forward, delete or copy, no album strip, no fullscreen; the caption is
   plain text; the sender's name opens nothing; the zoom does not follow
   the mouse; no open/close animation beyond the fade.
+- View-once: covered videos do nothing on click until the in-app video
+  player; no countdown ring, seconds label, viewer badge or tooltip;
+  view-once voice and round messages play inline, without tdesktop's
+  layer that hides the chat.
 
 ### Live test list (M5)
 
@@ -149,6 +158,12 @@
     Cmd+- zoom by steps, Cmd+0 toggles 1:1 and fit, drag moves it; the
     download icon opens the save box (cancel it); Esc and a click beside
     the photo close it.
+16. View-once, only on the test DC or with the owner's OK per message
+    (opening one burns it): a phone sends a view-once photo: it shows
+    under dots with the fire and "1"; click: it opens alone, no arrows,
+    no save; close: with views reported it turns into "Expired photo";
+    with views withheld it stays. A timed photo shows the fire without
+    the "1".
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

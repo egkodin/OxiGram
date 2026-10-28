@@ -34,6 +34,7 @@ use super::bubble::OnClick;
 use super::layout;
 use super::menu::Item;
 use crate::lang::{strings, tr_with};
+use crate::peer_menu::send;
 use crate::px_of;
 use crate::store::Store;
 
@@ -87,7 +88,7 @@ impl Entry {
             caption: media.caption.text.clone(),
             sender,
             date,
-            is_saveable: message.can_be_saved,
+            is_saveable: message.can_be_saved && message.self_destruct.is_none(),
         })
     }
 }
@@ -557,17 +558,8 @@ impl HistoryView {
     /// Opens the viewer on a photo, paging through the photos shown.
     // shortcut: only the loaded messages' photos, not the chat's shared media; with the shared media search (row 292 live).
     fn open_photo(&mut self, id: MessageId, window: &mut Window, cx: &mut Context<Self>) {
-        let now = Local::now();
-        let chats = &self.store.read(cx).state().chats;
-        let entries: Vec<Entry> = self
-            .shown
-            .iter()
-            .filter_map(|message| {
-                let sender = super::sender_face(chats, message.sender)
-                    .map_or_else(String::new, |face| face.0);
-                Entry::of(message, sender, date(message.date, &now, cx))
-            })
-            .collect();
+        // View-once photos open alone, never by paging.
+        let entries = self.entries(|message| message.self_destruct.is_none(), cx);
         let Some(index) = entries.iter().position(|entry| entry.message == id) else {
             return;
         };
@@ -576,6 +568,37 @@ impl HistoryView {
             MediaViewEvent::Save(id) => this.save_photo(*id, cx),
         })
         .detach();
+    }
+
+    /// Opens a view-once or timed photo alone and tells TDLib it was
+    /// opened, which starts its end.
+    pub(super) fn open_once(&mut self, id: MessageId, window: &mut Window, cx: &mut Context<Self>) {
+        let entries = self.entries(|message| message.id == id, cx);
+        if entries.is_empty() {
+            return;
+        }
+        open(self.store.clone(), &self.layers, entries, 0, window, cx);
+        let session = self.store.read(cx).session().clone();
+        send(
+            session.open_message_content(self.chat, id),
+            "opening view-once media",
+            cx,
+        );
+    }
+
+    /// The photos shown that `pick` keeps, oldest first.
+    fn entries(&self, pick: impl Fn(&Message) -> bool, cx: &App) -> Vec<Entry> {
+        let now = Local::now();
+        let chats = &self.store.read(cx).state().chats;
+        self.shown
+            .iter()
+            .filter(|message| pick(message))
+            .filter_map(|message| {
+                let sender = super::sender_face(chats, message.sender)
+                    .map_or_else(String::new, |face| face.0);
+                Entry::of(message, sender, date(message.date, &now, cx))
+            })
+            .collect()
     }
 
     fn save_photo(&self, id: MessageId, cx: &mut Context<Self>) {

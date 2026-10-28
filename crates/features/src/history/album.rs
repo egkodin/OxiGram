@@ -216,6 +216,11 @@ pub(super) fn mosaic(
             .spoiler
             .take()
             .map(|on_click| super::spoiler::cover(on_click, part.id));
+        let once = part
+            .photo
+            .once
+            .take()
+            .map(|kind| super::view_once::fire(kind, is_selected, cx));
         let map = part
             .photo
             .map
@@ -238,6 +243,7 @@ pub(super) fn mosaic(
             .children(map)
             .children(open)
             .children(spoiler)
+            .children(once)
             .children(tint)
             .children(video.into_iter().flatten())
     });

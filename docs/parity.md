@@ -276,7 +276,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | media | Suggested profile photo and birthday suggestion boxes | M6 | todo | |
 | media | Media spoilers | M5 | in progress | unit test (`cargo test -p features spoiler`: the dots are placed the same way every frame); snapshots 170-172: a photo and a video under a spoiler show their preview with white dots, no play button, the time still on its pill; a click reveals that message; not verified: no live spoiler yet; the preview is stretched, not blurred, and the dots stand still (the particle animation comes with M8 polish, as for text spoilers); no reveal animation; each album part reveals on its own |
 | media | Paid media (Stars) | M13 | todo | |
-| media | View-once photos, videos and voice messages | M5 | todo | |
+| media | View-once photos, videos and voice messages | M5 | in progress | unit test (`cargo test -p features service`: "Expired photo", "Expired video", "Voice message expired"); snapshots 189-194: a view-once photo under dots with tdesktop's fire in its circle and the "1" badge, a timed one with the fire alone; a click opens the view-once photo alone in the viewer (no paging, no save) and calls `openMessageContent` (skipped under `Views::Withhold`); expired media as service lines; not verified: no live run; covered videos do nothing on click (no in-app video player yet); no countdown ring or seconds label; view-once voice and round messages play inline without tdesktop's `TtlMediaLayerWidget`; no viewer badge or tooltip |
 | media | Similar channels block after joining | M6 | todo | |
 | media | Call messages (missed, outgoing, duration) | M12 | todo | |
 | media | TON transfer messages | M13 | todo | |

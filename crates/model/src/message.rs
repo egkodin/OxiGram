@@ -2,7 +2,8 @@
 
 use td_api::enums::{
     CallDiscardReason, DiceStickers, MessageContent, MessageOrigin, MessageReplyTo,
-    MessageSchedulingState, MessageSender, MessageSendingState, MessageTopic,
+    MessageSchedulingState, MessageSelfDestructType, MessageSender, MessageSendingState,
+    MessageTopic,
 };
 
 use crate::file::{Dimensions, File, Minithumbnail};
@@ -47,6 +48,26 @@ pub struct Message {
     pub reactions: Option<Reactions>,
     /// Set while it waits in the chat's scheduled messages.
     pub schedule: Option<Schedule>,
+    /// Set on view-once and timed media (`ttl_seconds`).
+    pub self_destruct: Option<SelfDestruct>,
+}
+
+/// When opened media goes (`MessageSelfDestructType`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelfDestruct {
+    /// Once viewed and closed.
+    Immediately,
+    /// This many seconds after it was opened.
+    Timer(i32),
+}
+
+impl From<MessageSelfDestructType> for SelfDestruct {
+    fn from(kind: MessageSelfDestructType) -> Self {
+        match kind {
+            MessageSelfDestructType::Immediately(_) => Self::Immediately,
+            MessageSelfDestructType::Timer(timer) => Self::Timer(timer.self_destruct_time),
+        }
+    }
 }
 
 /// When a scheduled message goes (`messageSchedulingState`).
@@ -402,7 +423,18 @@ pub enum Service {
     },
     /// Text a bot or the server set.
     Custom(String),
+    /// View-once or timed media gone after it was opened.
+    Expired(Expired),
     Other,
+}
+
+/// What kind of media expired (`lng_ttl_*_expired`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Expired {
+    Photo,
+    Video,
+    VideoNote,
+    VoiceNote,
 }
 
 impl Service {
@@ -442,6 +474,10 @@ impl Service {
                 seconds: ended.duration,
             },
             MessageContent::MessageCustomServiceAction(action) => Self::Custom(action.text),
+            MessageContent::MessageExpiredPhoto(_) => Self::Expired(Expired::Photo),
+            MessageContent::MessageExpiredVideo(_) => Self::Expired(Expired::Video),
+            MessageContent::MessageExpiredVideoNote(_) => Self::Expired(Expired::VideoNote),
+            MessageContent::MessageExpiredVoiceNote(_) => Self::Expired(Expired::VoiceNote),
             _ => return None,
         })
     }
@@ -520,6 +556,7 @@ impl Message {
             replies: None,
             reactions: None,
             schedule: None,
+            self_destruct: None,
         }
     }
 }
@@ -573,6 +610,9 @@ impl From<td_api::types::Message> for Message {
             schedule: message
                 .scheduling_state
                 .and_then(|state| Schedule::from_td(*state)),
+            self_destruct: message
+                .self_destruct_type
+                .map(|kind| SelfDestruct::from(*kind)),
         }
     }
 }
