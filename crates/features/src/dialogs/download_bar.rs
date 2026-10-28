@@ -20,7 +20,7 @@ use style::dialogs::{
 use style::{ColorId, ColorRef, Font};
 use ui::{RadialState, color, font, font_height, icon, icon_size, paint_arc};
 
-use super::{Dialogs, OpenMessage};
+use super::{Dialogs, OpenDownloads, OpenMessage};
 use crate::file_sizes::progress_text;
 use crate::lang::{strings, tr, tr_plural};
 use crate::px_of;
@@ -151,11 +151,9 @@ impl Dialogs {
                 ))
                 .child(info)
                 .child(arrow())
-                .on_click(cx.listener(move |_, _, _, cx| {
-                    // shortcut: several files open nothing until the downloads section lands.
-                    if let Some((chat, message)) = single {
-                        cx.emit(OpenMessage(chat, message));
-                    }
+                .on_click(cx.listener(move |_, _, _, cx| match single {
+                    Some((chat, message)) => cx.emit(OpenMessage(chat, message)),
+                    None => cx.emit(OpenDownloads),
                 }))
                 .into_any_element(),
         )

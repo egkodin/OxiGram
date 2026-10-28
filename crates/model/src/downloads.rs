@@ -5,7 +5,7 @@ use std::future::Future;
 
 use futures::FutureExt as _;
 use td_api::enums::Update;
-use td_api::functions::AddFileToDownloads;
+use td_api::functions::{AddFileToDownloads, SearchFileDownloads};
 
 use crate::ids::{ChatId, FileId, MessageId};
 use crate::message::{Content, Message};
@@ -53,18 +53,45 @@ impl From<td_api::types::FileDownload> for Download {
     }
 }
 
+/// A row of the downloads list: the message with the file, and when the
+/// user added it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Entry {
+    pub message: Message,
+    pub file: FileId,
+    /// Unix time the file joined the list.
+    pub added: i32,
+}
+
+impl From<td_api::types::FileDownload> for Entry {
+    fn from(download: td_api::types::FileDownload) -> Self {
+        Self {
+            file: FileId(download.file_id),
+            added: download.add_date,
+            message: Message::from(*download.message),
+        }
+    }
+}
+
+/// The most files one search returns (`searchFileDownloads`' limit).
+const LIST_LIMIT: i32 = 100;
+
 /// What the download bar follows.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Downloads {
     pub totals: Totals,
     /// The last file added, which a bar for one file names.
     pub latest: Option<Download>,
+    /// The downloads section's rows as last fetched; `None` before that.
+    pub list: Option<Vec<Entry>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Change {
     Totals(Totals),
     Added(Download),
+    /// The section's rows, from `Session::file_downloads`.
+    Listed(Vec<Entry>),
 }
 
 impl Change {
@@ -88,6 +115,7 @@ impl Downloads {
         match change {
             Change::Totals(totals) => self.totals = totals,
             Change::Added(download) => self.latest = Some(download),
+            Change::Listed(entries) => self.list = Some(entries),
         }
     }
 }
@@ -110,6 +138,26 @@ impl Session {
                 priority,
             })
             .map(|result| result.map(drop).map_err(RequestError::from))
+    }
+
+    /// The downloads list, newest first (`searchFileDownloads`).
+    // shortcut: the newest 100 only, no paging or search; page with `next_offset` once someone keeps more.
+    pub fn file_downloads(
+        &self,
+    ) -> impl Future<Output = Result<Vec<Entry>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&SearchFileDownloads {
+                query: String::new(),
+                only_active: false,
+                only_completed: false,
+                offset: String::new(),
+                limit: LIST_LIMIT,
+            })
+            .map(|result| {
+                result
+                    .map(|found| found.files.into_iter().map(Entry::from).collect())
+                    .map_err(RequestError::from)
+            })
     }
 }
 

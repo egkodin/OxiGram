@@ -179,11 +179,17 @@ impl Render for Connecting {
         };
         // Slides up from under the bottom edge while it fades in.
         let offset = (height - px_of(margin.top)) * (1.0 - visible);
+        // Above the download bar while it shows (`setConnectingBottomSkip`).
+        let skip = if self.store.read(cx).state().downloads.totals.total_count > 0 {
+            px_of(style::dialogs::DOWNLOAD_BAR_HEIGHT)
+        } else {
+            gpui::px(0.0)
+        };
         div()
             .id("connecting")
             .absolute()
             .left_0()
-            .bottom(-offset)
+            .bottom(skip - offset)
             .h(height)
             .p(px_of(margin.top))
             .flex()

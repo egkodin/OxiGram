@@ -25,7 +25,10 @@ use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_heig
 
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
-use crate::dialogs::{CompleteQuery, Dialogs, OnMainMenu, OpenChat, OpenMessage, is_sidebar_shown};
+use crate::dialogs::{
+    CompleteQuery, Dialogs, OnMainMenu, OpenChat, OpenDownloads, OpenMessage, is_sidebar_shown,
+};
+use crate::downloads::{DownloadsEvent, DownloadsView};
 use crate::history::{HistoryEvent, HistoryView, Placement};
 use crate::lang::tr;
 use crate::links;
@@ -55,8 +58,10 @@ pub struct MainView {
     /// The chats a shown thread was opened from, newest last; each keeps
     /// its place for the way back.
     parents: Vec<(Entity<HistoryView>, Subscription)>,
+    /// The downloads section, shown in place of the chat.
+    downloads: Option<(Entity<DownloadsView>, Subscription)>,
     focus: FocusHandle,
-    _subscriptions: [Subscription; 5],
+    _subscriptions: [Subscription; 6],
     _history_subscription: Option<Subscription>,
 }
 
@@ -105,15 +110,14 @@ impl MainView {
         let open_message = cx.subscribe_in(
             &dialogs,
             window,
-            |this, dialogs, OpenMessage(chat, message), window, cx| {
-                let (chat, message) = (*chat, *message);
-                dialogs.update(cx, |dialogs, cx| dialogs.select(chat, cx));
-                this.open_chat(chat, window, cx);
-                if let Some(history) = &this.history {
-                    history.update(cx, |history, cx| history.jump_to(message, cx));
-                }
+            |this, _, OpenMessage(chat, message), window, cx| {
+                this.open_message(*chat, *message, window, cx);
             },
         );
+        let open_downloads =
+            cx.subscribe_in(&dialogs, window, |this, _, OpenDownloads, window, cx| {
+                this.show_downloads(window, cx);
+            });
         Self {
             store,
             layers,
@@ -121,13 +125,62 @@ impl MainView {
             search,
             history: None,
             parents: Vec::new(),
+            downloads: None,
             focus,
-            _subscriptions: [subscription, observe_dialogs, complete, open, open_message],
+            _subscriptions: [
+                subscription,
+                observe_dialogs,
+                complete,
+                open,
+                open_message,
+                open_downloads,
+            ],
             _history_subscription: None,
         }
     }
 
+    /// Selects a message's chat and scrolls to the message.
+    fn open_message(
+        &mut self,
+        chat: model::ChatId,
+        message: model::MessageId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.dialogs
+            .update(cx, |dialogs, cx| dialogs.select(chat, cx));
+        self.open_chat(chat, window, cx);
+        if let Some(history) = &self.history {
+            history.update(cx, |history, cx| history.jump_to(message, cx));
+        }
+    }
+
+    /// The downloads section in place of the chat (`Info::Downloads`).
+    fn show_downloads(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let (store, layers) = (self.store.clone(), self.layers.clone());
+        let downloads = cx.new(|cx| DownloadsView::new(store, layers, cx));
+        let subscription =
+            cx.subscribe_in(
+                &downloads,
+                window,
+                |this, _, event, window, cx| match *event {
+                    DownloadsEvent::Close => this.close_downloads(cx),
+                    DownloadsEvent::OpenMessage(chat, message) => {
+                        this.open_message(chat, message, window, cx);
+                    }
+                },
+            );
+        self.downloads = Some((downloads, subscription));
+        cx.notify();
+    }
+
+    fn close_downloads(&mut self, cx: &mut Context<Self>) {
+        self.downloads = None;
+        cx.notify();
+    }
+
     fn open_chat(&mut self, chat: model::ChatId, window: &mut Window, cx: &mut Context<Self>) {
+        self.downloads = None;
         if self
             .history
             .as_ref()
@@ -213,6 +266,10 @@ impl MainView {
     /// Escape: clears the search, else leaves the archive.
     fn cancel_search(&mut self, _: &CancelSearch, window: &mut Window, cx: &mut Context<Self>) {
         let is_search_focused = self.search.read(cx).focus_handle(cx).is_focused(window);
+        if self.downloads.is_some() && !is_search_focused {
+            self.close_downloads(cx);
+            return;
+        }
         // Escape drops a selection and leaves a section before it closes the chat.
         if let Some(history) = &self.history
             && !is_search_focused
@@ -515,6 +572,9 @@ impl Render for MainView {
         if layout == columns::Layout::OneColumn {
             // One column shows the open chat in place of the list.
             self.set_history_placement(Placement::Alone, cx);
+            if let Some((downloads, _)) = &self.downloads {
+                return root.child(downloads.clone());
+            }
             return match &self.history {
                 Some(history) => root.child(history.clone()),
                 None => root.child(columns),
@@ -538,14 +598,20 @@ impl Render for MainView {
                         .h_full()
                         .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
                 )
-                .child(match &self.history {
-                    Some(history) => div()
+                .child(match (&self.downloads, &self.history) {
+                    (Some((downloads, _)), _) => div()
+                        .flex_1()
+                        .min_w_0()
+                        .h_full()
+                        .child(downloads.clone())
+                        .into_any_element(),
+                    (None, Some(history)) => div()
                         .flex_1()
                         .min_w_0()
                         .h_full()
                         .child(history.clone())
                         .into_any_element(),
-                    None => Self::empty_history(cx).into_any_element(),
+                    (None, None) => Self::empty_history(cx).into_any_element(),
                 })
                 .child(
                     div()

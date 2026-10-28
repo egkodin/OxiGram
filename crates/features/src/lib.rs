@@ -6,6 +6,7 @@ mod columns;
 mod connecting;
 mod contacts_box;
 mod dialogs;
+mod downloads;
 mod file_sizes;
 mod hashtags;
 mod history;

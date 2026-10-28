@@ -34,6 +34,8 @@ const NOTES_ROW: (f32, f32) = (640.0, 520.0);
 const SPOILER_PHOTO: (f32, f32) = (700.0, 250.0);
 /// The download bar under the chat list.
 const DOWNLOAD_BAR: (f32, f32) = (150.0, 577.0);
+/// The newest row's date in the downloads list.
+const FIRST_DOWNLOAD_DATE: (f32, f32) = (420.0, 118.0);
 /// Maria's view-once photo, the last message in her chat.
 const ONCE_PHOTO: (f32, f32) = (517.0, 400.0);
 /// "Summit at sunrise", the middle of the three photos.
@@ -283,16 +285,28 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), documents(&notes))],
             steps: vec![("197-download-bar", auth(State::Ready))],
         },
-        // Three files done: "3 files", "View in downloads", the full circle.
+        // Three files done: "3 files", "View in downloads", the full circle;
+        // a click opens the downloads list, a date there the message.
         Scenario {
-            setup: downloading(3, (75_000_000, 75_000_000)),
-            clicks: Vec::new(),
+            setup: [
+                downloading(3, (75_000_000, 75_000_000)),
+                vec![Event::Downloads(downloads::Change::Listed(listed(&notes)))],
+            ]
+            .concat(),
+            clicks: vec![
+                ("200-downloads-list", MouseButton::Left, DOWNLOAD_BAR),
+                (
+                    "201-download-message",
+                    MouseButton::Left,
+                    FIRST_DOWNLOAD_DATE,
+                ),
+            ],
             drags: Vec::new(),
             drops: Vec::new(),
             scrolls: Vec::new(),
             keys: Vec::new(),
             folders: FoldersPlacement::Top,
-            histories: Vec::new(),
+            histories: vec![(ChatId(MARIA), documents(&notes))],
             steps: vec![("199-downloads-done", auth(State::Ready))],
         },
     ]
@@ -954,6 +968,24 @@ fn downloading(count: i32, (downloaded_size, total_size): (i64, i64)) -> Vec<Eve
         downloaded_size,
     })));
     events
+}
+
+/// Maria's three files in the downloads list, newest first.
+fn listed(notes: &Path) -> Vec<downloads::Entry> {
+    documents(notes)
+        .into_iter()
+        .rev()
+        .filter_map(|message| {
+            let Content::Document { media, .. } = &message.content else {
+                return None;
+            };
+            Some(downloads::Entry {
+                file: media.file.as_ref()?.id,
+                added: message.date,
+                message,
+            })
+        })
+        .collect()
 }
 
 fn timestamped(still: &Path) -> Vec<Message> {

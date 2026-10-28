@@ -26,7 +26,7 @@ mod grouped_layout;
 mod headers;
 mod jump;
 mod large_emoji;
-mod layout;
+pub(crate) mod layout;
 mod link_menus;
 mod location;
 mod media_view;

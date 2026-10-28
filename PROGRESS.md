@@ -73,6 +73,12 @@
   (`addFileToDownloads`); the bar under the chat list shows the ring, the
   file's name or "3 files", "x / y MB", then "View in chat" / "View in
   downloads"; a click opens the one file's message. Snapshots 197-199.
+- Downloads section (`downloads.rs`, `Session::file_downloads`): the bar's
+  click on several files shows TDLib's list in place of the chat, rows as
+  tdesktop's shared files (colored square with the extension, or the
+  circle that resumes or cancels), the date opens the message; Escape or
+  back closes it. The connecting pill moves above the bar. Snapshots
+  200-201.
 
 ### Half done (shortcuts in code)
 
@@ -113,8 +119,8 @@
 - Video timestamps: the line's ends are cut square; playback does not
   start there until the in-app player.
 - Download bar: a still ring, no grow or fade when done, no thumbnail in
-  the circle; a click on several files opens nothing until the downloads
-  list; voice notes still download outside the list; the static FFmpeg
+  the circle; voice notes still download outside the list; the section
+  has only the newest 100, no search, delete, pause, menu or selection; the static FFmpeg
   is not in CI yet and rgram does not link it yet.
 
 ### Decided by the owner (M5)
@@ -126,7 +132,6 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- The downloads list (row 286), which the bar's "View in downloads" opens.
 - The video player (`media` crate, `ffmpeg-next`, a `static-ffmpeg`
   feature; CI builds FFmpeg cached and sets `FFMPEG_DIR`).
 - Round videos inline, GIF autoplay, WebM stickers (alpha: FFmpeg's vp9
@@ -208,7 +213,10 @@
     there first): click the file's download button: the bar shows under
     the chat list with the ring, the name and "x / y MB"; when done it
     says "View in chat", and a click opens the message; download two
-    files: it says "2 files". A minute after all are done it goes away.
+    files: it says "2 files", and a click opens the Downloads section with
+    both, newest first; click a date: the chat opens at that message;
+    Escape closes the section. A minute after all are done the bar goes
+    away.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
