@@ -31,6 +31,8 @@
 - Locations and venues (`history/location.rs`, `model::location`):
   TDLib's map picture with the pin, a venue's title and address, a click
   opens Maps. Snapshots 167-169.
+- Media spoilers (`history/spoiler.rs`): the preview under dots until a
+  click reveals it. Snapshots 170-172.
 
 ### Half done (shortcuts in code)
 
@@ -48,6 +50,7 @@
 - "Save As..." only for files already on disk.
 - Live locations show as still points: no sender pin, updated line or
   countdown; the map picture is always TDLib's 2x one.
+- Spoilers: the preview is not blurred and the dots stand still (M8).
 
 ### Live test list (M5)
 
@@ -82,6 +85,9 @@
 8. Places, read only: a shared location shows the map with a red pin in
    the middle and the time on a pill; a venue has its name and address
    under the map; click either: Maps opens at that point.
+9. Spoilers, read only: a photo sent with a spoiler shows dots over a
+   blurry picture; one click shows the photo; a video under a spoiler has
+   no play button until revealed.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

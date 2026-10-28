@@ -44,6 +44,7 @@ mod selection;
 mod send_files_box;
 mod send_menu;
 mod service;
+mod spoiler;
 mod sponsored;
 mod sync;
 mod text;

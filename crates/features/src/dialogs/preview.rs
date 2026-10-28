@@ -337,6 +337,7 @@ mod tests {
             preview: None,
             duration: 0,
             file: None,
+            has_spoiler: false,
         });
         let (preview, thumbnail) = super::content(&english(), &content);
         assert_eq!(preview.text, "Photo, At the sea");
@@ -358,6 +359,7 @@ mod tests {
             preview: None,
             duration: 0,
             file: None,
+            has_spoiler: false,
         });
         let (preview, image) = super::content(&english(), &content);
         assert_eq!(preview.text, "At the sea");

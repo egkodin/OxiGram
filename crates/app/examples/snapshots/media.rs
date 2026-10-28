@@ -23,6 +23,8 @@ use super::scenarios::{CHAT_AREA, MARIA_ROW, SAVED_ROW, auth, fixture_files};
 const MARIA: i64 = 2;
 /// The downloaded file at the bottom of Maria's chat, for its menu.
 const NOTES_ROW: (f32, f32) = (640.0, 520.0);
+/// The spoiler photo in Saved Messages.
+const SPOILER_PHOTO: (f32, f32) = (700.0, 250.0);
 
 pub(crate) fn scenarios() -> Vec<Scenario> {
     let (photo, notes) = fixture_files();
@@ -117,6 +119,54 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), places())],
             steps: vec![("167-places-list", auth(State::Ready))],
         },
+        // Spoilers: a photo and a video under dots; a click reveals the photo.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("171-spoilers-saved", MouseButton::Left, SAVED_ROW),
+                ("172-spoiler-revealed", MouseButton::Left, SPOILER_PHOTO),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), spoilers(&photo))],
+            steps: vec![("170-spoilers-list", auth(State::Ready))],
+        },
+    ]
+}
+
+fn spoilers(downloaded: &Path) -> Vec<Message> {
+    let hide = |message: Message| Message {
+        content: match message.content {
+            Content::Photo(media) => Content::Photo(Media {
+                has_spoiler: true,
+                ..media
+            }),
+            Content::Video(media) => Content::Video(Media {
+                has_spoiler: true,
+                ..media
+            }),
+            other => other,
+        },
+        ..message
+    };
+    vec![
+        hide(photo(
+            1,
+            2 * HOUR,
+            "",
+            (1280, 853),
+            file(970, Some(downloaded)),
+        )),
+        hide(video(
+            2,
+            HOUR,
+            "Guess where",
+            Some(12),
+            [file(971, Some(downloaded)), file(972, None)],
+        )),
     ]
 }
 
@@ -193,6 +243,7 @@ fn document(id: i64, from: i64, ago: i32, name: &str, caption: &str, file: File)
         preview: None,
         duration: 0,
         file: Some(file),
+        has_spoiler: false,
     };
     Message {
         is_outgoing: from == ME,
@@ -272,6 +323,7 @@ fn photo(id: i64, ago: i32, caption: &str, dimensions: (i32, i32), file: File) -
         preview: None,
         duration: 0,
         file: Some(file),
+        has_spoiler: false,
     };
     saved(id, ago, Content::Photo(media))
 }
@@ -291,6 +343,7 @@ fn video(
         preview: Some(still),
         duration: duration.unwrap_or(0),
         file: Some(file),
+        has_spoiler: false,
     };
     saved(
         id,

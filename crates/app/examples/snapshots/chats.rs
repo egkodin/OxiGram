@@ -222,6 +222,7 @@ pub(crate) fn events() -> Vec<Event> {
         preview: None,
         duration: 0,
         file: None,
+        has_spoiler: false,
     });
     let channel = chat(
         -200,

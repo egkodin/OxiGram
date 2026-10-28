@@ -200,6 +200,11 @@ pub(super) fn mosaic(
             .video
             .take()
             .map(|video| super::video::overlays(video, part.id, is_selected, cx));
+        let spoiler = part
+            .photo
+            .spoiler
+            .take()
+            .map(|on_click| super::spoiler::cover(on_click, part.id));
         let map = part
             .photo
             .map
@@ -220,6 +225,7 @@ pub(super) fn mosaic(
             .h(px_of(Px(rect.height)))
             .child(photo::picture(part.photo, corners, cx))
             .children(map)
+            .children(spoiler)
             .children(tint)
             .children(video.into_iter().flatten())
     });

@@ -475,6 +475,8 @@ pub struct Media {
     /// The photo's largest size, or the video or file itself, as the
     /// message brought it; `updateFile` follows it in `Chats::file`.
     pub file: Option<File>,
+    /// Hidden under a spoiler until clicked.
+    pub has_spoiler: bool,
 }
 
 impl Message {
@@ -628,6 +630,7 @@ fn media(
         preview: None,
         duration: 0,
         file: file.map(File::from),
+        has_spoiler: false,
     }
 }
 
@@ -653,15 +656,14 @@ impl From<MessageContent> for Content {
                     .as_ref()
                     .and_then(|size| Dimensions::new(size.width, size.height));
                 let file = largest.map(|size| *size.photo);
-                Self::Photo(media(
-                    *photo.caption,
-                    photo.photo.minithumbnail,
-                    file,
-                    dimensions,
-                ))
+                Self::Photo(Media {
+                    has_spoiler: photo.has_spoiler,
+                    ..media(*photo.caption, photo.photo.minithumbnail, file, dimensions)
+                })
             }
             MessageContent::MessageVideo(video) => Self::Video(Media {
                 preview: still(video.video.thumbnail),
+                has_spoiler: video.has_spoiler,
                 duration: video.video.duration,
                 ..media(
                     *video.caption,
@@ -672,6 +674,7 @@ impl From<MessageContent> for Content {
             }),
             MessageContent::MessageAnimation(animation) => Self::Animation(Media {
                 preview: still(animation.animation.thumbnail),
+                has_spoiler: animation.has_spoiler,
                 duration: animation.animation.duration,
                 ..media(
                     *animation.caption,

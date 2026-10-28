@@ -274,7 +274,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | media | Story mentions and shared stories | M11 | todo | |
 | media | Gift, unique gift, Premium gift and giveaway service boxes | M13 | todo | |
 | media | Suggested profile photo and birthday suggestion boxes | M6 | todo | |
-| media | Media spoilers | M5 | todo | |
+| media | Media spoilers | M5 | in progress | unit test (`cargo test -p features spoiler`: the dots are placed the same way every frame); snapshots 170-172: a photo and a video under a spoiler show their preview with white dots, no play button, the time still on its pill; a click reveals that message; not verified: no live spoiler yet; the preview is stretched, not blurred, and the dots stand still (the particle animation comes with M8 polish, as for text spoilers); no reveal animation; each album part reveals on its own |
 | media | Paid media (Stars) | M13 | todo | |
 | media | View-once photos, videos and voice messages | M5 | todo | |
 | media | Similar channels block after joining | M6 | todo | |

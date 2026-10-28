@@ -347,6 +347,7 @@ mod tests {
                     preview: None,
                     duration: 0,
                     file: None,
+                    has_spoiler: false,
                 },
             ))),
         });

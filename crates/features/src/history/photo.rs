@@ -41,6 +41,8 @@ pub(super) struct Photo {
     pub map: Option<SharedString>,
     /// What shows until the picture loads.
     pub placeholder: ColorId,
+    /// Set while a spoiler hides it: the click that reveals it.
+    pub spoiler: Option<bubble::OnClick>,
 }
 
 /// `QSize::scaled` with `Qt::KeepAspectRatio` (`expanding` false) or
@@ -103,14 +105,15 @@ fn size(dimensions: Option<Dimensions>) -> (i32, i32) {
 impl HistoryView {
     /// A photo, video or GIF message's picture.
     pub(super) fn photo(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
-        match &message.content {
+        let photo = match &message.content {
             Content::Photo(media) => Some(self.still(media.file.as_ref(), media, cx)),
             Content::Video(_) | Content::Animation(_) => self.video(message, cx),
             Content::Location(_) | Content::LiveLocation(_) | Content::Venue { .. } => {
                 self.map(message, cx)
             }
             _ => None,
-        }
+        };
+        photo.map(|photo| self.spoil(message, photo, cx))
     }
 
     /// `file` as `media`'s picture, downloading it the first time it shows.
@@ -140,6 +143,7 @@ impl HistoryView {
             video: None,
             map: None,
             placeholder: ColorId::ImageBg,
+            spoiler: None,
         }
     }
 }
