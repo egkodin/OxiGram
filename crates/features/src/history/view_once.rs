@@ -20,8 +20,9 @@ use super::bubble::OnClick;
 use super::photo::Photo;
 use crate::px_of;
 
-/// tdesktop's `gui/ttl/video_message_icon.svg`.
-const FIRE: &str = r##"<svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg"><path d="m27.57 30.79q0.77-0.44 1.14-1.28 4.38-9.86 4.67-24.25 0.03-1.64 1.63-1.54 1.14 0.07 1.9 0.65c14.45 10.9 28.35 31.97 18.06 50.37-9.55 17.08-32.38 15.75-41.59-0.69-5.25-9.37-0.83-23.06 4.26-32.03a2.13 2.12 43.5 0 1 3.64-0.09l5.53 8.68a0.57 0.56-31.3 0 0 0.76 0.18z" fill="#fff"/></svg>"##;
+/// A flame in the place of tdesktop's `gui/ttl/video_message_icon.svg`,
+/// drawn for rgram: ADR 0001 keeps tdesktop's `Resources/art/` out.
+const FIRE: &str = r##"<svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg"><path d="M36 5C44 19 58 29 58 46C58 58 48 67 36 67C24 67 14 58 14 46C14 36 19 29 24 25C25 33 28 37 32 39C30 29 32 17 36 5Z" fill="#fff"/></svg>"##;
 
 fn fire_image() -> Arc<Image> {
     static FIRE_IMAGE: OnceLock<Arc<Image>> = OnceLock::new();
