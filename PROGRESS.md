@@ -103,6 +103,23 @@
 - Video timestamps: the line's ends are cut square; playback does not
   start there until the in-app player.
 
+### Waiting on the owner (M5)
+
+- Video decoder (ADR 0006 deferred it to M5). It gates the in-app video
+  player (rows 292, 296, 259), inline round videos and GIF autoplay,
+  covered view-once videos, WebM stickers and the music player's MP3/M4A/
+  FLAC. Options: FFmpeg via `ffmpeg-next` (what tdesktop uses; every codec;
+  a system library, `brew install ffmpeg` here, GPL-compatible); platform
+  APIs per OS (three backends, `unsafe` FFI); pure Rust (`openh264` +
+  an MP4 demuxer + symphonia for audio; H.264 only, no HEVC or VP9).
+  Recommendation: FFmpeg. Not started until the owner picks.
+
+### Next steps (M5, offline)
+
+- Download manager with the downloads list (row 286).
+- Sticker and GIF panels in the emoji panel (rows after 286).
+- After the decoder: the video player in the viewer, then music.
+
 ### Live test list (M5)
 
 1. Open a channel with photos (read only): each photo's box has its size
