@@ -7,6 +7,7 @@ use td_api::enums::{
 
 use crate::file::{Dimensions, File, Minithumbnail};
 use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
+use crate::location::Point;
 use crate::reaction::Reactions;
 use crate::secret::Secret;
 use crate::text::FormattedText;
@@ -218,10 +219,12 @@ pub enum Content {
     /// An emoji sent alone, shown big; also dice.
     Emoji(String),
     Contact(Box<SharedContact>),
-    Location,
-    LiveLocation,
+    Location(Point),
+    LiveLocation(Point),
     Venue {
+        point: Point,
         title: String,
+        address: String,
     },
     Poll {
         question: FormattedText,
@@ -715,10 +718,16 @@ impl From<MessageContent> for Content {
                     has_vcard: !contact.vcard.is_empty(),
                 }))
             }
-            MessageContent::MessageLocation(_) => Self::Location,
-            MessageContent::MessageLiveLocation(_) => Self::LiveLocation,
+            MessageContent::MessageLiveLocation(live) => {
+                Self::LiveLocation(Point::from(&*live.location.location))
+            }
+            MessageContent::MessageLocation(location) => {
+                Self::Location(Point::from(&*location.location))
+            }
             MessageContent::MessageVenue(venue) => Self::Venue {
+                point: Point::from(&*venue.venue.location),
                 title: venue.venue.title,
+                address: venue.venue.address,
             },
             MessageContent::MessagePoll(poll) => Self::Poll {
                 question: FormattedText::from(*poll.poll.question),

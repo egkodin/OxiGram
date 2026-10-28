@@ -200,6 +200,11 @@ pub(super) fn mosaic(
             .video
             .take()
             .map(|video| super::video::overlays(video, part.id, is_selected, cx));
+        let map = part
+            .photo
+            .map
+            .take()
+            .map(|url| super::location::pin(url, part.id, (rect.width, rect.height)));
         let tint = is_selected.then(|| {
             div()
                 .absolute()
@@ -214,6 +219,7 @@ pub(super) fn mosaic(
             .w(px_of(Px(rect.width)))
             .h(px_of(Px(rect.height)))
             .child(photo::picture(part.photo, corners, cx))
+            .children(map)
             .children(tint)
             .children(video.into_iter().flatten())
     });

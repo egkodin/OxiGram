@@ -7,13 +7,14 @@ use std::path::PathBuf;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, App, Context, Corners, Div, ImageSource, IntoElement as _, ObjectFit,
-    ParentElement as _, Pixels, Styled, StyledImage as _, div, img, px,
+    ParentElement as _, Pixels, SharedString, Styled, StyledImage as _, div, img, px,
 };
 use model::file::{Dimensions, File};
 use model::message::{Content, Media, Message};
 use style::chat::{
     HISTORY_PHOTO_BUBBLE_MIN_WIDTH, MAX_MEDIA_SIZE, MEDIA_CAPTION_SKIP, MEDIA_IN_BUBBLE_SKIP,
     MIN_PHOTO_SIZE, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_PADDING,
+    WEB_PAGE_DESCRIPTION_FONT, WEB_PAGE_TITLE_FONT,
 };
 use style::{ColorId, Px};
 use ui::color;
@@ -36,6 +37,10 @@ pub(super) struct Photo {
     pub thumbnail: Option<ImageSource>,
     /// A video's or GIF's button and status over the still.
     pub video: Option<Video>,
+    /// A map's link to the point in Maps; the pin stands on it.
+    pub map: Option<SharedString>,
+    /// What shows until the picture loads.
+    pub placeholder: ColorId,
 }
 
 /// `QSize::scaled` with `Qt::KeepAspectRatio` (`expanding` false) or
@@ -101,6 +106,9 @@ impl HistoryView {
         match &message.content {
             Content::Photo(media) => Some(self.still(media.file.as_ref(), media, cx)),
             Content::Video(_) | Content::Animation(_) => self.video(message, cx),
+            Content::Location(_) | Content::LiveLocation(_) | Content::Venue { .. } => {
+                self.map(message, cx)
+            }
             _ => None,
         }
     }
@@ -130,6 +138,8 @@ impl HistoryView {
                 .or(thumbnail.clone()),
             thumbnail,
             video: None,
+            map: None,
+            placeholder: ColorId::ImageBg,
         }
     }
 }
@@ -138,7 +148,7 @@ impl HistoryView {
 pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     let (width, height) = (px_of(Px(photo.width)), px_of(Px(photo.height)));
     let Some(source) = photo.source else {
-        return placeholder(corners, cx)
+        return placeholder(photo.placeholder, corners, cx)
             .w(width)
             .h(height)
             .into_any_element();
@@ -168,9 +178,9 @@ pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyEl
         .into_any_element()
 }
 
-fn placeholder(corners: Corners<Pixels>, cx: &App) -> Div {
+fn placeholder(bg: ColorId, corners: Corners<Pixels>, cx: &App) -> Div {
     div()
-        .bg(color(cx, bubble::palette(ColorId::ImageBg)))
+        .bg(color(cx, bubble::palette(bg)))
         .map(|this| rounded(this, corners))
 }
 
@@ -209,7 +219,8 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
     let headers = bubble::headers(item, out, cx);
     let has_header = name.is_some() || !headers.is_empty();
     let has_caption = bubble::caption(item.message).is_some_and(|caption| !caption.text.is_empty());
-    let has_below = has_caption || !item.reactions.is_empty();
+    let place = super::location::lines(item.message, cx);
+    let has_below = has_caption || place.is_some() || !item.reactions.is_empty();
     let comments = item
         .comments
         .take()
@@ -261,6 +272,8 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
             .relative()
             .pt(px_of(if has_caption {
                 MEDIA_CAPTION_SKIP
+            } else if place.is_some() {
+                MEDIA_IN_BUBBLE_SKIP
             } else {
                 Px(0)
             }))
@@ -269,6 +282,14 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
             .pb(px_of(MSG_PADDING.bottom))
             .when(has_caption, |this| {
                 this.child(bubble::text_block(item, out, fg, cx))
+            })
+            .when_some(place, |this, place| {
+                this.child(place_lines(
+                    place,
+                    (reactions.is_empty()).then(|| bubble::time_room(item, out, cx)),
+                    fg,
+                    cx,
+                ))
             })
             .when(!reactions.is_empty(), |this| {
                 this.child(super::reactions::row(
@@ -288,6 +309,25 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
         .child(picture)
         .children(below)
         .children(comments)
+}
+
+/// A venue's title and address in the link preview's fonts, the time
+/// beside the last line.
+fn place_lines(
+    (title, address): (String, String),
+    room: Option<String>,
+    fg: ColorId,
+    cx: &App,
+) -> Div {
+    let fg = color(cx, bubble::palette(fg));
+    let mut parts = vec![(title, WEB_PAGE_TITLE_FONT, fg, 2)];
+    if !address.is_empty() {
+        parts.push((address, WEB_PAGE_DESCRIPTION_FONT, fg, 3));
+    }
+    let last = parts.len() - 1;
+    div().children(parts.into_iter().enumerate().map(|(index, part)| {
+        super::web_page::line(part, (index == last).then(|| room.clone()).flatten())
+    }))
 }
 
 #[cfg(test)]

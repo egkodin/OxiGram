@@ -182,9 +182,9 @@ pub(crate) fn content<'a>(
         )),
         Content::Emoji(emoji) => Preview::of_text(&FormattedText::plain(emoji.clone())),
         Content::Contact { .. } => typed(key::lng_in_dlg_contact, &empty),
-        Content::Location => typed(key::lng_maps_point, &empty),
-        Content::LiveLocation => typed(key::lng_live_location, &empty),
-        Content::Venue { title } => {
+        Content::Location(_) => typed(key::lng_maps_point, &empty),
+        Content::LiveLocation(_) => typed(key::lng_live_location, &empty),
+        Content::Venue { title, .. } => {
             typed(key::lng_maps_point, &FormattedText::plain(title.clone()))
         }
         // shortcut: no poll, game and invoice mini icons; they come with custom emoji in M5.

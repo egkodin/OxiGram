@@ -582,7 +582,7 @@ fn web_page(item: &Item<'_>, out: bool, placement: Placement, cx: &App) -> Optio
 }
 
 /// Transparent text as wide as the time, for the last line under it.
-fn time_room(item: &Item<'_>, out: bool, cx: &App) -> String {
+pub(super) fn time_room(item: &Item<'_>, out: bool, cx: &App) -> String {
     let ticks = if out { "\u{2007}\u{2007}\u{2007}" } else { "" };
     let views = views(item).map_or_else(String::new, |views| {
         format!("{FIGURE_SPACE}{FIGURE_SPACE}{views}{FIGURE_SPACE}")

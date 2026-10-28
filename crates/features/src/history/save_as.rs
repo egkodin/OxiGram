@@ -114,6 +114,6 @@ mod tests {
             label(&Content::Video(media)),
             Some(key::lng_context_save_video)
         );
-        assert_eq!(label(&Content::Location), None);
+        assert_eq!(label(&Content::Unsupported), None);
     }
 }

@@ -175,7 +175,7 @@ fn ad_button(text: SharedString, fg: Hsla) -> AnyElement {
         .into_any_element()
 }
 
-fn line(
+pub(super) fn line(
     (text, line_font, fg, lines): (String, Font, Hsla, usize),
     room: Option<String>,
 ) -> AnyElement {

@@ -1,7 +1,7 @@
 //! Media in the history: photos in Saved Messages, one known only by its
 //! minithumbnail and two downloaded; files in Maria's chat; videos and a GIF
-//! in Saved Messages; albums there too; voice messages and contact cards
-//! with Maria.
+//! in Saved Messages; albums there too; voice messages, contact cards and
+//! places with Maria.
 
 use std::io::Cursor;
 use std::path::Path;
@@ -10,6 +10,7 @@ use features::settings::FoldersPlacement;
 use gpui::MouseButton;
 use model::auth::State;
 use model::file::{Dimensions, File, Minithumbnail};
+use model::location::Point;
 use model::message::{Content, Media, Message, Sender, SharedContact, VoiceNote};
 use model::text::FormattedText;
 use model::{ChatId, FileId, MessageId, Secret, UserId};
@@ -104,6 +105,54 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), contacts())],
             steps: vec![("165-contacts-list", auth(State::Ready))],
         },
+        // Places: a point, a venue with its address, and a live location.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("168-places-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("169-places-scrolled", CHAT_AREA, 400.0)],
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), places())],
+            steps: vec![("167-places-list", auth(State::Ready))],
+        },
+    ]
+}
+
+fn place(id: i64, from: i64, ago: i32, content: Content) -> Message {
+    Message {
+        is_outgoing: from == ME,
+        date: now() - ago,
+        ..Message::new(
+            MessageId(id),
+            ChatId(MARIA),
+            Sender::User(UserId(from)),
+            content,
+        )
+    }
+}
+
+fn places() -> Vec<Message> {
+    let trailhead = Point::new(46.558_9, 7.983_4);
+    vec![
+        place(1, MARIA, 4 * HOUR, Content::Location(trailhead)),
+        place(
+            2,
+            ME,
+            3 * HOUR,
+            Content::Venue {
+                point: Point::new(46.624_1, 8.041_4),
+                title: "Bergrestaurant First".to_owned(),
+                address: "First 1, 3818 Grindelwald, Switzerland".to_owned(),
+            },
+        ),
+        place(
+            3,
+            MARIA,
+            2 * HOUR,
+            Content::LiveLocation(Point::new(46.577_2, 7.991_2)),
+        ),
     ]
 }
 

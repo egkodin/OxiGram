@@ -28,6 +28,9 @@
 - "Save As..." in the menu of a downloaded photo, video, voice or file
   (`history/save_as.rs`): the system save box in Downloads, then a copy.
   Snapshot 156.
+- Locations and venues (`history/location.rs`, `model::location`):
+  TDLib's map picture with the pin, a venue's title and address, a click
+  opens Maps. Snapshots 167-169.
 
 ### Half done (shortcuts in code)
 
@@ -43,6 +46,8 @@
 - Contact cards: ADD adds without AddContactBox; a card with no
   account has no VIEW CONTACT (vCard) box; no ripple.
 - "Save As..." only for files already on disk.
+- Live locations show as still points: no sender pin, updated line or
+  countdown; the map picture is always TDLib's 2x one.
 
 ### Live test list (M5)
 
@@ -74,6 +79,9 @@
 7. Save As: right click a downloaded photo, video, voice and file:
    "Save As..." opens the save box in Downloads with a sensible name;
    save, and the copy opens. In a chat that forbids saving there is none.
+8. Places, read only: a shared location shows the map with a red pin in
+   the middle and the time on a pill; a venue has its name and address
+   under the map; click either: Maps opens at that point.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

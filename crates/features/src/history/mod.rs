@@ -26,6 +26,7 @@ mod headers;
 mod jump;
 mod layout;
 mod link_menus;
+mod location;
 mod menu;
 mod photo;
 mod pinned;
@@ -134,6 +135,7 @@ pub(crate) struct HistoryView {
     /// Set when items changed, so the ends are checked once laid out.
     needs_preload_check: bool,
     requested_files: HashSet<FileId>,
+    maps: location::Maps,
     playing: Option<voice_note::Playing>,
     /// Messages whose spoilers the user clicked open.
     revealed_spoilers: HashSet<MessageId>,
@@ -241,6 +243,7 @@ impl HistoryView {
             loading: None,
             needs_preload_check: false,
             requested_files: HashSet::new(),
+            maps: location::Maps::default(),
             playing: None,
             revealed_spoilers: HashSet::new(),
             requested_references: HashSet::new(),

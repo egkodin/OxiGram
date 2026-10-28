@@ -16,6 +16,7 @@ pub mod file;
 pub mod history;
 mod ids;
 pub mod language;
+pub mod location;
 pub mod message;
 pub mod message_actions;
 pub mod phone;
