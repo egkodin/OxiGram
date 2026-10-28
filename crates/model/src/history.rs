@@ -355,6 +355,13 @@ impl History {
             chats::Change::MessageSent { message, old } => {
                 self.replace(*old, Message::clone(message));
             }
+            chats::Change::Poll(poll) => {
+                for message in &mut self.messages {
+                    if matches!(&message.content, Content::Poll(old) if old.id == poll.id) {
+                        Arc::make_mut(message).content = Content::Poll(poll.clone());
+                    }
+                }
+            }
             chats::Change::ContentOpened { message, .. } => {
                 self.update(*message, |message| {
                     message.content = message.content.opened()

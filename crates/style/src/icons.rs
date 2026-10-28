@@ -1617,6 +1617,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/mediaview/save_check@2x.png")),
             x3: Some(include_bytes!("../icons/mediaview/save_check@3x.png")),
         },
+        "mediaview/views" => IconFiles::Png {
+            x1: include_bytes!("../icons/mediaview/views.png"),
+            x2: Some(include_bytes!("../icons/mediaview/views@2x.png")),
+            x3: Some(include_bytes!("../icons/mediaview/views@3x.png")),
+        },
         "menu/2sv_on" => IconFiles::Png {
             x1: include_bytes!("../icons/menu/2sv_on.png"),
             x2: Some(include_bytes!("../icons/menu/2sv_on@2x.png")),
@@ -2830,9 +2835,60 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/player/speed/audiospeed_menu_2.0@3x.png"
             )),
         },
+        "poll/filled/filled_poll_add" => {
+            IconFiles::Svg(include_bytes!("../icons/poll/filled/filled_poll_add.svg"))
+        }
+        "poll/filled/filled_poll_correct" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_correct.svg"
+        )),
+        "poll/filled/filled_poll_country" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_country.svg"
+        )),
+        "poll/filled/filled_poll_deadline" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_deadline.svg"
+        )),
+        "poll/filled/filled_poll_multiple" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_multiple.svg"
+        )),
+        "poll/filled/filled_poll_revote" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_revote.svg"
+        )),
+        "poll/filled/filled_poll_shuffle" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_shuffle.svg"
+        )),
+        "poll/filled/filled_poll_subscribers" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/filled/filled_poll_subscribers.svg"
+        )),
         "poll/filled/filled_poll_view" => {
             IconFiles::Svg(include_bytes!("../icons/poll/filled/filled_poll_view.svg"))
         }
+        "poll/general/menu_poll_order" => {
+            IconFiles::Svg(include_bytes!("../icons/poll/general/menu_poll_order.svg"))
+        }
+        "poll/general/outline_poll_add" => {
+            IconFiles::Svg(include_bytes!("../icons/poll/general/outline_poll_add.svg"))
+        }
+        "poll/general/outline_poll_attach" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/general/outline_poll_attach.svg"
+        )),
+        "poll/general/outline_poll_emoji" => IconFiles::Svg(include_bytes!(
+            "../icons/poll/general/outline_poll_emoji.svg"
+        )),
+        "poll_choice_right" => IconFiles::Png {
+            x1: include_bytes!("../icons/poll_choice_right.png"),
+            x2: Some(include_bytes!("../icons/poll_choice_right@2x.png")),
+            x3: Some(include_bytes!("../icons/poll_choice_right@3x.png")),
+        },
+        "poll_choice_wrong" => IconFiles::Png {
+            x1: include_bytes!("../icons/poll_choice_wrong.png"),
+            x2: Some(include_bytes!("../icons/poll_choice_wrong@2x.png")),
+            x3: Some(include_bytes!("../icons/poll_choice_wrong@3x.png")),
+        },
+        "poll_select_check" => IconFiles::Png {
+            x1: include_bytes!("../icons/poll_select_check.png"),
+            x2: Some(include_bytes!("../icons/poll_select_check@2x.png")),
+            x3: Some(include_bytes!("../icons/poll_select_check@3x.png")),
+        },
         "premium/star" => IconFiles::Svg(include_bytes!("../icons/premium/star.svg")),
         "profile/gift" => IconFiles::Svg(include_bytes!("../icons/profile/gift.svg")),
         "profile_premium" => IconFiles::Png {

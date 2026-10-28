@@ -188,7 +188,7 @@ pub(crate) fn content<'a>(
             typed(key::lng_maps_point, &FormattedText::plain(title.clone()))
         }
         // shortcut: no poll, game and invoice mini icons; they come with custom emoji in M5.
-        Content::Poll { question } => Preview::of_text(question),
+        Content::Poll(poll) => Preview::of_text(&poll.question),
         Content::Game { title } | Content::Invoice { title } => {
             Preview::of_text(&FormattedText::plain(title.clone()))
         }

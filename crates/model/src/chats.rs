@@ -106,6 +106,9 @@ pub enum Change {
         message: MessageId,
         content: Box<Content>,
     },
+    /// A poll's votes or state changed (`updatePoll`), in every message
+    /// that has it.
+    Poll(Box<crate::poll::Poll>),
     /// A voice or round video was played.
     ContentOpened {
         chat: ChatId,
@@ -356,6 +359,8 @@ impl Chats {
             Change::DefaultMute { scope, mute_for } => {
                 self.default_mute.insert(scope, mute_for);
             }
+            // The chat list shows only the question, which does not change.
+            Change::Poll(_) => {}
             Change::ContentOpened { chat, message } => self.update(chat, |chat| {
                 if let Some(last) = chat.last_message.as_mut().filter(|last| last.id == message) {
                     last.content = last.content.opened();
@@ -550,6 +555,7 @@ impl Change {
                 message: MessageId(update.message_id),
                 content: Box::new(Content::from(*update.new_content)),
             },
+            Update::Poll(update) => Self::Poll(Box::new(crate::poll::Poll::from(*update.poll))),
             Update::MessageContentOpened(update) => Self::ContentOpened {
                 chat: ChatId(update.chat_id),
                 message: MessageId(update.message_id),

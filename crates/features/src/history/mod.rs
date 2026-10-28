@@ -31,6 +31,7 @@ mod menu;
 mod photo;
 mod pinned;
 mod pinned_section;
+mod poll;
 mod pull_next;
 mod reactions;
 mod reactions_box;
@@ -138,6 +139,7 @@ pub(crate) struct HistoryView {
     needs_preload_check: bool,
     requested_files: HashSet<FileId>,
     maps: location::Maps,
+    poll_picks: poll::Picks,
     playing: Option<voice_note::Playing>,
     /// Messages whose spoilers the user clicked open.
     revealed_spoilers: HashSet<MessageId>,
@@ -246,6 +248,7 @@ impl HistoryView {
             needs_preload_check: false,
             requested_files: HashSet::new(),
             maps: location::Maps::default(),
+            poll_picks: poll::Picks::default(),
             playing: None,
             revealed_spoilers: HashSet::new(),
             requested_references: HashSet::new(),
@@ -490,37 +493,11 @@ impl HistoryView {
                 reactions,
                 file,
                 photo,
-                contact: self.contact(&message, cx),
+                special: self.special(&message, cx),
                 after: self.thread_divider(index, cx),
             },
             cx,
         )
-    }
-
-    fn date_badge(
-        &self,
-        message: &Message,
-        day: chrono::NaiveDate,
-        now: &chrono::DateTime<Local>,
-        cx: &Context<Self>,
-    ) -> bubble::DateBadge {
-        let weak = cx.weak_entity();
-        let is_scheduled = message.schedule.is_some();
-        let text = if is_scheduled {
-            scheduled_section::badge(strings(cx), message, day, now)
-        } else {
-            layout::date_badge(strings(cx), day, now)
-        };
-        bubble::DateBadge {
-            text: text.into(),
-            id: ("date-badge", message.id.0.unsigned_abs()).into(),
-            // Scheduled days have no history to jump to.
-            on_click: Rc::new(move |_, window, cx| {
-                if !is_scheduled {
-                    let _ = weak.update(cx, |this, cx| this.show_calendar(day, window, cx));
-                }
-            }),
-        }
     }
 
     fn on_pointer_at(&self, index: usize, cx: &Context<Self>) -> selection::OnPointer {

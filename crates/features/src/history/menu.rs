@@ -21,8 +21,8 @@ use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
     MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_DOWNLOAD, MENU_ICON_EDIT,
-    MENU_ICON_FORWARD, MENU_ICON_LINK, MENU_ICON_REPLY, MENU_ICON_RESCHEDULE, MENU_ICON_SELECT,
-    MENU_ICON_SEND, MENU_ICON_SHOW_IN_FOLDER,
+    MENU_ICON_FORWARD, MENU_ICON_LINK, MENU_ICON_REMOVE, MENU_ICON_REPLY, MENU_ICON_RESCHEDULE,
+    MENU_ICON_RETRACT_VOTE, MENU_ICON_SELECT, MENU_ICON_SEND, MENU_ICON_SHOW_IN_FOLDER,
 };
 use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
 use ui::{MenuTone, PopupMenu};
@@ -124,6 +124,8 @@ pub(super) enum Item {
     /// A downloaded file in Finder, or the file manager elsewhere.
     ShowInFolder(std::path::PathBuf),
     SaveAs(super::save_as::Saving),
+    RetractVote,
+    StopPoll,
 }
 
 /// A scheduled message's menu: send now and reschedule, then copying and
@@ -381,7 +383,8 @@ impl HistoryView {
                 .iter()
                 .take_while(|i| matches!(i, Item::Reply | Item::Edit))
                 .count();
-            items.splice(at..at, self.file_items(&message, cx));
+            let media = self.file_items(&message, cx).into_iter();
+            items.splice(at..at, media.chain(super::poll::items(&message, abilities)));
         }
         if message.schedule.is_some() {
             items = scheduled_items(items);
@@ -540,6 +543,8 @@ impl HistoryView {
             Item::Reschedule => self.reschedule(message.id, window, cx),
             Item::ShowInFolder(path) => cx.reveal_path(path),
             Item::SaveAs(saving) => self.save_as(saving, cx),
+            Item::RetractVote => self.send_votes(message.id, Vec::new(), cx),
+            Item::StopPoll => self.confirm_stop_poll(message.id, window, cx),
             Item::ClearSelection => {
                 self.clear_selection(cx);
             }
@@ -683,6 +688,8 @@ fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon
         }
         Item::ShowInFolder(_) => normal(key::lng_context_show_in_folder, MENU_ICON_SHOW_IN_FOLDER),
         Item::SaveAs(saving) => normal(saving.label, MENU_ICON_DOWNLOAD),
+        Item::RetractVote => normal(key::lng_polls_retract, MENU_ICON_RETRACT_VOTE),
+        Item::StopPoll => normal(key::lng_polls_stop, MENU_ICON_REMOVE),
     }
 }
 

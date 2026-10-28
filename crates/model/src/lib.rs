@@ -20,6 +20,7 @@ pub mod location;
 pub mod message;
 pub mod message_actions;
 pub mod phone;
+pub mod poll;
 pub mod reaction;
 pub mod rights;
 pub mod saved_tags;

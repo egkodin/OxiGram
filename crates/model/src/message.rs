@@ -8,6 +8,7 @@ use td_api::enums::{
 use crate::file::{Dimensions, File, Minithumbnail};
 use crate::ids::{ChatId, MessageId, SavedTopicId, UserId};
 use crate::location::Point;
+use crate::poll::Poll;
 use crate::reaction::Reactions;
 use crate::secret::Secret;
 use crate::sticker::StickerPicture;
@@ -233,9 +234,7 @@ pub enum Content {
         title: String,
         address: String,
     },
-    Poll {
-        question: FormattedText,
-    },
+    Poll(Box<Poll>),
     Game {
         title: String,
     },
@@ -762,9 +761,7 @@ impl From<MessageContent> for Content {
                 title: venue.venue.title,
                 address: venue.venue.address,
             },
-            MessageContent::MessagePoll(poll) => Self::Poll {
-                question: FormattedText::from(*poll.poll.question),
-            },
+            MessageContent::MessagePoll(poll) => Self::Poll(Box::new(Poll::from(*poll.poll))),
             MessageContent::MessageGame(game) => Self::Game {
                 title: game.game.title,
             },

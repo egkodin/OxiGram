@@ -26,6 +26,7 @@ pub mod media_player;
 pub mod menu_icons;
 pub mod overview;
 mod palette;
+pub mod polls;
 pub mod premium;
 pub mod premium_limits;
 pub mod userpic_button;

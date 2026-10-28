@@ -39,6 +39,10 @@
 - Round video messages (`history/video.rs`): the circle with its still,
   download and play buttons, the length and the unwatched dot. Snapshots
   175-176.
+- Polls and quizzes (`history/poll.rs`, `model::poll`): the question and
+  its kind, radios or checks to vote (several answers wait for Vote),
+  results with percents, counts and bars, quiz marks and the explanation;
+  Retract vote and Stop poll in the menu. Snapshots 177-179.
 
 ### Half done (shortcuts in code)
 
@@ -60,6 +64,10 @@
 - Stickers: TGS and WebM do not play; replies and forwards put a sticker
   in a bubble; selection tints its square; no click to open the set.
 - Round videos play in the system player, not inline in the circle.
+- Polls: plain text without custom emoji; no option media, voters list
+  ("View votes") or close timer; the explanation always shows instead of
+  the bulb toggle; a vote on its way shows a still ring; long answers
+  wrap before the vote count.
 
 ### Live test list (M5)
 
@@ -102,6 +110,12 @@
 11. Round videos, read only: a round video shows as a circle with "0:09"
     and a dot bottom left; play it: it opens in the player and the dot
     goes (only when views are reported).
+12. Polls, only in Saved Messages (create one from a phone): vote in a
+    single-answer poll: the results show with your option checked; in
+    a several-answer poll pick two and press Vote; right-click: Retract
+    vote brings the radios back; Stop poll asks first, then shows "Final
+    results". A quiz answered from the phone shows red/green marks and
+    the explanation.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

@@ -12,6 +12,7 @@ use model::auth::State;
 use model::file::{Dimensions, File, Minithumbnail};
 use model::location::Point;
 use model::message::{Content, Media, Message, Sender, SharedContact, VoiceNote};
+use model::poll::{Poll, PollKind, PollOption};
 use model::sticker::{StickerKind, StickerPicture};
 use model::text::FormattedText;
 use model::{ChatId, FileId, MessageId, Secret, UserId};
@@ -158,6 +159,19 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(MARIA), rounds(&photo))],
             steps: vec![("175-rounds-list", auth(State::Ready))],
+        },
+        // Polls: one to vote in, one with several answers, a quiz answered
+        // wrong with its explanation, and one sent and voted.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("178-polls-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("179-polls-scrolled", CHAT_AREA, 400.0)],
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), polls())],
+            steps: vec![("177-polls-list", auth(State::Ready))],
         },
     ]
 }
@@ -314,6 +328,104 @@ fn places() -> Vec<Message> {
             2 * HOUR,
             Content::LiveLocation(Point::new(46.577_2, 7.991_2)),
         ),
+    ]
+}
+
+fn poll(
+    id: i64,
+    from: i64,
+    ago: i32,
+    question: &str,
+    options: &[(&str, i32, bool)],
+    kind: PollKind,
+) -> Message {
+    let voted = options.iter().any(|option| option.2);
+    let options = options
+        .iter()
+        .zip(0..)
+        .map(|(&(text, percentage, is_chosen), index)| PollOption {
+            index,
+            text: FormattedText::plain(text),
+            voters: if voted { percentage / 10 } else { 0 },
+            percentage: if voted { percentage } else { 0 },
+            is_chosen,
+            is_being_chosen: false,
+        })
+        .collect();
+    let poll = Poll {
+        id,
+        question: FormattedText::plain(question),
+        options,
+        total_voters: if voted { 10 } else { 4 },
+        is_anonymous: id != 2,
+        allows_multiple_answers: id == 2,
+        allows_revoting: true,
+        can_see_results: true,
+        is_closed: id == 3,
+        close_date: 0,
+        kind,
+    };
+    Message {
+        is_outgoing: from == ME,
+        date: now() - ago,
+        ..Message::new(
+            MessageId(id),
+            ChatId(MARIA),
+            Sender::User(UserId(from)),
+            Content::Poll(Box::new(poll)),
+        )
+    }
+}
+
+fn polls() -> Vec<Message> {
+    let quiz = PollKind::Quiz {
+        correct: vec![1],
+        explanation: FormattedText::plain(
+            "Canberra was built as a compromise between Sydney and Melbourne.",
+        ),
+    };
+    let lunch = [
+        ("Pizza", 0, false),
+        ("Sushi", 0, false),
+        ("Tacos", 0, false),
+    ];
+    let days = [
+        ("Monday", 0, false),
+        ("Wednesday", 0, false),
+        ("Friday", 0, false),
+    ];
+    let capital = [
+        ("Sydney", 40, true),
+        ("Canberra", 50, false),
+        ("Melbourne", 10, false),
+    ];
+    let movie = [("Yes", 70, true), ("No", 30, false)];
+    vec![
+        poll(
+            1,
+            MARIA,
+            4 * HOUR,
+            "Where should we go for lunch?",
+            &lunch,
+            PollKind::Regular,
+        ),
+        poll(
+            2,
+            MARIA,
+            3 * HOUR,
+            "Which days work for you?",
+            &days,
+            PollKind::Regular,
+        ),
+        poll(
+            3,
+            MARIA,
+            2 * HOUR,
+            "What is the capital of Australia?",
+            &capital,
+            quiz,
+        ),
+        poll(4, ME, HOUR, "Movie tonight?", &movie, PollKind::Regular),
     ]
 }
 

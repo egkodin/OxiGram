@@ -15,9 +15,9 @@ use ui::IconButton;
 
 use super::pinned_section::Section;
 use super::send_menu::OnOptions;
-use super::{HistoryView, layout, schedule_box, top_bar};
+use super::{HistoryView, bubble, layout, schedule_box, top_bar};
 use crate::boxes::{self, ConfirmArgs};
-use crate::lang::tr;
+use crate::lang::{strings, tr};
 use crate::peer_menu::send;
 use crate::store::spawn;
 
@@ -41,6 +41,32 @@ pub(super) fn badge<Tz: TimeZone>(
 }
 
 impl HistoryView {
+    pub(super) fn date_badge(
+        &self,
+        message: &Message,
+        day: NaiveDate,
+        now: &DateTime<chrono::Local>,
+        cx: &Context<Self>,
+    ) -> bubble::DateBadge {
+        let weak = cx.weak_entity();
+        let is_scheduled = message.schedule.is_some();
+        let text = if is_scheduled {
+            badge(strings(cx), message, day, now)
+        } else {
+            layout::date_badge(strings(cx), day, now)
+        };
+        bubble::DateBadge {
+            text: text.into(),
+            id: ("date-badge", message.id.0.unsigned_abs()).into(),
+            // Scheduled days have no history to jump to.
+            on_click: Rc::new(move |_, window, cx| {
+                if !is_scheduled {
+                    let _ = weak.update(cx, |this, cx| this.show_calendar(day, window, cx));
+                }
+            }),
+        }
+    }
+
     /// The button by the field that opens the section, while the chat has
     /// scheduled messages (`HistoryWidget::_scheduled`).
     pub(super) fn scheduled_button(&self, cx: &Context<Self>) -> Option<AnyElement> {
