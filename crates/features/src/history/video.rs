@@ -7,15 +7,15 @@ use std::rc::Rc;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, App, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, div,
+    AnyElement, App, Context, Corners, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, div, px, relative,
 };
 use i18n::key;
-use model::message::{Content, Message};
+use model::message::{Content, Media, Message};
 use style::basic::NORMAL_FONT;
 use style::chat::{
-    MAX_VIDEO_MESSAGE_SIZE, MEDIA_UNREAD_SIZE, MEDIA_UNREAD_SKIP, MSG_DATE_IMG_DELTA,
-    MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT,
+    HISTORY_VIDEO_TIMESTAMP_PROGRESS_LINE, MAX_VIDEO_MESSAGE_SIZE, MEDIA_UNREAD_SIZE,
+    MEDIA_UNREAD_SKIP, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT,
 };
 use style::chat_style::{
     HISTORY_FILE_THUMB_CANCEL, HISTORY_FILE_THUMB_CANCEL_SELECTED, HISTORY_FILE_THUMB_DOWNLOAD,
@@ -59,6 +59,16 @@ pub(super) struct Video {
     pub status: String,
     pub shape: Shape,
     pub on_click: OnClick,
+    /// How far into the video it starts, 0 to 1, when the sender set a
+    /// timestamp.
+    pub timestamp: Option<f32>,
+}
+
+/// Where the timestamp mark sits in the video, when it has one.
+#[expect(clippy::cast_precision_loss, reason = "video lengths in seconds")]
+fn timestamp(media: &Media) -> Option<f32> {
+    (media.start_timestamp > 0 && media.start_timestamp <= media.duration)
+        .then(|| media.start_timestamp as f32 / media.duration as f32)
 }
 
 /// "0:07", "12:30", "1:02:03" (`FormatDurationText`).
@@ -146,6 +156,9 @@ impl HistoryView {
                 status,
                 shape,
                 on_click,
+                timestamp: matches!(message.content, Content::Video(_))
+                    .then(|| timestamp(media))
+                    .flatten(),
             }),
             ..still
         })
@@ -154,7 +167,13 @@ impl HistoryView {
 
 /// The button over the whole picture, which takes its clicks, and the
 /// status pill in its corner.
-pub(super) fn overlays(video: Video, id: i64, is_selected: bool, cx: &App) -> [AnyElement; 2] {
+pub(super) fn overlays(
+    video: Video,
+    id: i64,
+    corners: Corners<Pixels>,
+    is_selected: bool,
+    cx: &App,
+) -> Vec<AnyElement> {
     let bg = color(
         cx,
         ColorRef::Palette(if is_selected {
@@ -237,7 +256,52 @@ pub(super) fn overlays(video: Video, id: i64, is_selected: bool, cx: &App) -> [A
         .child(video.status)
         .children(dot)
         .into_any_element();
-    [button, status]
+    let mark = video
+        .timestamp
+        .map(|progress| timestamp_mark(progress, corners, cx));
+    [button, status].into_iter().chain(mark).collect()
+}
+
+/// How far in a bottom corner of `radius` cuts into a line of `height`
+/// along the bottom, at the line's middle.
+fn corner_inset(radius: Pixels, height: Pixels) -> Pixels {
+    let (radius, height) = (f32::from(radius), f32::from(height));
+    let rise = (radius - height / 2.0).max(0.0);
+    px(radius - (radius * radius - rise * rise).sqrt())
+}
+
+/// The started part along the bottom in the active color, the rest in the
+/// player's (`PaintVideoTimestampMark`): the split lies `progress` of the
+/// way between the two corner radii.
+// shortcut: the line's ends are cut square where the corners cross its middle; tdesktop rounds them with the corners.
+fn timestamp_mark(progress: f32, corners: Corners<Pixels>, cx: &App) -> AnyElement {
+    let line = px_of(HISTORY_VIDEO_TIMESTAMP_PROGRESS_LINE);
+    let (left, right) = (corners.bottom_left, corners.bottom_right);
+    let used = div()
+        .absolute()
+        .bottom_0()
+        .left(left)
+        .right(right)
+        .h(line)
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .left(corner_inset(left, line) - left)
+                .right(relative(1.0 - progress))
+                .bg(palette(cx, ColorId::WindowBgActive)),
+        )
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .bottom_0()
+                .left(relative(progress))
+                .right(corner_inset(right, line) - right)
+                .bg(palette(cx, ColorId::MediaviewPlaybackProgressFg)),
+        );
+    used.into_any_element()
 }
 
 fn palette(cx: &App, id: ColorId) -> gpui::Hsla {
@@ -247,6 +311,22 @@ fn palette(cx: &App, id: ColorId) -> gpui::Hsla {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_timestamp_mark_follows_the_corners() {
+        let media = |start, duration| Media {
+            start_timestamp: start,
+            duration,
+            ..Media::default()
+        };
+        assert_eq!(timestamp(&media(30, 120)), Some(0.25));
+        assert_eq!(timestamp(&media(0, 120)), None);
+        assert_eq!(timestamp(&media(200, 120)), None);
+        assert_eq!(corner_inset(px(0.0), px(4.0)), px(0.0));
+        // A 16 px corner meets a 4 px line's middle 16 - sqrt(60) in.
+        let inset = f32::from(corner_inset(px(16.0), px(4.0)));
+        assert!((inset - 8.254).abs() < 0.01, "{inset}");
+    }
 
     #[test]
     fn durations_drop_hours_under_an_hour() {

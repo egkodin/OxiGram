@@ -60,6 +60,9 @@
   "1" badge; a click opens a view-once photo alone in the viewer and
   reports it opened; expired media show as "Expired photo" and the like.
   Snapshots 189-194.
+- Video covers and timestamps (`history/video.rs`, `Media::start_timestamp`):
+  a cover the sender picked replaces TDLib's still; a start time shows as
+  the line along the bottom. Snapshots 195-196.
 
 ### Half done (shortcuts in code)
 
@@ -97,6 +100,8 @@
   player; no countdown ring, seconds label, viewer badge or tooltip;
   view-once voice and round messages play inline, without tdesktop's
   layer that hides the chat.
+- Video timestamps: the line's ends are cut square; playback does not
+  start there until the in-app player.
 
 ### Live test list (M5)
 
@@ -164,6 +169,10 @@
     no save; close: with views reported it turns into "Expired photo";
     with views withheld it stays. A timed photo shows the fire without
     the "1".
+17. Video covers and timestamps, read only: a channel post with a video
+    that has a custom cover shows that cover, not the first frame; a
+    link to a video with a time (or a forward with a start time) shows
+    the blue line along the bottom up to that point.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

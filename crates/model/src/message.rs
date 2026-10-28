@@ -528,6 +528,8 @@ pub struct Media {
     pub file: Option<File>,
     /// Hidden under a spoiler until clicked.
     pub has_spoiler: bool,
+    /// Where a video starts playing, in seconds; 0 from the beginning.
+    pub start_timestamp: i32,
 }
 
 impl Message {
@@ -686,6 +688,7 @@ fn media(
         duration: 0,
         file: file.map(File::from),
         has_spoiler: false,
+        start_timestamp: 0,
     }
 }
 
@@ -716,17 +719,33 @@ impl From<MessageContent> for Content {
                     ..media(*photo.caption, photo.photo.minithumbnail, file, dimensions)
                 })
             }
-            MessageContent::MessageVideo(video) => Self::Video(Media {
-                preview: still(video.video.thumbnail),
-                has_spoiler: video.has_spoiler,
-                duration: video.video.duration,
-                ..media(
-                    *video.caption,
-                    video.video.minithumbnail,
-                    Some(*video.video.video),
-                    Dimensions::new(video.video.width, video.video.height),
-                )
-            }),
+            MessageContent::MessageVideo(video) => {
+                // A cover the sender picked stands in for TDLib's still
+                // (`LookupVideoCover`).
+                let (preview, thumbnail) = match video.cover {
+                    Some(cover) => (
+                        cover
+                            .sizes
+                            .into_iter()
+                            .last()
+                            .map(|size| File::from(*size.photo)),
+                        cover.minithumbnail,
+                    ),
+                    None => (still(video.video.thumbnail), video.video.minithumbnail),
+                };
+                Self::Video(Media {
+                    preview,
+                    has_spoiler: video.has_spoiler,
+                    duration: video.video.duration,
+                    start_timestamp: video.start_timestamp,
+                    ..media(
+                        *video.caption,
+                        thumbnail,
+                        Some(*video.video.video),
+                        Dimensions::new(video.video.width, video.video.height),
+                    )
+                })
+            }
             MessageContent::MessageAnimation(animation) => Self::Animation(Media {
                 preview: still(animation.animation.thumbnail),
                 has_spoiler: animation.has_spoiler,

@@ -199,7 +199,7 @@ pub(super) fn mosaic(
             .photo
             .video
             .take()
-            .map(|video| super::video::overlays(video, part.id, is_selected, cx));
+            .map(|video| super::video::overlays(video, part.id, corners, is_selected, cx));
         let open = part.photo.open.take().map(|on_click| {
             div()
                 .id(("photo-open", part.id.unsigned_abs()))

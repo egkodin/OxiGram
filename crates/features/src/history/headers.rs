@@ -348,6 +348,7 @@ mod tests {
                     duration: 0,
                     file: None,
                     has_spoiler: false,
+                    start_timestamp: 0,
                 },
             ))),
         });

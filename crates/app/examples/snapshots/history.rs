@@ -224,6 +224,7 @@ fn ann() -> Vec<Message> {
                 duration: 0,
                 file: None,
                 has_spoiler: false,
+                start_timestamp: 0,
             }))),
         },
     );
@@ -377,6 +378,7 @@ pub(crate) fn uploads() -> Vec<(ChatId, Vec<Message>)> {
                 duration: 0,
                 file: Some(file),
                 has_spoiler: false,
+                start_timestamp: 0,
             },
         },
         ..message(ME, 2, ME, MINUTE, "")

@@ -253,6 +253,19 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), view_once(&photo))],
             steps: vec![("192-expired-list", auth(State::Ready))],
         },
+        // Video timestamps: a quarter in with a caption, most of the way
+        // in without one, the line's ends following the corners.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("196-timestamps-saved", MouseButton::Left, SAVED_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), timestamped(&photo))],
+            steps: vec![("195-timestamps-list", auth(State::Ready))],
+        },
     ]
 }
 
@@ -663,6 +676,7 @@ fn document(id: i64, from: i64, ago: i32, name: &str, caption: &str, file: File)
         duration: 0,
         file: Some(file),
         has_spoiler: false,
+        start_timestamp: 0,
     };
     Message {
         is_outgoing: from == ME,
@@ -743,6 +757,7 @@ fn photo(id: i64, ago: i32, caption: &str, dimensions: (i32, i32), file: File) -
         duration: 0,
         file: Some(file),
         has_spoiler: false,
+        start_timestamp: 0,
     };
     saved(id, ago, Content::Photo(media))
 }
@@ -763,6 +778,7 @@ fn video(
         duration: duration.unwrap_or(0),
         file: Some(file),
         has_spoiler: false,
+        start_timestamp: 0,
     };
     saved(
         id,
@@ -890,6 +906,33 @@ fn videos(still: &Path) -> Vec<Message> {
             None,
             [file(984, Some(still)), file(985, Some(still))],
         ),
+    ]
+}
+
+fn timestamped(still: &Path) -> Vec<Message> {
+    let at = |message: Message, start| Message {
+        content: match message.content {
+            Content::Video(media) => Content::Video(Media {
+                start_timestamp: start,
+                ..media
+            }),
+            other => other,
+        },
+        ..message
+    };
+    let both = |id| [file(id, Some(still)), file(id + 1, Some(still))];
+    vec![
+        at(
+            video(
+                1,
+                2 * HOUR,
+                "From the top of the pass",
+                Some(120),
+                both(990),
+            ),
+            30,
+        ),
+        at(video(2, HOUR, "", Some(120), both(992)), 100),
     ]
 }
 

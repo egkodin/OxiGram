@@ -223,6 +223,7 @@ pub(crate) fn events() -> Vec<Event> {
         duration: 0,
         file: None,
         has_spoiler: false,
+        start_timestamp: 0,
     });
     let channel = chat(
         -200,
