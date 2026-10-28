@@ -273,19 +273,19 @@ pub(super) fn items(message: &Message, abilities: &[Abilities]) -> Vec<Item> {
 }
 
 /// The colors a poll paints with, in or out and selected or not.
-struct Colors {
-    text: Hsla,
-    date: Hsla,
-    link: Hsla,
-    file: Hsla,
-    wrong: Hsla,
-    good: Hsla,
+pub(super) struct Colors {
+    pub(super) text: Hsla,
+    pub(super) date: Hsla,
+    pub(super) link: Hsla,
+    pub(super) file: Hsla,
+    pub(super) wrong: Hsla,
+    pub(super) good: Hsla,
     /// The check over a chosen option, and the mark over a result.
-    chosen: Icon,
-    right: Icon,
+    pub(super) chosen: Icon,
+    pub(super) right: Icon,
 }
 
-fn colors(out: bool, is_selected: bool, cx: &App) -> Colors {
+pub(super) fn colors(out: bool, is_selected: bool, cx: &App) -> Colors {
     use ColorId as C;
     let (text, date, link, file, chosen, right) = match (out, is_selected) {
         (false, false) => (
@@ -334,7 +334,7 @@ fn colors(out: bool, is_selected: bool, cx: &App) -> Colors {
     }
 }
 
-fn text(text: impl Into<SharedString>, line_font: Font, fg: Hsla) -> gpui::Div {
+pub(super) fn text(text: impl Into<SharedString>, line_font: Font, fg: Hsla) -> gpui::Div {
     div()
         .font(font(line_font))
         .text_size(px_of(line_font.size))
@@ -442,7 +442,12 @@ fn row(
 
 /// The radio or check box an option shows before the results.
 // shortcut: a vote on its way shows a still ring, not tdesktop's spinning arc; with M8 polish.
-fn radio(is_picked: bool, is_sending: bool, is_multiple: bool, colors: &Colors) -> AnyElement {
+pub(super) fn radio(
+    is_picked: bool,
+    is_sending: bool,
+    is_multiple: bool,
+    colors: &Colors,
+) -> AnyElement {
     let diameter = px_of(HISTORY_POLL_RADIO.diameter);
     let ring = if is_sending {
         colors.link

@@ -86,32 +86,9 @@ pub(super) struct Item<'a> {
     /// A photo's, video's or album's pictures, once sent.
     pub photo: Option<super::album::Pictures>,
     /// A contact card or a poll, in place of the text.
-    pub special: Option<Special>,
+    pub special: Option<super::special::Special>,
     /// What follows the message in its row, as a thread's divider.
     pub after: Option<AnyElement>,
-}
-
-/// What a message shows in place of its text.
-pub(super) enum Special {
-    Contact(super::contact::Card),
-    Poll(super::poll::View),
-    LargeEmoji(Vec<String>),
-}
-
-impl super::HistoryView {
-    pub(super) fn special(
-        &mut self,
-        message: &Message,
-        cx: &mut gpui::Context<Self>,
-    ) -> Option<Special> {
-        match self.contact(message, cx) {
-            Some(card) => Some(Special::Contact(card)),
-            None => self
-                .poll(message, cx)
-                .map(Special::Poll)
-                .or_else(|| super::large_emoji::of(message).map(Special::LargeEmoji)),
-        }
-    }
 }
 
 /// What a click on part of a message does.
@@ -432,10 +409,10 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         return super::photo::bubble(item, out, photo, cx);
     }
     // shortcut: emoji under a name, reply or forward stay in a bubble; tdesktop puts those beside them, as for stickers.
-    if matches!(item.special, Some(Special::LargeEmoji(_)))
+    if matches!(item.special, Some(super::special::Special::LargeEmoji(_)))
         && name_line(item, out, cx).is_none()
         && headers(item, out, cx).is_empty()
-        && let Some(Special::LargeEmoji(emoji)) = item.special.take()
+        && let Some(super::special::Special::LargeEmoji(emoji)) = item.special.take()
     {
         return super::large_emoji::bubble(item, out, emoji, cx);
     }
@@ -465,14 +442,10 @@ fn bubble(item: &mut Item<'_>, out: bool, cx: &App) -> Div {
         super::file_row::row(file, &place, cx)
     });
     let id = item.message.id.0 as u64;
-    let special = item.special.take().and_then(|special| match special {
-        Special::Contact(card) => {
-            Some(super::contact::element(card, id, out, item.is_selected, cx))
-        }
-        Special::Poll(poll) => Some(super::poll::element(poll, id, out, item.is_selected, cx)),
-        // Under a header the emoji stay text.
-        Special::LargeEmoji(_) => None,
-    });
+    let special = item
+        .special
+        .take()
+        .and_then(|special| special.element(id, out, item.is_selected, cx));
     let shows_text = (file.is_none() || has_caption) && special.is_none();
     frame
         .children(name)

@@ -9,6 +9,7 @@ use std::path::Path;
 use features::settings::FoldersPlacement;
 use gpui::MouseButton;
 use model::auth::State;
+use model::checklist::{Checklist, Task};
 use model::file::{Dimensions, File, Minithumbnail};
 use model::location::Point;
 use model::message::{Content, Media, Message, Sender, SharedContact, VoiceNote};
@@ -186,6 +187,19 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(MARIA), big_emoji())],
             steps: vec![("180-emoji-list", auth(State::Ready))],
         },
+        // Checklists: one Maria lets others mark, one only she marks, and
+        // one sent.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![("183-checklists-chat", MouseButton::Left, MARIA_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(MARIA), checklists())],
+            steps: vec![("182-checklists-list", auth(State::Ready))],
+        },
     ]
 }
 
@@ -277,6 +291,56 @@ fn big_emoji() -> Vec<Message> {
         ),
         text(5, MARIA, 90 * 60, "ok 👍"),
         text(6, ME, HOUR, "🎉"),
+    ]
+}
+
+fn checklists() -> Vec<Message> {
+    let list = |id, from, ago, title: &str, tasks: &[(&str, Option<i64>)], can_mark: bool| {
+        let checklist = Checklist {
+            title: FormattedText::plain(title),
+            tasks: tasks
+                .iter()
+                .zip(1..)
+                .map(|(&(text, by), id)| Task {
+                    id,
+                    text: FormattedText::plain(text),
+                    completed_by: by.map(|by| Sender::User(UserId(by))),
+                })
+                .collect(),
+            others_can_mark_tasks_as_done: can_mark,
+            can_mark_tasks_as_done: can_mark || from == ME,
+        };
+        place(id, from, ago, Content::Checklist(Box::new(checklist)))
+    };
+    vec![
+        list(
+            1,
+            MARIA,
+            3 * HOUR,
+            "Trip to Lisbon",
+            &[
+                ("Book flights", Some(MARIA)),
+                ("Find a hotel", None),
+                ("Pack sunscreen", None),
+            ],
+            true,
+        ),
+        list(
+            2,
+            MARIA,
+            2 * HOUR,
+            "Her errands",
+            &[("Post office", Some(MARIA)), ("Groceries", None)],
+            false,
+        ),
+        list(
+            3,
+            ME,
+            HOUR,
+            "Weekend",
+            &[("Clean the flat", Some(ME)), ("Call grandma", None)],
+            true,
+        ),
     ]
 }
 

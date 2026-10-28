@@ -46,6 +46,9 @@
 - Large emoji and dice (`history/large_emoji.rs`): one to three emoji
   alone show big without a bubble; animated emoji and dice show their
   sticker's still at 112 px. Snapshots 180-181.
+- Checklists (`history/checklist.rs`, `model::checklist`): tasks with
+  their checks and completers, marked by a click; the status line.
+  Snapshots 182-183.
 
 ### Half done (shortcuts in code)
 
@@ -73,6 +76,7 @@
   wrap before the vote count.
 - Large emoji and dice do not animate (Lottie player); slot machines show
   their emoji; a reply or forward keeps emoji in a bubble.
+- Checklists: no completer's userpic, fireworks or adding tasks.
 
 ### Live test list (M5)
 
@@ -124,6 +128,9 @@
 13. Large emoji, only in Saved Messages: send one emoji, then three: they
     show big without a bubble; send "🎲": the die shows (still), not a
     text bubble.
+14. Checklists, only in Saved Messages (create one from a phone, Premium
+    only): click a task: it gets a check and your name; click again:
+    the check goes; the status line counts them.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

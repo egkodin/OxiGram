@@ -11,6 +11,7 @@ pub mod auth;
 pub mod chat;
 pub mod chat_actions;
 pub mod chats;
+pub mod checklist;
 mod event;
 pub mod file;
 pub mod history;

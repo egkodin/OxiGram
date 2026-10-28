@@ -239,6 +239,7 @@ pub enum Content {
         address: String,
     },
     Poll(Box<Poll>),
+    Checklist(Box<crate::checklist::Checklist>),
     Game {
         title: String,
     },
@@ -781,6 +782,9 @@ impl From<MessageContent> for Content {
                 address: venue.venue.address,
             },
             MessageContent::MessagePoll(poll) => Self::Poll(Box::new(Poll::from(*poll.poll))),
+            MessageContent::MessageChecklist(checklist) => {
+                Self::Checklist(Box::new(crate::checklist::Checklist::from(*checklist.list)))
+            }
             MessageContent::MessageGame(game) => Self::Game {
                 title: game.game.title,
             },
