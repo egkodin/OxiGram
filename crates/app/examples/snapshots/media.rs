@@ -42,10 +42,12 @@ const ONCE_PHOTO: (f32, f32) = (517.0, 400.0);
 const CAPTIONED_PHOTO: (f32, f32) = (550.0, 150.0);
 /// The play button of the downloaded video in Saved Messages.
 const PLAYABLE_VIDEO: (f32, f32) = (550.0, 300.0);
-/// The round's middle in Saved Messages under the GIF.
-const PLAYABLE_ROUND: (f32, f32) = (664.0, 424.0);
+/// The round's middle in Saved Messages, between the GIF and the sticker.
+const PLAYABLE_ROUND: (f32, f32) = (664.0, 192.0);
 /// A one-second 64x36 H.264 clip (`media`'s test fixture).
 const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/clip.mp4");
+/// A WebM sticker's clip: VP9 with alpha, clear but for a red square.
+const ALPHA_CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/alpha.webm");
 /// An 8 s square clip, long enough to still play when the harness draws.
 const ROUND_CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/round.mp4");
 
@@ -255,8 +257,9 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(ME), playable(&photo))],
             steps: vec![("202-video-list", auth(State::Ready))],
         },
-        // A GIF on disk plays by itself; a click on the round plays it in
-        // its circle with the played part around the edge.
+        // A GIF and a WebM sticker on disk play by themselves, the sticker
+        // clear around its square; a click on the round plays it in its
+        // circle with the played part around the edge.
         Scenario {
             setup: chats::events(),
             clicks: vec![
@@ -888,7 +891,13 @@ fn playable(still: &Path) -> Vec<Message> {
 /// A GIF and a round video in Saved Messages, both on disk.
 fn inline_videos(still: &Path) -> Vec<Message> {
     let clip = Some(Path::new(ROUND_CLIP));
-    let gif = video(1, 2 * HOUR, "", None, [file(1211, Some(still)), file(1212, clip)]);
+    let gif = video(
+        1,
+        2 * HOUR,
+        "",
+        None,
+        [file(1211, Some(still)), file(1212, clip)],
+    );
     let media = Media {
         thumbnail: minithumbnail(),
         dimensions: Dimensions::new(384, 384),
@@ -905,7 +914,21 @@ fn inline_videos(still: &Path) -> Vec<Message> {
             is_viewed: true,
         },
     );
-    vec![gif, round]
+    let picture = StickerPicture {
+        kind: StickerKind::Video,
+        dimensions: Dimensions::new(512, 512),
+        file: file(1215, Some(Path::new(ALPHA_CLIP))),
+        still: None,
+    };
+    let sticker = saved(
+        3,
+        HOUR / 2,
+        Content::Sticker {
+            emoji: "🟥".to_owned(),
+            picture: Some(Box::new(picture)),
+        },
+    );
+    vec![gif, round, sticker]
 }
 
 fn albums(downloaded: &Path) -> Vec<Message> {

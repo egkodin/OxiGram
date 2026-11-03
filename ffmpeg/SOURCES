@@ -1,5 +1,6 @@
-# The FFmpeg and dav1d releases scripts/build-ffmpeg.sh builds, with their
-# SHA-256. FFmpeg's matches Homebrew's formula; dav1d's matches VideoLAN's
-# published .sha256 file.
+# The FFmpeg, dav1d and libvpx releases scripts/build-ffmpeg.sh builds, with
+# their SHA-256. FFmpeg's and libvpx's match Homebrew's formulae; dav1d's
+# matches VideoLAN's published .sha256 file.
 ffmpeg 9.0.2 https://ffmpeg.org/releases/ffmpeg-9.0.2.tar.xz 8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
 dav1d 1.5.4 https://downloads.videolan.org/pub/videolan/dav1d/1.5.4/dav1d-1.5.4.tar.xz 686616b7c69eb88d44459391ab25cac13b6647a3b288835c5784e71c1514a5c5
+libvpx 1.17.0 https://github.com/webmproject/libvpx/archive/refs/tags/v1.17.0.tar.gz 1020f184046187baa2985dbde38e0691f49c44088bca7a1842b0236c6081dc0a

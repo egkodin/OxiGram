@@ -1,9 +1,11 @@
 //! Stickers in the history (`HistoryView::Sticker` in `UnwrappedMedia`):
 //! the picture alone at tdesktop's size, no bubble, the time on a pill.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use gpui::{Context, ImageSource};
+use gpui::{Context, ImageSource, RenderImage};
+use model::MessageId;
 use model::sticker::{StickerKind, StickerPicture};
 use style::chat::MAX_STICKER_SIZE;
 
@@ -34,9 +36,15 @@ fn size(picture: &StickerPicture) -> (i32, i32) {
 }
 
 impl HistoryView {
-    /// The sticker's picture: the file of a still one, else its still.
-    // shortcut: animated (TGS) and video (WebM) stickers show their still; playing them comes with the Lottie and video players.
-    pub(super) fn sticker(&mut self, picture: &StickerPicture, cx: &mut Context<Self>) -> Photo {
+    /// `message`'s sticker: the file of a still one, else its still; a
+    /// video one loops over its still once on disk.
+    // shortcut: animated (TGS) stickers show their still; playing them comes with the Lottie player.
+    pub(super) fn sticker(
+        &mut self,
+        message: MessageId,
+        picture: &StickerPicture,
+        cx: &mut Context<Self>,
+    ) -> Photo {
         let shown = match picture.kind {
             StickerKind::Still => Some(&picture.file),
             StickerKind::Animated | StickerKind::Video => None,
@@ -51,19 +59,45 @@ impl HistoryView {
             }
         }
         let (width, height) = size(picture);
+        let frame = match picture.kind {
+            StickerKind::Video => self.video_sticker(message, picture, (width, height), cx),
+            StickerKind::Still | StickerKind::Animated => None,
+        };
         Photo {
             width,
             height,
             source: path.map(|path| ImageSource::from(PathBuf::from(path))),
             thumbnail: None,
             video: None,
-            frame: None,
+            frame,
             map: None,
             placeholder: None,
             spoiler: None,
             open: None,
             once: None,
         }
+    }
+}
+
+impl HistoryView {
+    /// A WebM sticker's frame, muted and looped as GIFs are; it downloads
+    /// the first time it shows.
+    fn video_sticker(
+        &mut self,
+        message: MessageId,
+        picture: &StickerPicture,
+        (width, height): (i32, i32),
+        cx: &mut Context<Self>,
+    ) -> Option<Arc<RenderImage>> {
+        let file = current(self, &picture.file, cx).clone();
+        let Some(path) = file.path else {
+            self.fetch(file.id, PHOTO_PRIORITY, cx);
+            return None;
+        };
+        #[expect(clippy::cast_precision_loss, reason = "a size in points")]
+        let size = (width as f32, height as f32);
+        self.autoplay(message, Path::new(&path), size, cx);
+        self.inline_frame(message, cx)?.image
     }
 }
 

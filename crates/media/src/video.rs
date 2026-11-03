@@ -36,7 +36,13 @@ pub enum VideoError {
 enum Decoding {
     Hardware,
     Software,
+    /// libvpx, for VP9 with an alpha channel: FFmpeg's own VP9 decoder
+    /// drops the alpha that WebM stickers carry (`FindDecoder`).
+    Alpha,
 }
+
+/// libvpx's VP9 decoder in FFmpeg, the one that reads WebM's alpha.
+const ALPHA_DECODER: &str = "libvpx-vp9";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct VideoInfo {
@@ -181,9 +187,19 @@ impl Source {
             .best(media::Type::Video)
             .ok_or(VideoError::NoVideo)?;
         let (index, time_base) = (stream.index(), f64::from(stream.time_base()));
-        let decoder = match open_decoder(&stream, Decoding::Hardware) {
+        let first = if has_alpha(&stream) {
+            Decoding::Alpha
+        } else {
+            Decoding::Hardware
+        };
+        let decoder = match open_decoder(&stream, first) {
             Ok(decoder) => decoder,
-            Err(_) => open_decoder(&stream, Decoding::Software)?,
+            Err(error) => {
+                if first == Decoding::Alpha {
+                    tracing::warn!(%error, "no libvpx: the video loses its alpha");
+                }
+                open_decoder(&stream, Decoding::Software)?
+            }
         };
         let duration =
             u64::try_from(input.duration()).map_or(Duration::ZERO, Duration::from_micros);
@@ -217,7 +233,21 @@ fn open_decoder(
         kind: threading::Type::Frame,
         ..threading::Config::default()
     });
-    context.decoder().video().map_err(VideoError::Open)
+    if decoding != Decoding::Alpha {
+        return context.decoder().video().map_err(VideoError::Open);
+    }
+    let codec = decoder::find_by_name(ALPHA_DECODER)
+        .ok_or(VideoError::Open(ffmpeg::Error::DecoderNotFound))?;
+    context
+        .decoder()
+        .open_as(codec)
+        .and_then(decoder::Opened::video)
+        .map_err(VideoError::Open)
+}
+
+/// A VP9 stream that WebM marks as carrying alpha (`alpha_mode`).
+fn has_alpha(stream: &ffmpeg::format::stream::Stream<'_>) -> bool {
+    stream.parameters().id() == codec::Id::VP9 && stream.metadata().get("alpha_mode") == Some("1")
 }
 
 struct Playback<'a> {
@@ -429,6 +459,8 @@ mod tests {
     use std::time::Instant;
 
     const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/clip.mp4");
+    /// 64x64 VP9 with alpha: clear but for an opaque red square in the middle.
+    const ALPHA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/alpha.webm");
     const WAIT: Duration = Duration::from_secs(10);
 
     /// The next output, waiting for the thread.
@@ -451,6 +483,18 @@ mod tests {
             Output::Frame(frame) => frame,
             other => panic!("expected a frame, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_webm_keeps_its_alpha() {
+        let decoder = VideoDecoder::open(Path::new(ALPHA), (64, 64)).expect("the thread starts");
+        assert!(matches!(next(&decoder), Output::Info(_)));
+        let frame = frame(next(&decoder));
+        let alpha = |x: u32, y: u32| {
+            frame.pixels[usize::try_from((y * frame.width + x) * 4 + 3).expect("in the frame")]
+        };
+        assert_eq!(alpha(0, 0), 0, "the corner is clear");
+        assert_eq!(alpha(32, 32), 255, "the square is opaque");
     }
 
     #[test]

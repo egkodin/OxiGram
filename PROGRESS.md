@@ -95,6 +95,10 @@
   GIFs on disk autoplay muted and looped while on screen. One decoder per
   message in view; what scrolls away stops, a GIF that cannot be decoded
   is not retried. Snapshots 206-208.
+- WebM stickers loop in the history with their alpha: VP9 streams marked
+  with alpha decode on libvpx (`libvpx-vp9`, as tdesktop forces), others
+  keep the hardware decoder; libvpx 1.17.0 joins the minimal FFmpeg build
+  (VP9 decoder only). Snapshots 206-208, unit test `a_webm_keeps_its_alpha`.
 
 ### Half done (shortcuts in code)
 
@@ -102,6 +106,8 @@
   when it scrolls away (no picture-in-picture); no seek on the ring; a
   GIF's click pauses instead of opening the viewer; frames stretch to the
   box rather than crop.
+- WebM stickers play only in the history (stills in the emoji panel and
+  set boxes); straight alpha, so one drawn larger than decoded fringes.
 - The minithumbnail is stretched, not blurred; no loading radial or
   cancel; no click to open; captions do not widen a photo and narrow
   windows do not shrink it.
@@ -156,8 +162,7 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- WebM stickers (alpha: FFmpeg's vp9 ignores it), then audio and music
-  (sound for videos and rounds too).
+- Audio and music (sound for videos and rounds too).
 - The signal 11 when the snapshot example exits.
 - Sticker and GIF panels in the emoji panel.
 
@@ -253,6 +258,10 @@
     unwatched one loses its dot. A chat with GIFs: downloaded GIFs loop
     by themselves; scroll them away and back: they start again; CPU
     stays low with several GIFs on screen.
+21. WebM stickers, read only: open a chat with video stickers (or a set
+    sent to Saved Messages): each loops in place with no box behind it,
+    its edges clean over the wallpaper; scroll away and back: it starts
+    again.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

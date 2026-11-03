@@ -52,7 +52,7 @@ Conditions:
 
 - Release builds do not depend on a system FFmpeg. `scripts/build-ffmpeg.sh`
   builds a minimal static FFmpeg from the tarballs pinned with their SHA-256
-  in `ffmpeg/SOURCES` (FFmpeg 9.0.2, dav1d 1.5.4), and the app links it
+  in `ffmpeg/SOURCES` (FFmpeg 9.0.2, dav1d 1.5.4, libvpx 1.17.0), and the app links it
   (`FFMPEG_DIR=<prefix>`, feature `static-ffmpeg`). Development builds may
   link the Homebrew FFmpeg of the same major version.
 - Hardware decoding where available (VideoToolbox, D3D11VA, VAAPI), with
@@ -68,8 +68,8 @@ Configure flags (common):
 --disable-everything --disable-avdevice --disable-avfilter
 --enable-swscale --enable-swresample
 --enable-protocol=file
---enable-libdav1d
---enable-decoder=h264,hevc,vp9,av1,libdav1d,aac,opus,mp3,mp3float,flac,vorbis
+--enable-libdav1d --enable-libvpx
+--enable-decoder=h264,hevc,vp9,libvpx_vp9,av1,libdav1d,aac,opus,mp3,mp3float,flac,vorbis
 --enable-demuxer=mov,matroska,ogg,mp3,flac,aac
 --enable-parser=h264,hevc,vp9,av1,aac,opus,mpegaudio,flac,vorbis
 ```
@@ -87,6 +87,17 @@ software AV1 needs it. The `mp3`, `flac` and `aac` demuxers are added to the
 three containers for music files; `vp9_superframe_split` comes in as the VP9
 decoder's dependency.
 
+libvpx is built for its VP9 decoder alone, as tdesktop builds it
+(`--enable-static --disable-shared --enable-pic --disable-examples
+--disable-tools --disable-docs --disable-unit-tests --disable-vp8
+--enable-vp9 --disable-vp9-encoder --disable-webm-io
+--size-limit=4096x4096`, with `--target=arm64-darwin20-gcc` or
+`x86_64-darwin20-gcc` on macOS, since its configure does not know newer
+Darwin versions, and `x86_64-win64-vs17` on Windows). Only VP9 streams that
+WebM marks with `alpha_mode=1` open on `libvpx-vp9`; the rest keep the
+hardware decoder and FFmpeg's `vp9` (tdesktop's `FindDecoder` forces libvpx
+for every VP9 stream).
+
 Size, macOS arm64 (Apple M4), FFmpeg 9.0.2 + dav1d 1.5.4, 2026-10-28:
 
 - static archives: 34 MB (libavcodec 20 MB, libswscale 5.1 MB, libavformat
@@ -98,11 +109,18 @@ Size, macOS arm64 (Apple M4), FFmpeg 9.0.2 + dav1d 1.5.4, 2026-10-28:
   (VideoToolbox, CoreMedia, CoreVideo, CoreFoundation, CoreServices). It
   decodes an H.264 MP4.
 
+Size with libvpx, macOS arm64, 2026-11-03: static archives 34 MB
+(libvpx 0.5 MB, the others unchanged); the stripped probe was not
+measured again.
+
 Known gaps:
 
-- FFmpeg's `vp9` decoder ignores the alpha plane WebM stickers carry in
-  Matroska `BlockAdditional`. Either a second `vp9` decoder for that side
-  data, or libvpx as tdesktop links; decided with WebM stickers.
+- Decided with WebM stickers (2026-11-03): FFmpeg's `vp9` decoder ignores
+  the alpha plane WebM stickers carry in Matroska `BlockAdditional`, so
+  libvpx (BSD-3-Clause) joins the build, as tdesktop links it. Checked: on
+  a VP9 WebM with alpha, `vp9` gives opaque pixels where `libvpx-vp9`
+  keeps them clear (test `a_webm_keeps_its_alpha`, passing on the static
+  build with no FFmpeg or libvpx dylib in the binary).
 - The FFmpeg tarball's hash is checked against Homebrew's formula, not its
   GPG signature (no gpg on this machine).
 - The build is LGPL (no `--enable-gpl`), compatible with rgram's GPLv3.
@@ -110,7 +128,7 @@ Known gaps:
 Linking, checked 2026-10-28: `media/static-ffmpeg` turns on ffmpeg-next's
 `static`; with `PKG_CONFIG_PATH=<prefix>/lib/pkgconfig` and `FFMPEG_DIR`
 unset, ffmpeg-sys-next links the archives through `pkg-config --static`,
-which brings dav1d and the system frameworks in order (with `FFMPEG_DIR` it
+which brings dav1d, libvpx and the system frameworks in order (with `FFMPEG_DIR` it
 skips pkg-config and dav1d is missing). The `media` tests pass on that
 build, and the test binary depends on no FFmpeg or Homebrew library. Its
 fixed macOS framework list names QTKit, which the linker warns about and

@@ -21,7 +21,7 @@ pub(super) struct Inline {
     /// The messages whose frames the last layout asked for: the rest are
     /// off screen and stop.
     seen: HashSet<MessageId>,
-    /// GIFs that cannot be decoded, not to start again.
+    /// GIFs and stickers that cannot be decoded, not to start again.
     failed: HashSet<MessageId>,
     scale: f32,
 }
@@ -102,8 +102,8 @@ impl HistoryView {
         cx.notify();
     }
 
-    /// Plays a GIF on disk muted and looped (`autoplayGifs`), unless it
-    /// already plays or cannot.
+    /// Plays a GIF or a video sticker on disk muted and looped
+    /// (`autoplayGifs`), unless it already plays or cannot.
     pub(super) fn autoplay(
         &mut self,
         message: MessageId,

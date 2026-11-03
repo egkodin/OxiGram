@@ -127,7 +127,7 @@ impl HistoryView {
             Content::Sticker {
                 picture: Some(picture),
                 ..
-            } => Some(self.sticker(picture, cx)),
+            } => Some(self.sticker(message.id, picture, cx)),
             // `Sticker::EmojiSize`, for animated emoji and dice alike.
             Content::Emoji {
                 sticker: Some(picture),
@@ -135,7 +135,7 @@ impl HistoryView {
             } if super::large_emoji::is_drawable(picture) => Some(Photo {
                 width: MAX_ANIMATED_EMOJI_SIZE.0,
                 height: MAX_ANIMATED_EMOJI_SIZE.0,
-                ..self.sticker(picture, cx)
+                ..self.sticker(message.id, picture, cx)
             }),
             _ => None,
         };

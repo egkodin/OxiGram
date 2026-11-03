@@ -221,3 +221,6 @@ check on the live run: frame times while scrolling the panel quickly.
   three 0.9 MB frames). The history asks for animation frames only while
   one plays; a GIF that fails to decode is remembered and not reopened
   each frame. Not measured yet: CPU with six GIFs on screen (live test 20).
+  WebM stickers take the same path on libvpx, in software: a 512 px VP9
+  sticker shown at 224 pt decodes at 448 px on a 2x screen. Not measured
+  yet: CPU with a screen of video stickers (live test 21).
