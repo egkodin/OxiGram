@@ -54,6 +54,32 @@ visible window even when nothing redraws, so the app wakes on every refresh
 (160 Hz here). The gpui spike idled at the same 1.2–1.35 %. Fixed in M1
 ([ADR 0005](adr/0005-gpui-macos-idle-patch.md)).
 
+## Metal shaders: precompiled or compiled at start
+
+Mac mini, Apple M4, macOS 27.2, Xcode 27.2 (2026-11-03). gpui either embeds
+a metallib built by `xcrun metal` (the default) or, with
+`--features rgram/runtime-shaders`, embeds the 66 KB stitched source and
+compiles it in `MetalRenderer::new` when the first window opens.
+
+| Case | Shader library ready in |
+|---|---|
+| Runtime compile, not in macOS's Metal cache (first launch, after an OS or driver update) | 201–273 ms (6 runs) |
+| Runtime compile, cached by macOS | 0.1 ms |
+| Precompiled metallib | below what `open_window` resolves (same 60–71 ms as the cached case) |
+
+`cargo run -p rgram --example cold-start` (both modes, 6 runs each, dev
+build): `open_window` 60–71 ms and first frame 149–158 ms in both modes
+once warm, because macOS caches the compiled source by its hash; the first
+run of each new binary took about 200 ms in `open_window` either way.
+The uncached compile was timed directly: the stitched source from gpui's
+build, prefixed with a unique comment so the cache cannot match, through
+`MTLDevice.makeLibrary(source:)` in a small Swift program.
+
+Decision: runtime compilation costs about 200 ms on a cold start, so release
+builds (`scripts/build-macos-app.sh`) keep precompiled shaders.
+`runtime-shaders` stays for builds without the Metal Toolchain (CI);
+`scripts/check-metal.sh` names the install command when it is missing.
+
 ## M1: idle display link
 
 The same machine and method as M0, after the gpui_macos patch from ADR 0005.

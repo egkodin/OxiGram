@@ -37,6 +37,7 @@ fi
 export RGRAM_API_ID RGRAM_API_HASH
 export RGRAM_WITHHOLD_VIEWS="${RGRAM_WITHHOLD_VIEWS:-1}"
 
+scripts/check-metal.sh
 cargo build --profile "$profile" -p rgram
 dir=release
 [ "$profile" = dev ] && dir=debug
