@@ -260,9 +260,11 @@
   has only the newest 100, no search, delete, pause, menu or selection; the static FFmpeg
   is not in CI yet and rgram does not link it yet.
 
-- Found live, not fixed: rgram never sets TDLib's `online` option, so the
-  account shows "last seen" while rgram is open (tdesktop goes online
-  while its window is active); the bio field is one line and does not
+- Online presence (owner's go-ahead 2026-11-04): `Session::set_presence`
+  sets TDLib's `online` option from the main view, online while the
+  window is active, offline when it is not and when the account's view
+  is dropped (switching accounts); no idle timeout yet.
+- Found live, not fixed: the bio field is one line and does not
   scroll to the caret (tdesktop's is multi-line); the New Group members
   box showed "No contacts found" on the owner's account (not checked
   whether the account has contacts).
@@ -423,6 +425,9 @@
     Create, Private shows the invite link; Save, Skip the subscribers: the
     channel opens. Then delete both from their profiles: Delete group,
     Delete channel (owners only, confirmed).
+30. Online presence: bring rgram's window to the front; your own profile
+    (and your account seen from another device) shows "online". Switch to
+    another app: within a minute it reads "last seen just now".
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

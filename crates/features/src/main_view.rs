@@ -9,6 +9,7 @@ use gpui::{
     prelude::*, px,
 };
 use i18n::key;
+use model::Presence;
 use model::auth;
 use model::chat::ChatList;
 use style::chat::HISTORY_RESIZE_WIDTH;
@@ -68,10 +69,23 @@ pub struct MainView {
     focus: FocusHandle,
     /// The sound playing, whose bar tops the chat column.
     player: Entity<Player>,
-    _subscriptions: [Subscription; 8],
+    _subscriptions: [Subscription; 10],
     /// Other accounts' unread messages change the menu button's icon.
     _others_unread: Option<Subscription>,
     _history_subscription: Option<Subscription>,
+}
+
+fn presence(window: &Window) -> Presence {
+    if window.is_window_active() {
+        Presence::Online
+    } else {
+        Presence::Offline
+    }
+}
+
+fn send_presence(store: &Entity<Store>, presence: Presence, cx: &mut App) {
+    let task = store.read(cx).session().set_presence(presence);
+    crate::peer_menu::send(task, "presence", cx);
 }
 
 impl std::fmt::Debug for MainView {
@@ -142,6 +156,14 @@ impl MainView {
             cx.subscribe_in(&dialogs, window, |this, _, OpenDownloads, window, cx| {
                 this.show_downloads(window, cx);
             });
+        // `Updates::updateOnline`: online while the window is active, and an
+        // account switched away from (or closed) goes offline.
+        // shortcut: no idle timeout (tdesktop's `offlineIdleTimeout`); add one with input idle tracking.
+        send_presence(&store, presence(window), cx);
+        let presence = cx.observe_window_activation(window, |this, window, cx| {
+            send_presence(&this.store, presence(window), cx);
+        });
+        let offline = cx.on_release(|this, cx| send_presence(&this.store, Presence::Offline, cx));
         let others_unread = crate::accounts::domain(cx).map(|accounts| {
             cx.observe(&accounts, |this, _, cx| {
                 this.dialogs.update(cx, |_, cx| cx.notify());
@@ -167,6 +189,8 @@ impl MainView {
                 close,
                 open_downloads,
                 observe_player,
+                presence,
+                offline,
             ],
             _others_unread: others_unread,
             _history_subscription: None,

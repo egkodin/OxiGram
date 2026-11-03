@@ -6,7 +6,7 @@ use td_api::functions::{
     CancelDownloadFile, DownloadFile, GetCountries, GetCountryCode, LoadChats, SetOption,
     SetProfilePhoto, SetTdlibParameters,
 };
-use td_api::types::{InputChatPhotoStatic, InputFileLocal, OptionValueString};
+use td_api::types::{InputChatPhotoStatic, InputFileLocal, OptionValueBoolean, OptionValueString};
 use tg::TdError;
 
 use crate::auth;
@@ -29,6 +29,13 @@ pub enum Views {
     Report,
     /// Browsing reads nothing: for checking the app on a real account.
     Withhold,
+}
+
+/// Whether the user is at the app, shown to others as "online".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Presence {
+    Online,
+    Offline,
 }
 
 /// Which Telegram servers to use.
@@ -150,6 +157,22 @@ impl Session {
                 name: name.to_owned(),
                 value: Some(Box::new(OptionValue::String(OptionValueString {
                     value: value.to_owned(),
+                }))),
+            })
+            .map(|result| result.map(drop).map_err(RequestError))
+    }
+
+    /// Tells Telegram whether the user is here (TDLib's `online` option,
+    /// tdesktop's `account.updateStatus`); TDLib repeats it while online.
+    pub fn set_presence(
+        &self,
+        presence: Presence,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client
+            .request(&SetOption {
+                name: "online".to_owned(),
+                value: Some(Box::new(OptionValue::Boolean(OptionValueBoolean {
+                    value: presence == Presence::Online,
                 }))),
             })
             .map(|result| result.map(drop).map_err(RequestError))
