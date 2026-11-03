@@ -36,6 +36,8 @@ gpui_platform = { workspace = true, features = ["test-support"] }
 image.workspace = true
 # The snapshot fixtures' fixed time of day.
 chrono.workspace = true
+# Silences the sound of videos the snapshots play.
+media.workspace = true
 
 [lints]
 workspace = true

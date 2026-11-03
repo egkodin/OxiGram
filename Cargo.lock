@@ -4809,6 +4809,7 @@ dependencies = [
  "gpui_platform",
  "i18n",
  "image",
+ "media",
  "model",
  "style",
  "td-api",

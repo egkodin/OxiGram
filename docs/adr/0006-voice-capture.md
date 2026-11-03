@@ -143,3 +143,8 @@ streams the device cannot take; VideoToolbox decodes a 720p H.264 here, a
 swscale to BGRA no larger than the size they show at, and hands them over
 through a two-frame bounded channel, so a video holds the frame on screen
 and two ahead. Seeks go to the keyframe before and skip to the target.
+
+Sound (`media/src/audio.rs`, 2026-11-03): music and a video's track decode
+through FFmpeg on a thread of their own and swresample to the default
+output's rate and channels as packed f32, through cpal like the voice
+player. Voice messages still decode whole with libopus.

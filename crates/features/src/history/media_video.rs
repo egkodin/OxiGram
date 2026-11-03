@@ -12,7 +12,7 @@ use gpui::{
     MouseDownEvent, MouseMoveEvent, ParentElement as _, Pixels, Render, RenderImage, Styled as _,
     Window, canvas, div, px,
 };
-use media::{Output, VideoDecoder, VideoFrame};
+use media::{AudioError, AudioPlayer, Output, VideoDecoder, VideoFrame};
 use style::media_view::{
     MEDIAVIEW_CONTROLLER_RADIUS, MEDIAVIEW_CONTROLLER_SIZE, MEDIAVIEW_PAUSE_ICON,
     MEDIAVIEW_PAUSE_ICON_OVER, MEDIAVIEW_PLAY_BUTTON, MEDIAVIEW_PLAY_BUTTON_TOP,
@@ -76,6 +76,8 @@ impl Ending {
 
 pub(super) struct VideoPlayback {
     decoder: Option<VideoDecoder>,
+    /// The sound track, kept in step on pause and seek.
+    sound: Option<AudioPlayer>,
     ending: Ending,
     duration: Duration,
     clock: Clock,
@@ -90,8 +92,9 @@ pub(super) struct VideoPlayback {
 }
 
 impl VideoPlayback {
-    /// Starts `path` at `start`, playing, in frames no bigger than `size`.
-    // shortcut: no sound yet; with the audio player step.
+    /// Starts `path` at `start`, playing, in frames no bigger than `size`;
+    /// with its sound unless it loops, as muted GIFs and stickers do.
+    // shortcut: sound and frames keep separate clocks, started together; tdesktop syncs video to the audio clock. Upgrade if long videos drift.
     pub(super) fn new(
         path: &Path,
         start: Duration,
@@ -114,6 +117,9 @@ impl VideoPlayback {
                 None
             }
         };
+        let sound = (ending == Ending::Pause && !has_failed)
+            .then(|| sound(path, start))
+            .flatten();
         cx.on_release(|this: &mut Self, cx| {
             if let Some(image) = this.shown.take() {
                 cx.default_global::<Retired>().0.push(image);
@@ -122,6 +128,7 @@ impl VideoPlayback {
         .detach();
         Self {
             decoder,
+            sound,
             ending,
             duration,
             clock: if has_failed {
@@ -194,12 +201,27 @@ impl VideoPlayback {
                 from: at,
             },
         };
+        self.sync_sound();
         cx.notify();
+    }
+
+    /// Pauses or resumes the sound with the clock.
+    fn sync_sound(&self) {
+        let Some(sound) = &self.sound else {
+            return;
+        };
+        match self.clock {
+            Clock::Playing { .. } => sound.resume(),
+            Clock::Paused(_) => sound.pause(),
+        }
     }
 
     fn seek(&mut self, to: Duration) {
         if let Some(decoder) = &mut self.decoder {
             decoder.seek(to);
+        }
+        if let Some(sound) = &self.sound {
+            sound.seek(to);
         }
         self.pending = None;
         self.needs_frame = true;
@@ -255,6 +277,7 @@ impl VideoPlayback {
                 self.seek(Duration::ZERO);
             } else {
                 self.clock = Clock::Paused(self.duration.max(now));
+                self.sync_sound();
             }
             cx.notify();
         }
@@ -386,6 +409,18 @@ impl VideoPlayback {
                 MouseButton::Left,
                 cx.listener(|this, _, _, _| this.is_dragging = false),
             )
+    }
+}
+
+/// `path`'s sound from `start`; none for a silent video.
+fn sound(path: &Path, start: Duration) -> Option<AudioPlayer> {
+    match AudioPlayer::open(path, start) {
+        Ok(sound) => Some(sound),
+        Err(AudioError::NoAudio) => None,
+        Err(error) => {
+            tracing::warn!(%error, "the video plays without sound");
+            None
+        }
     }
 }
 

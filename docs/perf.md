@@ -224,3 +224,8 @@ check on the live run: frame times while scrolling the panel quickly.
   WebM stickers take the same path on libvpx, in software: a 512 px VP9
   sticker shown at 224 pt decodes at 448 px on a 2x screen. Not measured
   yet: CPU with a screen of video stickers (live test 21).
+- Sound (`media/src/audio.rs`): a decoder thread keeps half a second of
+  f32 samples ahead of the output (192 KB at 48 kHz stereo), waiting on a
+  condition variable while full; the output callback only `try_lock`s the
+  buffer and plays silence for that callback when the decoder holds it,
+  so it never waits on the decoder.

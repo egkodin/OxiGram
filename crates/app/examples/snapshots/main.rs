@@ -71,6 +71,8 @@ fn main() -> anyhow::Result<()> {
         .nth(1)
         .map_or_else(|| PathBuf::from("target/snapshots"), PathBuf::from);
     std::fs::create_dir_all(&out).with_context(|| format!("creating {}", out.display()))?;
+    // Snapshots play videos; never aloud.
+    ::media::silence_output();
     tg::execute(&td_api::functions::SetLogVerbosityLevel {
         new_verbosity_level: 1,
     })

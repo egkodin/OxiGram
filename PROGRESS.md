@@ -95,6 +95,12 @@
   GIFs on disk autoplay muted and looped while on screen. One decoder per
   message in view; what scrolls away stops, a GIF that cannot be decoded
   is not retried. Snapshots 206-208.
+- Sound (`media/src/audio.rs`): any file's sound track through FFmpeg,
+  resampled on a thread to the output's format half a second ahead of
+  it; videos in the viewer and round videos play with it, GIFs and
+  stickers stay muted. Automated runs call `media::silence_output()`: the
+  players keep time on a clock thread and open no device (the snapshot
+  harness does this). Unit tests on the silent clock.
 - WebM stickers loop in the history with their alpha: VP9 streams marked
   with alpha decode on libvpx (`libvpx-vp9`, as tdesktop forces), others
   keep the hardware decoder; libvpx 1.17.0 joins the minimal FFmpeg build
@@ -102,7 +108,7 @@
 
 ### Half done (shortcuts in code)
 
-- Rounds and GIFs in bubbles: silent until the audio step; a round stops
+- Rounds and GIFs in bubbles: a round stops
   when it scrolls away (no picture-in-picture); no seek on the ring; a
   GIF's click pauses instead of opening the viewer; frames stretch to the
   box rather than crop.
@@ -143,7 +149,9 @@
   view-once voice and round messages play inline, without tdesktop's
   layer that hides the chat.
 - Video timestamps: the line's ends are cut square.
-- Video player: no sound yet (the audio step); plays only once the whole
+- Video player: sound and picture keep separate clocks (started together,
+  paused and seeked together); nothing pauses a voice that plays at the
+  same time; plays only once the whole
   file is on disk (streaming, row 259); no volume, speed, fullscreen,
   picture-in-picture or quality; the controller never hides; GIFs and
   round videos still open in the system player; the snapshot harness
@@ -162,7 +170,7 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- Audio and music (sound for videos and rounds too).
+- Music files in the history, then the player bar (rows 261, 301).
 - The signal 11 when the snapshot example exits.
 - Sticker and GIF panels in the emoji panel.
 
@@ -245,14 +253,14 @@
     Escape closes the section. A minute after all are done the bar goes
     away.
 19. Video player, read only: in a chat with a video, download it, then
-    click Play: it opens in the viewer and plays (silent for now) under
+    click Play: it opens in the viewer and plays with its sound under
     the controller; Space pauses and resumes; click and drag on the seek
     bar; at the end the button shows Play and a click starts again; a
     720p or 1080p H.264 video decodes on VideoToolbox (Activity Monitor:
     low CPU for rgram while it plays); a link with a start time starts
     there.
 20. Round videos and GIFs, read only: in a chat with round videos,
-    download one and click Play: it plays in the circle (silent for now)
+    download one and click Play: it plays in the circle with its sound
     with the ring filling clockwise and the time counting down; a click
     pauses and resumes; at the end the still and Play come back; an
     unwatched one loses its dot. A chat with GIFs: downloaded GIFs loop

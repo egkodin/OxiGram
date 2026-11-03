@@ -169,54 +169,55 @@ fn build_stream(
     shared: &Arc<Shared>,
 ) -> Result<cpal::Stream, PlayError> {
     let channels = usize::from(config.channels.max(1));
-    let on_error = |error: cpal::Error| tracing::warn!(%error, "the audio output failed");
-    // One pass for any output format: f32 frames, converted by `write`.
-    let render = {
-        let shared = Arc::clone(shared);
-        let mut scratch: Vec<f32> = Vec::new();
-        move |length: usize, write: &mut dyn FnMut(&[f32])| {
-            scratch.clear();
-            scratch.resize(length, 0.0);
-            if !shared.is_paused.load(Ordering::Relaxed) {
-                let start = shared.position.load(Ordering::Relaxed);
-                let step = shared.step.load(Ordering::Relaxed);
-                let mut position = start;
-                fill(&mut scratch, channels, &shared.samples, &mut position, step);
-                // A seek while filling wins over the advanced position.
-                let _ = shared.position.compare_exchange(
-                    start,
-                    position,
-                    Ordering::Relaxed,
-                    Ordering::Relaxed,
-                );
-            }
-            write(&scratch);
+    let shared = Arc::clone(shared);
+    let render = move |data: &mut [f32]| {
+        data.fill(0.0);
+        if !shared.is_paused.load(Ordering::Relaxed) {
+            let start = shared.position.load(Ordering::Relaxed);
+            let step = shared.step.load(Ordering::Relaxed);
+            let mut position = start;
+            fill(data, channels, &shared.samples, &mut position, step);
+            // A seek while filling wins over the advanced position.
+            let _ = shared.position.compare_exchange(
+                start,
+                position,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            );
         }
     };
+    output_stream(device, config, format, render)
+}
+
+/// An output stream that `render` fills with interleaved f32 frames, in
+/// whichever of f32 and i16 the device takes.
+pub(crate) fn output_stream(
+    device: &cpal::Device,
+    config: &cpal::StreamConfig,
+    format: cpal::SampleFormat,
+    mut render: impl FnMut(&mut [f32]) + Send + 'static,
+) -> Result<cpal::Stream, PlayError> {
+    let on_error = |error: cpal::Error| tracing::warn!(%error, "the audio output failed");
     let stream = match format {
-        cpal::SampleFormat::F32 => {
-            let mut render = render;
-            device.build_output_stream(
-                *config,
-                move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-                    render(data.len(), &mut |frames| data.copy_from_slice(frames));
-                },
-                on_error,
-                None,
-            )?
-        }
+        cpal::SampleFormat::F32 => device.build_output_stream(
+            *config,
+            move |data: &mut [f32], _: &cpal::OutputCallbackInfo| render(data),
+            on_error,
+            None,
+        )?,
         cpal::SampleFormat::I16 => {
-            let mut render = render;
+            let mut scratch: Vec<f32> = Vec::new();
             device.build_output_stream(
                 *config,
                 move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
-                    render(data.len(), &mut |frames| {
-                        for (out, &value) in data.iter_mut().zip(frames) {
-                            #[expect(clippy::cast_possible_truncation, reason = "clamped")]
-                            let sample = (value.clamp(-1.0, 1.0) * 32767.0) as i16;
-                            *out = sample;
-                        }
-                    });
+                    scratch.clear();
+                    scratch.resize(data.len(), 0.0);
+                    render(&mut scratch);
+                    for (out, &value) in data.iter_mut().zip(&scratch) {
+                        #[expect(clippy::cast_possible_truncation, reason = "clamped")]
+                        let sample = (value.clamp(-1.0, 1.0) * 32767.0) as i16;
+                        *out = sample;
+                    }
                 },
                 on_error,
                 None,
