@@ -23,6 +23,7 @@ pub mod message;
 pub mod message_actions;
 pub mod phone;
 pub mod poll;
+pub mod profile;
 pub mod reaction;
 pub mod rights;
 pub mod saved_tags;

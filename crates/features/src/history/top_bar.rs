@@ -4,8 +4,8 @@
 
 use chrono::Local;
 use gpui::{
-    AnyElement, App, ClickEvent, IntoElement, ParentElement, SharedString, Styled, Window, div,
-    prelude::FluentBuilder as _,
+    AnyElement, App, ClickEvent, InteractiveElement as _, IntoElement, ParentElement, SharedString,
+    StatefulInteractiveElement as _, Styled, Window, div, prelude::FluentBuilder as _,
 };
 use i18n::key;
 use model::chat::ChatKind;
@@ -76,15 +76,18 @@ pub(super) struct Actions {
     pub on_back: Option<OnBack>,
     pub on_search: OnBack,
     pub on_menu: OnBack,
+    /// The userpic and the name open the profile.
+    pub on_info: OnBack,
 }
 
 /// The bar of a chat.
-// shortcut: no call and info buttons beside search and the menu toggle; they come with calls (M12) and the info panel (M6).
+// shortcut: no call and info buttons beside search and the menu toggle; calls come with M12, the profile opens from the name.
 pub(super) fn top_bar(state: &State, chat: ChatId, actions: Actions, cx: &App) -> AnyElement {
     let Actions {
         on_back,
         on_search,
         on_menu,
+        on_info,
     } = actions;
     let is_self = state
         .chats
@@ -151,8 +154,17 @@ pub(super) fn top_bar(state: &State, chat: ChatId, actions: Actions, cx: &App) -
         .children(on_back.map(|on_back| {
             IconButton::new("history-back", &HISTORY_TOP_BAR_BACK).on_click(on_back)
         }))
-        .children(userpic)
-        .child(lines)
+        .child(
+            div()
+                .id("history-info")
+                .flex_1()
+                .min_w_0()
+                .flex()
+                .cursor_pointer()
+                .children(userpic)
+                .child(lines)
+                .on_click(on_info),
+        )
         .child(
             div()
                 .flex_none()

@@ -9,6 +9,7 @@ mod chats;
 mod deletes;
 mod history;
 mod media;
+mod profiles;
 mod scenarios;
 mod soak;
 
@@ -140,6 +141,7 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     all.extend(media::scenarios());
     all.extend(deletes::scenarios());
     all.extend(accounts::scenarios());
+    all.extend(profiles::scenarios());
     all.extend(night);
     for scenario in all {
         let first = scenario.steps.first().map_or("", |(name, _)| *name);

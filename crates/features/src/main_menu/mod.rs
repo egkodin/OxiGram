@@ -44,6 +44,7 @@ pub(crate) enum MenuAction {
     /// Puts the archive back at the top of the chat list.
     ArchiveToList,
     Contacts,
+    MyProfile,
     SavedMessages,
     Settings,
 }
@@ -264,7 +265,7 @@ impl Render for MainMenu {
                         "my-profile",
                         tr(cx, key::lng_menu_my_profile),
                         MENU_ICON_PROFILE,
-                        None,
+                        Some(MenuAction::MyProfile),
                         cx,
                     ))
                     .child(separator())

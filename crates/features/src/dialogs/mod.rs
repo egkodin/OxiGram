@@ -9,7 +9,7 @@ mod folder_menu;
 mod hashtag_results;
 mod menu;
 mod pinned;
-mod preview;
+pub(crate) mod preview;
 mod row;
 mod search;
 mod sidebar;

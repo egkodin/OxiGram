@@ -32,6 +32,7 @@ mod link_menus;
 mod location;
 mod media_video;
 mod media_view;
+pub(crate) use media_view::{Entry as MediaEntry, Kind as MediaKind, open as open_media};
 mod menu;
 mod music;
 mod photo;
@@ -123,6 +124,8 @@ pub(crate) enum HistoryEvent {
     OpenThread(Box<model::thread::Thread>),
     /// Another chat to open in place of this one.
     OpenChat(ChatId),
+    /// The chat's profile (`Window::SessionController::showPeerInfo`).
+    OpenProfile(ChatId),
 }
 
 impl EventEmitter<HistoryEvent> for HistoryView {}
@@ -692,10 +695,15 @@ impl Render for HistoryView {
             let on_search: top_bar::OnBack = Box::new(move |_, window, cx| {
                 let _ = weak.update(cx, |this, cx| this.open_search(window, cx));
             });
+            let (weak, chat) = (cx.weak_entity(), self.chat);
+            let on_info: top_bar::OnBack = Box::new(move |_, _, cx| {
+                let _ = weak.update(cx, |_, cx| cx.emit(HistoryEvent::OpenProfile(chat)));
+            });
             let actions = top_bar::Actions {
                 on_back,
                 on_search,
                 on_menu,
+                on_info,
             };
             top_bar::top_bar(self.store.read(cx).state(), self.chat, actions, cx)
         };

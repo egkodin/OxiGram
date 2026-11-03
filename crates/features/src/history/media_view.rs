@@ -70,7 +70,7 @@ pub(crate) fn bind_keys(cx: &mut App) {
 
 /// What an entry shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Kind {
+pub(crate) enum Kind {
     Photo,
     /// Plays from `start` (a link's or forward's start time).
     Video {
@@ -80,7 +80,7 @@ pub(super) enum Kind {
 }
 
 /// One photo or video the viewer pages through.
-pub(super) struct Entry {
+pub(crate) struct Entry {
     pub message: MessageId,
     pub kind: Kind,
     /// The photo, or the video file itself.
@@ -99,7 +99,7 @@ pub(super) struct Entry {
 
 impl Entry {
     /// The entry for a photo or video message.
-    pub(super) fn of(message: &Message, sender: String, date: String) -> Option<Self> {
+    pub(crate) fn of(message: &Message, sender: String, date: String) -> Option<Self> {
         let (media, kind) = match &message.content {
             Content::Photo(media) => (media, Kind::Photo),
             Content::Video(media) => (
@@ -126,7 +126,7 @@ impl Entry {
 }
 
 /// What the viewer asks of the history.
-pub(super) enum MediaViewEvent {
+pub(crate) enum MediaViewEvent {
     /// "Save As..." for the photo of this message.
     Save(MessageId),
 }
@@ -207,7 +207,7 @@ fn zoom_out(zoom: Zoom, full: f32) -> Zoom {
     }
 }
 
-pub(super) struct MediaView {
+pub(crate) struct MediaView {
     store: Entity<Store>,
     entries: Vec<Entry>,
     index: usize,
@@ -630,7 +630,7 @@ fn caption(text: String, lift: Pixels, cx: &App) -> impl IntoElement {
 
 /// Opens the viewer on `entries[index]`, closing with Escape or a click
 /// beside the photo.
-pub(super) fn open(
+pub(crate) fn open(
     store: Entity<Store>,
     layers: &Entity<crate::layers::Layers>,
     entries: Vec<Entry>,

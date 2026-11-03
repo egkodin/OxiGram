@@ -323,17 +323,17 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| info | Info panel in the right column, as a layer or in a separate window | M6 | todo | |
-| info | User profile: photo, name, status, bio, usernames, phone, birthday | M6 | todo | |
+| info | Info panel in the right column, as a layer or in a separate window | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): opens as a layer from the chat's name and "My Profile"; no third column or separate window |
+| info | User profile: photo, name, status, bio, usernames, phone, birthday | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): the big photo once downloaded, the small one or preview until then; one username, the phone as +digits |
 | info | User profile: personal channel, notes, business hours and location | M6 | todo | |
-| info | Profile action buttons: message, mute, call, video call, gift, share | M6 | todo | |
-| info | Shared media tabs: photos, videos, files, music, voice, links, GIFs | M6 | todo | |
+| info | Profile action buttons: message, mute, call, video call, gift, share | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): Send Message, the notifications toggle, share contact, delete contact, block or unblock, report (TDLib's reasons and comment), delete or leave; no calls (M12) or gifts (M13); rows without tdesktop's info icons |
+| info | Shared media tabs: photos, videos, files, music, voice, links, GIFs | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): counts from `getChatMessageCount`, each list the newest 100 as preview rows; photos and videos open the viewer, others the message; no thumbnail grid |
 | info | Shared media calendar and zoomable grid | M6 | todo | |
-| info | Common groups and similar channels | M6 | todo | |
-| info | Group and channel profile: description, link, members, admins | M6 | todo | |
+| info | Common groups and similar channels | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): groups in common open their chat; no similar channels |
+| info | Group and channel profile: description, link, members, admins | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): description, invite link, recent members opening their profiles; no admins list |
 | info | Members list with search, roles, kick and restrict | M6 | todo | |
 | info | Bot profile: description, commands, privacy policy | M10 | todo | |
-| info | Profile photo gallery, set, change and delete own photos | M6 | todo | |
+| info | Profile photo gallery, set, change and delete own photos | M6 | in progress | snapshots 281-296 (`cargo run -p rgram --example snapshots`); not verified live yet (live test 28): the userpic opens a user's photos in the viewer, a group's current photo; Set Photo without the crop editor; no delete |
 | info | Profile color, cover and emoji backgrounds | M13 | todo | |
 | info | Emoji status picker | M13 | todo | |
 | info | QR code for a profile or username | M6 | todo | |

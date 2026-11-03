@@ -141,7 +141,10 @@ impl PeerMenu<'_> {
 
 /// The delete or leave item for `chat`: its text, icon, what it does, and
 /// the question and button of its confirmation.
-fn removal(chat: &Chat, cx: &App) -> (SharedString, style::Icon, Removal, String, SharedString) {
+pub(crate) fn removal(
+    chat: &Chat,
+    cx: &App,
+) -> (SharedString, style::Icon, Removal, String, SharedString) {
     let name = chat.title.as_str();
     match chat.kind {
         ChatKind::Private { .. } | ChatKind::Secret { .. } => (

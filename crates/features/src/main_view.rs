@@ -246,6 +246,9 @@ impl MainView {
                         this.dialogs
                             .update(cx, |dialogs, cx| dialogs.select(chat, cx));
                     }
+                    HistoryEvent::OpenProfile(chat) => {
+                        crate::info::show(this.link_targets(), *chat, window, cx);
+                    }
                 }),
             );
         self.history = Some(history);
@@ -348,6 +351,12 @@ impl MainView {
                     .update(cx, |dialogs, cx| dialogs.open_list(ChatList::Archive, cx)),
                 MenuAction::ArchiveToList => crate::settings::set_archive_in_main_menu(false, cx),
                 MenuAction::Contacts => this.show_contacts(window, cx),
+                MenuAction::MyProfile => {
+                    if let Some(me) = this.store.read(cx).state().me {
+                        // A private chat's id is its user's id.
+                        crate::info::show(this.link_targets(), model::ChatId(me.0), window, cx);
+                    }
+                }
                 MenuAction::SavedMessages => {
                     let me = this.store.read(cx).state().me;
                     if let Some(me) = me {

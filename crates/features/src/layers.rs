@@ -194,6 +194,12 @@ impl Layers {
         cx.notify();
     }
 
+    /// Hides the open box and the ones below it (`hideAll`).
+    pub fn close_all(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.below.clear();
+        self.close(window, cx);
+    }
+
     /// Shows `text` over the window for `duration` (`Ui::Toast::Show`).
     pub fn show_toast(
         &mut self,

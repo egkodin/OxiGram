@@ -168,6 +168,15 @@
   and the menu button; switching without a restart; logging out of an
   account other accounts stay with removes it; signing in a user already
   there logs the new one out and shows the old one. Snapshots 251-271.
+- Profiles (`info/`, model `profile.rs`), as tdesktop's info section in a
+  layer: from a chat's name in the top bar and "My Profile". The cover
+  with the big photo (its viewer pages a user's photos), the details (bio,
+  username, phone, birthday; description and link for groups), the
+  notifications toggle, the shared media lists with counts, groups in
+  common, members, and the actions (message, share or delete contact,
+  block, report with TDLib's reasons, delete or leave). One's own profile
+  edits the name, bio, username and birthday and sets the photo.
+  Snapshots 281-296.
 ### Half done (shortcuts in code)
 
 - Rounds and GIFs in bubbles: a round stops
@@ -373,6 +382,13 @@
     clicking it switches without a restart; quit and start: the same
     account shows. Right-click the inactive one, Log out, confirm: it goes
     and the first account stays.
+28. Profiles, read-only except in your own: click a contact's name over
+    their chat: their photo sharpens, bio, username, phone and birthday
+    show; click the photo: their photos page in the viewer (Escape). The
+    shared media rows list what the chat has; open one and a message.
+    A group: description, link, members; a member opens their profile.
+    Do not press Block, Report, Delete or Leave. My Profile (main menu):
+    edit the bio, then put it back; the same for the birthday if you like.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

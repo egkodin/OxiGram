@@ -11,6 +11,7 @@ mod downloads;
 mod file_sizes;
 mod hashtags;
 mod history;
+mod info;
 mod intro;
 pub mod lang;
 mod launch;
