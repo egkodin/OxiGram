@@ -1,4 +1,6 @@
 /target
+.DS_Store
+*.log
 *.pending-snap
 *.snap.new
 

@@ -72,6 +72,27 @@ dbg_macro = "warn"
 undocumented_unsafe_blocks = "warn"
 unwrap_used = "warn"
 
+# Small target/: line tables keep backtraces readable, dependencies carry
+# no debug info. For a debugger session set `debug = true` here, then put it
+# back. macOS already splits dev debug info (`split-debuginfo = "unpacked"`
+# is Cargo's default there); setting it here would break Windows MSVC.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+# Generated (TL schema, tdesktop styles) and rarely rebuilt: an incremental
+# cache per build mode cost about 3 GB.
+[profile.dev.package.td-api]
+incremental = false
+
+[profile.dev.package.tg]
+incremental = false
+
+[profile.dev.package.style]
+incremental = false
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

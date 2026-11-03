@@ -1,5 +1,22 @@
 # Progress
 
+## Disk budget (owner's standing rule)
+
+- The git repository (.git plus tracked files) stays under 50 MB; never
+  commit build output, snapshots, logs, caches, media, FFmpeg or TDLib
+  builds, or .DS_Store (`.gitignore` covers them).
+- target/ stays under 5 GB: `du -sh target` at the start of each session
+  and after each milestone; over budget, `cargo clean` and say so. One
+  target/ only; no extra profiles or feature combinations.
+- Dev builds keep line tables only, dependencies no debug info, and no
+  incremental cache for `td-api`, `tg` and `style` (`Cargo.toml`); a full
+  set of clippy, tests and one snapshot run measured 4.8 GB from clean
+  (2026-11-03). Turn `debug = true` on only to debug, then back off.
+- Snapshots, soak frames and live-run logs stay under target/ and are
+  overwritten; delete an old app bundle before building a new one.
+- TDLib and FFmpeg builds live in ~/.cache/rgram, one version each.
+- Every milestone report gives the sizes of target/ and .git.
+
 ## M5: Media (in progress, started while the live runs of M1-M4 go on)
 
 ### Done (code, checks green)
