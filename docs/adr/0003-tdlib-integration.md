@@ -102,7 +102,10 @@ tests), and the version mismatch alone rules out using its generated types.
   `updateAuthorizationState(authorizationStateClosed)`, waiting requests of that
   client fail with `Closed`, and new ones fail immediately. Dropping the
   `Runtime` stops the receive thread within one receive timeout and fails
-  everything still waiting.
+  everything still waiting. On macOS gpui quits through `exit`, so the
+  `Runtime` is never dropped; quitting therefore closes the clients and then
+  calls `Stopper::stop`, which joins the receive thread. A thread left inside
+  `td_receive` while `exit` destroys TDLib's statics crashes with signal 11.
 
 ### TDLib configuration
 

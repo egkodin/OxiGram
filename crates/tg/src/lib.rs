@@ -83,9 +83,10 @@ impl Runtime {
             next_extra: AtomicU64::new(1),
             pending: Mutex::new(HashMap::new()),
             clients: Mutex::new(HashMap::new()),
+            thread: Mutex::new(None),
         });
         let thread_shared = Arc::clone(&shared);
-        thread::Builder::new()
+        let thread = thread::Builder::new()
             .name("tdlib-receive".to_owned())
             .spawn(move || {
                 while thread_shared.running.load(Ordering::Acquire) {
@@ -96,7 +97,14 @@ impl Runtime {
                 thread_shared.shut_down();
             })
             .map_err(StartError::Thread)?;
+        *shared.lock_thread() = Some(thread);
         Ok(Self { shared })
+    }
+
+    /// A handle that stops the receive thread from wherever quitting happens.
+    #[must_use]
+    pub fn stopper(&self) -> Stopper {
+        Stopper(Arc::clone(&self.shared))
     }
 
     /// Creates a TDLib client instance and the stream of its updates.
@@ -124,6 +132,27 @@ impl Runtime {
 impl Drop for Runtime {
     fn drop(&mut self) {
         self.shared.running.store(false, Ordering::Release);
+    }
+}
+
+/// Stops a [`Runtime`]'s receive thread and waits for it, so that no thread
+/// is inside `td_receive` while the process exits and TDLib's statics are
+/// destroyed (the crash on quit). Close the clients first.
+#[derive(Debug, Clone)]
+pub struct Stopper(Arc<Shared>);
+
+impl Stopper {
+    /// Blocks for up to [`RECEIVE_TIMEOUT`] while `td_receive` returns; later
+    /// calls return at once. Requests still waiting fail with
+    /// [`TdError::Closed`].
+    pub fn stop(&self) {
+        self.0.running.store(false, Ordering::Release);
+        let Some(thread) = self.0.lock_thread().take() else {
+            return;
+        };
+        if thread.join().is_err() {
+            tracing::error!("the TDLib receive thread panicked");
+        }
     }
 }
 
@@ -202,6 +231,8 @@ struct Shared {
     pending: Mutex<HashMap<u64, Pending>>,
     /// Open clients; a client is removed once TDLib reports it closed.
     clients: Mutex<HashMap<ClientId, mpsc::UnboundedSender<Update>>>,
+    /// The receive thread, until a [`Stopper`] joins it.
+    thread: Mutex<Option<thread::JoinHandle<()>>>,
 }
 
 #[derive(Debug)]
@@ -211,6 +242,10 @@ struct Pending {
 }
 
 impl Shared {
+    fn lock_thread(&self) -> std::sync::MutexGuard<'_, Option<thread::JoinHandle<()>>> {
+        self.thread.lock().expect("receive-thread lock poisoned")
+    }
+
     fn lock_pending(&self) -> std::sync::MutexGuard<'_, HashMap<u64, Pending>> {
         self.pending.lock().expect("pending-request lock poisoned")
     }

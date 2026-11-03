@@ -112,6 +112,12 @@
   pause, "Performer – Title", the time played, close, and the played line
   that a click seeks. The sound lives in a global player, so it keeps
   playing when another chat opens; the rows follow it. Snapshot 211.
+- Crash on quit (signal 11 after the full snapshot run): `exit` destroyed
+  TDLib's statics while the `tdlib-receive` thread was still inside
+  `td_receive` (crash report: that thread faults in libtdjson under
+  `NSApplication terminate:`). Quitting now closes TDLib, then
+  `tg::Stopper` stops and joins the receive thread, then quits; the app's
+  Quit and the snapshot harness both do. Test in `tg/tests/runtime.rs`.
 - WebM stickers loop in the history with their alpha: VP9 streams marked
   with alpha decode on libvpx (`libvpx-vp9`, as tdesktop forces), others
   keep the hardware decoder; libvpx 1.17.0 joins the minimal FFmpeg build
@@ -131,6 +137,10 @@
 - Albums of files or music show as separate messages; the mosaic keeps
   430 px in a narrow history; a late part does not re-measure the row.
 - Voice speed has no button; speed shifts the pitch; no drag to seek.
+- Quitting: the receive thread can take up to its 1 s receive timeout to
+  stop; when the OS quits the app, gpui waits only 200 ms, so that path
+  may still crash (wake `td_receive` with a request if live test 24 shows
+  it); the `history-perf` example still quits without stopping it.
 - Player bar: songs only (a voice shows none); no previous or next, no
   playlist panel, no volume, repeat, order or speed; square play and
   pause glyphs without the morph; nothing follows when a track ends.
@@ -185,7 +195,6 @@
 
 - The playlist behind the player bar (rows 301-302: previous, next, the
   panel), then speed and volume, and the bar for voices.
-- The signal 11 when the snapshot example exits.
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)
@@ -293,6 +302,9 @@
     pauses and resumes it, a click on the line under it seeks; open
     another chat: the bar stays and the song keeps playing; come back:
     the row shows the time played; the cross stops it and the bar goes.
+24. Quit (Cmd-Q, then once with the Dock's Quit): rgram closes within a
+    couple of seconds with no "quit unexpectedly" dialog and no new
+    `rgram-*.ips` in ~/Library/Logs/DiagnosticReports.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

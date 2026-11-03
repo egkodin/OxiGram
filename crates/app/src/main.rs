@@ -136,7 +136,7 @@ fn start_idle_client(runtime: &tg::Runtime, cx: &mut App) {
             closed_sender.send(()).ok();
         })
         .detach();
-    shutdown::init(cx, client, closed);
+    shutdown::init(cx, client, closed, runtime.stopper());
 }
 
 /// Prints the rgram and TDLib versions; launching the binary directly checks

@@ -78,10 +78,13 @@ fn main() -> anyhow::Result<()> {
     })
     .context("setting TDLib's log verbosity")?;
     let runtime = tg::Runtime::start().context("starting TDLib")?;
-    let (client, updates) = runtime.create_client();
+    let (client, mut updates) = runtime.create_client();
+    let stopper = runtime.stopper();
     gpui_platform::application().run(move |cx: &mut App| {
-        // Kept alive so the idle client's updates have somewhere to go.
-        let _updates = updates;
+        // The idle client's updates drain until it closes.
+        let closed = cx
+            .background_executor()
+            .spawn(async move { while futures::StreamExt::next(&mut updates).await.is_some() {} });
         if let Err(error) = ui::init(cx) {
             eprintln!("{error:#}");
             cx.quit();
@@ -89,11 +92,19 @@ fn main() -> anyhow::Result<()> {
         }
         features::init(cx);
         features::preset_voice_samples(VOICE_RATE, voice_samples(), cx);
+        let close = client.clone();
         let session = Session::new(client);
         cx.spawn(async move |cx| {
             if let Err(error) = run(session, &out, cx).await {
                 eprintln!("{error:#}");
             }
+            // As the app quits: TDLib closes, then its receive thread stops,
+            // or `exit` crashes it (signal 11).
+            close.request(&td_api::functions::Close {}).await.ok();
+            closed.await;
+            cx.background_executor()
+                .spawn(async move { stopper.stop() })
+                .await;
             cx.update(|cx| cx.quit());
         })
         .detach();

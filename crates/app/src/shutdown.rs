@@ -4,7 +4,8 @@
 //! window) hide the windows, send `close`, and quit once the update stream ends
 //! after `authorizationStateClosed`. When the OS ends the app instead (logout,
 //! the Dock's Quit), only gpui's `on_app_quit` hook runs, within gpui's 200 ms
-//! shutdown timeout.
+//! shutdown timeout. Either way the TDLib receive thread stops last: a thread
+//! left inside `td_receive` crashes when `exit` destroys TDLib's statics.
 
 use std::time::Duration;
 
@@ -34,16 +35,18 @@ pub(crate) type Closed = Shared<oneshot::Receiver<()>>;
 struct Shutdown {
     client: tg::Client,
     closed: Closed,
+    stopper: tg::Stopper,
     is_quitting: bool,
 }
 
 impl Global for Shutdown {}
 
 /// Installs the Quit action, its menu item and shortcut, and the quit hooks.
-pub(crate) fn init(cx: &mut App, client: tg::Client, closed: Closed) {
+pub(crate) fn init(cx: &mut App, client: tg::Client, closed: Closed, stopper: tg::Stopper) {
     cx.set_global(Shutdown {
         client,
         closed,
+        stopper,
         is_quitting: false,
     });
     cx.on_action(|_: &Quit, cx| quit(cx));
@@ -62,11 +65,15 @@ pub(crate) fn init(cx: &mut App, client: tg::Client, closed: Closed) {
         // has already resolved.
         let close = shutdown.client.request(&Close {});
         let closed = shutdown.closed.clone();
+        let stopper = shutdown.stopper.clone();
+        let executor = cx.background_executor().clone();
         async move {
             close.await.ok();
             if closed.await.is_ok() {
                 tracing::info!("TDLib closed");
             }
+            // shortcut: up to a second on the receive timeout, past gpui's 200 ms; wake td_receive if the OS-quit path still crashes.
+            executor.spawn(async move { stopper.stop() }).await;
         }
     })
     .detach();
@@ -105,6 +112,7 @@ pub(crate) fn quit(cx: &mut App) {
     }
     let close = shutdown.client.request(&Close {});
     let closed = shutdown.closed.clone();
+    let stopper = shutdown.stopper.clone();
     for window in cx.windows() {
         if let Err(error) = window.update(cx, |_, window, _| window.remove_window()) {
             tracing::warn!("closing a window failed: {error:#}");
@@ -121,6 +129,9 @@ pub(crate) fn quit(cx: &mut App) {
                 tracing::warn!(timeout = ?CLOSE_TIMEOUT, "TDLib did not close in time");
             }
         }
+        cx.background_executor()
+            .spawn(async move { stopper.stop() })
+            .await;
         cx.update(|cx| cx.quit());
     })
     .detach();

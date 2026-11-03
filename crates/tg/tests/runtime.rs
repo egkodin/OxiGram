@@ -91,6 +91,11 @@ fn lifecycle() {
         name: "version".to_owned(),
     }));
     assert_eq!(after_close, Err(TdError::Closed));
+
+    // Quitting stops the receive thread before the process exits.
+    let stopper = runtime.stopper();
+    stopper.stop();
+    stopper.stop();
 }
 
 fn string_option(value: &str) -> OptionValue {

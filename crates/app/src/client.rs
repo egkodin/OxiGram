@@ -27,7 +27,7 @@ pub(crate) fn start(runtime: tg::Runtime, parameters: Parameters, cx: &mut App) 
     let environment = connection.parameters.environment;
     let store = cx.new(|_| Store::new(session(&connection, client.clone()), environment));
     let (closed_sender, closed) = shutdown::closed_signal();
-    shutdown::init(cx, client, closed);
+    shutdown::init(cx, client, closed, connection.runtime.stopper());
     pump(store.clone(), connection, updates, closed_sender, cx);
     store
 }
