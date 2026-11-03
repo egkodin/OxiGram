@@ -57,6 +57,7 @@ impl HistoryView {
             source: path.map(|path| ImageSource::from(PathBuf::from(path))),
             thumbnail: None,
             video: None,
+            frame: None,
             map: None,
             placeholder: None,
             spoiler: None,

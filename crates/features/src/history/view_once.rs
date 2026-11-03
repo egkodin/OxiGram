@@ -61,6 +61,7 @@ impl HistoryView {
         Photo {
             source: photo.thumbnail.clone(),
             video: None,
+            frame: None,
             spoiler: Some(open),
             open: None,
             once: Some(kind),

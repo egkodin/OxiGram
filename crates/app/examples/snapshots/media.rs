@@ -42,8 +42,12 @@ const ONCE_PHOTO: (f32, f32) = (517.0, 400.0);
 const CAPTIONED_PHOTO: (f32, f32) = (550.0, 150.0);
 /// The play button of the downloaded video in Saved Messages.
 const PLAYABLE_VIDEO: (f32, f32) = (550.0, 300.0);
+/// The round's middle in Saved Messages under the GIF.
+const PLAYABLE_ROUND: (f32, f32) = (664.0, 424.0);
 /// A one-second 64x36 H.264 clip (`media`'s test fixture).
 const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/clip.mp4");
+/// An 8 s square clip, long enough to still play when the harness draws.
+const ROUND_CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/round.mp4");
 
 pub(crate) fn scenarios() -> Vec<Scenario> {
     let (photo, notes) = fixture_files();
@@ -250,6 +254,22 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), playable(&photo))],
             steps: vec![("202-video-list", auth(State::Ready))],
+        },
+        // A GIF on disk plays by itself; a click on the round plays it in
+        // its circle with the played part around the edge.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("207-inline-chat", MouseButton::Left, SAVED_ROW),
+                ("208-round-playing", MouseButton::Left, PLAYABLE_ROUND),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), inline_videos(&photo))],
+            steps: vec![("206-inline-list", auth(State::Ready))],
         },
         // View-once: Maria's photo under its fire with the "1", a timed
         // one sent, two that expired; a click opens hers alone.
@@ -863,6 +883,29 @@ fn playable(still: &Path) -> Vec<Message> {
         [file(1201, Some(still)), file(1202, Some(Path::new(CLIP)))],
     );
     vec![message]
+}
+
+/// A GIF and a round video in Saved Messages, both on disk.
+fn inline_videos(still: &Path) -> Vec<Message> {
+    let clip = Some(Path::new(ROUND_CLIP));
+    let gif = video(1, 2 * HOUR, "", None, [file(1211, Some(still)), file(1212, clip)]);
+    let media = Media {
+        thumbnail: minithumbnail(),
+        dimensions: Dimensions::new(384, 384),
+        preview: Some(file(1213, Some(still))),
+        duration: 8,
+        file: Some(file(1214, clip)),
+        ..Media::default()
+    };
+    let round = saved(
+        2,
+        HOUR,
+        Content::VideoNote {
+            media: Box::new(media),
+            is_viewed: true,
+        },
+    );
+    vec![gif, round]
 }
 
 fn albums(downloaded: &Path) -> Vec<Message> {

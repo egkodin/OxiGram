@@ -1,7 +1,7 @@
-//! A video playing in the viewer (`Media::View::PlaybackControls` over the
-//! streamed instance): frames from [`media::VideoDecoder`] shown on the
-//! wall clock, and the controller with the play button, the times and the
-//! seek bar.
+//! A video playing (`Media::Streaming::Instance`): frames from
+//! [`media::VideoDecoder`] shown on the wall clock. The viewer renders it
+//! with the controller (`Media::View::PlaybackControls`): the play button,
+//! the times and the seek bar; a history paints its frames in the bubble.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -57,8 +57,26 @@ struct Retired(Vec<Arc<RenderImage>>);
 
 impl Global for Retired {}
 
+/// What happens when the video reaches its end.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Ending {
+    /// Stops on the last frame.
+    Pause,
+    /// Starts over, as GIFs do.
+    Loop,
+}
+
+impl Ending {
+    /// Whether the video starts over at its end; a failed decoder is gone,
+    /// so nothing does.
+    fn restarts(self, has_failed: bool) -> bool {
+        self == Self::Loop && !has_failed
+    }
+}
+
 pub(super) struct VideoPlayback {
     decoder: Option<VideoDecoder>,
+    ending: Ending,
     duration: Duration,
     clock: Clock,
     shown: Option<Arc<RenderImage>>,
@@ -67,6 +85,7 @@ pub(super) struct VideoPlayback {
     /// Waiting for a first frame after opening or a seek.
     needs_frame: bool,
     is_ended: bool,
+    has_failed: bool,
     is_dragging: bool,
 }
 
@@ -78,8 +97,10 @@ impl VideoPlayback {
         start: Duration,
         size: (u32, u32),
         duration: Duration,
+        ending: Ending,
         cx: &mut Context<Self>,
     ) -> Self {
+        let mut has_failed = false;
         let decoder = match VideoDecoder::open(path, size) {
             Ok(mut decoder) => {
                 if start > Duration::ZERO {
@@ -89,6 +110,7 @@ impl VideoPlayback {
             }
             Err(error) => {
                 tracing::warn!(%error, "cannot play the video");
+                has_failed = true;
                 None
             }
         };
@@ -100,21 +122,60 @@ impl VideoPlayback {
         .detach();
         Self {
             decoder,
+            ending,
             duration,
-            clock: Clock::Playing {
-                since: Instant::now(),
-                from: start,
+            clock: if has_failed {
+                Clock::Paused(start)
+            } else {
+                Clock::Playing {
+                    since: Instant::now(),
+                    from: start,
+                }
             },
             shown: None,
             pending: None,
-            needs_frame: true,
-            is_ended: false,
+            needs_frame: !has_failed,
+            is_ended: has_failed,
+            has_failed,
             is_dragging: false,
         }
     }
 
-    fn is_playing(&self) -> bool {
+    pub(super) fn is_playing(&self) -> bool {
         matches!(self.clock, Clock::Playing { .. })
+    }
+
+    /// Stopped at the end, for good.
+    pub(super) fn is_finished(&self) -> bool {
+        self.is_ended && self.pending.is_none() && !self.is_playing()
+    }
+
+    /// The file cannot be decoded.
+    pub(super) fn has_failed(&self) -> bool {
+        self.has_failed
+    }
+
+    /// Whether the next frame may show something new.
+    pub(super) fn needs_redraw(&self) -> bool {
+        self.is_playing() || self.needs_frame
+    }
+
+    /// The frame on screen, once the first one is decoded.
+    pub(super) fn frame(&self) -> Option<Arc<RenderImage>> {
+        self.shown.clone()
+    }
+
+    /// How much of the video is played, 0 to 1.
+    pub(super) fn progress(&self) -> f32 {
+        if self.duration.is_zero() {
+            return 0.0;
+        }
+        (self.clock.now().as_secs_f32() / self.duration.as_secs_f32()).min(1.0)
+    }
+
+    /// What is left to play.
+    pub(super) fn remaining(&self) -> Duration {
+        self.duration.saturating_sub(self.clock.now())
     }
 
     pub(super) fn toggle(&mut self, cx: &mut Context<Self>) {
@@ -153,7 +214,7 @@ impl VideoPlayback {
     }
 
     /// Takes what the decoder made, and shows the latest frame due.
-    fn advance(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn advance(&mut self, cx: &mut Context<Self>) {
         let Some(decoder) = &self.decoder else {
             return;
         };
@@ -172,6 +233,7 @@ impl VideoPlayback {
                     Some(Output::Failed(error)) => {
                         tracing::warn!(%error, "the video stopped");
                         self.is_ended = true;
+                        self.has_failed = true;
                     }
                     None => {}
                 }
@@ -189,7 +251,11 @@ impl VideoPlayback {
             self.show(frame, cx);
         }
         if self.is_ended && self.pending.is_none() && self.is_playing() {
-            self.clock = Clock::Paused(self.duration.max(now));
+            if self.ending.restarts(self.has_failed) {
+                self.seek(Duration::ZERO);
+            } else {
+                self.clock = Clock::Paused(self.duration.max(now));
+            }
             cx.notify();
         }
     }
@@ -234,11 +300,7 @@ impl VideoPlayback {
             &MEDIAVIEW_PLAY_BUTTON
         };
         let weak = cx.weak_entity();
-        let share = if self.duration.is_zero() {
-            0.0
-        } else {
-            now.as_secs_f32() / self.duration.as_secs_f32()
-        };
+        let share = self.progress();
         div()
             .relative()
             .w(px_of(MEDIAVIEW_CONTROLLER_SIZE.width))
@@ -327,6 +389,15 @@ impl VideoPlayback {
     }
 }
 
+/// Frees the frames taken off screen from `window`'s atlas.
+pub(super) fn drop_retired(window: &mut Window, cx: &mut App) {
+    for image in std::mem::take(&mut cx.default_global::<Retired>().0) {
+        if let Err(error) = window.drop_image(image) {
+            tracing::warn!(%error, "cannot drop a video frame");
+        }
+    }
+}
+
 fn seconds(whole: u64) -> i32 {
     i32::try_from(whole).unwrap_or(i32::MAX)
 }
@@ -334,12 +405,8 @@ fn seconds(whole: u64) -> i32 {
 impl Render for VideoPlayback {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.advance(cx);
-        for image in std::mem::take(&mut cx.default_global::<Retired>().0) {
-            if let Err(error) = window.drop_image(image) {
-                tracing::warn!(%error, "cannot drop a video frame");
-            }
-        }
-        if self.is_playing() || self.needs_frame {
+        drop_retired(window, cx);
+        if self.needs_redraw() {
             window.request_animation_frame();
         }
         let frame = self.shown.clone();
@@ -368,5 +435,28 @@ impl VideoPlayback {
             this.advance(cx);
             this.controls(cx)
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_a_decoding_loop_starts_over() {
+        assert!(Ending::Loop.restarts(false));
+        assert!(!Ending::Loop.restarts(true));
+        assert!(!Ending::Pause.restarts(false));
+    }
+
+    #[test]
+    fn a_paused_clock_stands_still() {
+        let at = Duration::from_millis(700);
+        assert_eq!(Clock::Paused(at).now(), at);
+        let playing = Clock::Playing {
+            since: Instant::now(),
+            from: at,
+        };
+        assert!(playing.now() >= at);
     }
 }

@@ -215,3 +215,9 @@ check on the live run: frame times while scrolling the panel quickly.
   animation frames only while playing or waiting for a frame after a
   seek; paused, it draws nothing. Not measured yet: CPU while a 1080p
   video plays (live test 19).
+- Videos in bubbles (`history/inline_video.rs`): a decoder only for the
+  rounds and GIFs the last layout drew; the rest stop at the next draw, so
+  a long chat of GIFs runs only the few on screen (a 240 px round at 2x:
+  three 0.9 MB frames). The history asks for animation frames only while
+  one plays; a GIF that fails to decode is remembered and not reopened
+  each frame. Not measured yet: CPU with six GIFs on screen (live test 20).

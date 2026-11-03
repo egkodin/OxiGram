@@ -34,7 +34,7 @@ use ui::{color, font, font_height, icon};
 use super::HistoryView;
 use super::bubble::OnClick;
 use super::layout;
-use super::media_video::VideoPlayback;
+use super::media_video::{Ending, VideoPlayback};
 use super::menu::Item;
 use crate::lang::{strings, tr_with};
 use crate::peer_menu::send;
@@ -339,7 +339,9 @@ impl MediaView {
             let pixels = |side: f32| (side * scale).ceil().max(1.0) as u32;
             let frames = (pixels(size.0), pixels(size.1));
             self.playback =
-                Some(cx.new(|cx| VideoPlayback::new(&path, start, frames, duration, cx)));
+                Some(cx.new(|cx| {
+                    VideoPlayback::new(&path, start, frames, duration, Ending::Pause, cx)
+                }));
         }
         self.playback.clone()
     }

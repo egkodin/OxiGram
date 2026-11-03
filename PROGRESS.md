@@ -89,9 +89,19 @@
   plays from its start time on the wall clock under tdesktop's
   controller (play/pause, played and left times, the seek bar that seeks
   on click and drag); Space plays and pauses. Snapshots 202-205.
+- Round videos and GIFs play in their bubbles (`history/inline_video.rs`):
+  Play on a round plays it in the circle with the played part around the
+  edge and the time left; a click pauses; at the end the still returns.
+  GIFs on disk autoplay muted and looped while on screen. One decoder per
+  message in view; what scrolls away stops, a GIF that cannot be decoded
+  is not retried. Snapshots 206-208.
 
 ### Half done (shortcuts in code)
 
+- Rounds and GIFs in bubbles: silent until the audio step; a round stops
+  when it scrolls away (no picture-in-picture); no seek on the ring; a
+  GIF's click pauses instead of opening the viewer; frames stretch to the
+  box rather than crop.
 - The minithumbnail is stretched, not blurred; no loading radial or
   cancel; no click to open; captions do not widen a photo and narrow
   windows do not shrink it.
@@ -146,10 +156,8 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- The video player (`media` crate, `ffmpeg-next`, a `static-ffmpeg`
-  feature; CI builds FFmpeg cached and sets `FFMPEG_DIR`).
-- Round videos inline, GIF autoplay, WebM stickers (alpha: FFmpeg's vp9
-  ignores it), then audio and music.
+- WebM stickers (alpha: FFmpeg's vp9 ignores it), then audio and music
+  (sound for videos and rounds too).
 - The signal 11 when the snapshot example exits.
 - Sticker and GIF panels in the emoji panel.
 
@@ -238,6 +246,13 @@
     720p or 1080p H.264 video decodes on VideoToolbox (Activity Monitor:
     low CPU for rgram while it plays); a link with a start time starts
     there.
+20. Round videos and GIFs, read only: in a chat with round videos,
+    download one and click Play: it plays in the circle (silent for now)
+    with the ring filling clockwise and the time counting down; a click
+    pauses and resumes; at the end the still and Play come back; an
+    unwatched one loses its dot. A chat with GIFs: downloaded GIFs loop
+    by themselves; scroll them away and back: they start again; CPU
+    stays low with several GIFs on screen.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

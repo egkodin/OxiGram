@@ -24,6 +24,7 @@ mod file_row;
 mod forwarding;
 mod grouped_layout;
 mod headers;
+mod inline_video;
 mod jump;
 mod large_emoji;
 pub(crate) mod layout;
@@ -147,6 +148,7 @@ pub(crate) struct HistoryView {
     maps: location::Maps,
     poll_picks: poll::Picks,
     playing: Option<voice_note::Playing>,
+    inline: inline_video::Inline,
     /// Messages whose spoilers the user clicked open.
     revealed_spoilers: HashSet<MessageId>,
     /// Replied and pinned messages asked for, and those that are gone.
@@ -257,6 +259,7 @@ impl HistoryView {
             maps: location::Maps::default(),
             poll_picks: poll::Picks::default(),
             playing: None,
+            inline: inline_video::Inline::default(),
             revealed_spoilers: HashSet::new(),
             requested_references: HashSet::new(),
             missing_references: HashSet::new(),
@@ -646,6 +649,7 @@ fn sender_color(state: &State, message: &Message) -> i32 {
 impl Render for HistoryView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.tick_voice(window, cx);
+        self.tick_inline(window, cx);
         if std::mem::take(&mut self.needs_preload_check) {
             // New items are measured only by this frame's layout.
             let weak = cx.weak_entity();

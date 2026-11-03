@@ -3,11 +3,13 @@
 //! time on a dark pill over it when no caption follows.
 
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, App, Context, Corners, Div, ImageSource, IntoElement as _, ObjectFit,
-    ParentElement as _, Pixels, SharedString, Styled, StyledImage as _, div, img, px,
+    ParentElement as _, Pixels, RenderImage, SharedString, Styled, StyledImage as _, canvas, div,
+    img, px,
 };
 use model::file::{Dimensions, File};
 use model::message::{Content, Media, Message};
@@ -37,6 +39,8 @@ pub(super) struct Photo {
     pub thumbnail: Option<ImageSource>,
     /// A video's or GIF's button and status over the still.
     pub video: Option<Video>,
+    /// The frame of the video playing in place of the still.
+    pub frame: Option<Arc<RenderImage>>,
     /// A map's link to the point in Maps; the pin stands on it.
     pub map: Option<SharedString>,
     /// What shows until the picture loads; nothing for a sticker.
@@ -166,6 +170,7 @@ impl HistoryView {
                 .or(thumbnail.clone()),
             thumbnail,
             video: None,
+            frame: None,
             map: None,
             placeholder: Some(ColorId::ImageBg),
             spoiler: None,
@@ -178,6 +183,12 @@ impl HistoryView {
 /// The picture with the bubble's corners where it meets the bubble's edge.
 pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     let (width, height) = (px_of(Px(photo.width)), px_of(Px(photo.height)));
+    if let Some(frame) = photo.frame {
+        return playing(frame, corners)
+            .w(width)
+            .h(height)
+            .into_any_element();
+    }
     let Some(source) = photo.source else {
         let bg = photo.placeholder.map(|bg| color(cx, bubble::palette(bg)));
         return div()
@@ -210,6 +221,19 @@ pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyEl
                 .into_any_element(),
         })
         .into_any_element()
+}
+
+/// A video's frame over the whole box, cut to its corners.
+// shortcut: the frame is stretched to the box, not cropped as the still is; fine for round videos, revisit with GIFs of odd sizes.
+fn playing(frame: Arc<RenderImage>, corners: Corners<Pixels>) -> gpui::Canvas<()> {
+    canvas(
+        |_, _, _| (),
+        move |bounds, (), window, _| {
+            if let Err(error) = window.paint_image(bounds, bounds, corners, frame, 0, false) {
+                tracing::warn!(%error, "cannot paint a video frame");
+            }
+        },
+    )
 }
 
 /// Each corner's own radius; `Styled` has no setter for all four.

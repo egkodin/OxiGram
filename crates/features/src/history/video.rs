@@ -2,8 +2,9 @@
 //! still TDLib sends, a round button in the middle with what a click does,
 //! and the length or the transfer on a pill in the top-left corner.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::time::Duration;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
@@ -11,11 +12,13 @@ use gpui::{
     ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, div, px, relative,
 };
 use i18n::key;
+use model::file::File;
 use model::message::{Content, Media, Message};
 use style::basic::NORMAL_FONT;
 use style::chat::{
-    HISTORY_VIDEO_TIMESTAMP_PROGRESS_LINE, MAX_VIDEO_MESSAGE_SIZE, MEDIA_UNREAD_SIZE,
-    MEDIA_UNREAD_SKIP, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT,
+    HISTORY_VIDEO_MESSAGE_PROGRESS_OPACITY, HISTORY_VIDEO_TIMESTAMP_PROGRESS_LINE,
+    MAX_VIDEO_MESSAGE_SIZE, MEDIA_UNREAD_SIZE, MEDIA_UNREAD_SKIP, MSG_DATE_IMG_DELTA,
+    MSG_DATE_IMG_PADDING, MSG_FILE_LAYOUT,
 };
 use style::chat_style::{
     HISTORY_FILE_THUMB_CANCEL, HISTORY_FILE_THUMB_CANCEL_SELECTED, HISTORY_FILE_THUMB_DOWNLOAD,
@@ -29,6 +32,8 @@ use super::HistoryView;
 use super::bubble::OnClick;
 use super::documents::current;
 use super::file_row::progress;
+use super::inline_video::Frame;
+use super::media_video::Ending;
 use super::photo::Photo;
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
@@ -43,6 +48,8 @@ pub(super) enum Center {
     Cancel { progress: f32 },
     /// On disk: a click plays it.
     Play,
+    /// Playing in the bubble: no button, a click pauses.
+    Pause,
 }
 
 /// Where the status goes and how it looks.
@@ -62,6 +69,8 @@ pub(super) struct Video {
     /// How far into the video it starts, 0 to 1, when the sender set a
     /// timestamp.
     pub timestamp: Option<f32>,
+    /// A round video's played part, 0 to 1, while it plays in the bubble.
+    pub played: Option<f32>,
 }
 
 /// Where the timestamp mark sits in the video, when it has one.
@@ -69,6 +78,10 @@ pub(super) struct Video {
 fn timestamp(media: &Media) -> Option<f32> {
     (media.start_timestamp > 0 && media.start_timestamp <= media.duration)
         .then(|| media.start_timestamp as f32 / media.duration as f32)
+}
+
+fn seconds(duration: Duration) -> i32 {
+    i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
 }
 
 /// "0:07", "12:30", "1:02:03" (`FormatDurationText`).
@@ -81,19 +94,21 @@ pub(super) fn duration_text(seconds: i32) -> String {
     }
 }
 
-fn icon(center: Center, is_selected: bool) -> Icon {
-    match (center, is_selected) {
+fn icon(center: Center, is_selected: bool) -> Option<Icon> {
+    Some(match (center, is_selected) {
         (Center::Download, false) => HISTORY_FILE_THUMB_DOWNLOAD,
         (Center::Download, true) => HISTORY_FILE_THUMB_DOWNLOAD_SELECTED,
         (Center::Cancel { .. }, false) => HISTORY_FILE_THUMB_CANCEL,
         (Center::Cancel { .. }, true) => HISTORY_FILE_THUMB_CANCEL_SELECTED,
         (Center::Play, false) => HISTORY_FILE_THUMB_PLAY,
         (Center::Play, true) => HISTORY_FILE_THUMB_PLAY_SELECTED,
-    }
+        (Center::Pause, _) => return None,
+    })
 }
 
 impl HistoryView {
-    /// A video or GIF message's still with its button and status.
+    /// A video or GIF message's still with its button and status, or its
+    /// frame while it plays in the bubble.
     pub(super) fn video(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
         let (media, is_gif, shape) = match &message.content {
             Content::Video(media) => (media, false, Shape::Frame),
@@ -104,55 +119,37 @@ impl HistoryView {
             }
             _ => return None,
         };
-        let (chat, id) = (message.chat, message.id);
+        let id = message.id;
         let file = current(self, media.file.as_ref()?, cx).clone();
+        let mut still = self.still(media.preview.as_ref(), media, cx);
+        if let Shape::Round { .. } = shape {
+            // Round videos take one size whatever their length.
+            (still.width, still.height) = (MAX_VIDEO_MESSAGE_SIZE.0, MAX_VIDEO_MESSAGE_SIZE.0);
+        }
+        let is_hidden = media.has_spoiler && !self.revealed_spoilers.contains(&id);
+        if is_gif
+            && !is_hidden
+            && let Some(path) = &file.path
+        {
+            #[expect(clippy::cast_precision_loss, reason = "a size in points")]
+            let size = (still.width as f32, still.height as f32);
+            self.autoplay(id, Path::new(path), size, cx);
+        }
+        let frame = self.inline_frame(id, cx);
         // TDLib's GIFs are muted loops, "GIF" stands for their length.
         let length = if is_gif {
             "GIF".to_owned()
         } else {
             duration_text(media.duration)
         };
-        let (center, status) = match (&file.path, file.is_downloading) {
-            (Some(_), _) => (Center::Play, length),
-            (None, true) => (
-                Center::Cancel {
-                    progress: progress(file.downloaded, file.size),
-                },
-                progress_text(strings(cx), file.downloaded, file.size),
-            ),
-            (None, false) => (
-                Center::Download,
-                i18n::fill(
-                    &tr(cx, key::lng_duration_and_size),
-                    &[("duration", &length), ("size", &size_text(file.size))],
-                ),
-            ),
+        let (center, status) = state(&file, frame.as_ref(), length.clone(), cx);
+        // A GIF has no time to count down.
+        let status = if is_gif && frame.is_some() {
+            length
+        } else {
+            status
         };
-        let weak = cx.weak_entity();
-        let path = file.path.clone().map(PathBuf::from);
-        let is_video = matches!(message.content, Content::Video(_));
-        let on_click: OnClick = Rc::new(move |_, window, cx| {
-            let _ = weak.update(cx, |this, cx| match center {
-                Center::Download => this.add_to_downloads(file.id, (chat, id), cx),
-                Center::Cancel { .. } => this.cancel_download(file.id, cx),
-                // Videos play in the viewer.
-                Center::Play if is_video => this.open_media(id, window, cx),
-                // shortcut: GIFs and round videos open in the system player until they play inline.
-                Center::Play => {
-                    if let Some(path) = &path {
-                        if matches!(shape, Shape::Round { is_unviewed: true }) {
-                            this.mark_listened(id, cx);
-                        }
-                        this.open_file(path, window, cx);
-                    }
-                }
-            });
-        });
-        let mut still = self.still(media.preview.as_ref(), media, cx);
-        if let Shape::Round { .. } = shape {
-            // Round videos take one size whatever their length.
-            (still.width, still.height) = (MAX_VIDEO_MESSAGE_SIZE.0, MAX_VIDEO_MESSAGE_SIZE.0);
-        }
+        let on_click = self.on_video_click(message, center, shape, &file, media.duration, cx);
         Some(Photo {
             video: Some(Video {
                 center,
@@ -162,9 +159,84 @@ impl HistoryView {
                 timestamp: matches!(message.content, Content::Video(_))
                     .then(|| timestamp(media))
                     .flatten(),
+                played: frame
+                    .as_ref()
+                    .filter(|_| matches!(shape, Shape::Round { .. }))
+                    .map(|frame| frame.progress),
             }),
+            frame: frame.and_then(|frame| frame.image),
             ..still
         })
+    }
+
+    /// What a click on the video does in its `center` state.
+    fn on_video_click(
+        &self,
+        message: &Message,
+        center: Center,
+        shape: Shape,
+        file: &File,
+        seconds: i32,
+        cx: &Context<Self>,
+    ) -> OnClick {
+        let weak = cx.weak_entity();
+        let (chat, id, file_id) = (message.chat, message.id, file.id);
+        let path = file.path.clone().map(PathBuf::from);
+        let is_video = matches!(message.content, Content::Video(_));
+        let length = Duration::from_secs(u64::try_from(seconds).unwrap_or(0));
+        Rc::new(move |_, window, cx| {
+            let _ = weak.update(cx, |this, cx| match center {
+                Center::Download => this.add_to_downloads(file_id, (chat, id), cx),
+                Center::Cancel { .. } => this.cancel_download(file_id, cx),
+                // Videos play in the viewer.
+                Center::Play if is_video => this.open_media(id, window, cx),
+                Center::Pause | Center::Play if this.toggle_inline(id, cx) => {}
+                Center::Pause => {}
+                Center::Play => {
+                    let Some(path) = &path else { return };
+                    match shape {
+                        Shape::Round { is_unviewed } => {
+                            if is_unviewed {
+                                this.mark_listened(id, cx);
+                            }
+                            let side = px_of(MAX_VIDEO_MESSAGE_SIZE).into();
+                            this.play_inline(id, path, ((side, side), length), Ending::Pause, cx);
+                        }
+                        // A GIF that cannot autoplay.
+                        Shape::Frame => this.open_file(path, window, cx),
+                    }
+                }
+            });
+        })
+    }
+}
+
+/// The button and the status for `file`; `frame` while it plays in the
+/// bubble.
+fn state(file: &File, frame: Option<&Frame>, length: String, cx: &App) -> (Center, String) {
+    match (&file.path, file.is_downloading, frame) {
+        (Some(_), _, Some(frame)) => (
+            if frame.is_playing {
+                Center::Pause
+            } else {
+                Center::Play
+            },
+            duration_text(seconds(frame.remaining)),
+        ),
+        (Some(_), _, None) => (Center::Play, length),
+        (None, true, _) => (
+            Center::Cancel {
+                progress: progress(file.downloaded, file.size),
+            },
+            progress_text(strings(cx), file.downloaded, file.size),
+        ),
+        (None, false, _) => (
+            Center::Download,
+            i18n::fill(
+                &tr(cx, key::lng_duration_and_size),
+                &[("duration", &length), ("size", &size_text(file.size))],
+            ),
+        ),
     }
 }
 
@@ -195,8 +267,15 @@ pub(super) fn overlays(
     );
     let arc = match video.center {
         Center::Cancel { progress } => Some(super::file_row::arc(progress, radial)),
-        Center::Download | Center::Play => None,
+        Center::Download | Center::Play | Center::Pause => None,
     };
+    // `VideoMessageSeek` without the seek: the played part around the edge.
+    let ring = video.played.map(|played| {
+        let fg = palette(cx, ColorId::HistoryVideoMessageProgressFg);
+        #[expect(clippy::cast_possible_truncation, reason = "an opacity")]
+        let opacity = HISTORY_VIDEO_MESSAGE_PROGRESS_OPACITY as f32;
+        super::file_row::arc(played, fg.opacity(opacity))
+    });
     let circle = div()
         .relative()
         .size(px_of(MSG_FILE_LAYOUT.thumb_size))
@@ -205,8 +284,9 @@ pub(super) fn overlays(
         .flex()
         .items_center()
         .justify_center()
-        .child(ui::icon(icon(video.center, is_selected)))
+        .children(icon(video.center, is_selected).map(ui::icon))
         .children(arc);
+    let circle = (video.center != Center::Pause).then_some(circle);
     let on_click = video.on_click;
     let button = div()
         .id(("video", id.unsigned_abs()))
@@ -216,7 +296,8 @@ pub(super) fn overlays(
         .items_center()
         .justify_center()
         .cursor_pointer()
-        .child(circle)
+        .children(ring)
+        .children(circle)
         .on_click(move |event, window, cx| {
             cx.stop_propagation();
             on_click(event, window, cx);
@@ -340,11 +421,15 @@ mod tests {
 
     #[test]
     fn the_button_shows_what_a_click_does() {
-        assert_eq!(icon(Center::Download, false), HISTORY_FILE_THUMB_DOWNLOAD);
+        assert_eq!(
+            icon(Center::Download, false),
+            Some(HISTORY_FILE_THUMB_DOWNLOAD)
+        );
         assert_eq!(
             icon(Center::Cancel { progress: 0.3 }, true),
-            HISTORY_FILE_THUMB_CANCEL_SELECTED
+            Some(HISTORY_FILE_THUMB_CANCEL_SELECTED)
         );
-        assert_eq!(icon(Center::Play, false), HISTORY_FILE_THUMB_PLAY);
+        assert_eq!(icon(Center::Play, false), Some(HISTORY_FILE_THUMB_PLAY));
+        assert_eq!(icon(Center::Pause, false), None);
     }
 }

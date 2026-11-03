@@ -57,6 +57,7 @@ impl HistoryView {
         Photo {
             source: photo.thumbnail.clone(),
             video: None,
+            frame: None,
             spoiler: Some(Rc::new(move |_, _, cx| {
                 let _ = weak.update(cx, |this, cx| {
                     this.revealed_spoilers.insert(id);
