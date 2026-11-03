@@ -182,7 +182,7 @@ impl Render for ReportBox {
                 frame = frame.row(div().children(rows));
             }
             Step::Comment { field, .. } => {
-                let pad = px_of(DEFAULT_BOX.button_padding.left);
+                let pad = px_of(style::layers::BOX_PADDING.left);
                 frame = frame
                     .row(div().px(pad).child(field.clone()))
                     .row(

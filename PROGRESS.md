@@ -177,6 +177,12 @@
   block, report with TDLib's reasons, delete or leave). One's own profile
   edits the name, bio, username and birthday and sets the photo.
   Snapshots 281-296.
+- New Group and New Channel from the main menu (`create_chat.rs`, model
+  `create.rs`), as tdesktop's `GroupInfoBox`, `SetupChannelBox` and the
+  members box: name, photo and (channels) description; a group picks its
+  members and opens; a channel then goes public with a t.me link or stays
+  private with its invite link, picks subscribers and opens. The contacts
+  box gained a multi-pick mode for it. Snapshots 301-312.
 ### Half done (shortcuts in code)
 
 - Rounds and GIFs in bubbles: a round stops
@@ -389,6 +395,12 @@
     A group: description, link, members; a member opens their profile.
     Do not press Block, Report, Delete or Leave. My Profile (main menu):
     edit the bio, then put it back; the same for the birthday if you like.
+29. New Group and New Channel (they change your account: only after you
+    say yes, and both get deleted afterwards). New Group: name "rgram test
+    group", a photo, Next, pick one contact you agree to add, Create: the
+    group opens with its photo. New Channel: name "rgram test channel",
+    Create, Private shows the invite link; Save, Skip the subscribers: the
+    channel opens. Then delete both (profile, Delete and leave / Leave).
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

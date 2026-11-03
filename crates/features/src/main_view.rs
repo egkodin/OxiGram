@@ -351,6 +351,22 @@ impl MainView {
                     .update(cx, |dialogs, cx| dialogs.open_list(ChatList::Archive, cx)),
                 MenuAction::ArchiveToList => crate::settings::set_archive_in_main_menu(false, cx),
                 MenuAction::Contacts => this.show_contacts(window, cx),
+                MenuAction::NewGroup => {
+                    crate::create_chat::show(
+                        crate::create_chat::Kind::Group,
+                        this.link_targets(),
+                        window,
+                        cx,
+                    );
+                }
+                MenuAction::NewChannel => {
+                    crate::create_chat::show(
+                        crate::create_chat::Kind::Channel,
+                        this.link_targets(),
+                        window,
+                        cx,
+                    );
+                }
                 MenuAction::MyProfile => {
                     if let Some(me) = this.store.read(cx).state().me {
                         // A private chat's id is its user's id.

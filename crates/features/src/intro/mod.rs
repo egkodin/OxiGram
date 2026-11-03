@@ -16,7 +16,7 @@ mod password;
 mod phone;
 mod phone_fields;
 mod qr;
-mod signup;
+pub(crate) mod signup;
 mod start;
 mod step;
 pub(crate) mod terms;

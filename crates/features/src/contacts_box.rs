@@ -28,6 +28,16 @@ use crate::status::{sort_value, status};
 const USERPIC_PRIORITY: i32 = 8;
 
 pub(crate) type OnChosen = Rc<dyn Fn(UserId, &mut Window, &mut App)>;
+pub(crate) type OnDone = Rc<dyn Fn(Vec<UserId>, &mut Window, &mut App)>;
+
+/// Picking several contacts, as new groups and channels add members
+/// (`AddParticipantsBoxController`).
+// shortcut: picked rows keep the hover background, with no round checks or chips over the list.
+pub(crate) struct Many {
+    pub title: gpui::SharedString,
+    pub done: gpui::SharedString,
+    pub on_done: OnDone,
+}
 
 pub(crate) struct ContactsBox {
     store: Entity<Store>,
@@ -37,6 +47,7 @@ pub(crate) struct ContactsBox {
     hovered: Option<usize>,
     requested_files: HashSet<FileId>,
     on_chosen: OnChosen,
+    many: Option<(Many, Vec<UserId>)>,
     _subscriptions: [Subscription; 2],
 }
 
@@ -58,6 +69,28 @@ pub(crate) fn show(
     store: &Entity<Store>,
     layers: &Entity<Layers>,
     on_chosen: OnChosen,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    open(store, layers, on_chosen, None, window, cx);
+}
+
+/// The box with checks; `many.on_done` gets the picked contacts.
+pub(crate) fn show_many(
+    store: &Entity<Store>,
+    layers: &Entity<Layers>,
+    many: Many,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    open(store, layers, Rc::new(|_, _, _| {}), Some(many), window, cx);
+}
+
+fn open(
+    store: &Entity<Store>,
+    layers: &Entity<Layers>,
+    on_chosen: OnChosen,
+    many: Option<Many>,
     window: &mut Window,
     cx: &mut App,
 ) {
@@ -94,6 +127,7 @@ pub(crate) fn show(
             hovered: None,
             requested_files: HashSet::new(),
             on_chosen,
+            many: many.map(|many| (many, Vec::new())),
             _subscriptions: [search_changed, store_changed],
         }
     });
@@ -137,8 +171,27 @@ impl ContactsBox {
     }
 
     fn choose(&mut self, user: UserId, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some((_, picked)) = &mut self.many {
+            if let Some(at) = picked.iter().position(|id| *id == user) {
+                picked.remove(at);
+            } else {
+                picked.push(user);
+            }
+            cx.notify();
+            return;
+        }
         self.close(window, cx);
         (self.on_chosen)(user, window, cx);
+    }
+
+    /// Closes the box and hands over the picked contacts.
+    fn done(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((many, picked)) = &self.many else {
+            return;
+        };
+        let (on_done, picked) = (many.on_done.clone(), picked.clone());
+        self.close(window, cx);
+        on_done(picked, window, cx);
     }
 
     fn download(&mut self, file: FileId, cx: &mut Context<Self>) {
@@ -176,16 +229,25 @@ impl ContactsBox {
             is_active: line.is_online,
         };
         let user_id = user.id;
-        peer_list::row(("contact", index), look, self.hovered == Some(index), cx)
-            .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                let next = peer_list::hovered_after(this.hovered, index, *hovered);
-                if this.hovered != next {
-                    this.hovered = next;
-                    cx.notify();
-                }
-            }))
-            .on_click(cx.listener(move |this, _, window, cx| this.choose(user_id, window, cx)))
-            .into_any_element()
+        let is_picked = self
+            .many
+            .as_ref()
+            .is_some_and(|(_, picked)| picked.contains(&user_id));
+        peer_list::row(
+            ("contact", index),
+            look,
+            is_picked || self.hovered == Some(index),
+            cx,
+        )
+        .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
+            let next = peer_list::hovered_after(this.hovered, index, *hovered);
+            if this.hovered != next {
+                this.hovered = next;
+                cx.notify();
+            }
+        }))
+        .on_click(cx.listener(move |this, _, window, cx| this.choose(user_id, window, cx)))
+        .into_any_element()
     }
 }
 
@@ -226,21 +288,29 @@ impl Render for ContactsBox {
             .into_any_element()
         };
         let entity = cx.entity();
-        BoxFrame::new("contacts-box", &DEFAULT_BOX)
-            .title(tr(cx, key::lng_contacts_header))
+        let (title, close) = match &self.many {
+            Some((many, _)) => (many.title.clone(), key::lng_cancel),
+            None => (tr(cx, key::lng_contacts_header), key::lng_close),
+        };
+        let done = self.many.as_ref().map(|(many, _)| {
+            let entity = entity.clone();
+            RoundButton::new("contacts-done", &DEFAULT_BOX.button, many.done.clone())
+                .on_click(move |_, window, cx| entity.update(cx, |this, cx| this.done(window, cx)))
+        });
+        let frame = BoxFrame::new("contacts-box", &DEFAULT_BOX)
+            .title(title)
             .row(search)
-            .row(list)
-            // shortcut: no "Add contact" button until the add-contact box in M6.
-            .button(
-                RoundButton::new(
-                    "contacts-close",
-                    &DEFAULT_BOX.button,
-                    tr(cx, key::lng_close),
-                )
-                .on_click(move |_, window, cx| {
-                    entity.update(cx, |this, cx| this.close(window, cx))
-                }),
-            )
+            .row(list);
+        let frame = match done {
+            Some(done) => frame.button(done),
+            None => frame,
+        };
+        // shortcut: no "Add contact" button until the add-contact box in M6.
+        frame.button(
+            RoundButton::new("contacts-close", &DEFAULT_BOX.button, tr(cx, close)).on_click(
+                move |_, window, cx| entity.update(cx, |this, cx| this.close(window, cx)),
+            ),
+        )
     }
 }
 

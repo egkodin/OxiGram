@@ -121,7 +121,7 @@ impl Render for EditBox {
                 .title(self.title.clone())
                 .row(
                     div()
-                        .px(px_of(DEFAULT_BOX.button_padding.left))
+                        .px(px_of(style::layers::BOX_PADDING.left))
                         .child(fields)
                         .children(about),
                 )

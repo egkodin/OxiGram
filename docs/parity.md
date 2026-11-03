@@ -347,8 +347,8 @@ is the definition of done: rgram is finished when every row is `done`, or
 | peers | Edit contact: name, share phone, delete contact, add contact | M6 | todo | |
 | peers | Block and unblock users; blocked list | M6 | todo | |
 | peers | Report a chat or user with reasons | M6 | todo | |
-| peers | Create a group (members, title, photo, auto-delete) | M6 | todo | |
-| peers | Create a channel (title, photo, description, type) | M6 | todo | |
+| peers | Create a group (members, title, photo, auto-delete) | M6 | in progress | snapshots 301-307 (`cargo run -p rgram --example snapshots`): name and photo, Enter or Next, contacts picked (picked rows keep the hover background, no round checks or chips), Create makes a basic group and opens it; no auto-delete choice; not verified live yet (live test 29) |
+| peers | Create a channel (title, photo, description, type) | M6 | in progress | snapshots 308-312: name, photo, description, Create; then Public with a t.me link or Private with the invite link, Save or Skip, then subscribers; the link is not checked as it is typed (a refused one marks the field); the public/private step needs TDLib, so it has no snapshot; not verified live yet (live test 29) |
 | peers | Add members, invite by link | M6 | todo | |
 | peers | Edit group or channel: title, photo, description | M6 | todo | |
 | peers | Group and channel type: public with usernames (reorder, collectible) or private | M6 | todo | |
@@ -436,7 +436,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| window | Main menu: account, My Profile, new group, new channel, contacts, calls, Saved Messages, settings | M2 | in progress | snapshot 12: every item is there; Contacts and Saved Messages work; Settings opens only the log-out box until the settings screen (M6); My Profile and new group / channel close the menu until M6, Calls until M10; not verified: no API credentials yet, so no live account |
+| window | Main menu: account, My Profile, new group, new channel, contacts, calls, Saved Messages, settings | M2 | in progress | snapshot 12: every item is there; Contacts, Saved Messages, My Profile, New Group and New Channel work; Settings opens only the log-out box until the settings screen (M6); Calls until M10; not verified: no API credentials yet, so no live account |
 | window | Main menu: accounts list, night mode switch, version | M2 | in progress | snapshot only (`cargo run -p rgram --example snapshots`); no accounts list until multi-account in M8; not verified: no API credentials yet, so no live account |
 | window | Section slide animations and back navigation | M8 | todo | |
 | window | Chat switcher (Ctrl+Tab) | M8 | todo | |

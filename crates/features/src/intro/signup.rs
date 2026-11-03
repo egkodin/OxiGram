@@ -289,44 +289,11 @@ impl Render for SignupStep {
         } else {
             (first_top, second_top)
         };
-        let icon = icon_size(st.change_icon);
-        let icon_left = if st.change_icon_position.x.0 < 0 {
-            (size - icon.width) / 2.0
-        } else {
-            px_of(st.change_icon_position.x)
-        };
-        let icon_top = if st.change_icon_position.y.0 < 0 {
-            (size - icon.height) / 2.0
-        } else {
-            px_of(st.change_icon_position.y)
-        };
         let this = cx.entity();
-        let photo = div()
-            .id("signup-photo")
+        let photo = photo_button("signup-photo", self.photo.clone(), cx)
             .absolute()
             .left(photo_left)
             .top(top + px_of(INTRO_PHOTO_TOP))
-            .size(size)
-            .rounded_full()
-            .overflow_hidden()
-            .cursor_pointer()
-            .bg(color(cx, st.change_button.text_bg))
-            .hover(|style| style.bg(color(cx, st.change_button.text_bg_over)))
-            .map(|photo| match self.photo.clone() {
-                Some(path) => photo.child(
-                    img(path)
-                        .size(size)
-                        .object_fit(ObjectFit::Cover)
-                        .rounded_full(),
-                ),
-                None => photo.child(
-                    div()
-                        .absolute()
-                        .left(icon_left)
-                        .top(icon_top)
-                        .child(ui::icon(st.change_icon)),
-                ),
-            })
             .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
             .on_click(move |_, _, cx| this.update(cx, |this, cx| this.choose_photo(cx)));
         div()
@@ -351,4 +318,48 @@ impl Render for SignupStep {
                     .child(self.last.clone()),
             )
     }
+}
+
+/// The round button that picks a photo (`Ui::UserpicButton` in
+/// `ChangePhoto` mode): the camera on blue, then the picked image.
+pub(crate) fn photo_button(
+    id: &'static str,
+    photo: Option<std::path::PathBuf>,
+    cx: &App,
+) -> gpui::Stateful<gpui::Div> {
+    let st = &DEFAULT_USERPIC_BUTTON;
+    let size = px_of(st.photo_size);
+    let icon = icon_size(st.change_icon);
+    let centered = |position: style::Px, inner: gpui::Pixels| {
+        if position.0 < 0 {
+            (size - inner) / 2.0
+        } else {
+            px_of(position)
+        }
+    };
+    let icon_left = centered(st.change_icon_position.x, icon.width);
+    let icon_top = centered(st.change_icon_position.y, icon.height);
+    div()
+        .id(id)
+        .size(size)
+        .rounded_full()
+        .overflow_hidden()
+        .cursor_pointer()
+        .bg(color(cx, st.change_button.text_bg))
+        .hover(|style| style.bg(color(cx, st.change_button.text_bg_over)))
+        .map(|button| match photo {
+            Some(path) => button.child(
+                img(path)
+                    .size(size)
+                    .object_fit(ObjectFit::Cover)
+                    .rounded_full(),
+            ),
+            None => button.child(
+                div()
+                    .absolute()
+                    .left(icon_left)
+                    .top(icon_top)
+                    .child(ui::icon(st.change_icon)),
+            ),
+        })
 }

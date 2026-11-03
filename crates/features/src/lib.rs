@@ -6,6 +6,7 @@ pub mod boxes;
 mod columns;
 mod connecting;
 mod contacts_box;
+mod create_chat;
 mod dialogs;
 mod downloads;
 mod file_sizes;

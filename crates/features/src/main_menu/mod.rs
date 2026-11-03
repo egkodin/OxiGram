@@ -45,6 +45,8 @@ pub(crate) enum MenuAction {
     ArchiveToList,
     Contacts,
     MyProfile,
+    NewGroup,
+    NewChannel,
     SavedMessages,
     Settings,
 }
@@ -273,14 +275,14 @@ impl Render for MainMenu {
                         "new-group",
                         tr(cx, key::lng_create_group_title),
                         MENU_ICON_GROUPS,
-                        None,
+                        Some(MenuAction::NewGroup),
                         cx,
                     ))
                     .child(self.button(
                         "new-channel",
                         tr(cx, key::lng_create_channel_title),
                         MENU_ICON_CHANNEL,
-                        None,
+                        Some(MenuAction::NewChannel),
                         cx,
                     ))
                     .child(self.button(
