@@ -138,6 +138,15 @@
   those files in chats and users and sends no `updateFile`. `Photo` now
   keeps the small and big files and the store learns them. Snapshot 209,
   unit test `a_userpic_downloaded_before_is_known_without_update_file`.
+- Delete for everyone (live 2026-11-03, no checkbox seen): the box now
+  follows `DeleteMessagesBox`: "Also delete for <name>" in private chats
+  and "Delete for everyone" in basic groups when TDLib allows revoke for
+  all; only one's own messages revoke when others cannot; no checkbox in
+  supergroups, channels, Saved Messages or bots (bots always revoke); the
+  hints after the question and "Remember this choice" when the box differs
+  from the remembered default. The live cause is unconfirmed: Saved
+  Messages, supergroups and channels show no checkbox in tdesktop either.
+  Snapshots 221-247, unit tests `cargo test -p features delete`.
 - Crash on quit (signal 11 after the full snapshot run): `exit` destroyed
   TDLib's statics while the `tdlib-receive` thread was still inside
   `td_receive` (crash report: that thread faults in libtdjson under
@@ -339,6 +348,12 @@
 25. Userpics after a restart: quit rgram, start it again: the chat list,
     group senders, top bar and main menu show sharp photos at once (no
     blurry previews that stay); compare a few with Telegram on a phone.
+26. Delete box, without deleting outside Saved Messages: right-click your
+    own fresh message in a private chat: "Also delete for <name>" is ticked;
+    untick it: "Remember this choice" shows; Cancel. In a basic group:
+    "Delete for everyone"; in a supergroup or channel: no checkbox, only the
+    hint; Cancel each time. In Saved Messages delete one test message: no
+    checkbox. Select two messages in a private chat, Delete 2: the same box.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

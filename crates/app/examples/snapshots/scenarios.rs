@@ -28,6 +28,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
     let (photo, notes) = fixture_files();
     vec![
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -39,6 +40,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             steps: vec![("01-start", auth(State::WaitPhoneNumber))],
         },
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -55,6 +57,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            abilities: None,
             // Back from the code to the number, as a wrong number does.
             setup: Vec::new(),
             clicks: Vec::new(),
@@ -70,6 +73,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             ],
         },
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -90,6 +94,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -112,6 +117,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -123,6 +129,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             steps: vec![("07-email", auth(State::WaitEmailAddress))],
         },
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -139,6 +146,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             )],
         },
         Scenario {
+            abilities: None,
             setup: Vec::new(),
             clicks: Vec::new(),
             drags: Vec::new(),
@@ -165,6 +173,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             ],
         },
         Scenario {
+            abilities: None,
             setup: chats::events(),
             // Collapses the archive and expands it again for the later windows.
             clicks: vec![
@@ -206,6 +215,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // Settings: Cmd+Enter sends, so Enter in the open field breaks the
         // line; Cmd+Enter then sends (refused with no account).
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("143-settings-chat", MouseButton::Left, SAVED_ROW),
@@ -243,6 +253,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("78-compose-saved", MouseButton::Left, SAVED_ROW),
@@ -284,6 +295,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // The bars in place of the field: Ben blocked, the bot never
         // started, the channel left, the group closed to members.
         Scenario {
+            abilities: None,
             setup: [chats::events(), write_restrictions()].concat(),
             clicks: vec![
                 ("86-write-unblock", MouseButton::Left, BEN_ROW),
@@ -303,6 +315,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // gives the field back, Cmd+Up walks the reply up the history, and
         // a refused reply keeps both the text and the reply.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("91-bar-chat", MouseButton::Left, MARIA_ROW),
@@ -329,6 +342,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // Saved Messages in the box, which opens with the forward over its
         // field; sending fails with no account and keeps it.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("102-forward-chat", MouseButton::Left, MARIA_ROW),
@@ -354,6 +368,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // goes into the field, a footer icon brings its category up, and
         // leaving the panel hides it.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("111-emoji-chat", MouseButton::Left, MARIA_ROW),
@@ -375,6 +390,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // a photo and a text file dropped on the one zone, the box with its
         // caption typed, and Escape giving the caption back to the field.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("118-upload-saved", MouseButton::Left, SAVED_ROW)],
             drags: Vec::new(),
@@ -390,6 +406,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         },
         // A photo alone: documents above, compressed below; it goes compressed.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("123-photo-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -404,6 +421,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // microphone and leaving the field (release cancels), back in the
         // field (release sends), then up past the lock.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("125-voice-chat", MouseButton::Left, SAVED_ROW)],
             drags: vec![
@@ -422,6 +440,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // schedule box it opens, to a user whose last seen time shows: the
         // bell off, the calendar over the box and back, then the dots.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("129-send-chat", MouseButton::Left, BEN_ROW),
@@ -442,6 +461,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         },
         // In Saved Messages the menu only sets a reminder.
         Scenario {
+            abilities: None,
             setup: saved_draft(),
             clicks: vec![
                 ("136-reminder-chat", MouseButton::Left, SAVED_ROW),
@@ -459,6 +479,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         // Reminders: the button by the field, the section with its day
         // badges, and a reminder's menu.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("140-reminders-chat", MouseButton::Left, SAVED_ROW),
@@ -482,6 +503,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         },
         // Last: the night mode it switches on stays for later windows.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("42-history-group", MouseButton::Left, HIKING_ROW),
@@ -554,6 +576,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         },
         // Pulls past the end of Daily Landscapes to the next unread channel.
         Scenario {
+            abilities: None,
             setup: [chats::events(), vec![unread_channel()]].concat(),
             clicks: vec![("75-history-pull-open", MouseButton::Left, LANDSCAPES_ROW)],
             drags: Vec::new(),
@@ -566,6 +589,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
         },
         // Scrolls Hiking Club up to show the floating date.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("58-history-scroll-open", MouseButton::Left, HIKING_ROW)],
             drags: Vec::new(),
@@ -577,6 +601,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             steps: vec![("57-history-scroll-list", auth(State::Ready))],
         },
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("12-main-menu", MouseButton::Left, MENU_BUTTON),
@@ -610,7 +635,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
 const MENU_BUTTON: (f32, f32) = (27.0, 27.0);
 const NIGHT_MODE_ROW: (f32, f32) = (100.0, 447.0);
 const CONTACTS_ROW: (f32, f32) = (100.0, 287.0);
-const OUTSIDE_BOX: (f32, f32) = (30.0, 300.0);
+pub(crate) const OUTSIDE_BOX: (f32, f32) = (30.0, 300.0);
 /// The sidebar's folder buttons under its main menu button, and the archive
 /// row beside it, at the top of the list.
 const ALL_CHATS_BUTTON: (f32, f32) = (36.0, 85.0);
@@ -649,17 +674,17 @@ const NARROW_COLUMN_EDGE: (f32, f32) = (66.0, 300.0);
 /// Two pinned chats below the archive row.
 pub(crate) const SAVED_ROW: (f32, f32) = (150.0, 180.0);
 pub(crate) const MARIA_ROW: (f32, f32) = (150.0, 242.0);
-const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
+pub(crate) const LANDSCAPES_ROW: (f32, f32) = (150.0, 428.0);
 const BEN_ROW: (f32, f32) = (150.0, 490.0);
-const BOT_ROW: (f32, f32) = (150.0, 552.0);
+pub(crate) const BOT_ROW: (f32, f32) = (150.0, 552.0);
 const BLOCK_BUTTON: (f32, f32) = (672.0, 79.0);
 /// The date badge over Hiking Club's messages, and the calendar's Close.
 const DATE_BADGE: (f32, f32) = (543.0, 135.0);
 const CALENDAR_CLOSE: (f32, f32) = (538.0, 448.0);
 const ANN_ROW: (f32, f32) = (150.0, 304.0);
-const HIKING_ROW: (f32, f32) = (150.0, 366.0);
+pub(crate) const HIKING_ROW: (f32, f32) = (150.0, 366.0);
 /// The reply box of "Can't wait to see them" in Hiking Club.
-const GROUP_REPLY: (f32, f32) = (670.0, 282.0);
+pub(crate) const GROUP_REPLY: (f32, f32) = (670.0, 282.0);
 const DOWN_BUTTON: (f32, f32) = (761.0, 519.0);
 /// The forwarded link in Hiking Club once back from the reply, and empty
 /// space beside its date badge.
@@ -686,9 +711,9 @@ const SECONDARY_UP: &str = if cfg!(target_os = "macos") {
     "ctrl-up"
 };
 /// "Yes, two seats in row 5" in Maria's chat.
-const SEATS_MESSAGE: (f32, f32) = (640.0, 295.0);
+pub(crate) const SEATS_MESSAGE: (f32, f32) = (640.0, 295.0);
 /// "Select" in the menu that opens there.
-const MENU_SELECT: (f32, f32) = (712.0, 351.0);
+pub(crate) const MENU_SELECT: (f32, f32) = (712.0, 351.0);
 /// "Forward 1" in the selection bar.
 const SELECTION_FORWARD: (f32, f32) = (350.0, 27.0);
 /// Saved Messages, first in "Forward to...".

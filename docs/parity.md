@@ -233,7 +233,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | compose | Slow mode countdown and send restrictions | M4 | todo | |
 | compose | Join, mute/unmute, unblock and start-bot bars in place of the field | M4 | in progress | snapshots 85-89; `cargo test -p model rights` |
 | compose | Search in chat bar with results navigation and sender filter | M3 | in progress | snapshots 62-63 and unit tests (`cargo test -p features chat_search`); the top bar's search button swaps the bar for a field after a back arrow (Escape or the arrow closes it); typing searches after 0.9 s, Enter at once (searchChatMessages); the bottom bar shows "1 of 12" or "No results" with the calendar and up/down arrows that jump to and shade each result, dimmed at the ends; the results bar was checked by eye once with a fixture answer, since the snapshot run has no TDLib; not verified: no API credentials, so no live search; first 100 results only (Saved Messages tags: see the dialogs search row), no sender filter, no results list, no F3/Ctrl+G stepping, no highlighting of the query in the text |
-| compose | Delete messages: for me or for everyone, with confirmation | M4 | todo | |
+| compose | Delete messages: for me or for everyone, with confirmation | M4 | in progress | unit tests (`cargo test -p features delete`); snapshots 221-247: tdesktop's `DeleteMessagesBox` texts and checkbox per chat kind (private, basic group, channel, Saved Messages, selection), the hints and "Remember this choice"; not verified live (live test 26) |
 | compose | Report messages with reasons | M4 | todo | |
 | compose | Pin message box (notify all members, pin for both) | M4 | todo | |
 | compose | Create polls and quizzes (with media and links on options) | M4 | todo | |

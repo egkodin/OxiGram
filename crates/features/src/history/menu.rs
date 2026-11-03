@@ -222,6 +222,17 @@ impl LinkCopy {
     }
 }
 
+/// What every message allows instead of asking TDLib, as the snapshots
+/// need with no account behind them.
+struct PresetAbilities(Option<Abilities>);
+
+impl gpui::Global for PresetAbilities {}
+
+/// Every message allows `abilities` until this is called with `None`.
+pub fn preset_message_abilities(abilities: Option<Abilities>, cx: &mut App) {
+    cx.set_global(PresetAbilities(abilities));
+}
+
 impl HistoryView {
     /// What the user may do with each of `ids`, from TDLib; empty when it
     /// did not tell for any of them.
@@ -230,12 +241,20 @@ impl HistoryView {
         ids: &[MessageId],
         cx: &App,
     ) -> impl std::future::Future<Output = Vec<Abilities>> + use<> {
+        let preset = cx
+            .try_global::<PresetAbilities>()
+            .and_then(|preset| preset.0)
+            .map(|preset| vec![preset; ids.len()]);
         let session = self.store.read(cx).session().clone();
-        let tasks: Vec<_> = ids
+        let asked = if preset.is_some() { &[][..] } else { ids };
+        let tasks: Vec<_> = asked
             .iter()
             .map(|id| spawn(session.message_abilities(self.chat, *id), cx))
             .collect();
         async move {
+            if let Some(preset) = preset {
+                return preset;
+            }
             let mut abilities = Vec::new();
             for task in tasks {
                 match task.await {
@@ -599,6 +618,30 @@ impl HistoryView {
         .detach();
     }
 
+    fn delete_place(&self, cx: &App) -> delete::Place {
+        let state = self.store.read(cx).state();
+        let Some(chat) = state.chats.chat(self.chat) else {
+            return delete::Place::Channel;
+        };
+        match chat.kind {
+            ChatKind::Private { user } | ChatKind::Secret { user, .. } => {
+                if Some(user) == state.me {
+                    return delete::Place::SavedMessages;
+                }
+                match state.chats.user(user) {
+                    Some(user) if user.kind == model::user::UserKind::Bot => delete::Place::Bot,
+                    Some(user) => delete::Place::Private(user.first_name.clone()),
+                    None => delete::Place::Private(String::new()),
+                }
+            }
+            ChatKind::Group { .. } => delete::Place::Group,
+            ChatKind::Supergroup {
+                is_channel: true, ..
+            } => delete::Place::Channel,
+            ChatKind::Supergroup { .. } => delete::Place::Supergroup,
+        }
+    }
+
     pub(super) fn confirm_delete(
         &mut self,
         ids: &[MessageId],
@@ -606,19 +649,11 @@ impl HistoryView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let state = self.store.read(cx).state();
         let outgoing: Vec<bool> = ids
             .iter()
             .map(|id| self.shown.iter().any(|m| m.id == *id && m.is_outgoing))
             .collect();
-        let peer = state
-            .chats
-            .chat(self.chat)
-            .and_then(|chat| chat.user())
-            .filter(|user| Some(*user) != state.me)
-            .and_then(|user| state.chats.user(user))
-            .map(|user| user.first_name.clone());
-        let revoke = delete::revoke(abilities, &outgoing, peer);
+        let offer = delete::offer(&self.delete_place(cx), abilities, &outgoing);
         let weak = cx.weak_entity();
         let session = self.store.read(cx).session().clone();
         delete::show(
@@ -627,7 +662,7 @@ impl HistoryView {
                 session,
                 chat: self.chat,
                 ids: ids.to_vec(),
-                revoke,
+                offer,
             },
             std::rc::Rc::new(move |_, cx| {
                 let _ = weak.update(cx, |this, cx| this.clear_selection(cx));

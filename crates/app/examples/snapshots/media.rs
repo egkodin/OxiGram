@@ -58,6 +58,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
     let (photo, notes) = fixture_files();
     vec![
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("152-photos-saved", MouseButton::Left, SAVED_ROW)],
             drags: Vec::new(),
@@ -71,6 +72,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Files: one to download, one loading with a caption, one on disk
         // with "Show in Finder" in its menu.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("155-files-chat", MouseButton::Left, MARIA_ROW),
@@ -86,6 +88,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // Videos: one to download, one loading with a caption, a GIF on disk.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("158-videos-saved", MouseButton::Left, SAVED_ROW)],
             drags: Vec::new(),
@@ -99,6 +102,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Albums: a portrait beside two landscapes with one caption, and
         // four without a caption or a bubble, one of them a video.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("161-albums-saved", MouseButton::Left, SAVED_ROW)],
             drags: Vec::new(),
@@ -112,6 +116,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Voices: one to download and unheard, one loading, one heard on
         // disk, and one sent with a caption nobody played yet.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("164-voices-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -125,6 +130,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Contacts: a contact's account, an account to add, a name and a
         // phone alone, and one sent.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("166-contacts-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -137,6 +143,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // Places: a point, a venue with its address, and a live location.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("168-places-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -149,6 +156,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // Spoilers: a photo and a video under dots; a click reveals the photo.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("171-spoilers-saved", MouseButton::Left, SAVED_ROW),
@@ -164,6 +172,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // Stickers: a still one, and an animated one shown by its still.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("174-stickers-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -176,6 +185,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // Round videos: one on disk nobody watched, one sent to download.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("176-rounds-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -189,6 +199,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Polls: one to vote in, one with several answers, a quiz answered
         // wrong with its explanation, and one sent and voted.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("178-polls-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -202,6 +213,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Big emoji: one, three, a die without its sticker, an animated
         // emoji with one, a text with words, and one sent.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("181-emoji-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -215,6 +227,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Checklists: one Maria lets others mark, one only she marks, and
         // one sent.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("183-checklists-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -228,6 +241,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // The media viewer: a photo opened from Saved Messages, the next
         // one by the arrow key, then closed.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("185-viewer-chat", MouseButton::Left, SAVED_ROW),
@@ -247,6 +261,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // A downloaded video plays in the viewer under its controller;
         // Space pauses it.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("203-video-chat", MouseButton::Left, SAVED_ROW),
@@ -264,6 +279,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // clear around its square; a click on the round plays it in its
         // circle with the played part around the edge.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("207-inline-chat", MouseButton::Left, SAVED_ROW),
@@ -281,6 +297,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // size until downloaded); Play plays it, silently here, with the
         // time played.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("210-music-chat", MouseButton::Left, SAVED_ROW),
@@ -297,6 +314,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // View-once: Maria's photo under its fire with the "1", a timed
         // one sent, two that expired; a click opens hers alone.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![
                 ("190-once-chat", MouseButton::Left, MARIA_ROW),
@@ -312,6 +330,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // The same chat scrolled up to the expired ones.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("193-expired-chat", MouseButton::Left, MARIA_ROW)],
             drags: Vec::new(),
@@ -325,6 +344,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Video timestamps: a quarter in with a caption, most of the way
         // in without one, the line's ends following the corners.
         Scenario {
+            abilities: None,
             setup: chats::events(),
             clicks: vec![("196-timestamps-saved", MouseButton::Left, SAVED_ROW)],
             drags: Vec::new(),
@@ -338,6 +358,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // The download bar: one file loading, then a click opens its
         // message in Maria's chat.
         Scenario {
+            abilities: None,
             setup: downloading(1, (12_582_912, 50_331_648)),
             clicks: vec![("198-download-opened", MouseButton::Left, DOWNLOAD_BAR)],
             drags: Vec::new(),
@@ -351,6 +372,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Three files done: "3 files", "View in downloads", the full circle;
         // a click opens the downloads list, a date there the message.
         Scenario {
+            abilities: None,
             setup: [
                 downloading(3, (75_000_000, 75_000_000)),
                 vec![Event::Downloads(downloads::Change::Listed(listed(&notes)))],

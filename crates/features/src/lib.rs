@@ -31,7 +31,7 @@ pub mod toast;
 
 use gpui::{App, Pixels, px};
 
-pub use history::preset_voice_samples;
+pub use history::{preset_message_abilities, preset_voice_samples};
 pub use lang::Lang;
 pub use layers::Layers;
 pub use root::Root;

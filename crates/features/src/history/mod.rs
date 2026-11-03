@@ -68,6 +68,7 @@ mod voice;
 mod voice_note;
 mod waveform;
 
+pub use menu::preset_message_abilities;
 pub use voice::preset_voice_samples;
 mod web_page;
 mod who_reacted;

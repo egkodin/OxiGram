@@ -5,6 +5,7 @@
 //! cargo run -p rgram --example snapshots -- [output directory]
 
 mod chats;
+mod deletes;
 mod history;
 mod media;
 mod scenarios;
@@ -56,6 +57,9 @@ struct Scenario {
     folders: FoldersPlacement,
     /// Loaded into open chats before the window opens, as TDLib's pages.
     histories: Vec<(model::ChatId, Vec<model::message::Message>)>,
+    /// What every message allows, as TDLib would tell; none leaves menus
+    /// with only what needs no answer.
+    abilities: Option<model::message_actions::Abilities>,
 }
 
 /// Keyboard input for a step.
@@ -127,6 +131,7 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     let mut all = scenarios::scenarios();
     let night = all.pop();
     all.extend(media::scenarios());
+    all.extend(deletes::scenarios());
     all.extend(night);
     for scenario in all {
         let first = scenario.steps.first().map_or("", |(name, _)| *name);
@@ -140,7 +145,9 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             continue;
         };
         let folders = scenario.folders;
+        let abilities = scenario.abilities;
         cx.update(|cx| {
+            features::preset_message_abilities(abilities, cx);
             features::settings::set_folders_placement(folders, cx);
             // A scenario that switches it must not change the next one's Enter.
             features::settings::set_send_by(features::settings::SendBy::Enter, cx);

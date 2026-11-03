@@ -16,7 +16,7 @@ use crate::chats::{GIF_BOT, HOUR, ME, now};
 
 const MINUTE: i32 = 60;
 
-fn message(chat: i64, id: i64, from: i64, ago: i32, text: &str) -> Message {
+pub(crate) fn message(chat: i64, id: i64, from: i64, ago: i32, text: &str) -> Message {
     Message {
         is_outgoing: from == ME,
         date: now() - ago,

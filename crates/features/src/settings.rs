@@ -56,6 +56,9 @@ struct Values {
     send_by: SendBy,
     /// Emoji sent from the panel, most used first (`recentEmoji`).
     recent_emoji: crate::ranked::Ranked,
+    /// Deleting starts with "for everyone" unchecked
+    /// (`rememberedDeleteMessageOnlyForYou`).
+    delete_only_for_me: bool,
 }
 
 impl Default for Values {
@@ -69,6 +72,7 @@ impl Default for Values {
             recent_search_hashtags: Vec::new(),
             send_by: SendBy::Enter,
             recent_emoji: Vec::new(),
+            delete_only_for_me: false,
         }
     }
 }
@@ -112,6 +116,14 @@ pub(crate) fn set_night_mode(night_mode: bool, cx: &mut App) {
     change(cx, |values| values.night_mode = night_mode);
     apply_theme(night_mode, cx);
     cx.refresh_windows();
+}
+
+pub(crate) fn is_delete_only_for_me_remembered(cx: &App) -> bool {
+    values(cx).is_some_and(|values| values.delete_only_for_me)
+}
+
+pub(crate) fn remember_delete_only_for_me(only_for_me: bool, cx: &mut App) {
+    change(cx, |values| values.delete_only_for_me = only_for_me);
 }
 
 pub(crate) fn is_archive_collapsed(cx: &App) -> bool {
@@ -264,6 +276,7 @@ mod tests {
             recent_search_hashtags: vec![("rust".to_owned(), 2)],
             send_by: SendBy::CtrlEnter,
             recent_emoji: vec![("😂".to_owned(), 3)],
+            delete_only_for_me: true,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =
