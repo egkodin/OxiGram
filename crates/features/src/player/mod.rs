@@ -3,15 +3,22 @@
 //! chat shows a song while it plays, whichever chat is open.
 
 mod bar;
+mod playlist;
 mod sound;
 
+use std::path::Path;
+use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{App, AppContext as _, Context, Entity, Global, Task};
 use model::{ChatId, MessageId};
 
 pub(crate) use self::bar::bar;
+pub(crate) use self::playlist::{Playlist, Song, Step};
 pub(crate) use self::sound::Sound;
+
+/// The download priority of the song moved to, as a click's.
+const SKIP_PRIORITY: i32 = 32;
 
 /// How often the rows and the bar move while something plays.
 const TICK: Duration = Duration::from_millis(50);
@@ -32,13 +39,16 @@ pub(crate) struct Playing {
     pub message: MessageId,
     pub track: Track,
     pub sound: Sound,
+    /// The songs around it; none for a voice.
+    playlist: Option<Rc<Playlist>>,
     _ticker: Task<()>,
 }
 
-// shortcut: one track at a time, nothing follows when it ends; the playlist comes with rows 301-302.
 #[derive(Default)]
 pub(crate) struct Player {
     playing: Option<Playing>,
+    /// The song being fetched to move to.
+    skipping: Option<Task<()>>,
 }
 
 struct Shared(Entity<Player>);
@@ -93,6 +103,74 @@ impl Player {
         (chat, message): (ChatId, MessageId),
         track: Track,
         sound: Sound,
+        playlist: Option<Rc<Playlist>>,
+        cx: &mut Context<Self>,
+    ) {
+        self.skipping = None;
+        self.begin((chat, message), track, sound, playlist, cx);
+    }
+
+    /// Whether the playlist goes on a `step` from what plays.
+    pub(crate) fn can_step(&self, step: Step) -> bool {
+        self.neighbour(step).is_some()
+    }
+
+    /// Moves to the previous or next song, once it is on disk.
+    pub(crate) fn step(&mut self, step: Step, cx: &mut Context<Self>) {
+        if let Some((playlist, song)) = self.neighbour(step) {
+            self.fetch(playlist, song, cx);
+        }
+    }
+
+    fn neighbour(&self, step: Step) -> Option<(Rc<Playlist>, Song)> {
+        let playing = self.playing.as_ref()?;
+        let playlist = playing.playlist.clone()?;
+        let song = playlist.neighbour(playing.message, step)?.clone();
+        Some((playlist, song))
+    }
+
+    // shortcut: the bar keeps the old song (or hides after the last one ended) until the next is on disk; tdesktop streams it at once (row 259).
+    fn fetch(&mut self, playlist: Rc<Playlist>, song: Song, cx: &mut Context<Self>) {
+        let fetch = playlist.session.fetch_file(song.file, SKIP_PRIORITY);
+        self.skipping = Some(cx.spawn(async move |this, cx| {
+            let path = match fetch.await {
+                Ok(Some(path)) => path,
+                Ok(None) => return,
+                Err(error) => {
+                    tracing::warn!(%error, "downloading the next song failed");
+                    return;
+                }
+            };
+            let sound = match media::AudioPlayer::open(Path::new(&path), Duration::ZERO) {
+                Ok(sound) => sound,
+                Err(error) => {
+                    tracing::warn!(%error, "cannot play the next song");
+                    return;
+                }
+            };
+            let key = (playlist.chat, song.message);
+            this.update(cx, |this, cx| {
+                this.begin(key, song.track, Sound::Music(sound), Some(playlist), cx);
+            })
+            .ok();
+        }));
+    }
+
+    /// Ends what played; the next song follows it (`moveInPlaylist(1, true)`).
+    fn finish(&mut self, cx: &mut Context<Self>) {
+        let next = self.neighbour(Step::Next);
+        self.playing = None;
+        if let Some((playlist, song)) = next {
+            self.fetch(playlist, song, cx);
+        }
+    }
+
+    fn begin(
+        &mut self,
+        (chat, message): (ChatId, MessageId),
+        track: Track,
+        sound: Sound,
+        playlist: Option<Rc<Playlist>>,
         cx: &mut Context<Self>,
     ) {
         let ticker = cx.spawn(async move |this, cx| {
@@ -104,7 +182,7 @@ impl Player {
                         .as_ref()
                         .is_none_or(|playing| playing.sound.is_finished());
                     if is_over {
-                        this.playing = None;
+                        this.finish(cx);
                     }
                     cx.notify();
                     is_over
@@ -119,6 +197,7 @@ impl Player {
             message,
             track,
             sound,
+            playlist,
             _ticker: ticker,
         });
         cx.notify();
@@ -126,6 +205,7 @@ impl Player {
 
     pub(crate) fn stop(&mut self, cx: &mut Context<Self>) {
         self.playing = None;
+        self.skipping = None;
         cx.notify();
     }
 }

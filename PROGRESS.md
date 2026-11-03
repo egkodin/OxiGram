@@ -112,6 +112,10 @@
   pause, "Performer – Title", the time played, close, and the played line
   that a click seeks. The sound lives in a global player, so it keeps
   playing when another chat opens; the rows follow it. Snapshot 211.
+  Previous and next (`player/playlist.rs`): the chat's songs in message
+  order, the closed end dimmed; a song that ends starts the next one,
+  downloaded first (`Session::fetch_file`). Unit test
+  `the_next_song_is_newer_and_the_ends_stop`.
 - Crash on quit (signal 11 after the full snapshot run): `exit` destroyed
   TDLib's statics while the `tdlib-receive` thread was still inside
   `td_receive` (crash report: that thread faults in libtdjson under
@@ -141,9 +145,11 @@
   stop; when the OS quits the app, gpui waits only 200 ms, so that path
   may still crash (wake `td_receive` with a request if live test 24 shows
   it); the `history-perf` example still quits without stopping it.
-- Player bar: songs only (a voice shows none); no previous or next, no
-  playlist panel, no volume, repeat, order or speed; square play and
-  pause glyphs without the morph; nothing follows when a track ends.
+- Player bar: songs only (a voice shows none); no playlist panel, no
+  volume, repeat, order or speed; square play and pause glyphs without
+  the morph. The playlist is the songs the history had loaded when one
+  started, not the chat's shared music; the next song plays only once it
+  is fully downloaded, and the bar hides in between.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
@@ -193,8 +199,8 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- The playlist behind the player bar (rows 301-302: previous, next, the
-  panel), then speed and volume, and the bar for voices.
+- The playlist panel (row 301), then repeat, order, speed and volume
+  (row 302), and the bar for voices with their queue (row 304).
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)
@@ -302,6 +308,9 @@
     pauses and resumes it, a click on the line under it seeks; open
     another chat: the bar stays and the song keeps playing; come back:
     the row shows the time played; the cross stops it and the bar goes.
+    With two or more songs in the chat: previous and next move between
+    them (the oldest has previous dimmed, the newest next); let a song
+    end: the next newer one downloads and plays.
 24. Quit (Cmd-Q, then once with the Dock's Quit): rgram closes within a
     couple of seconds with no "quit unexpectedly" dialog and no new
     `rgram-*.ips` in ~/Library/Logs/DiagnosticReports.

@@ -1,6 +1,6 @@
 //! The bar above the chat while a song plays (`Media::Player::Widget`):
-//! play and pause, "Performer – Title", the time, close, and the played
-//! line along the bottom, which a click seeks.
+//! previous, play and pause, next, "Performer – Title", the time, close,
+//! and the played line along the bottom, which a click seeks.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -11,14 +11,15 @@ use gpui::{
     StatefulInteractiveElement as _, Styled as _, Window, canvas, div, point, px, size,
 };
 use style::media_player::{
-    MEDIA_PLAYER_CLOSE, MEDIA_PLAYER_HEIGHT, MEDIA_PLAYER_NAME, MEDIA_PLAYER_PADDING,
-    MEDIA_PLAYER_PLAY_BUTTON, MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK,
-    MEDIA_PLAYER_TIME,
+    MEDIA_PLAYER_CLOSE, MEDIA_PLAYER_HEIGHT, MEDIA_PLAYER_NAME, MEDIA_PLAYER_NEXT_BUTTON,
+    MEDIA_PLAYER_NEXT_DISABLED_ICON, MEDIA_PLAYER_PADDING, MEDIA_PLAYER_PLAY_BUTTON,
+    MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_SKIP, MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK,
+    MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_TIME,
 };
 use style::{ColorId, ColorRef};
 use ui::{IconButton, color, font, font_height};
 
-use super::{Player, Sound, Track};
+use super::{Player, Sound, Step, Track};
 use crate::px_of;
 
 /// The name's and the time's top: `mediaPlayerNameTop` is their baseline.
@@ -26,15 +27,31 @@ use crate::px_of;
 const LABEL_TOP: f32 = 22.0 - 14.0;
 
 /// The bar for the song playing; none for a voice or nothing.
-// shortcut: no previous and next (as tdesktop with nothing before or after), no volume, repeat, order or speed, no playlist panel; with rows 301-302.
+// shortcut: no volume, repeat, order or speed, no playlist panel; with rows 301-302.
 pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
-    let playing = player.read(cx).current()?;
+    let state = player.read(cx);
+    let playing = state.current()?;
     let Track::Song { performer, title } = &playing.track else {
         return None;
     };
     let sound = &playing.sound;
+    let (previous, next) = (state.can_step(Step::Previous), state.can_step(Step::Next));
+    // `handlePlaylistUpdate`: the skip buttons only while either end is open.
+    let skips = previous || next;
+    let play_width = px_of(MEDIA_PLAYER_PLAY_BUTTON.size.width);
+    let skip_width = px_of(MEDIA_PLAYER_NEXT_BUTTON.width) + px_of(MEDIA_PLAYER_PLAY_SKIP);
+    let controls = div()
+        .absolute()
+        .left(px_of(MEDIA_PLAYER_PLAY_LEFT))
+        .top(px_of(MEDIA_PLAYER_PLAY_TOP))
+        .flex()
+        .gap(px_of(MEDIA_PLAYER_PLAY_SKIP))
+        .children(skips.then(|| skip_button(player, Step::Previous, previous)))
+        .child(play_button(player, sound.is_paused(), cx))
+        .children(skips.then(|| skip_button(player, Step::Next, next)));
     let left = px_of(MEDIA_PLAYER_PLAY_LEFT)
-        + px_of(MEDIA_PLAYER_PLAY_BUTTON.size.width)
+        + play_width
+        + if skips { skip_width * 2.0 } else { px(0.0) }
         + px_of(MEDIA_PLAYER_PADDING);
     let right = px_of(MEDIA_PLAYER_CLOSE.width) + px_of(MEDIA_PLAYER_PADDING);
     let labels = div()
@@ -64,11 +81,46 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .bg(palette(cx, ColorId::MediaPlayerBg))
         .border_b_1()
         .border_color(palette(cx, ColorId::ShadowFg))
-        .child(play_button(player, sound.is_paused(), cx))
+        .child(controls)
         .child(labels)
         .child(close)
         .child(playback(player, sound.progress(), cx));
     Some(element.into_any_element())
+}
+
+/// `mediaPlayerPreviousButton` and `mediaPlayerNextButton`; the end that is
+/// closed shows its dim icon and does nothing.
+fn skip_button(player: &Entity<Player>, step: Step, is_enabled: bool) -> AnyElement {
+    let (id, style, disabled) = match step {
+        Step::Previous => (
+            "media-player-previous",
+            &MEDIA_PLAYER_PREVIOUS_BUTTON,
+            MEDIA_PLAYER_PREVIOUS_DISABLED_ICON,
+        ),
+        Step::Next => (
+            "media-player-next",
+            &MEDIA_PLAYER_NEXT_BUTTON,
+            MEDIA_PLAYER_NEXT_DISABLED_ICON,
+        ),
+    };
+    if !is_enabled {
+        return div()
+            .relative()
+            .w(px_of(style.width))
+            .h(px_of(style.height))
+            .child(
+                div()
+                    .absolute()
+                    .left(px_of(style.icon_position.x))
+                    .top(px_of(style.icon_position.y))
+                    .child(ui::icon(disabled)),
+            )
+            .into_any_element();
+    }
+    let player = player.clone();
+    IconButton::new(id, style)
+        .on_click(move |_, _, cx| player.update(cx, |player, cx| player.step(step, cx)))
+        .into_any_element()
 }
 
 fn palette(cx: &App, id: ColorId) -> Hsla {
@@ -125,9 +177,6 @@ fn play_button(player: &Entity<Player>, is_paused: bool, cx: &App) -> AnyElement
     let player = player.clone();
     div()
         .id("media-player-play")
-        .absolute()
-        .left(px_of(MEDIA_PLAYER_PLAY_LEFT))
-        .top(px_of(MEDIA_PLAYER_PLAY_TOP))
         .w(px_of(button.size.width))
         .h(px_of(button.size.height))
         .cursor_pointer()
@@ -154,15 +203,12 @@ fn play_button(player: &Entity<Player>, is_paused: bool, cx: &App) -> AnyElement
 }
 
 /// The triangle while paused, the two bars while playing, in the icon's
-/// square centered in the button.
+/// square at `iconPosition`.
 // shortcut: square corners and no morph between the two; tdesktop rounds them (`playRadius`) and animates over 200 ms.
 fn paint_play_icon(bounds: Bounds<Pixels>, is_paused: bool, fg: Hsla, window: &mut Window) {
     let icon = &MEDIA_PLAYER_PLAY_BUTTON.icon;
-    let origin = bounds.origin
-        + point(
-            (bounds.size.width - px_of(icon.size.width)) / 2.0,
-            (bounds.size.height - px_of(icon.size.height)) / 2.0,
-        );
+    let position = MEDIA_PLAYER_PLAY_BUTTON.icon_position;
+    let origin = bounds.origin + point(px_of(position.x), px_of(position.y));
     let at = |x: style::Px, y: style::Px| -> Point<Pixels> { origin + point(px_of(x), px_of(y)) };
     if is_paused {
         let (position, extent) = (icon.play_position, icon.play_size);

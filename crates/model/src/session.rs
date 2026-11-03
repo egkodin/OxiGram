@@ -211,6 +211,28 @@ impl Session {
             .map(|result| result.map(drop).map_err(RequestError))
     }
 
+    /// Downloads `file` and resolves to its path once it is on disk, at once
+    /// if it already is; `None` when the download stopped short.
+    pub fn fetch_file(
+        &self,
+        file: FileId,
+        priority: i32,
+    ) -> impl Future<Output = Result<Option<String>, RequestError>> + Send + use<> {
+        self.client
+            .request(&DownloadFile {
+                file_id: file.0,
+                priority,
+                offset: 0,
+                limit: 0,
+                synchronous: true,
+            })
+            .map(|result| {
+                result
+                    .map(|file| crate::file::File::from(file).path)
+                    .map_err(RequestError)
+            })
+    }
+
     /// Stops a download; the part already loaded stays for a later one.
     pub fn cancel_download_file(
         &self,

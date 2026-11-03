@@ -16,7 +16,19 @@ use super::file_row::{FileRow, Thumb, Title, progress};
 use super::video::duration_text;
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
-use crate::player::{Sound, Track};
+use crate::player::{Playlist, Song, Sound, Track};
+
+fn song(message: &Message) -> Option<Song> {
+    let Content::Audio { name, music, .. } = &message.content else {
+        return None;
+    };
+    let (performer, title) = music.parts(name);
+    Some(Song {
+        message: message.id,
+        file: music.file.id,
+        track: Track::Song { performer, title },
+    })
+}
 
 fn seconds(duration: std::time::Duration) -> i32 {
     i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
@@ -86,6 +98,27 @@ impl HistoryView {
         })
     }
 
+    /// The loaded songs of this chat, oldest first.
+    fn playlist(&self, cx: &Context<Self>) -> Rc<Playlist> {
+        let store = self.store.read(cx);
+        let songs = store
+            .state()
+            .history(self.key())
+            .map(|history| {
+                history
+                    .messages()
+                    .iter()
+                    .filter_map(|message| song(message))
+                    .collect()
+            })
+            .unwrap_or_default();
+        Rc::new(Playlist {
+            chat: self.chat,
+            session: store.session().clone(),
+            songs,
+        })
+    }
+
     /// Pauses or resumes the song playing, or starts `message`'s; a file
     /// FFmpeg cannot play opens in the system player.
     fn toggle_music(
@@ -101,7 +134,10 @@ impl HistoryView {
         }
         self.player.update(cx, |player, cx| player.stop(cx));
         match self.stream(path) {
-            Some(player) => self.play(message, track, Sound::Music(player), cx),
+            Some(player) => {
+                let playlist = self.playlist(cx);
+                self.play(message, (track, Some(playlist)), Sound::Music(player), cx);
+            }
             None => self.open_file(path, window, cx),
         }
     }

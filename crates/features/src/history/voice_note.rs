@@ -19,7 +19,7 @@ use super::video::duration_text;
 use super::waveform::{OnSeek, Waveform};
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
-use crate::player::{Sound, Track};
+use crate::player::{Playlist, Sound, Track};
 use crate::store::spawn;
 
 fn seconds(duration: Duration) -> i32 {
@@ -158,7 +158,7 @@ impl HistoryView {
                     // MP3 and M4A voices stream as music do.
                     .or_else(|| this.stream(&path).map(Sound::Music));
                 match player {
-                    Some(player) => this.play(message, Track::Voice, player, cx),
+                    Some(player) => this.play(message, (Track::Voice, None), player, cx),
                     None => this.open_file(&path, window, cx),
                 }
             });
@@ -184,13 +184,13 @@ impl HistoryView {
     pub(super) fn play(
         &mut self,
         message: MessageId,
-        track: Track,
+        (track, playlist): (Track, Option<Rc<Playlist>>),
         sound: Sound,
         cx: &mut Context<Self>,
     ) {
         let chat = self.chat;
         self.player.update(cx, |player, cx| {
-            player.play((chat, message), track, sound, cx)
+            player.play((chat, message), track, sound, playlist, cx)
         });
     }
 }
