@@ -115,6 +115,7 @@ impl HistoryView {
             .upload(message, cx)
             .or_else(|| self.document(message, cx))
             .or_else(|| self.voice(message, cx))
+            .or_else(|| self.music(message, cx))
         {
             return (Some(file), None);
         }

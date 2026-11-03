@@ -153,6 +153,7 @@ struct Row {
 fn named_file(content: &Content) -> Option<(&str, &File)> {
     match content {
         Content::Document { name, media } => Some((name.as_str(), media.file.as_ref()?)),
+        Content::Audio { name, music, .. } => Some((name.as_str(), &music.file)),
         Content::Photo(media) | Content::Video(media) | Content::Animation(media) => {
             Some(("", media.file.as_ref()?))
         }

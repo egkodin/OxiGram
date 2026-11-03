@@ -164,7 +164,7 @@ pub(crate) fn content<'a>(
             };
             return media(kind, file);
         }
-        Content::Audio { name, caption } => {
+        Content::Audio { name, caption, .. } => {
             if name.is_empty() {
                 typed(key::lng_in_dlg_audio_file, caption)
             } else {

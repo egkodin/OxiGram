@@ -101,6 +101,12 @@
   stickers stay muted. Automated runs call `media::silence_output()`: the
   players keep time on a clock thread and open no device (the snapshot
   harness does this). Unit tests on the silent clock.
+- Music files (`history/music.rs`): TDLib's title, performer, duration and
+  file in the model; the row names the song as tdesktop does and shows the
+  length, the transfer, or the time played; Play streams it in the
+  history's one audio slot (`history/sound.rs`: a voice or a song), and
+  voices that are not Opus stream the same way instead of opening the
+  system player. Snapshots 209-211.
 - WebM stickers loop in the history with their alpha: VP9 streams marked
   with alpha decode on libvpx (`libvpx-vp9`, as tdesktop forces), others
   keep the hardware decoder; libvpx 1.17.0 joins the minimal FFmpeg build
@@ -170,7 +176,7 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- Music files in the history, then the player bar (rows 261, 301).
+- The player bar with the playlist (row 301), then speed and volume.
 - The signal 11 when the snapshot example exits.
 - Sticker and GIF panels in the emoji panel.
 
@@ -270,6 +276,10 @@
     sent to Saved Messages): each loops in place with no box behind it,
     its edges clean over the wallpaper; scroll away and back: it starts
     again.
+22. Music, only in Saved Messages (forward a song there first): the row
+    shows "Performer – Title" and "3:45, 8.2 MB"; download it, click Play:
+    it plays aloud with "0:12 / 3:45" counting; click again to pause;
+    start a voice: the song stops. A song without tags shows its file name.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

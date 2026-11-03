@@ -230,6 +230,7 @@ pub enum Content {
         /// The file name; may be empty.
         name: String,
         caption: FormattedText,
+        music: Box<Music>,
     },
     Voice {
         caption: FormattedText,
@@ -346,9 +347,10 @@ impl Content {
                 name: name.clone(),
                 media: bare(media),
             },
-            Self::Audio { name, .. } => Self::Audio {
+            Self::Audio { name, music, .. } => Self::Audio {
                 name: name.clone(),
                 caption: FormattedText::default(),
+                music: music.clone(),
             },
             Self::Voice { note, .. } => Self::Voice {
                 caption: FormattedText::default(),
@@ -480,6 +482,38 @@ impl Service {
             MessageContent::MessageExpiredVoiceNote(_) => Self::Expired(Expired::VoiceNote),
             _ => return None,
         })
+    }
+}
+
+/// A music file's tags and the file (`audio`).
+// shortcut: no album cover; tdesktop draws it in place of the play circle (`isSongWithCover`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Music {
+    /// May be empty.
+    pub title: String,
+    /// May be empty.
+    pub performer: String,
+    /// In seconds.
+    pub duration: i32,
+    pub file: File,
+}
+
+impl Music {
+    /// "Performer – Title" as tdesktop names a song (`FormatSongName`), the
+    /// file name when it has no tags.
+    pub fn name(&self, file_name: &str) -> String {
+        const UNKNOWN: &str = "Unknown Track";
+        let title = if self.title.is_empty() {
+            UNKNOWN
+        } else {
+            &self.title
+        };
+        match (self.title.is_empty(), self.performer.is_empty()) {
+            (true, true) if file_name.is_empty() => UNKNOWN.to_owned(),
+            (true, true) => file_name.to_owned(),
+            (false, true) => self.title.clone(),
+            (_, false) => format!("{} \u{2013} {title}", self.performer),
+        }
     }
 }
 
@@ -767,6 +801,12 @@ impl From<MessageContent> for Content {
                 name: document.document.file_name,
             },
             MessageContent::MessageAudio(audio) => Self::Audio {
+                music: Box::new(Music {
+                    title: audio.audio.title,
+                    performer: audio.audio.performer,
+                    duration: audio.audio.duration,
+                    file: File::from(*audio.audio.audio),
+                }),
                 name: audio.audio.file_name,
                 caption: FormattedText::from(*audio.caption),
             },
@@ -864,6 +904,32 @@ impl From<MessageContent> for Content {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_song_is_named_as_tdesktop_names_it() {
+        let music = |title: &str, performer: &str| Music {
+            title: title.to_owned(),
+            performer: performer.to_owned(),
+            duration: 0,
+            file: File {
+                id: crate::FileId(1),
+                path: None,
+                is_downloading: false,
+                downloaded: 0,
+                size: 0,
+                uploaded: 0,
+                is_uploading: false,
+            },
+        };
+        assert_eq!(music("Song", "Band").name("a.mp3"), "Band \u{2013} Song");
+        assert_eq!(music("Song", "").name("a.mp3"), "Song");
+        assert_eq!(
+            music("", "Band").name("a.mp3"),
+            "Band \u{2013} Unknown Track"
+        );
+        assert_eq!(music("", "").name("a.mp3"), "a.mp3");
+        assert_eq!(music("", "").name(""), "Unknown Track");
+    }
 
     #[test]
     fn waveforms_unpack_five_bits_each() {

@@ -15,7 +15,8 @@ use model::downloads::{self, Download, Totals};
 use model::file::{Dimensions, File, Minithumbnail};
 use model::location::Point;
 use model::message::{
-    Content, Expired, Media, Message, SelfDestruct, Sender, Service, SharedContact, VoiceNote,
+    Content, Expired, Media, Message, Music, SelfDestruct, Sender, Service, SharedContact,
+    VoiceNote,
 };
 use model::poll::{Poll, PollKind, PollOption};
 use model::sticker::{StickerKind, StickerPicture};
@@ -46,6 +47,8 @@ const PLAYABLE_VIDEO: (f32, f32) = (550.0, 300.0);
 const PLAYABLE_ROUND: (f32, f32) = (664.0, 192.0);
 /// A one-second 64x36 H.264 clip (`media`'s test fixture).
 const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/clip.mp4");
+/// The first song's play circle in Saved Messages.
+const FIRST_SONG: (f32, f32) = (550.0, 445.0);
 /// A WebM sticker's clip: VP9 with alpha, clear but for a red square.
 const ALPHA_CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/alpha.webm");
 /// An 8 s square clip, long enough to still play when the harness draws.
@@ -273,6 +276,23 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), inline_videos(&photo))],
             steps: vec![("206-inline-list", auth(State::Ready))],
+        },
+        // Songs: "Performer – Title" or the file name, the length (and
+        // size until downloaded); Play plays it, silently here, with the
+        // time played.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("210-music-chat", MouseButton::Left, SAVED_ROW),
+                ("211-music-playing", MouseButton::Left, FIRST_SONG),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), songs())],
+            steps: vec![("209-music-list", auth(State::Ready))],
         },
         // View-once: Maria's photo under its fire with the "1", a timed
         // one sent, two that expired; a click opens hers alone.
@@ -886,6 +906,41 @@ fn playable(still: &Path) -> Vec<Message> {
         [file(1201, Some(still)), file(1202, Some(Path::new(CLIP)))],
     );
     vec![message]
+}
+
+/// A tagged song on disk and an untagged one on the server.
+fn songs() -> Vec<Message> {
+    let song = |id: i64, name: &str, (title, performer): (&str, &str), duration, music| {
+        saved(
+            id,
+            3 * HOUR - i32::try_from(id).unwrap_or(0) * HOUR,
+            Content::Audio {
+                name: name.to_owned(),
+                caption: FormattedText::default(),
+                music: Box::new(Music {
+                    title: title.to_owned(),
+                    performer: performer.to_owned(),
+                    duration,
+                    file: music,
+                }),
+            },
+        )
+    };
+    let remote = File {
+        size: 8_600_000,
+        ..file(1222, None)
+    };
+    vec![
+        // The round clip's 8 s sound track: still playing when the harness draws.
+        song(
+            1,
+            "morning-tone.m4a",
+            ("Morning Tone", "The Fixtures"),
+            8,
+            file(1221, Some(Path::new(ROUND_CLIP))),
+        ),
+        song(2, "field-recording.mp3", ("", ""), 225, remote),
+    ]
 }
 
 /// A GIF and a round video in Saved Messages, both on disk.

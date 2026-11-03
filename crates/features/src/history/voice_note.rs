@@ -15,6 +15,7 @@ use model::message::{Content, Message};
 use super::HistoryView;
 use super::documents::{CLICKED_PRIORITY, current};
 use super::file_row::{FileRow, Thumb, Title, progress};
+use super::sound::Sound;
 use super::video::duration_text;
 use super::waveform::{OnSeek, Waveform};
 use crate::file_sizes::{progress_text, size_text};
@@ -27,8 +28,8 @@ const TICK: Duration = Duration::from_millis(50);
 /// The voice playing in this history.
 // shortcut: playback stops with the history and the next voice does not follow; with the player bar (rows 301, 304).
 pub(super) struct Playing {
-    message: MessageId,
-    player: media::Player,
+    pub message: MessageId,
+    pub player: Sound,
     _ticker: Task<()>,
 }
 
@@ -148,13 +149,7 @@ impl HistoryView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(playing) = self.playing.as_ref().filter(|p| p.message == message) {
-            if playing.player.is_paused() {
-                playing.player.resume();
-            } else {
-                playing.player.pause();
-            }
-            cx.notify();
+        if self.toggle_playing(message, cx) {
             return;
         }
         self.playing = None;
@@ -166,16 +161,18 @@ impl HistoryView {
             let decoded = decoding.await;
             let _ = this.update_in(cx, |this, window, cx| {
                 let player = decoded
-                    .inspect_err(|error| tracing::warn!(%error, "decoding a voice failed"))
+                    .inspect_err(|error| tracing::debug!(%error, "not an Opus voice"))
                     .ok()
                     .and_then(|decoded| {
                         media::Player::start(&decoded)
                             .inspect_err(|error| tracing::warn!(%error, "no audio output"))
                             .ok()
-                    });
+                    })
+                    .map(Sound::Voice)
+                    // MP3 and M4A voices stream as music do.
+                    .or_else(|| this.stream(&path).map(Sound::Music));
                 match player {
                     Some(player) => this.play(message, player, cx),
-                    // MP3 and M4A voices, or no output: the system player takes them.
                     None => this.open_file(&path, window, cx),
                 }
             });
@@ -183,7 +180,29 @@ impl HistoryView {
         .detach();
     }
 
-    fn play(&mut self, message: MessageId, player: media::Player, cx: &mut Context<Self>) {
+    /// Pauses or resumes `message`'s sound; false when it does not play.
+    pub(super) fn toggle_playing(&mut self, message: MessageId, cx: &mut Context<Self>) -> bool {
+        let Some(playing) = self.playing.as_ref().filter(|p| p.message == message) else {
+            return false;
+        };
+        if playing.player.is_paused() {
+            playing.player.resume();
+        } else {
+            playing.player.pause();
+        }
+        cx.notify();
+        true
+    }
+
+    /// `path`'s sound, streamed from its start.
+    pub(super) fn stream(&self, path: &std::path::Path) -> Option<media::AudioPlayer> {
+        media::AudioPlayer::open(path, Duration::ZERO)
+            .inspect_err(|error| tracing::warn!(%error, "cannot play the file"))
+            .ok()
+    }
+
+    /// Plays `player` in the history's audio slot, stopping what played.
+    pub(super) fn play(&mut self, message: MessageId, player: Sound, cx: &mut Context<Self>) {
         let ticker = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(TICK).await;

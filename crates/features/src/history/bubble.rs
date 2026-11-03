@@ -636,7 +636,7 @@ pub(super) fn caption(message: &Message) -> Option<&FormattedText> {
         | Content::Video(media)
         | Content::Animation(media)
         | Content::Document { media, .. } => Some(&media.caption),
-        Content::Voice { caption, .. } => Some(caption),
+        Content::Voice { caption, .. } | Content::Audio { caption, .. } => Some(caption),
         _ => None,
     }
 }
