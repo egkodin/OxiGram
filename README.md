@@ -41,8 +41,17 @@ cargo run -p rgram
 cargo test --workspace
 ```
 
+On macOS the build needs Xcode's Metal Toolchain (`scripts/check-metal.sh`
+checks it; install it with `xcodebuild -downloadComponent MetalToolchain`).
 `cargo run` and `cargo test` find `libtdjson` on their own. `RGRAM_LOG` sets the
 log filter (default `info`), for example `RGRAM_LOG=tg=debug`.
+
+On macOS, `bash scripts/build-macos-app.sh` builds `target/rgram.app`. First
+build TDLib and the static FFmpeg with `scripts/build-ffmpeg.sh`. The app reads
+credentials from this checkout's `.env`, or from the `rgram.api_id` and
+`rgram.api_hash` Keychain entries described in `scripts/run-live.sh`. It does
+not contain credentials. Move an existing app out of `target` before rebuilding.
+The app is locally ad-hoc signed, not notarized for distribution.
 
 `tools/style-gen` regenerates `crates/style` from the Telegram Desktop checkout
 next to this repository (or the path given as its argument):
