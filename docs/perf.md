@@ -229,3 +229,8 @@ check on the live run: frame times while scrolling the panel quickly.
   condition variable while full; the output callback only `try_lock`s the
   buffer and plays silence for that callback when the decoder holds it,
   so it never waits on the decoder.
+- Player bar (`player/`): while a voice or a song plays, the player
+  notifies every 50 ms, which redraws the window (the bar, the time and
+  the playing row), as the history's own ticker did before; paused or
+  stopped, it notifies nothing. Not measured yet: CPU while a song plays
+  in the background of an idle window (live test 23).

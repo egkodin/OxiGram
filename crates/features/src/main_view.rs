@@ -4,8 +4,9 @@
 use std::rc::Rc;
 
 use gpui::{
-    App, AppContext as _, Context, DragMoveEvent, Entity, FocusHandle, Focusable, IntoElement,
-    KeyBinding, ParentElement, Render, Styled, Subscription, Window, actions, div, prelude::*, px,
+    AnyElement, App, AppContext as _, Context, DragMoveEvent, Entity, FocusHandle, Focusable,
+    IntoElement, KeyBinding, ParentElement, Render, Styled, Subscription, Window, actions, div,
+    prelude::*, px,
 };
 use i18n::key;
 use model::auth;
@@ -33,6 +34,7 @@ use crate::history::{HistoryEvent, HistoryView, Placement};
 use crate::lang::tr;
 use crate::links;
 use crate::main_menu::{MainMenu, MenuAction};
+use crate::player::Player;
 use crate::settings;
 use crate::{Layers, Store, px_of};
 use model::thread::Thread;
@@ -61,7 +63,9 @@ pub struct MainView {
     /// The downloads section, shown in place of the chat.
     downloads: Option<(Entity<DownloadsView>, Subscription)>,
     focus: FocusHandle,
-    _subscriptions: [Subscription; 6],
+    /// The sound playing, whose bar tops the chat column.
+    player: Entity<Player>,
+    _subscriptions: [Subscription; 7],
     _history_subscription: Option<Subscription>,
 }
 
@@ -114,6 +118,8 @@ impl MainView {
                 this.open_message(*chat, *message, window, cx);
             },
         );
+        let player = Player::global(cx);
+        let observe_player = cx.observe(&player, |_, _, cx| cx.notify());
         let open_downloads =
             cx.subscribe_in(&dialogs, window, |this, _, OpenDownloads, window, cx| {
                 this.show_downloads(window, cx);
@@ -127,6 +133,7 @@ impl MainView {
             parents: Vec::new(),
             downloads: None,
             focus,
+            player,
             _subscriptions: [
                 subscription,
                 observe_dialogs,
@@ -134,6 +141,7 @@ impl MainView {
                 open,
                 open_message,
                 open_downloads,
+                observe_player,
             ],
             _history_subscription: None,
         }
@@ -529,6 +537,21 @@ impl Focusable for MainView {
     }
 }
 
+impl MainView {
+    /// The section under the player's bar (`getMainSectionTop`).
+    fn with_player(&self, section: AnyElement, cx: &App) -> AnyElement {
+        div()
+            .flex_1()
+            .min_w_0()
+            .h_full()
+            .flex()
+            .flex_col()
+            .children(crate::player::bar(&self.player, cx))
+            .child(div().flex_1().min_h_0().flex().child(section))
+            .into_any_element()
+    }
+}
+
 impl Render for MainView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let folders = if is_sidebar_shown(&self.store.read(cx).state().chats, window, cx) {
@@ -572,13 +595,12 @@ impl Render for MainView {
         if layout == columns::Layout::OneColumn {
             // One column shows the open chat in place of the list.
             self.set_history_placement(Placement::Alone, cx);
-            if let Some((downloads, _)) = &self.downloads {
-                return root.child(downloads.clone());
-            }
-            return match &self.history {
-                Some(history) => root.child(history.clone()),
-                None => root.child(columns),
+            let content = match (&self.downloads, &self.history) {
+                (Some((downloads, _)), _) => downloads.clone().into_any_element(),
+                (None, Some(history)) => history.clone().into_any_element(),
+                (None, None) => columns.into_any_element(),
             };
+            return root.child(self.with_player(content, cx));
         }
         self.set_history_placement(Placement::BesideList, cx);
         let handle_width = px_of(HISTORY_RESIZE_WIDTH);
@@ -598,21 +620,14 @@ impl Render for MainView {
                         .h_full()
                         .bg(color(cx, ColorRef::Palette(ColorId::ShadowFg))),
                 )
-                .child(match (&self.downloads, &self.history) {
-                    (Some((downloads, _)), _) => div()
-                        .flex_1()
-                        .min_w_0()
-                        .h_full()
-                        .child(downloads.clone())
-                        .into_any_element(),
-                    (None, Some(history)) => div()
-                        .flex_1()
-                        .min_w_0()
-                        .h_full()
-                        .child(history.clone())
-                        .into_any_element(),
-                    (None, None) => Self::empty_history(cx).into_any_element(),
-                })
+                .child(self.with_player(
+                    match (&self.downloads, &self.history) {
+                        (Some((downloads, _)), _) => downloads.clone().into_any_element(),
+                        (None, Some(history)) => history.clone().into_any_element(),
+                        (None, None) => Self::empty_history(cx).into_any_element(),
+                    },
+                    cx,
+                ))
                 .child(
                     div()
                         .id("column-resize")

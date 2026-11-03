@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 use std::time::Duration;
 
-use gpui::{Context, Task, Window};
+use gpui::{Context, Window};
 use i18n::key;
 use model::MessageId;
 use model::message::{Content, Message};
@@ -15,23 +15,12 @@ use model::message::{Content, Message};
 use super::HistoryView;
 use super::documents::{CLICKED_PRIORITY, current};
 use super::file_row::{FileRow, Thumb, Title, progress};
-use super::sound::Sound;
 use super::video::duration_text;
 use super::waveform::{OnSeek, Waveform};
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
+use crate::player::{Sound, Track};
 use crate::store::spawn;
-
-/// How often the waveform and the time move while playing.
-const TICK: Duration = Duration::from_millis(50);
-
-/// The voice playing in this history.
-// shortcut: playback stops with the history and the next voice does not follow; with the player bar (rows 301, 304).
-pub(super) struct Playing {
-    pub message: MessageId,
-    pub player: Sound,
-    _ticker: Task<()>,
-}
 
 fn seconds(duration: Duration) -> i32 {
     i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
@@ -44,13 +33,10 @@ impl HistoryView {
             return None;
         };
         let file = current(self, &note.file, cx);
-        let playing = self
-            .playing
-            .as_ref()
-            .filter(|playing| playing.message == message.id);
+        let playing = self.player.read(cx).sound_of(self.chat, message.id);
         let length = duration_text(note.duration);
         let (thumb, status) = match (&file.path, file.is_downloading, playing) {
-            (Some(_), _, Some(Playing { player, .. })) => (
+            (Some(_), _, Some(player)) => (
                 if player.is_paused() {
                     Thumb::Play
                 } else {
@@ -81,7 +67,7 @@ impl HistoryView {
         };
         let is_unheard = !message.is_outgoing && !note.is_listened;
         let shown = match playing {
-            Some(playing) => playing.player.progress(),
+            Some(player) => player.progress(),
             // An incoming voice nobody played shows in the played color.
             None if is_unheard => 1.0,
             None => 0.0,
@@ -91,8 +77,8 @@ impl HistoryView {
             let weak = weak.clone();
             Rc::new(move |share, _, cx| {
                 let _ = weak.update(cx, |this, cx| {
-                    if let Some(playing) = &this.playing {
-                        playing.player.seek(share);
+                    if let Some(playing) = this.player.read(cx).current() {
+                        playing.sound.seek(share);
                     }
                     cx.notify();
                 });
@@ -152,7 +138,7 @@ impl HistoryView {
         if self.toggle_playing(message, cx) {
             return;
         }
-        self.playing = None;
+        self.player.update(cx, |player, cx| player.stop(cx));
         let decoding = cx.background_executor().spawn({
             let path = path.clone();
             async move { media::decode(&path) }
@@ -172,7 +158,7 @@ impl HistoryView {
                     // MP3 and M4A voices stream as music do.
                     .or_else(|| this.stream(&path).map(Sound::Music));
                 match player {
-                    Some(player) => this.play(message, player, cx),
+                    Some(player) => this.play(message, Track::Voice, player, cx),
                     None => this.open_file(&path, window, cx),
                 }
             });
@@ -182,16 +168,9 @@ impl HistoryView {
 
     /// Pauses or resumes `message`'s sound; false when it does not play.
     pub(super) fn toggle_playing(&mut self, message: MessageId, cx: &mut Context<Self>) -> bool {
-        let Some(playing) = self.playing.as_ref().filter(|p| p.message == message) else {
-            return false;
-        };
-        if playing.player.is_paused() {
-            playing.player.resume();
-        } else {
-            playing.player.pause();
-        }
-        cx.notify();
-        true
+        let chat = self.chat;
+        self.player
+            .update(cx, |player, cx| player.toggle(chat, message, cx))
     }
 
     /// `path`'s sound, streamed from its start.
@@ -201,32 +180,17 @@ impl HistoryView {
             .ok()
     }
 
-    /// Plays `player` in the history's audio slot, stopping what played.
-    pub(super) fn play(&mut self, message: MessageId, player: Sound, cx: &mut Context<Self>) {
-        let ticker = cx.spawn(async move |this, cx| {
-            loop {
-                cx.background_executor().timer(TICK).await;
-                let is_over = this.update(cx, |this, cx| {
-                    let is_over = this
-                        .playing
-                        .as_ref()
-                        .is_none_or(|playing| playing.player.is_finished());
-                    if is_over {
-                        this.playing = None;
-                    }
-                    cx.notify();
-                    is_over
-                });
-                if is_over.unwrap_or(true) {
-                    break;
-                }
-            }
+    /// Plays `sound` in the app's player, stopping what played.
+    pub(super) fn play(
+        &mut self,
+        message: MessageId,
+        track: Track,
+        sound: Sound,
+        cx: &mut Context<Self>,
+    ) {
+        let chat = self.chat;
+        self.player.update(cx, |player, cx| {
+            player.play((chat, message), track, sound, cx)
         });
-        self.playing = Some(Playing {
-            message,
-            player,
-            _ticker: ticker,
-        });
-        cx.notify();
     }
 }

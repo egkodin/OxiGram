@@ -85,7 +85,7 @@ fn seconds(duration: Duration) -> i32 {
 }
 
 /// "0:07", "12:30", "1:02:03" (`FormatDurationText`).
-pub(super) fn duration_text(seconds: i32) -> String {
+pub(crate) fn duration_text(seconds: i32) -> String {
     let (hours, minutes, seconds) = (seconds / 3600, seconds / 60 % 60, seconds % 60);
     if hours > 0 {
         format!("{hours}:{minutes:02}:{seconds:02}")

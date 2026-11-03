@@ -502,18 +502,21 @@ impl Music {
     /// "Performer – Title" as tdesktop names a song (`FormatSongName`), the
     /// file name when it has no tags.
     pub fn name(&self, file_name: &str) -> String {
-        const UNKNOWN: &str = "Unknown Track";
-        let title = if self.title.is_empty() {
-            UNKNOWN
-        } else {
-            &self.title
-        };
-        match (self.title.is_empty(), self.performer.is_empty()) {
-            (true, true) if file_name.is_empty() => UNKNOWN.to_owned(),
-            (true, true) => file_name.to_owned(),
-            (false, true) => self.title.clone(),
-            (_, false) => format!("{} \u{2013} {title}", self.performer),
+        match self.parts(file_name) {
+            (performer, title) if performer.is_empty() => title,
+            (performer, title) => format!("{performer} \u{2013} {title}"),
         }
+    }
+
+    /// The performer, maybe empty, and the title (`ComputeComposedName`).
+    pub fn parts(&self, file_name: &str) -> (String, String) {
+        const UNKNOWN: &str = "Unknown Track";
+        let title = match (self.title.is_empty(), self.performer.is_empty()) {
+            (true, true) if !file_name.is_empty() => file_name,
+            (true, _) => UNKNOWN,
+            (false, _) => &self.title,
+        };
+        (self.performer.clone(), title.to_owned())
     }
 }
 

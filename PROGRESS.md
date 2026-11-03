@@ -104,9 +104,14 @@
 - Music files (`history/music.rs`): TDLib's title, performer, duration and
   file in the model; the row names the song as tdesktop does and shows the
   length, the transfer, or the time played; Play streams it in the
-  history's one audio slot (`history/sound.rs`: a voice or a song), and
-  voices that are not Opus stream the same way instead of opening the
-  system player. Snapshots 209-211.
+  app's one player (`player/`: a voice or a song), and voices that are
+  not Opus stream the same way instead of opening the system player.
+  Snapshots 209-211.
+- Player bar (`player/bar.rs`, `Media::Player::Widget`): while a song
+  plays, a bar tops the chat column (or the one column) with play and
+  pause, "Performer – Title", the time played, close, and the played line
+  that a click seeks. The sound lives in a global player, so it keeps
+  playing when another chat opens; the rows follow it. Snapshot 211.
 - WebM stickers loop in the history with their alpha: VP9 streams marked
   with alpha decode on libvpx (`libvpx-vp9`, as tdesktop forces), others
   keep the hardware decoder; libvpx 1.17.0 joins the minimal FFmpeg build
@@ -125,8 +130,10 @@
   windows do not shrink it.
 - Albums of files or music show as separate messages; the mosaic keeps
   430 px in a narrow history; a late part does not re-measure the row.
-- Voice speed has no button until the player bar; speed shifts the pitch;
-  playback stops with the chat; no drag to seek.
+- Voice speed has no button; speed shifts the pitch; no drag to seek.
+- Player bar: songs only (a voice shows none); no previous or next, no
+  playlist panel, no volume, repeat, order or speed; square play and
+  pause glyphs without the morph; nothing follows when a track ends.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
@@ -176,7 +183,8 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- The player bar with the playlist (row 301), then speed and volume.
+- The playlist behind the player bar (rows 301-302: previous, next, the
+  panel), then speed and volume, and the bar for voices.
 - The signal 11 when the snapshot example exits.
 - Sticker and GIF panels in the emoji panel.
 
@@ -280,6 +288,11 @@
     shows "Performer – Title" and "3:45, 8.2 MB"; download it, click Play:
     it plays aloud with "0:12 / 3:45" counting; click again to pause;
     start a voice: the song stops. A song without tags shows its file name.
+23. Player bar, only in Saved Messages: play a song: a bar shows above the
+    chat with "Performer – Title" and the time counting; its button
+    pauses and resumes it, a click on the line under it seeks; open
+    another chat: the bar stays and the song keeps playing; come back:
+    the row shows the time played; the cross stops it and the bar goes.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

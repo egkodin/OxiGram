@@ -51,7 +51,6 @@ mod selection;
 mod send_files_box;
 mod send_menu;
 mod service;
-mod sound;
 mod special;
 mod spoiler;
 mod sponsored;
@@ -77,6 +76,7 @@ mod write_bars;
 pub(crate) use self::headers::Replied;
 pub(crate) use self::service::text as service_text;
 pub(crate) use self::text::Link;
+pub(crate) use self::video::duration_text;
 
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -149,7 +149,7 @@ pub(crate) struct HistoryView {
     requested_files: HashSet<FileId>,
     maps: location::Maps,
     poll_picks: poll::Picks,
-    playing: Option<voice_note::Playing>,
+    player: Entity<crate::player::Player>,
     inline: inline_video::Inline,
     /// Messages whose spoilers the user clicked open.
     revealed_spoilers: HashSet<MessageId>,
@@ -189,6 +189,7 @@ pub(crate) struct HistoryView {
     voice: voice::Voice,
     focus: FocusHandle,
     _subscription: Subscription,
+    _player_subscription: Subscription,
 }
 
 impl std::fmt::Debug for HistoryView {
@@ -230,6 +231,8 @@ impl HistoryView {
             this.sync_draft(cx);
             this.take_forwarding(cx);
         });
+        let player = crate::player::Player::global(cx);
+        let player_subscription = cx.observe(&player, |_, _, cx| cx.notify());
         let list = ListState::new(0, ListAlignment::Bottom, px(OVERDRAW));
         let weak = cx.weak_entity();
         list.set_scroll_handler(move |_, _, cx| {
@@ -260,7 +263,7 @@ impl HistoryView {
             requested_files: HashSet::new(),
             maps: location::Maps::default(),
             poll_picks: poll::Picks::default(),
-            playing: None,
+            player,
             inline: inline_video::Inline::default(),
             revealed_spoilers: HashSet::new(),
             requested_references: HashSet::new(),
@@ -288,6 +291,7 @@ impl HistoryView {
             voice: voice::Voice::default(),
             focus,
             _subscription: subscription,
+            _player_subscription: player_subscription,
         };
         // shortcut: threads open at their newest reply, not the first unread; with the thread's read state (M4).
         let page = match key.topic {
