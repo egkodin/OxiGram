@@ -1,10 +1,12 @@
-//! The media viewer (`Media::View::OverlayWidget`): a chat's photo over the
-//! whole window, paging through the photos loaded around it, with the
-//! sender, the date and the caption, zoomed and dragged at will.
+//! The media viewer (`Media::View::OverlayWidget`): a chat's photo or video
+//! over the whole window, paging through the ones loaded around it, with
+//! the sender, the date and the caption; photos zoom and drag at will,
+//! videos play with the controller under them (`media_video`).
 
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::time::Duration;
 
 use chrono::{DateTime, Days, Local};
 
@@ -22,9 +24,9 @@ use model::{FileId, MessageId};
 use style::basic::{NORMAL_FONT, SEMIBOLD_FONT};
 use style::media_view::{
     MEDIAVIEW_CAPTION_MARGIN, MEDIAVIEW_CAPTION_PADDING, MEDIAVIEW_CAPTION_RADIUS,
-    MEDIAVIEW_CONTROL_SIZE, MEDIAVIEW_HEADER_TOP, MEDIAVIEW_ICON_OVER, MEDIAVIEW_ICON_SIZE,
-    MEDIAVIEW_LEFT, MEDIAVIEW_RIGHT, MEDIAVIEW_SAVE, MEDIAVIEW_TEXT_LEFT, MEDIAVIEW_TEXT_SKIP_HALF,
-    MEDIAVIEW_TEXT_TOP,
+    MEDIAVIEW_CONTROL_SIZE, MEDIAVIEW_CONTROLLER_SIZE, MEDIAVIEW_HEADER_TOP, MEDIAVIEW_ICON_OVER,
+    MEDIAVIEW_ICON_SIZE, MEDIAVIEW_LEFT, MEDIAVIEW_RIGHT, MEDIAVIEW_SAVE, MEDIAVIEW_TEXT_LEFT,
+    MEDIAVIEW_TEXT_SKIP_HALF, MEDIAVIEW_TEXT_TOP,
 };
 use style::{ColorId, ColorRef, Font};
 use ui::{color, font, font_height, icon};
@@ -32,13 +34,17 @@ use ui::{color, font, font_height, icon};
 use super::HistoryView;
 use super::bubble::OnClick;
 use super::layout;
+use super::media_video::VideoPlayback;
 use super::menu::Item;
 use crate::lang::{strings, tr_with};
 use crate::peer_menu::send;
 use crate::px_of;
 use crate::store::Store;
 
-actions!(media_view, [Previous, Next, ZoomIn, ZoomOut, ZoomReset]);
+actions!(
+    media_view,
+    [Previous, Next, ZoomIn, ZoomOut, ZoomReset, PlayPause]
+);
 
 const CONTEXT: &str = "MediaView";
 /// `kMaxZoomLevel`: eight times either way.
@@ -58,13 +64,29 @@ pub(crate) fn bind_keys(cx: &mut App) {
         KeyBinding::new(zoom_in, ZoomIn, Some(CONTEXT)),
         KeyBinding::new(zoom_out, ZoomOut, Some(CONTEXT)),
         KeyBinding::new(reset, ZoomReset, Some(CONTEXT)),
+        KeyBinding::new("space", PlayPause, Some(CONTEXT)),
     ]);
 }
 
-/// One photo the viewer pages through.
+/// What an entry shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Kind {
+    Photo,
+    /// Plays from `start` (a link's or forward's start time).
+    Video {
+        start: Duration,
+        duration: Duration,
+    },
+}
+
+/// One photo or video the viewer pages through.
 pub(super) struct Entry {
     pub message: MessageId,
+    pub kind: Kind,
+    /// The photo, or the video file itself.
     pub file: Option<File>,
+    /// A video's still until it plays.
+    pub still: Option<File>,
     pub dimensions: Option<Dimensions>,
     pub caption: String,
     /// "Maria Garcia", or nothing in a channel without signatures.
@@ -76,14 +98,24 @@ pub(super) struct Entry {
 }
 
 impl Entry {
-    /// The entry for a photo message.
+    /// The entry for a photo or video message.
     pub(super) fn of(message: &Message, sender: String, date: String) -> Option<Self> {
-        let Content::Photo(media) = &message.content else {
-            return None;
+        let (media, kind) = match &message.content {
+            Content::Photo(media) => (media, Kind::Photo),
+            Content::Video(media) => (
+                media,
+                Kind::Video {
+                    start: Duration::from_secs(u64::try_from(media.start_timestamp).unwrap_or(0)),
+                    duration: Duration::from_secs(u64::try_from(media.duration).unwrap_or(0)),
+                },
+            ),
+            _ => return None,
         };
         Some(Self {
             message: message.id,
+            kind,
             file: media.file.clone(),
+            still: media.preview.clone(),
             dimensions: media.dimensions,
             caption: media.caption.text.clone(),
             sender,
@@ -185,6 +217,8 @@ pub(super) struct MediaView {
     /// Where the drag started, and the offset then.
     drag: Option<(Point<Pixels>, Point<Pixels>)>,
     requested: HashSet<FileId>,
+    /// The video on screen once its file is on disk.
+    playback: Option<Entity<VideoPlayback>>,
     focus: FocusHandle,
     _store: Subscription,
 }
@@ -213,6 +247,7 @@ impl MediaView {
             offset: Point::default(),
             drag: None,
             requested: HashSet::new(),
+            playback: None,
             focus: cx.focus_handle(),
             _store: subscription,
         };
@@ -228,6 +263,7 @@ impl MediaView {
         self.index = index;
         self.zoom = Zoom::Default;
         self.offset = Point::default();
+        self.playback = None;
         if let Some(file) = entry
             .file
             .as_ref()
@@ -260,12 +296,58 @@ impl MediaView {
         }
     }
 
-    /// The photo's path once on disk.
+    /// The photo's path once on disk, or a video's still.
     fn source(&self, cx: &App) -> Option<ImageSource> {
-        let file = self.entries.get(self.index)?.file.as_ref()?;
+        let entry = self.entries.get(self.index)?;
+        let file = match entry.kind {
+            Kind::Photo => entry.file.as_ref()?,
+            Kind::Video { .. } => entry.still.as_ref()?,
+        };
+        Some(ImageSource::from(self.path(file, cx)?))
+    }
+
+    fn path(&self, file: &File, cx: &App) -> Option<PathBuf> {
         let chats = &self.store.read(cx).state().chats;
-        let path = chats.file(file.id).unwrap_or(file).path.clone()?;
-        Some(ImageSource::from(PathBuf::from(path)))
+        chats
+            .file(file.id)
+            .unwrap_or(file)
+            .path
+            .clone()
+            .map(PathBuf::from)
+    }
+
+    /// The video's playback, started once its file is on disk, decoding
+    /// frames no bigger than `size` in window pixels.
+    fn playback(
+        &mut self,
+        size: (f32, f32),
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> Option<Entity<VideoPlayback>> {
+        if self.playback.is_none() {
+            let entry = self.entries.get(self.index)?;
+            let Kind::Video { start, duration } = entry.kind else {
+                return None;
+            };
+            let path = self.path(entry.file.as_ref()?, cx)?;
+            let scale = window.scale_factor();
+            #[expect(
+                clippy::cast_possible_truncation,
+                clippy::cast_sign_loss,
+                reason = "a positive size in pixels"
+            )]
+            let pixels = |side: f32| (side * scale).ceil().max(1.0) as u32;
+            let frames = (pixels(size.0), pixels(size.1));
+            self.playback =
+                Some(cx.new(|cx| VideoPlayback::new(&path, start, frames, duration, cx)));
+        }
+        self.playback.clone()
+    }
+
+    fn play_pause(&mut self, cx: &mut Context<Self>) {
+        if let Some(playback) = &self.playback {
+            playback.update(cx, |playback, cx| playback.toggle(cx));
+        }
     }
 
     /// The photo's size, a point per pixel as tdesktop shows it, and the
@@ -302,6 +384,15 @@ impl MediaView {
 impl Render for MediaView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let viewport = window.viewport_size();
+        let video_box = self.size(window).map(|(size, full)| {
+            let scale = scale(match self.zoom.resolve(full) {
+                #[expect(clippy::cast_precision_loss, reason = "zoom levels are small")]
+                Zoom::Level(level) => level as f32,
+                Zoom::Default | Zoom::Fit => full,
+            });
+            (size.0 * scale, size.1 * scale)
+        });
+        let playback = video_box.and_then(|size| self.playback(size, window, cx));
         let photo = self.size(window).map(|(size, full)| {
             let level = match self.zoom.resolve(full) {
                 #[expect(clippy::cast_precision_loss, reason = "zoom levels are small")]
@@ -326,8 +417,28 @@ impl Render for MediaView {
                     }),
                 )
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                .children(self.source(cx).map(|source| img(source).size_full()))
+                .children(match &playback {
+                    Some(playback) => Some(playback.clone().into_any_element()),
+                    None => self
+                        .source(cx)
+                        .map(|source| img(source).size_full().into_any_element()),
+                })
         });
+        let controller = playback.as_ref().map(|playback| {
+            div()
+                .absolute()
+                .left(px_of(MEDIAVIEW_CAPTION_PADDING.bottom))
+                .right(px_of(MEDIAVIEW_CAPTION_PADDING.bottom))
+                .bottom(px_of(MEDIAVIEW_CAPTION_PADDING.bottom))
+                .flex()
+                .justify_center()
+                .child(VideoPlayback::controller(playback, cx))
+        });
+        let caption_lift = if playback.is_some() {
+            px_of(MEDIAVIEW_CONTROLLER_SIZE.height) + px_of(MEDIAVIEW_CAPTION_PADDING.bottom)
+        } else {
+            px(0.0)
+        };
         let entry = self.entries.get(self.index);
         let fg = color(cx, ColorRef::Palette(ColorId::MediaviewControlFg));
         div()
@@ -346,6 +457,7 @@ impl Render for MediaView {
                 this.zoom(reset, window, cx);
                 this.offset = Point::default();
             }))
+            .on_action(cx.listener(|this, _: &PlayPause, _, cx| this.play_pause(cx)))
             .on_scroll(cx.listener(Self::on_scroll))
             .on_mouse_move(cx.listener(|this, event: &gpui::MouseMoveEvent, _, cx| {
                 if let Some((start, offset)) = this.drag {
@@ -369,8 +481,9 @@ impl Render for MediaView {
             .children(
                 entry
                     .filter(|entry| !entry.caption.is_empty())
-                    .map(|entry| caption(entry.caption.clone(), cx)),
+                    .map(|entry| caption(entry.caption.clone(), caption_lift, cx)),
             )
+            .children(controller)
     }
 }
 
@@ -488,13 +601,13 @@ fn save_button(message: MessageId, cx: &mut Context<MediaView>) -> impl IntoElem
 
 /// The caption over the bottom, in its rounded box (`_captionRect`).
 // shortcut: plain text without links or entities, never cut to a quarter of the height; with rich text in the viewer.
-fn caption(text: String, cx: &App) -> impl IntoElement {
+fn caption(text: String, lift: Pixels, cx: &App) -> impl IntoElement {
     let padding = MEDIAVIEW_CAPTION_PADDING;
     div()
         .absolute()
         .left_0()
         .right_0()
-        .bottom(px_of(MEDIAVIEW_CAPTION_MARGIN.height) + px_of(MEDIAVIEW_TEXT_TOP))
+        .bottom(px_of(MEDIAVIEW_CAPTION_MARGIN.height) + px_of(MEDIAVIEW_TEXT_TOP) + lift)
         .flex()
         .justify_center()
         .child(
@@ -551,13 +664,18 @@ impl HistoryView {
     pub(super) fn on_open_photo(&self, id: MessageId, cx: &Context<Self>) -> OnClick {
         let weak = cx.weak_entity();
         Rc::new(move |_, window, cx| {
-            let _ = weak.update(cx, |this, cx| this.open_photo(id, window, cx));
+            let _ = weak.update(cx, |this, cx| this.open_media(id, window, cx));
         })
     }
 
-    /// Opens the viewer on a photo, paging through the photos shown.
-    // shortcut: only the loaded messages' photos, not the chat's shared media; with the shared media search (row 292 live).
-    fn open_photo(&mut self, id: MessageId, window: &mut Window, cx: &mut Context<Self>) {
+    /// Opens the viewer on a photo or video, paging through the ones shown.
+    // shortcut: only the loaded messages' media, not the chat's shared media; with the shared media search (row 292 live).
+    pub(super) fn open_media(
+        &mut self,
+        id: MessageId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         // View-once photos open alone, never by paging.
         let entries = self.entries(|message| message.self_destruct.is_none(), cx);
         let Some(index) = entries.iter().position(|entry| entry.message == id) else {
@@ -630,6 +748,29 @@ fn reset(zoom: Zoom, full: f32) -> Zoom {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_video_entry_plays_from_its_start_time() {
+        let media = model::message::Media {
+            duration: 75,
+            start_timestamp: 12,
+            ..Default::default()
+        };
+        let message = Message::new(
+            MessageId(1),
+            model::ChatId(1),
+            model::message::Sender::User(model::UserId(1)),
+            Content::Video(media),
+        );
+        let entry = Entry::of(&message, String::new(), String::new()).expect("a video entry");
+        assert_eq!(
+            entry.kind,
+            Kind::Video {
+                start: Duration::from_secs(12),
+                duration: Duration::from_secs(75),
+            }
+        );
+    }
 
     #[test]
     fn a_big_photo_fits_and_zooms_by_whole_levels() {

@@ -79,6 +79,16 @@
   circle that resumes or cancels), the date opens the message; Escape or
   back closes it. The connecting pill moves above the bar. Snapshots
   200-201.
+- FFmpeg video decoder (`media/src/video.rs`, `hw.rs`): a thread per
+  video, VideoToolbox / VA-API / D3D11VA with the software fallback,
+  frames scaled to the size shown and queued two deep, seek to a time;
+  `media/static-ffmpeg` links the minimal build (checked here: no FFmpeg
+  or Homebrew library in the binary); CI builds it cached.
+- Videos play in the viewer (`history/media_video.rs`): Play on a
+  downloaded video opens it in the viewer, paging with the photos; it
+  plays from its start time on the wall clock under tdesktop's
+  controller (play/pause, played and left times, the seek bar that seeks
+  on click and drag); Space plays and pauses. Snapshots 202-205.
 
 ### Half done (shortcuts in code)
 
@@ -116,8 +126,12 @@
   player; no countdown ring, seconds label, viewer badge or tooltip;
   view-once voice and round messages play inline, without tdesktop's
   layer that hides the chat.
-- Video timestamps: the line's ends are cut square; playback does not
-  start there until the in-app player.
+- Video timestamps: the line's ends are cut square.
+- Video player: no sound yet (the audio step); plays only once the whole
+  file is on disk (streaming, row 259); no volume, speed, fullscreen,
+  picture-in-picture or quality; the controller never hides; GIFs and
+  round videos still open in the system player; the snapshot harness
+  draws twice, so 204 shows the clip's end under the Pause button.
 - Download bar: a still ring, no grow or fade when done, no thumbnail in
   the circle; voice notes still download outside the list; the section
   has only the newest 100, no search, delete, pause, menu or selection; the static FFmpeg
@@ -217,6 +231,13 @@
     both, newest first; click a date: the chat opens at that message;
     Escape closes the section. A minute after all are done the bar goes
     away.
+19. Video player, read only: in a chat with a video, download it, then
+    click Play: it opens in the viewer and plays (silent for now) under
+    the controller; Space pauses and resumes; click and drag on the seek
+    bar; at the end the button shows Play and a click starts again; a
+    720p or 1080p H.264 video decodes on VideoToolbox (Activity Monitor:
+    low CPU for rgram while it plays); a link with a start time starts
+    there.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

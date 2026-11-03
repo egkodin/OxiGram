@@ -40,6 +40,10 @@ const FIRST_DOWNLOAD_DATE: (f32, f32) = (420.0, 118.0);
 const ONCE_PHOTO: (f32, f32) = (517.0, 400.0);
 /// "Summit at sunrise", the middle of the three photos.
 const CAPTIONED_PHOTO: (f32, f32) = (550.0, 150.0);
+/// The play button of the downloaded video in Saved Messages.
+const PLAYABLE_VIDEO: (f32, f32) = (550.0, 300.0);
+/// A one-second 64x36 H.264 clip (`media`'s test fixture).
+const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/clip.mp4");
 
 pub(crate) fn scenarios() -> Vec<Scenario> {
     let (photo, notes) = fixture_files();
@@ -230,6 +234,22 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), photos(&photo))],
             steps: vec![("184-viewer-list", auth(State::Ready))],
+        },
+        // A downloaded video plays in the viewer under its controller;
+        // Space pauses it.
+        Scenario {
+            setup: chats::events(),
+            clicks: vec![
+                ("203-video-chat", MouseButton::Left, SAVED_ROW),
+                ("204-video-viewer", MouseButton::Left, PLAYABLE_VIDEO),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![("205-video-paused", vec![Input::Key("space")])],
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), playable(&photo))],
+            steps: vec![("202-video-list", auth(State::Ready))],
         },
         // View-once: Maria's photo under its fire with the "1", a timed
         // one sent, two that expired; a click opens hers alone.
@@ -831,6 +851,18 @@ fn video(
             None => Content::Animation(media),
         },
     )
+}
+
+/// One downloaded video in Saved Messages, the clip behind it.
+fn playable(still: &Path) -> Vec<Message> {
+    let message = video(
+        1,
+        HOUR,
+        "Sunrise from the ridge",
+        Some(1),
+        [file(1201, Some(still)), file(1202, Some(Path::new(CLIP)))],
+    );
+    vec![message]
 }
 
 fn albums(downloaded: &Path) -> Vec<Message> {

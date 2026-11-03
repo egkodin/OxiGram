@@ -207,3 +207,11 @@ check on the live run: frame times while scrolling the panel quickly.
   takes the decode off the CPU; the copy down and the swscale pass stay on
   the decoder thread. Not measured yet: CPU and RSS while a long 1080p
   video plays in the viewer (with the player).
+- Video in the viewer (`history/media_video.rs`): frames become one
+  `RenderImage` each, only for the latest frame due at a draw; the one it
+  replaces goes back to the atlas through `drop_image` on the next draw
+  (the last frame of a closed video on the next video's first draw), so
+  the atlas holds one or two frames per playing video. The view asks for
+  animation frames only while playing or waiting for a frame after a
+  seek; paused, it draws nothing. Not measured yet: CPU while a 1080p
+  video plays (live test 19).

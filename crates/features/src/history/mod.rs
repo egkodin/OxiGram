@@ -29,6 +29,7 @@ mod large_emoji;
 pub(crate) mod layout;
 mod link_menus;
 mod location;
+mod media_video;
 mod media_view;
 mod menu;
 mod photo;

@@ -130,11 +130,14 @@ impl HistoryView {
         };
         let weak = cx.weak_entity();
         let path = file.path.clone().map(PathBuf::from);
+        let is_video = matches!(message.content, Content::Video(_));
         let on_click: OnClick = Rc::new(move |_, window, cx| {
             let _ = weak.update(cx, |this, cx| match center {
                 Center::Download => this.add_to_downloads(file.id, (chat, id), cx),
                 Center::Cancel { .. } => this.cancel_download(file.id, cx),
-                // shortcut: the system player plays it; inline playback comes with the media viewer (row 292).
+                // Videos play in the viewer.
+                Center::Play if is_video => this.open_media(id, window, cx),
+                // shortcut: GIFs and round videos open in the system player until they play inline.
                 Center::Play => {
                     if let Some(path) = &path {
                         if matches!(shape, Shape::Round { is_unviewed: true }) {
