@@ -56,9 +56,13 @@ struct Values {
     send_by: SendBy,
     /// Emoji sent from the panel, most used first (`recentEmoji`).
     recent_emoji: crate::ranked::Ranked,
-    /// Deleting starts with "for everyone" unchecked
-    /// (`rememberedDeleteMessageOnlyForYou`).
-    delete_only_for_me: bool,
+    /// The accounts' data directories in the menu's order; empty is the
+    /// first account alone (`Main::Domain`'s list).
+    accounts: Vec<u32>,
+    /// The account shown at start (`activeAccount`).
+    active_account: u32,
+    /// The main menu's account list is open (`mainMenuAccountsShown`).
+    main_menu_accounts_shown: bool,
 }
 
 impl Default for Values {
@@ -72,7 +76,9 @@ impl Default for Values {
             recent_search_hashtags: Vec::new(),
             send_by: SendBy::Enter,
             recent_emoji: Vec::new(),
-            delete_only_for_me: false,
+            accounts: Vec::new(),
+            active_account: 0,
+            main_menu_accounts_shown: false,
         }
     }
 }
@@ -116,14 +122,6 @@ pub(crate) fn set_night_mode(night_mode: bool, cx: &mut App) {
     change(cx, |values| values.night_mode = night_mode);
     apply_theme(night_mode, cx);
     cx.refresh_windows();
-}
-
-pub(crate) fn is_delete_only_for_me_remembered(cx: &App) -> bool {
-    values(cx).is_some_and(|values| values.delete_only_for_me)
-}
-
-pub(crate) fn remember_delete_only_for_me(only_for_me: bool, cx: &mut App) {
-    change(cx, |values| values.delete_only_for_me = only_for_me);
 }
 
 pub(crate) fn is_archive_collapsed(cx: &App) -> bool {
@@ -215,6 +213,43 @@ pub(crate) fn set_dialogs_width_ratio(ratio: f32, cx: &mut App) {
     cx.global_mut::<Settings>().values.dialogs_width_ratio = ratio;
 }
 
+/// The accounts in the menu's order and the active one, by data directory.
+#[must_use]
+pub fn accounts(cx: &App) -> (Vec<u32>, u32) {
+    let (list, active) = values(cx).map_or((Vec::new(), 0), |values| {
+        (values.accounts.clone(), values.active_account)
+    });
+    known_accounts(list, active)
+}
+
+/// The first account alone when none are listed, and a listed active one.
+fn known_accounts(mut list: Vec<u32>, active: u32) -> (Vec<u32>, u32) {
+    if list.is_empty() {
+        list.push(0);
+    }
+    let active = if list.contains(&active) {
+        active
+    } else {
+        list[0]
+    };
+    (list, active)
+}
+
+pub(crate) fn set_accounts(list: Vec<u32>, active: u32, cx: &mut App) {
+    change(cx, |values| {
+        values.accounts = list;
+        values.active_account = active;
+    });
+}
+
+pub(crate) fn is_main_menu_accounts_shown(cx: &App) -> bool {
+    values(cx).is_some_and(|values| values.main_menu_accounts_shown)
+}
+
+pub(crate) fn set_main_menu_accounts_shown(shown: bool, cx: &mut App) {
+    change(cx, |values| values.main_menu_accounts_shown = shown);
+}
+
 /// Writes the settings as they are now.
 pub(crate) fn save_now(cx: &mut App) {
     change(cx, |_| {});
@@ -263,6 +298,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn accounts_fall_back_to_the_first_one() {
+        assert_eq!(known_accounts(Vec::new(), 3), (vec![0], 0));
+        assert_eq!(known_accounts(vec![0, 2], 2), (vec![0, 2], 2));
+        assert_eq!(known_accounts(vec![1, 2], 0), (vec![1, 2], 1));
+    }
+
+    #[test]
     fn saves_and_reads_back_the_values() {
         let dir = std::env::temp_dir().join(format!("rgram-settings-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("the temp dir is writable");
@@ -276,7 +318,9 @@ mod tests {
             recent_search_hashtags: vec![("rust".to_owned(), 2)],
             send_by: SendBy::CtrlEnter,
             recent_emoji: vec![("😂".to_owned(), 3)],
-            delete_only_for_me: true,
+            accounts: vec![0, 2],
+            active_account: 2,
+            main_menu_accounts_shown: true,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

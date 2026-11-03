@@ -4,6 +4,7 @@
 //!
 //! cargo run -p rgram --example snapshots -- [output directory]
 
+mod accounts;
 mod chats;
 mod deletes;
 mod history;
@@ -12,17 +13,20 @@ mod scenarios;
 mod soak;
 
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::time::Duration;
 
 use anyhow::Context as _;
+use features::accounts::Start;
 use features::settings::FoldersPlacement;
-use features::{Root, Store};
+use features::{AccountId, Accounts, Root, Store};
 use gpui::{
     AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, ExternalPaths, FileDropEvent,
     InputEvent as _, Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
     MouseUpEvent, Pixels, PlatformInput, Point, ScrollDelta, ScrollEvent, Window, WindowBounds,
     WindowOptions, point, px, size,
 };
+use model::auth::State;
 use model::{Environment, Event, Session};
 
 /// Long enough for the intro's slide and cover animations to finish.
@@ -39,6 +43,9 @@ type WindowPoint = (f32, f32);
 struct Scenario {
     /// Applied before the first step.
     setup: Vec<Event>,
+    /// Other signed-in accounts, each with its own events; the scenario's
+    /// account stays the shown one. Any of them makes "Add Account" work.
+    others: Vec<Vec<Event>>,
     steps: Vec<(&'static str, Event)>,
     /// Clicks at window points after the steps, each saved.
     clicks: Vec<(&'static str, MouseButton, (f32, f32))>,
@@ -132,6 +139,7 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     let night = all.pop();
     all.extend(media::scenarios());
     all.extend(deletes::scenarios());
+    all.extend(accounts::scenarios());
     all.extend(night);
     for scenario in all {
         let first = scenario.steps.first().map_or("", |(name, _)| *name);
@@ -146,6 +154,7 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
         };
         let folders = scenario.folders;
         let abilities = scenario.abilities;
+        let others = scenario.others;
         cx.update(|cx| {
             features::preset_message_abilities(abilities, cx);
             features::settings::set_folders_placement(folders, cx);
@@ -167,7 +176,10 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
             }
             store
         });
-        let window = cx.update(|cx| open(store.clone(), cx))?;
+        let window = cx.update(|cx| {
+            let accounts = accounts(store.clone(), others, &session, cx);
+            open(accounts, cx)
+        })?;
         settle_and_save(window, first_name, out, SETTLE, cx).await?;
         for (name, event) in steps {
             store.update(cx, |store, cx| store.apply(event, cx));
@@ -356,14 +368,56 @@ fn voice_samples() -> std::sync::Arc<[f32]> {
         .collect()
 }
 
-pub(crate) fn open(store: Entity<Store>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
+/// The scenario's account shown, the others behind it; with others, "Add
+/// Account" makes one waiting for its phone number.
+fn accounts(
+    store: Entity<Store>,
+    others: Vec<Vec<Event>>,
+    session: &Session,
+    cx: &mut App,
+) -> Entity<Accounts> {
+    let fresh = |events: Vec<Event>, session: Session, cx: &mut App| {
+        cx.new(|cx| {
+            let mut store = Store::new(session, Environment::Production);
+            for event in events {
+                store.apply(event, cx);
+            }
+            store
+        })
+    };
+    let start: Option<Start> = (!others.is_empty()).then(|| {
+        let session = session.clone();
+        let start: Start = Rc::new(move |_, _, cx| {
+            fresh(
+                vec![Event::Auth(State::WaitPhoneNumber)],
+                session.clone(),
+                cx,
+            )
+        });
+        start
+    });
+    let others: Vec<Entity<Store>> = others
+        .into_iter()
+        .map(|events| fresh(events, session.clone(), cx))
+        .collect();
+    cx.new(|cx| {
+        let mut accounts = Accounts::new(start);
+        accounts.insert(AccountId(0), store, cx);
+        for (id, other) in (1..).zip(others) {
+            accounts.insert(AccountId(id), other, cx);
+        }
+        accounts
+    })
+}
+
+pub(crate) fn open(accounts: Entity<Accounts>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
     let bounds = Bounds::centered(None, size(px(WIDTH), px(HEIGHT)), cx);
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         ..Default::default()
     };
     let window = cx.open_window(options, |window, cx| {
-        cx.new(|cx| Root::new(store, window, cx))
+        cx.new(|cx| Root::new(accounts, window, cx))
     })?;
     Ok(window.into())
 }

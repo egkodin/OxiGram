@@ -47,4 +47,4 @@ pub use ids::{
 };
 pub use secret::Secret;
 pub use session::{Environment, ListLoad, Parameters, RequestError, Session, Views};
-pub use state::{ConnectionState, State};
+pub use state::{ConnectionState, State, UnreadMessages};

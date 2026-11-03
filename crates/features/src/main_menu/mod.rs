@@ -1,9 +1,13 @@
-//! The main menu (`Window::MainMenu`): the account cover, the section
-//! buttons, the night mode switch and the version, sliding in from the left.
+//! The main menu (`Window::MainMenu`): the account cover, the accounts,
+//! the section buttons, the night mode switch and the version, sliding in
+//! from the left.
+
+mod accounts;
 
 use gpui::{
     App, Context, Entity, EventEmitter, FocusHandle, Focusable, IntoElement, MouseButton,
-    ParentElement, Render, SharedString, Styled, Subscription, Window, div, prelude::*, px,
+    ParentElement, Pixels, Point, Render, SharedString, Styled, Subscription, Window, div,
+    prelude::*, px,
 };
 use i18n::key;
 use model::State;
@@ -20,10 +24,11 @@ use style::window_main_menu::{
     MAIN_MENU_USERPIC_LEFT, MAIN_MENU_USERPIC_TOP, MAIN_MENU_VERSION_BOTTOM, MAIN_MENU_WIDTH,
 };
 use style::{ColorId, ColorRef};
-use ui::{SettingsButton, Userpic, UserpicSource, color, font, font_height};
+use ui::{PopupMenu, SettingsButton, Userpic, UserpicSource, color, font, font_height};
 
+use crate::accounts::Accounts;
 use crate::lang::{tr, tr_with};
-use crate::{Store, px_of, settings};
+use crate::{Layers, Store, px_of, settings};
 
 /// The userpic in the cover (`mainMenuUserpic`).
 const USERPIC_SIZE: f32 = 48.0;
@@ -45,8 +50,13 @@ pub(crate) enum MenuAction {
 
 pub(crate) struct MainMenu {
     store: Entity<Store>,
+    layers: Entity<Layers>,
+    /// None in the snapshots of one account.
+    accounts: Option<Entity<Accounts>>,
+    /// An account's context menu and where it opened.
+    menu: Option<(Point<Pixels>, Entity<PopupMenu>, Subscription)>,
     focus: FocusHandle,
-    _subscription: Subscription,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl std::fmt::Debug for MainMenu {
@@ -64,16 +74,33 @@ impl Focusable for MainMenu {
 }
 
 impl MainMenu {
-    pub(crate) fn new(store: Entity<Store>, cx: &mut Context<Self>) -> Self {
-        let subscription = cx.observe(&store, |_, _, cx| cx.notify());
+    pub(crate) fn new(
+        store: Entity<Store>,
+        layers: Entity<Layers>,
+        cx: &mut Context<Self>,
+    ) -> Self {
+        let accounts = crate::accounts::domain(cx);
+        let mut subscriptions = vec![
+            cx.observe(&store, |_, _, cx| cx.notify()),
+            cx.observe_global::<settings::Settings>(|_, cx| cx.notify()),
+        ];
+        subscriptions.extend(
+            accounts
+                .as_ref()
+                .map(|accounts| cx.observe(accounts, |_, _, cx| cx.notify())),
+        );
         Self {
             store,
+            layers,
+            accounts,
+            menu: None,
             focus: cx.focus_handle(),
-            _subscription: subscription,
+            _subscriptions: subscriptions,
         }
     }
 
-    fn cover(&self, cx: &App) -> impl IntoElement {
+    fn cover(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let toggle = self.accounts_toggle(cx);
         let state = self.store.read(cx).state();
         let (name, userpic) = me(state);
         let name_font = MAIN_MENU_BUTTON.style.font;
@@ -101,6 +128,7 @@ impl MainMenu {
                     .text_color(color(cx, ColorRef::Palette(ColorId::WindowBoldFg)))
                     .child(name),
             )
+            .children(toggle)
     }
 
     fn button(
@@ -224,6 +252,7 @@ impl Render for MainMenu {
             .flex_col()
             .bg(color(cx, ColorRef::Palette(ColorId::MainMenuBg)))
             .child(self.cover(cx))
+            .children(self.accounts_section(cx))
             .child(
                 div()
                     .id("main-menu-items")
@@ -293,5 +322,6 @@ impl Render for MainMenu {
                     ),
             )
             .child(Self::footer(cx))
+            .children(self.menu_overlay())
     }
 }

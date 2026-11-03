@@ -7,7 +7,7 @@ mod paths;
 mod shutdown;
 
 use anyhow::Context as _;
-use features::{Root, Store};
+use features::{Accounts, Root};
 use futures::StreamExt as _;
 use gpui::{
     App, AppContext as _, Bounds, Context, Entity, IntoElement, ParentElement, Render,
@@ -59,7 +59,9 @@ fn main() -> anyhow::Result<()> {
         );
     }
 
-    let settings = paths::data_dir(environment).map(|dir| dir.join(SETTINGS_FILE));
+    let data =
+        paths::data_dir(environment).map_err(|error| SharedString::from(format!("{error:#}")));
+    let settings = data.clone().map(|dir| dir.join(SETTINGS_FILE));
     let runtime = tg::Runtime::start().context("starting TDLib")?;
     gpui_platform::application().run(move |cx: &mut App| {
         if let Err(error) = ui::init(cx) {
@@ -70,11 +72,13 @@ fn main() -> anyhow::Result<()> {
         features::init(cx);
         match settings {
             Ok(path) => features::settings::load(path, cx),
-            Err(error) => tracing::warn!("{error:#}"),
+            Err(error) => tracing::warn!("{error}"),
         }
-        let content = match parameters {
-            Ok(parameters) => Content::Signed(client::start(runtime, parameters, cx)),
-            Err(notice) => {
+        let content = match (parameters, data) {
+            (Ok(parameters), Ok(data)) => {
+                Content::Signed(client::start(runtime, parameters, data, cx))
+            }
+            (Err(notice), _) | (_, Err(notice)) => {
                 start_idle_client(&runtime, cx);
                 // The idle client only has to close; TDLib's threads stop with the process.
                 std::mem::forget(runtime);
@@ -109,9 +113,9 @@ fn parameters(
     let path = |name: &str| data.join(name).to_string_lossy().into_owned();
     Ok(Parameters {
         environment,
-        database_directory: path("tdata"),
-        files_directory: path("files"),
-        language_pack_database: path("langpack.sqlite"),
+        database_directory: path(paths::DATABASE_DIR),
+        files_directory: path(paths::FILES_DIR),
+        language_pack_database: path(paths::LANGUAGE_PACKS),
         api_id: credentials.id,
         api_hash: Secret::new(credentials.hash),
         system_language: paths::system_language(),
@@ -136,7 +140,8 @@ fn start_idle_client(runtime: &tg::Runtime, cx: &mut App) {
             closed_sender.send(()).ok();
         })
         .detach();
-    shutdown::init(cx, client, closed, runtime.stopper());
+    shutdown::init(cx, runtime.stopper());
+    shutdown::set_client(cx, 0, client, closed);
 }
 
 /// Prints the rgram and TDLib versions; launching the binary directly checks
@@ -171,7 +176,7 @@ fn init_logging() -> anyhow::Result<()> {
 }
 
 enum Content {
-    Signed(Entity<Store>),
+    Signed(Entity<Accounts>),
     Notice(SharedString),
 }
 
@@ -192,9 +197,9 @@ fn open_main_window(cx: &mut App, content: Content) -> anyhow::Result<()> {
         ..Default::default()
     };
     match content {
-        Content::Signed(store) => cx
+        Content::Signed(accounts) => cx
             .open_window(options, |window, cx| {
-                cx.new(|cx| Root::new(store, window, cx))
+                cx.new(|cx| Root::new(accounts, window, cx))
             })
             .map(drop),
         Content::Notice(notice) => cx

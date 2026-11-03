@@ -3,7 +3,7 @@
 
 use std::rc::Rc;
 
-use gpui::{App, Context, Pixels, Point, Window};
+use gpui::{App, Context, Entity, Pixels, Point, Window};
 use i18n::key;
 use model::chat::ChatList;
 use model::{ChatId, FolderId, MessageId};
@@ -14,6 +14,7 @@ use super::Dialogs;
 use crate::boxes::{self, Callback, ConfirmArgs};
 use crate::lang::tr;
 use crate::peer_menu::send;
+use crate::{Layers, Store};
 
 /// Marking more unread messages than this read asks first
 /// (`kMaxUnreadWithoutConfirmation`).
@@ -74,58 +75,68 @@ impl Dialogs {
         );
     }
 
-    /// "Mark as read" for every unread chat of `list`, asking first past
-    /// [`MAX_UNREAD_WITHOUT_CONFIRMATION`] messages; nothing when all are
-    /// read (`MarkAsReadMenu::AddChatListAction`).
     pub(super) fn add_mark_read(&self, menu: &mut PopupMenu, list: ChatList, cx: &App) {
-        let state = self.store.read(cx).state();
-        let unread: Vec<(ChatId, Option<MessageId>, i32)> = state
-            .chats
-            .list(list)
-            .filter_map(|id| state.chats.chat(id))
-            .filter(|chat| chat.unread_count > 0 || chat.is_marked_as_unread)
-            .map(|chat| {
-                let last = chat.last_message.as_ref().map(|message| message.id);
-                (chat.id, last, chat.unread_count)
-            })
-            .collect();
-        if unread.is_empty() {
-            return;
-        }
-        let (text, sure) = match list {
-            ChatList::Main => (
-                key::lng_context_mark_read_all,
-                key::lng_context_mark_read_all_sure,
-            ),
-            ChatList::Archive => (
-                key::lng_context_mark_read,
-                key::lng_context_mark_read_archive_sure,
-            ),
-            ChatList::Folder(_) => (key::lng_context_mark_read, key::lng_context_mark_read_sure),
-        };
-        let messages: i64 = unread.iter().map(|(_, _, count)| i64::from(*count)).sum();
-        let session = self.store.read(cx).session().clone();
-        let layers = self.layers.clone();
-        let read_all: Callback = Rc::new(move |_, cx| {
-            for (chat, last, _) in &unread {
-                send(session.read_chat(*chat, *last), "mark list read", cx);
-            }
-        });
-        menu.action(
-            tr(cx, text),
-            MENU_ICON_MARK_READ,
-            MenuTone::Normal,
-            move |window, cx| {
-                if messages <= MAX_UNREAD_WITHOUT_CONFIRMATION {
-                    read_all(window, cx);
-                    return;
-                }
-                let mut args = ConfirmArgs::new(Markup::plain(tr(cx, sure).to_string()));
-                args.confirm_text = Some(tr(cx, key::lng_box_ok));
-                args.cancel_text = Some(tr(cx, key::lng_cancel));
-                args.confirmed = Some(read_all.clone());
-                boxes::confirm(&layers, args, window, cx);
-            },
-        );
+        add_mark_read(menu, &self.store, &self.layers, list, cx);
     }
+}
+
+/// "Mark as read" for every unread chat of `list`, asking first past
+/// [`MAX_UNREAD_WITHOUT_CONFIRMATION`] messages; nothing when all are
+/// read (`MarkAsReadMenu::AddChatListAction`).
+pub(crate) fn add_mark_read(
+    menu: &mut PopupMenu,
+    store: &Entity<Store>,
+    layers: &Entity<Layers>,
+    list: ChatList,
+    cx: &App,
+) {
+    let state = store.read(cx).state();
+    let unread: Vec<(ChatId, Option<MessageId>, i32)> = state
+        .chats
+        .list(list)
+        .filter_map(|id| state.chats.chat(id))
+        .filter(|chat| chat.unread_count > 0 || chat.is_marked_as_unread)
+        .map(|chat| {
+            let last = chat.last_message.as_ref().map(|message| message.id);
+            (chat.id, last, chat.unread_count)
+        })
+        .collect();
+    if unread.is_empty() {
+        return;
+    }
+    let (text, sure) = match list {
+        ChatList::Main => (
+            key::lng_context_mark_read_all,
+            key::lng_context_mark_read_all_sure,
+        ),
+        ChatList::Archive => (
+            key::lng_context_mark_read,
+            key::lng_context_mark_read_archive_sure,
+        ),
+        ChatList::Folder(_) => (key::lng_context_mark_read, key::lng_context_mark_read_sure),
+    };
+    let messages: i64 = unread.iter().map(|(_, _, count)| i64::from(*count)).sum();
+    let session = store.read(cx).session().clone();
+    let layers = layers.clone();
+    let read_all: Callback = Rc::new(move |_, cx| {
+        for (chat, last, _) in &unread {
+            send(session.read_chat(*chat, *last), "mark list read", cx);
+        }
+    });
+    menu.action(
+        tr(cx, text),
+        MENU_ICON_MARK_READ,
+        MenuTone::Normal,
+        move |window, cx| {
+            if messages <= MAX_UNREAD_WITHOUT_CONFIRMATION {
+                read_all(window, cx);
+                return;
+            }
+            let mut args = ConfirmArgs::new(Markup::plain(tr(cx, sure).to_string()));
+            args.confirm_text = Some(tr(cx, key::lng_box_ok));
+            args.cancel_text = Some(tr(cx, key::lng_cancel));
+            args.confirmed = Some(read_all.clone());
+            boxes::confirm(&layers, args, window, cx);
+        },
+    );
 }

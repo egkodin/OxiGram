@@ -6,7 +6,7 @@ use crate::chats::Change;
 use crate::downloads;
 use crate::history;
 use crate::ids::UserId;
-use crate::state::ConnectionState;
+use crate::state::{ConnectionState, UnreadMessages};
 
 /// A state change, converted from a TDLib update.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -28,6 +28,8 @@ pub enum Event {
     /// A change only open chats' histories show.
     Messages(history::Change),
     Downloads(downloads::Change),
+    /// Unread messages in the main list (`updateUnreadMessageCount`).
+    UnreadMessages(UnreadMessages),
 }
 
 /// The events in a client's updates, in TDLib's order. Updates the model does
@@ -59,6 +61,14 @@ impl Event {
                 OptionValue::Integer(value) => Self::Me(UserId(value.value)),
                 _ => return None,
             },
+            Update::UnreadMessageCount(update)
+                if matches!(*update.chat_list, td_api::enums::ChatList::Main(_)) =>
+            {
+                Self::UnreadMessages(UnreadMessages {
+                    count: update.unread_count,
+                    unmuted: update.unread_unmuted_count,
+                })
+            }
             other => match Change::from_update(other) {
                 Ok(change) => Self::Chats(change),
                 Err(other) => match downloads::Change::from_update(other) {
@@ -103,6 +113,21 @@ mod tests {
                 r#"{"@type":"updateOption","name":"suggested_language_pack_id","value":{"@type":"optionValueString","value":"ru"}}"#
             ),
             Some(Event::SuggestedLanguage("ru".to_owned()))
+        );
+        assert_eq!(
+            event(
+                r#"{"@type":"updateUnreadMessageCount","chat_list":{"@type":"chatListMain"},"unread_count":7,"unread_unmuted_count":2}"#
+            ),
+            Some(Event::UnreadMessages(UnreadMessages {
+                count: 7,
+                unmuted: 2
+            }))
+        );
+        assert_eq!(
+            event(
+                r#"{"@type":"updateUnreadMessageCount","chat_list":{"@type":"chatListArchive"},"unread_count":7,"unread_unmuted_count":2}"#
+            ),
+            None
         );
     }
 }

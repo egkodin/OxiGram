@@ -129,7 +129,7 @@ fn month_day_key(month: u32) -> Key {
 }
 
 /// A count shortened past 10,000: "12.3K", "4M" (`FormatCountToShort`).
-pub(super) fn short_count(count: i32) -> String {
+pub(crate) fn short_count(count: i32) -> String {
     let count = i64::from(count);
     let (divider, suffix) = match count.abs() {
         abs if abs >= 1_000_000_000 => (1_000_000_000, 'B'),

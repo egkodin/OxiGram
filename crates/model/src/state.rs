@@ -26,8 +26,17 @@ pub struct State {
     pub me: Option<UserId>,
     /// The download list's progress, for the bar under the chat list.
     pub downloads: Downloads,
+    /// Unread messages in the main list, for other accounts' badges.
+    pub unread_messages: UnreadMessages,
     /// The messages of open chats; others get none, so memory stays flat.
     histories: HashMap<Key, History>,
+}
+
+/// Unread messages in a list and those of them in unmuted chats.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct UnreadMessages {
+    pub count: i32,
+    pub unmuted: i32,
 }
 
 /// How TDLib's connection to Telegram stands.
@@ -57,6 +66,7 @@ impl State {
                     self.chats = Chats::default();
                     self.histories.clear();
                     self.downloads = Downloads::default();
+                    self.unread_messages = UnreadMessages::default();
                     self.me = None;
                 }
                 self.auth = state;
@@ -72,6 +82,7 @@ impl State {
                 self.chats.apply(change);
             }
             Event::Downloads(change) => self.downloads.apply(change),
+            Event::UnreadMessages(unread) => self.unread_messages = unread,
             Event::Messages(change) => {
                 let chat = change.chat();
                 for (_, history) in self

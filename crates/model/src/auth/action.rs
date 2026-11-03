@@ -5,8 +5,8 @@ use futures::future::BoxFuture;
 use td_api::enums::{EmailAddressAuthentication, ResendCodeReason};
 use td_api::functions::{
     AcceptTermsOfService, CheckAuthenticationCode, CheckAuthenticationEmailCode,
-    CheckAuthenticationPassword, CheckAuthenticationPasswordRecoveryCode, DeleteAccount, LogOut,
-    RecoverAuthenticationPassword, RegisterUser, RequestAuthenticationPasswordRecovery,
+    CheckAuthenticationPassword, CheckAuthenticationPasswordRecoveryCode, Close, DeleteAccount,
+    LogOut, RecoverAuthenticationPassword, RegisterUser, RequestAuthenticationPasswordRecovery,
     RequestQrCodeAuthentication, ResendAuthenticationCode, ResetAuthenticationEmailAddress,
     SetAuthenticationEmailAddress, SetAuthenticationPhoneNumber,
 };
@@ -60,6 +60,9 @@ pub enum Action {
     /// Deletes the account of a user who declined updated terms.
     DeclineTerms,
     LogOut,
+    /// Closes TDLib and keeps its database, for an account given up
+    /// before it signed in.
+    Close,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,6 +151,7 @@ impl Action {
                 password: String::new(),
             })),
             Self::LogOut => ok(client.request(&LogOut {})),
+            Self::Close => ok(client.request(&Close {})),
         }
     }
 }

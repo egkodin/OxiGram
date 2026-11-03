@@ -422,7 +422,8 @@ fn open(store: Entity<Store>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
         ..Default::default()
     };
     let window = cx.open_window(options, |window, cx| {
-        cx.new(|cx| Root::new(store, window, cx))
+        let accounts = cx.new(|cx| features::Accounts::single(store, cx));
+        cx.new(|cx| Root::new(accounts, window, cx))
     })?;
     cx.activate(true);
     Ok(window.into())

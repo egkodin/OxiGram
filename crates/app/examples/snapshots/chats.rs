@@ -38,7 +38,7 @@ fn clock() -> i64 {
     i64::try_from(seconds).unwrap_or(i64::MAX)
 }
 
-fn user(id: i64, first: &str, last: &str) -> User {
+pub(crate) fn user(id: i64, first: &str, last: &str) -> User {
     User {
         id: UserId(id),
         first_name: first.to_owned(),

@@ -143,8 +143,8 @@
   and "Delete for everyone" in basic groups when TDLib allows revoke for
   all; only one's own messages revoke when others cannot; no checkbox in
   supergroups, channels, Saved Messages or bots (bots always revoke); the
-  hints after the question and "Remember this choice" when the box differs
-  from the remembered default. The live cause is unconfirmed: Saved
+  hints after the question; no "Remember this choice" (the owner's call,
+  tdesktop has it). The live cause is unconfirmed: Saved
   Messages, supergroups and channels show no checkbox in tdesktop either.
   Snapshots 221-247, unit tests `cargo test -p features delete`.
 - Crash on quit (signal 11 after the full snapshot run): `exit` destroyed
@@ -158,6 +158,16 @@
   keep the hardware decoder; libvpx 1.17.0 joins the minimal FFmpeg build
   (VP9 decoder only). Snapshots 206-208, unit test `a_webm_keeps_its_alpha`.
 
+- Multiple accounts (`accounts.rs`, `main_menu/accounts.rs`, app
+  `client.rs`), as tdesktop's `Main::Domain` and main menu: one TDLib
+  client, store and data directory per account (the first keeps the old
+  directory, the others `account-N/`), the list and the active one in
+  settings.json. "Add Account" opens the QR intro (back returns to the
+  previous account), past 3 (6 with Premium) the limit box; the accounts
+  list under the cover's arrow with badges, the unread dot on the arrow
+  and the menu button; switching without a restart; logging out of an
+  account other accounts stay with removes it; signing in a user already
+  there logs the new one out and shows the old one. Snapshots 251-271.
 ### Half done (shortcuts in code)
 
 - Rounds and GIFs in bubbles: a round stops
@@ -350,10 +360,19 @@
     blurry previews that stay); compare a few with Telegram on a phone.
 26. Delete box, without deleting outside Saved Messages: right-click your
     own fresh message in a private chat: "Also delete for <name>" is ticked;
-    untick it: "Remember this choice" shows; Cancel. In a basic group:
+    untick it: no "Remember this choice" shows; Cancel. In a basic group:
     "Delete for everyone"; in a supergroup or channel: no checkbox, only the
     hint; Cancel each time. In Saved Messages delete one test message: no
     checkbox. Select two messages in a private chat, Delete 2: the same box.
+27. Accounts (needs you to sign in): main menu, "Add Account": the QR
+    intro shows with a back arrow; back returns to your account. Add
+    Account again and sign the second account in yourself in the app window
+    (QR from the phone, or phone number, code and 2FA). Then: the main menu
+    lists both accounts under the arrow, the active one ringed; a message to
+    the other account shows its badge and the dot on the menu button;
+    clicking it switches without a restart; quit and start: the same
+    account shows. Right-click the inactive one, Log out, confirm: it goes
+    and the first account stays.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

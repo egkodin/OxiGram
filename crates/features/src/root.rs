@@ -13,6 +13,7 @@ use style::layers::ATTENTION_BOX_BUTTON;
 use style::{ColorId, ColorRef};
 use ui::{Markup, color};
 
+use crate::accounts::{Accounts, AccountsEvent};
 use crate::boxes::{self, Callback, ConfirmArgs};
 use crate::connecting::Connecting;
 use crate::intro::{Data, Intro, Shared, terms};
@@ -33,6 +34,8 @@ pub struct Root {
     connecting: Entity<Connecting>,
     /// The terms update the box is open for (`checkLockByTerms`).
     shown_terms: Option<auth::TermsId>,
+    _switched: Subscription,
+    /// The shown account's.
     _subscriptions: Vec<Subscription>,
 }
 
@@ -43,14 +46,51 @@ impl std::fmt::Debug for Root {
 }
 
 impl Root {
-    pub fn new(store: Entity<Store>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+    pub fn new(accounts: Entity<Accounts>, window: &mut Window, cx: &mut Context<Self>) -> Self {
+        crate::accounts::set_domain(accounts.clone(), cx);
+        let store = accounts.read(cx).active().clone();
         let shared = Shared {
             store: store.clone(),
+            accounts: accounts.clone(),
             layers: cx.new(|_| Layers::new()),
             data: cx.new(|_| Data::default()),
         };
         let connecting = cx.new(|cx| Connecting::new(store.clone(), cx));
-        let subscriptions =
+        let switched =
+            cx.subscribe_in(
+                &accounts,
+                window,
+                |this, accounts, event, window, cx| match event {
+                    AccountsEvent::Activated => {
+                        let store = accounts.read(cx).active().clone();
+                        this.show_account(store, window, cx);
+                    }
+                },
+            );
+        let mut this = Self {
+            shared,
+            screen: Screen::Blank,
+            connecting,
+            shown_terms: None,
+            _switched: switched,
+            _subscriptions: Vec::new(),
+        };
+        this.show_account(store, window, cx);
+        this
+    }
+
+    /// Shows `store`'s account from scratch, as tdesktop's window does when
+    /// the active account changes.
+    fn show_account(&mut self, store: Entity<Store>, window: &mut Window, cx: &mut Context<Self>) {
+        self.shared.store = store.clone();
+        self.shared.data = cx.new(|_| Data::default());
+        self.connecting = cx.new(|cx| Connecting::new(store.clone(), cx));
+        self.shown_terms = None;
+        self.screen = Screen::Blank;
+        self.shared
+            .layers
+            .update(cx, |layers, cx| layers.close(window, cx));
+        self._subscriptions =
             vec![
                 cx.subscribe_in(&store, window, |this, _, event: &StoreEvent, window, cx| {
                     match event {
@@ -61,15 +101,9 @@ impl Root {
                     this.check_terms(window, cx)
                 }),
             ];
-        let mut this = Self {
-            shared,
-            screen: Screen::Blank,
-            connecting,
-            shown_terms: None,
-            _subscriptions: subscriptions,
-        };
-        this.auth_changed(window, cx);
-        this
+        self.auth_changed(window, cx);
+        self.check_terms(window, cx);
+        cx.notify();
     }
 
     fn auth_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {

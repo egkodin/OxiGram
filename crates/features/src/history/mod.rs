@@ -75,6 +75,7 @@ mod who_reacted;
 mod write_bars;
 
 pub(crate) use self::headers::Replied;
+pub(crate) use self::layout::short_count;
 pub(crate) use self::service::text as service_text;
 pub(crate) use self::text::Link;
 pub(crate) use self::video::duration_text;

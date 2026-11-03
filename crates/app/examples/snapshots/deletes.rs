@@ -1,7 +1,7 @@
 //! The delete box (`DeleteMessagesBox`) where TDLib lets every message go for
 //! everyone: "Also delete for Maria" in her chat, "Delete for everyone" in
 //! Hiking Club, no checkbox in the channel or Saved Messages; toggling it
-//! offers "Remember this choice".
+//! adds nothing (no "Remember this choice").
 
 use features::settings::FoldersPlacement;
 use gpui::MouseButton;
@@ -39,6 +39,7 @@ fn scenario(
     let [list, opened, menu, boxed, toggled] = names;
     Scenario {
         abilities: Some(revocable()),
+        others: Vec::new(),
         setup: chats::events(),
         clicks: vec![
             (opened, MouseButton::Left, chat),
@@ -122,6 +123,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         // Two of Maria's messages selected, deleted from the selection bar.
         Scenario {
             abilities: Some(revocable()),
+            others: Vec::new(),
             setup: chats::events(),
             clicks: vec![
                 ("242-delete-selected-chat", MouseButton::Left, MARIA_ROW),

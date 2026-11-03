@@ -15,7 +15,8 @@ use model::chats::Chats;
 use style::filter_icons::*;
 use style::widgets::SideBarButton;
 use style::window::{
-    WINDOW_FILTERS_BUTTON, WINDOW_FILTERS_MAIN_MENU, WINDOW_FILTERS_WIDTH, WINDOW_MIN_WIDTH,
+    WINDOW_FILTERS_BUTTON, WINDOW_FILTERS_MAIN_MENU, WINDOW_FILTERS_MAIN_MENU_UNREAD,
+    WINDOW_FILTERS_MAIN_MENU_UNREAD_MUTED, WINDOW_FILTERS_WIDTH, WINDOW_MIN_WIDTH,
 };
 use ui::{color, font, font_height, icon, icon_size};
 
@@ -210,7 +211,12 @@ impl Dialogs {
             "sidebar-main-menu",
             &WINDOW_FILTERS_MAIN_MENU,
             Button {
-                icon: WINDOW_FILTERS_MAIN_MENU.icon,
+                icon: crate::accounts::others_unread_icon(
+                    cx,
+                    WINDOW_FILTERS_MAIN_MENU_UNREAD,
+                    WINDOW_FILTERS_MAIN_MENU_UNREAD_MUTED,
+                )
+                .unwrap_or(WINDOW_FILTERS_MAIN_MENU.icon),
                 label: None,
                 badge: None,
                 is_active: false,

@@ -326,6 +326,7 @@ impl RenderOnce for LinkButton {
 pub struct IconButton {
     id: ElementId,
     style: &'static IconButtonStyle,
+    icon_override: Option<style::Icon>,
     on_click: Option<ClickHandler>,
 }
 
@@ -334,8 +335,16 @@ impl IconButton {
         Self {
             id: id.into(),
             style,
+            icon_override: None,
             on_click: None,
         }
+    }
+
+    /// `IconButton::setIconOverride`: drawn instead of both style icons.
+    #[must_use]
+    pub fn icon_override(mut self, icon: Option<style::Icon>) -> Self {
+        self.icon_override = icon;
+        self
     }
 
     #[must_use]
@@ -361,10 +370,10 @@ impl RenderOnce for IconButton {
         let st = self.style;
         let state = use_button_state(self.id.clone(), window, cx);
         let hovered = state.read(cx).hovered;
-        let current = if hovered && !st.icon_over.is_empty() {
-            st.icon_over
-        } else {
-            st.icon
+        let current = match self.icon_override {
+            Some(icon) => icon,
+            None if hovered && !st.icon_over.is_empty() => st.icon_over,
+            None => st.icon,
         };
         let (width, height) = (px_of(st.width), px_of(st.height));
         let size = icon_size(current);

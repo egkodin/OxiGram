@@ -1,8 +1,9 @@
-//! Quitting: TDLib closes its database before the process exits.
+//! Quitting: every account's TDLib client closes its database before the
+//! process exits.
 //!
 //! rgram's own ways out (the Quit menu item, its shortcut, closing the last
-//! window) hide the windows, send `close`, and quit once the update stream ends
-//! after `authorizationStateClosed`. When the OS ends the app instead (logout,
+//! window) hide the windows, send `close`, and quit once the update streams
+//! end after `authorizationStateClosed`. When the OS ends the app instead (logout,
 //! the Dock's Quit), only gpui's `on_app_quit` hook runs, within gpui's 200 ms
 //! shutdown timeout. Either way the TDLib receive thread stops last: a thread
 //! left inside `td_receive` crashes when `exit` destroys TDLib's statics.
@@ -32,20 +33,46 @@ const QUIT_SHORTCUT: &str = "ctrl-q";
 /// Resolves once the update stream of the client has ended.
 pub(crate) type Closed = Shared<oneshot::Receiver<()>>;
 
-struct Shutdown {
+/// A running client, by the account it serves.
+struct Running {
+    account: u32,
     client: tg::Client,
     closed: Closed,
+}
+
+struct Shutdown {
+    clients: Vec<Running>,
     stopper: tg::Stopper,
     is_quitting: bool,
+}
+
+impl Shutdown {
+    /// Asks every client to close; resolves once all of them have.
+    fn close_all(&self) -> impl std::future::Future<Output = ()> + use<> {
+        let closes: Vec<_> = self
+            .clients
+            .iter()
+            .map(|running| {
+                let close = running.client.request(&Close {});
+                let closed = running.closed.clone();
+                async move {
+                    if let Err(error) = close.await {
+                        tracing::warn!(%error, "closing TDLib failed");
+                    }
+                    closed.await.ok();
+                }
+            })
+            .collect();
+        future::join_all(closes).map(drop)
+    }
 }
 
 impl Global for Shutdown {}
 
 /// Installs the Quit action, its menu item and shortcut, and the quit hooks.
-pub(crate) fn init(cx: &mut App, client: tg::Client, closed: Closed, stopper: tg::Stopper) {
+pub(crate) fn init(cx: &mut App, stopper: tg::Stopper) {
     cx.set_global(Shutdown {
-        client,
-        closed,
+        clients: Vec::new(),
         stopper,
         is_quitting: false,
     });
@@ -61,17 +88,14 @@ pub(crate) fn init(cx: &mut App, client: tg::Client, closed: Closed, stopper: tg
     .detach();
     cx.on_app_quit(|cx| {
         let shutdown = cx.global::<Shutdown>();
-        // After a graceful quit this fails at once with `Closed`, and `closed`
-        // has already resolved.
-        let close = shutdown.client.request(&Close {});
-        let closed = shutdown.closed.clone();
+        // After a graceful quit the requests fail at once with `Closed`, and
+        // the clients have closed already.
+        let closed = shutdown.close_all();
         let stopper = shutdown.stopper.clone();
         let executor = cx.background_executor().clone();
         async move {
-            close.await.ok();
-            if closed.await.is_ok() {
-                tracing::info!("TDLib closed");
-            }
+            closed.await;
+            tracing::info!("TDLib closed");
             // shortcut: up to a second on the receive timeout, past gpui's 200 ms; wake td_receive if the OS-quit path still crashes.
             executor.spawn(async move { stopper.stop() }).await;
         }
@@ -92,11 +116,26 @@ fn set_menus(cx: &mut App) {
     }]);
 }
 
-/// Makes `client` the one quitting closes, after the previous one closed.
-pub(crate) fn set_client(cx: &mut App, client: tg::Client, closed: Closed) {
+/// Makes `client` the one quitting closes for `account`, in place of one
+/// that closed before.
+pub(crate) fn set_client(cx: &mut App, account: u32, client: tg::Client, closed: Closed) {
     let shutdown = cx.global_mut::<Shutdown>();
-    shutdown.client = client;
-    shutdown.closed = closed;
+    shutdown
+        .clients
+        .retain(|running| running.account != account);
+    shutdown.clients.push(Running {
+        account,
+        client,
+        closed,
+    });
+}
+
+/// Forgets the client of an account that is gone.
+pub(crate) fn remove_client(cx: &mut App, account: u32) {
+    let shutdown = cx.global_mut::<Shutdown>();
+    shutdown
+        .clients
+        .retain(|running| running.account != account);
 }
 
 #[must_use]
@@ -110,8 +149,7 @@ pub(crate) fn quit(cx: &mut App) {
     if std::mem::replace(&mut shutdown.is_quitting, true) {
         return;
     }
-    let close = shutdown.client.request(&Close {});
-    let closed = shutdown.closed.clone();
+    let closed = shutdown.close_all();
     let stopper = shutdown.stopper.clone();
     for window in cx.windows() {
         if let Err(error) = window.update(cx, |_, window, _| window.remove_window()) {
@@ -120,10 +158,7 @@ pub(crate) fn quit(cx: &mut App) {
     }
     let timeout = cx.background_executor().timer(CLOSE_TIMEOUT);
     cx.spawn(async move |cx| {
-        if let Err(error) = close.await {
-            tracing::warn!(%error, "closing TDLib failed");
-        }
-        match future::select(closed, timeout).await {
+        match future::select(std::pin::pin!(closed), timeout).await {
             Either::Left(_) => tracing::info!("TDLib closed"),
             Either::Right(_) => {
                 tracing::warn!(timeout = ?CLOSE_TIMEOUT, "TDLib did not close in time");

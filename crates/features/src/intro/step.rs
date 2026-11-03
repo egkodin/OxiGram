@@ -28,6 +28,7 @@ use crate::store::Store;
 #[derive(Debug, Clone)]
 pub(crate) struct Shared {
     pub store: Entity<Store>,
+    pub accounts: Entity<crate::accounts::Accounts>,
     pub layers: Entity<Layers>,
     pub data: Entity<Data>,
 }

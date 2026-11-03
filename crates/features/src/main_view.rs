@@ -17,7 +17,9 @@ use style::dialogs::{
     DIALOGS_CANCEL_SEARCH, DIALOGS_FILTER, DIALOGS_FILTER_PADDING, DIALOGS_FILTER_SKIP,
     DIALOGS_MENU_TOGGLE,
 };
-use style::dialogs_widget::DIALOGS_SEARCH_FOR_NARROW_FILTERS;
+use style::dialogs_widget::{
+    DIALOGS_MENU_TOGGLE_UNREAD, DIALOGS_MENU_TOGGLE_UNREAD_MUTED, DIALOGS_SEARCH_FOR_NARROW_FILTERS,
+};
 use style::info::{HISTORY_TOP_BAR_BACK, TOP_BAR_HEIGHT};
 use style::window::WINDOW_FILTERS_WIDTH;
 use style::window_main_menu::MAIN_MENU_WIDTH;
@@ -66,6 +68,8 @@ pub struct MainView {
     /// The sound playing, whose bar tops the chat column.
     player: Entity<Player>,
     _subscriptions: [Subscription; 7],
+    /// Other accounts' unread messages change the menu button's icon.
+    _others_unread: Option<Subscription>,
     _history_subscription: Option<Subscription>,
 }
 
@@ -124,6 +128,12 @@ impl MainView {
             cx.subscribe_in(&dialogs, window, |this, _, OpenDownloads, window, cx| {
                 this.show_downloads(window, cx);
             });
+        let others_unread = crate::accounts::domain(cx).map(|accounts| {
+            cx.observe(&accounts, |this, _, cx| {
+                this.dialogs.update(cx, |_, cx| cx.notify());
+                cx.notify();
+            })
+        });
         Self {
             store,
             layers,
@@ -143,6 +153,7 @@ impl MainView {
                 open_downloads,
                 observe_player,
             ],
+            _others_unread: others_unread,
             _history_subscription: None,
         }
     }
@@ -326,7 +337,7 @@ impl MainView {
     }
 
     fn open_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let menu = cx.new(|cx| MainMenu::new(self.store.clone(), cx));
+        let menu = cx.new(|cx| MainMenu::new(self.store.clone(), self.layers.clone(), cx));
         cx.subscribe_in(&menu, window, |this, _, action, window, cx| {
             this.layers
                 .update(cx, |layers, cx| layers.close(window, cx));
@@ -439,11 +450,11 @@ impl MainView {
                         },
                     )
                 }
-                Folders::Tabs => IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE).on_click(
-                    move |_, window, cx| {
+                Folders::Tabs => IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE)
+                    .icon_override(menu_unread_icon(cx))
+                    .on_click(move |_, window, cx| {
                         entity.update(cx, |this, cx| this.open_menu(window, cx));
-                    },
-                ),
+                    }),
             };
             return div()
                 .flex_none()
@@ -463,11 +474,11 @@ impl MainView {
         let clear = cx.entity();
         let toggle = (folders == Folders::Tabs).then(|| {
             div().pt(px_of(DIALOGS_FILTER_PADDING.y)).mr(padding).child(
-                IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE).on_click(
-                    move |_, window, cx| {
+                IconButton::new("main-menu", &DIALOGS_MENU_TOGGLE)
+                    .icon_override(menu_unread_icon(cx))
+                    .on_click(move |_, window, cx| {
                         entity.update(cx, |this, cx| this.open_menu(window, cx));
-                    },
-                ),
+                    }),
             )
         });
         let left = match folders {
@@ -650,4 +661,14 @@ enum Folders {
     Sidebar,
     /// Tabs above the list, or no folders at all; the list has the button.
     Tabs,
+}
+
+/// `MainMenu::ToggleAccountsButton`'s counterpart on the menu button: a dot
+/// while other accounts have unread messages, gray when all are muted.
+fn menu_unread_icon(cx: &App) -> Option<style::Icon> {
+    crate::accounts::others_unread_icon(
+        cx,
+        DIALOGS_MENU_TOGGLE_UNREAD,
+        DIALOGS_MENU_TOGGLE_UNREAD_MUTED,
+    )
 }

@@ -152,7 +152,8 @@ impl Intro {
             step_subscriptions: Vec::new(),
             _subscriptions: subscriptions,
         };
-        for kind in initial_history(intro.shared.auth(cx)) {
+        let is_added = intro.shared.accounts.read(cx).before_intro().is_some();
+        for kind in initial_history(intro.shared.auth(cx), is_added) {
             let step = Step::new(kind, &intro.shared, window, cx);
             intro.history.push(step);
         }
@@ -211,14 +212,19 @@ impl Intro {
         step.submit(window, cx);
     }
 
-    /// `backRequested`: the previous step, or the start screen when the
-    /// history began later (after a restart).
+    /// `backRequested`: the previous step, the account an added one came
+    /// from, or the start screen when the history began later (after a
+    /// restart).
     fn back(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.current().header(cx).has_back {
             return;
         }
         if self.history.len() > 1 {
             self.move_to(None, Stack::Back, Direction::Back, window, cx);
+        } else if self.shared.accounts.read(cx).before_intro().is_some() {
+            self.shared
+                .accounts
+                .update(cx, |accounts, cx| accounts.back_from_intro(cx));
         } else {
             self.move_to(
                 Some(Kind::Start),
@@ -443,14 +449,17 @@ enum Target {
 }
 
 /// The steps a restarted app shows for a state TDLib restored.
-fn initial_history(state: &auth::State) -> Vec<Kind> {
+/// An added account starts at the QR code (`EnterPoint::Qr`).
+fn initial_history(state: &auth::State, is_added: bool) -> Vec<Kind> {
     match state {
         auth::State::WaitCode(_) => vec![Kind::Phone, Kind::Code],
         auth::State::WaitEmailAddress => vec![Kind::Phone, Kind::Email],
         auth::State::WaitEmailCode(_) => vec![Kind::Phone, Kind::Email, Kind::Code],
         auth::State::WaitPassword(_) => vec![Kind::Phone, Kind::Password],
         auth::State::WaitRegistration { .. } => vec![Kind::Phone, Kind::Signup],
+        auth::State::WaitQrScan { .. } if is_added => vec![Kind::Qr],
         auth::State::WaitQrScan { .. } => vec![Kind::Start, Kind::Qr],
+        _ if is_added => vec![Kind::Qr],
         _ => vec![Kind::Start],
     }
 }

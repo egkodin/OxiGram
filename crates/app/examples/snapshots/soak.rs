@@ -105,7 +105,10 @@ pub(crate) async fn run(session: Session, seconds: u64, cx: &mut AsyncApp) -> an
         store.apply(super::scenarios::auth(model::auth::State::Ready), cx);
         store
     });
-    let window = cx.update(|cx| super::open(store, cx))?;
+    let window = cx.update(|cx| {
+        let accounts = cx.new(|cx| features::Accounts::single(store, cx));
+        super::open(accounts, cx)
+    })?;
     let start = Instant::now();
     let end = start + Duration::from_secs(seconds);
     let mut next_sample = start;

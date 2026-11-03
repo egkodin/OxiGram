@@ -1,7 +1,7 @@
 //! Where rgram keeps its data, and the system language TDLib is told.
 
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use model::Environment;
 
@@ -10,6 +10,10 @@ const DATA_DIR_VAR: &str = "RGRAM_DATA_DIR";
 const APP_DIR: &str = "rgram";
 /// Test servers keep separate accounts, so they get their own database.
 const TEST_DIR: &str = "test-dc";
+/// An account's TDLib database, files and language packs, in its directory.
+pub(crate) const DATABASE_DIR: &str = "tdata";
+pub(crate) const FILES_DIR: &str = "files";
+pub(crate) const LANGUAGE_PACKS: &str = "langpack.sqlite";
 
 /// The per-user data directory: Application Support on macOS, `%APPDATA%`
 /// on Windows, `$XDG_DATA_HOME` elsewhere.
@@ -22,6 +26,15 @@ pub(crate) fn data_dir(environment: Environment) -> anyhow::Result<PathBuf> {
         Environment::Production => base,
         Environment::Test => base.join(TEST_DIR),
     })
+}
+
+/// Account `id`'s directory: the data directory itself for the first one,
+/// which had it before rgram had accounts, `account-<id>` in it for others.
+pub(crate) fn account_dir(data: &Path, id: u32) -> PathBuf {
+    match id {
+        0 => data.to_path_buf(),
+        id => data.join(format!("account-{id}")),
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -72,6 +85,13 @@ fn ietf_tag(locale: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_first_account_keeps_the_data_directory() {
+        let data = Path::new("/data");
+        assert_eq!(account_dir(data, 0), PathBuf::from("/data"));
+        assert_eq!(account_dir(data, 2), PathBuf::from("/data/account-2"));
+    }
 
     #[test]
     fn locales_become_ietf_tags() {

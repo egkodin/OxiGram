@@ -1,6 +1,7 @@
 //! rgram's screens. Each follows a Telegram Desktop screen and reads the
 //! model through the [`Store`]; none of them sees a TDLib type.
 
+pub mod accounts;
 pub mod boxes;
 mod columns;
 mod connecting;
@@ -31,6 +32,7 @@ pub mod toast;
 
 use gpui::{App, Pixels, px};
 
+pub use accounts::{AccountId, Accounts};
 pub use history::{preset_message_abilities, preset_voice_samples};
 pub use lang::Lang;
 pub use layers::Layers;

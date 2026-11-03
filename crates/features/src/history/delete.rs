@@ -9,8 +9,7 @@ use i18n::key;
 use model::message_actions::{Abilities, Deletion};
 use model::{ChatId, MessageId, Session};
 use style::layers::{
-    BOX_LABEL, BOX_LITTLE_SKIP, BOX_MEDIUM_SKIP, BOX_PADDING, BOX_WIDTH, DEFAULT_BOX,
-    DEFAULT_BOX_CHECKBOX,
+    BOX_LABEL, BOX_MEDIUM_SKIP, BOX_PADDING, BOX_WIDTH, DEFAULT_BOX, DEFAULT_BOX_CHECKBOX,
 };
 use style::widgets::DEFAULT_CHECK;
 use ui::{BoxFrame, Checkbox, Checked, FlatLabel, Markup, RoundButton};
@@ -20,7 +19,6 @@ use crate::lang::{tr, tr_plural, tr_with};
 use crate::layers::{Dismiss, Layers};
 use crate::peer_menu::send;
 use crate::px_of;
-use crate::settings;
 
 actions!(delete_messages_box, [Confirm]);
 
@@ -153,10 +151,6 @@ pub(super) struct Request {
 struct DeleteBox {
     request: Request,
     revoke: Checked,
-    /// What `revoke` starts as: the choice remembered, else checked.
-    revoke_by_default: Checked,
-    /// "Remember this choice", offered once `revoke` differs from it.
-    remember: Checked,
     /// Runs after the request is sent.
     deleted: Callback,
     layers: WeakEntity<Layers>,
@@ -178,16 +172,10 @@ pub(super) fn show(
     cx: &mut App,
 ) {
     let weak = layers.downgrade();
-    let revoke_by_default = if settings::is_delete_only_for_me_remembered(cx) {
-        Checked::No
-    } else {
-        Checked::Yes
-    };
+    // The owner's call: no "Remember this choice" (tdesktop's `_revokeRemember`); revoke starts checked.
     let view = cx.new(|cx| DeleteBox {
         request,
-        revoke: revoke_by_default,
-        revoke_by_default,
-        remember: Checked::No,
+        revoke: Checked::Yes,
         deleted,
         layers: weak,
         focus: cx.focus_handle(),
@@ -206,11 +194,7 @@ impl DeleteBox {
 
     fn delete(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let offer = &self.request.offer;
-        let has_checkbox = offer.revoke.is_some();
-        if has_checkbox && self.is_remember_shown() && self.remember == Checked::Yes {
-            settings::remember_delete_only_for_me(self.revoke == Checked::No, cx);
-        }
-        let revokes = if has_checkbox {
+        let revokes = if offer.revoke.is_some() {
             self.revoke == Checked::Yes
         } else {
             offer.revokes_anyway
@@ -230,10 +214,6 @@ impl DeleteBox {
         );
         self.close(window, cx);
         (self.deleted)(window, cx);
-    }
-
-    fn is_remember_shown(&self) -> bool {
-        self.revoke != self.revoke_by_default
     }
 
     /// The question, then the hint after a blank line (`appendDetails`).
@@ -293,30 +273,8 @@ impl DeleteBox {
             text,
             self.revoke,
         )
-        .on_toggle({
-            let entity = entity.clone();
-            move |_, cx| entity.update(cx, |this, cx| toggle(&mut this.revoke, cx))
-        });
-        let remember = self.is_remember_shown().then(|| {
-            div().pt(px_of(BOX_LITTLE_SKIP)).child(
-                Checkbox::new(
-                    "delete-remember",
-                    &DEFAULT_BOX_CHECKBOX,
-                    &DEFAULT_CHECK,
-                    tr(cx, key::lng_remember),
-                    self.remember,
-                )
-                .on_toggle(move |_, cx| {
-                    entity.update(cx, |this, cx| toggle(&mut this.remember, cx));
-                }),
-            )
-        });
-        Some(
-            div()
-                .pt(px_of(BOX_MEDIUM_SKIP))
-                .child(revoke)
-                .children(remember),
-        )
+        .on_toggle(move |_, cx| entity.update(cx, |this, cx| toggle(&mut this.revoke, cx)));
+        Some(div().pt(px_of(BOX_MEDIUM_SKIP)).child(revoke))
     }
 }
 
