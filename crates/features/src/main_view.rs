@@ -29,7 +29,8 @@ use ui::{CrossButton, IconButton, InputEvent, InputField, color, font, font_heig
 use crate::boxes;
 use crate::columns::{self, ColumnResize, ResizeGhost};
 use crate::dialogs::{
-    CompleteQuery, Dialogs, OnMainMenu, OpenChat, OpenDownloads, OpenMessage, is_sidebar_shown,
+    CloseChat, CompleteQuery, Dialogs, OnMainMenu, OpenChat, OpenDownloads, OpenMessage,
+    is_sidebar_shown,
 };
 use crate::downloads::{DownloadsEvent, DownloadsView};
 use crate::history::{HistoryEvent, HistoryView, Placement};
@@ -67,7 +68,7 @@ pub struct MainView {
     focus: FocusHandle,
     /// The sound playing, whose bar tops the chat column.
     player: Entity<Player>,
-    _subscriptions: [Subscription; 7],
+    _subscriptions: [Subscription; 8],
     /// Other accounts' unread messages change the menu button's icon.
     _others_unread: Option<Subscription>,
     _history_subscription: Option<Subscription>,
@@ -122,6 +123,19 @@ impl MainView {
                 this.open_message(*chat, *message, window, cx);
             },
         );
+        // `clearSectionStack` once the open chat is deleted.
+        let close = cx.subscribe(&dialogs, |this, _, CloseChat(chat), cx| {
+            let is_open =
+                |history: &Entity<HistoryView>, cx: &App| history.read(cx).key().chat == *chat;
+            if this
+                .history
+                .as_ref()
+                .is_some_and(|history| is_open(history, cx))
+            {
+                this.parents.clear();
+                this.close_chat(cx);
+            }
+        });
         let player = Player::global(cx);
         let observe_player = cx.observe(&player, |_, _, cx| cx.notify());
         let open_downloads =
@@ -150,6 +164,7 @@ impl MainView {
                 complete,
                 open,
                 open_message,
+                close,
                 open_downloads,
                 observe_player,
             ],

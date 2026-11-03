@@ -122,6 +122,12 @@ pub(crate) struct OpenMessage(pub ChatId, pub model::MessageId);
 
 impl EventEmitter<OpenMessage> for Dialogs {}
 
+/// The chat is gone (deleted for everyone): close it if it is open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CloseChat(pub ChatId);
+
+impl EventEmitter<CloseChat> for Dialogs {}
+
 /// The download bar's click with several files: the downloads section.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct OpenDownloads;

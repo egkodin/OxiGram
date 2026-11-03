@@ -183,6 +183,20 @@
   members and opens; a channel then goes public with a t.me link or stays
   private with its invite link, picks subscribers and opens. The contacts
   box gained a multi-pick mode for it. Snapshots 301-312.
+- Live tests 28 and 29 run 2026-11-04 (release bundle, views withheld):
+  profiles of a channel, a group, a member and one's own; the big photo
+  sharpens, photos page in the viewer, the media lists load, the bio edit
+  saved and was put back. "rgram test group" (no members, no photo) and
+  "rgram test channel" (private) were created, opened and deleted from
+  their profiles. Fixed from the run: night colors that copy another
+  color (`boxDividerBg: windowBgOver` and 12 more) now follow the night
+  theme as tdesktop's `palette::compute` does (the dividers were white);
+  a click inside the profile no longer closes it (centered layers stop
+  the mouse-down, as boxes did); a chat deleted for everyone closes
+  (`CloseChat`, not checked live); Report is hidden on one's own
+  supergroups and channels and in basic groups; the subscribers box after
+  a new channel has Skip, which opens the channel.
+
 ### Half done (shortcuts in code)
 
 - Rounds and GIFs in bubbles: a round stops
@@ -245,6 +259,13 @@
   the circle; voice notes still download outside the list; the section
   has only the newest 100, no search, delete, pause, menu or selection; the static FFmpeg
   is not in CI yet and rgram does not link it yet.
+
+- Found live, not fixed: rgram never sets TDLib's `online` option, so the
+  account shows "last seen" while rgram is open (tdesktop goes online
+  while its window is active); the bio field is one line and does not
+  scroll to the caret (tdesktop's is multi-line); the New Group members
+  box showed "No contacts found" on the owner's account (not checked
+  whether the account has contacts).
 
 ### Decided by the owner (M5)
 

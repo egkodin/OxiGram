@@ -21,7 +21,7 @@ use ui::{
     BoxFrame, Checkbox, Checked, InputEvent, InputField, RoundButton, color, font, font_height,
 };
 
-use crate::contacts_box::{self, Many};
+use crate::contacts_box::{self, Cancel, Many};
 use crate::intro::signup::photo_button;
 use crate::lang::tr;
 use crate::layers::{Dismiss, Layers};
@@ -163,6 +163,7 @@ impl InfoBox {
             Kind::Group => pick_members(
                 targets,
                 key::lng_create_group_create,
+                Cancel::Close,
                 move |targets, members, window, cx| {
                     let task = targets
                         .store
@@ -226,6 +227,7 @@ fn set_photo(targets: &Targets, chat: ChatId, photo: Option<PathBuf>, cx: &mut A
 fn pick_members(
     targets: Targets,
     done_label: i18n::Key,
+    cancel: Cancel,
     done: impl Fn(Targets, Vec<UserId>, &mut Window, &mut App) + 'static,
     window: &mut Window,
     cx: &mut App,
@@ -237,6 +239,7 @@ fn pick_members(
             let targets = targets.clone();
             Rc::new(move |members, window, cx| done(targets.clone(), members, window, cx))
         },
+        cancel,
     };
     contacts_box::show_many(&targets.store, &targets.layers, many, window, cx);
 }
@@ -447,6 +450,7 @@ fn add_subscribers(targets: Targets, created: CreatedChannel, window: &mut Windo
     pick_members(
         targets,
         key::lng_participant_invite,
+        Cancel::Skip,
         move |targets, members, window, cx| {
             if members.is_empty() {
                 open_chat(&targets, created.chat, window, cx);

@@ -83,7 +83,12 @@ fn theme_colors<'a>(
         if loaded.contains_key(&entry.name) {
             continue;
         }
-        if let Some(color) = entry.fallback.as_ref().and_then(|name| loaded.get(name)) {
+        // A copy (`a: b;`) falls back to what it copies (`colorFallbackName`).
+        let fallback = match &entry.value {
+            Value::Reference(target) => Some(target),
+            Value::Color(_) => entry.fallback.as_ref(),
+        };
+        if let Some(color) = fallback.and_then(|name| loaded.get(name)) {
             loaded.insert(entry.name.clone(), *color);
         }
     }
@@ -331,8 +336,11 @@ historyPeer1UserpicBg2: #d45246 | windowBg; // value with a theme fallback
         let dark = Rgba([0x11, 0x11, 0x11, 0xff]);
         assert_eq!(colors["windowBg"], dark);
         assert_eq!(colors["shadowFg"], dark);
-        // Unset with a set fallback: the fallback; without one: the default.
+        // Unset with a set fallback, or a copy of a set color: that color.
         assert_eq!(colors["historyPeer1UserpicBg2"], dark);
+        assert_eq!(colors["windowFgOver"], dark);
+        // Unset with nothing set to follow: the default.
+        let colors = theme_colors(&entries, &defaults, "shadowFg: #000000;\n").unwrap();
         assert_eq!(colors["windowFgOver"], Rgba([0xff, 0xff, 0xff, 0xff]));
     }
 

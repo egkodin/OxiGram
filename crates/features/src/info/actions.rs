@@ -18,7 +18,7 @@ use ui::SettingsButton;
 
 use super::{InfoView, Subject, divider, text};
 use crate::boxes::{self, Callback};
-use crate::dialogs::photo_userpic;
+use crate::dialogs::{CloseChat, photo_userpic};
 use crate::lang::{strings, tr, tr_plural, tr_with};
 use crate::peer_list::{self, Look};
 use crate::peer_menu::{on_confirm, send};
@@ -165,17 +165,24 @@ impl InfoView {
             return None;
         }
         let (session, chat) = (self.store().read(cx).session().clone(), self.chat);
-        let confirmed = on_confirm(
-            &session,
-            move |session| Box::pin(session.delete_chat(chat)),
-            "delete for all",
-        );
+        let dialogs = self.targets.dialogs.clone();
+        let confirmed: Callback = Rc::new(move |_, cx| {
+            let task = crate::store::spawn(session.delete_chat(chat), cx);
+            let dialogs = dialogs.clone();
+            cx.spawn(async move |cx| match task.await {
+                Ok(()) => {
+                    dialogs.update(cx, |_, cx| cx.emit(CloseChat(chat)));
+                }
+                Err(error) => tracing::warn!(%error, "delete for all failed"),
+            })
+            .detach();
+        });
         let question = tr(cx, question).to_string();
         Some(self.confirmed_row("info-delete-for-all", label, question, confirmed, cx))
     }
 
-    /// Bots, groups and channels (`ReportAction`); users report from the
-    /// chat's bar.
+    /// Bots, and supergroups and channels one does not own (`ReportAction`);
+    /// users report from the chat's bar.
     fn is_reportable(&self, cx: &App) -> bool {
         match self.subject {
             Subject::User(user) => self
@@ -185,7 +192,12 @@ impl InfoView {
                 .chats
                 .user(user)
                 .is_some_and(|user| user.kind == UserKind::Bot),
-            Subject::Group(_) | Subject::Supergroup { .. } => true,
+            // `fillChannelActions`: not one's own; basic groups have none.
+            Subject::Group(_) => false,
+            Subject::Supergroup { id, .. } => {
+                self.store().read(cx).state().chats.supergroup_status(id)
+                    != Some(model::rights::MemberStatus::Creator)
+            }
         }
     }
 

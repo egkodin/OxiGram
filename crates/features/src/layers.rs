@@ -301,10 +301,12 @@ impl Layers {
                 cx.listener(|this, _, window, cx| this.dismiss(window, cx)),
             )
             .map(|this| match placement {
-                Placement::Center => this
-                    .items_center()
-                    .justify_center()
-                    .child(div().opacity(opacity).child(view)),
+                Placement::Center => this.items_center().justify_center().child(
+                    div()
+                        .opacity(opacity)
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .child(view),
+                ),
                 Placement::Full => this.child(div().size_full().opacity(opacity).child(view)),
                 Placement::Left { width } => this.child(
                     div()

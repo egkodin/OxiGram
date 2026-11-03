@@ -37,6 +37,15 @@ pub(crate) struct Many {
     pub title: gpui::SharedString,
     pub done: gpui::SharedString,
     pub on_done: OnDone,
+    pub cancel: Cancel,
+}
+
+/// What the box's other button does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Cancel {
+    Close,
+    /// "Skip" (a channel just created): done with nobody picked.
+    Skip,
 }
 
 pub(crate) struct ContactsBox {
@@ -194,6 +203,16 @@ impl ContactsBox {
         on_done(picked, window, cx);
     }
 
+    /// Closes the box as if nobody was picked.
+    fn skip(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let Some((many, _)) = &self.many else {
+            return;
+        };
+        let on_done = many.on_done.clone();
+        self.close(window, cx);
+        on_done(Vec::new(), window, cx);
+    }
+
     fn download(&mut self, file: FileId, cx: &mut Context<Self>) {
         if !self.requested_files.insert(file) {
             return;
@@ -288,9 +307,16 @@ impl Render for ContactsBox {
             .into_any_element()
         };
         let entity = cx.entity();
-        let (title, close) = match &self.many {
-            Some((many, _)) => (many.title.clone(), key::lng_cancel),
-            None => (tr(cx, key::lng_contacts_header), key::lng_close),
+        let (title, close, cancel) = match &self.many {
+            Some((many, _)) if many.cancel == Cancel::Skip => {
+                (many.title.clone(), key::lng_create_group_skip, Cancel::Skip)
+            }
+            Some((many, _)) => (many.title.clone(), key::lng_cancel, Cancel::Close),
+            None => (
+                tr(cx, key::lng_contacts_header),
+                key::lng_close,
+                Cancel::Close,
+            ),
         };
         let done = self.many.as_ref().map(|(many, _)| {
             let entity = entity.clone();
@@ -308,7 +334,12 @@ impl Render for ContactsBox {
         // shortcut: no "Add contact" button until the add-contact box in M6.
         frame.button(
             RoundButton::new("contacts-close", &DEFAULT_BOX.button, tr(cx, close)).on_click(
-                move |_, window, cx| entity.update(cx, |this, cx| this.close(window, cx)),
+                move |_, window, cx| {
+                    entity.update(cx, |this, cx| match cancel {
+                        Cancel::Close => this.close(window, cx),
+                        Cancel::Skip => this.skip(window, cx),
+                    })
+                },
             ),
         )
     }
