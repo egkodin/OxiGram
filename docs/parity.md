@@ -348,7 +348,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | peers | Block and unblock users; blocked list | M6 | todo | |
 | peers | Report a chat or user with reasons | M6 | todo | |
 | peers | Create a group (members, title, photo, auto-delete) | M6 | in progress | snapshots 301-307 (`cargo run -p rgram --example snapshots`): name and photo, Enter or Next, contacts picked (picked rows keep the hover background, no round checks or chips), Create makes a basic group and opens it; no auto-delete choice; not verified live yet (live test 29) |
-| peers | Create a channel (title, photo, description, type) | M6 | in progress | snapshots 308-312: name, photo, description, Create; then Public with a t.me link or Private with the invite link, Save or Skip, then subscribers; the link is not checked as it is typed (a refused one marks the field); the public/private step needs TDLib, so it has no snapshot; not verified live yet (live test 29) |
+| peers | Create a channel (title, photo, description, type) | M6 | in progress | snapshots 308-312: name, photo, description, Create; then Public with a t.me link or Private with the invite link, Save or Skip, then subscribers; owners delete it from its profile (tdesktop: the Edit box); the link is not checked as it is typed (a refused one marks the field); the public/private step needs TDLib, so it has no snapshot; not verified live yet (live test 29) |
 | peers | Add members, invite by link | M6 | todo | |
 | peers | Edit group or channel: title, photo, description | M6 | todo | |
 | peers | Group and channel type: public with usernames (reorder, collectible) or private | M6 | todo | |

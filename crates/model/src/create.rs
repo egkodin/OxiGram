@@ -6,8 +6,8 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::{ChatType, InputChatPhoto, InputFile};
 use td_api::functions::{
-    AddChatMembers, CreateNewBasicGroupChat, CreateNewSupergroupChat, GetSupergroupFullInfo,
-    SetChatPhoto, SetSupergroupUsername,
+    AddChatMembers, CreateNewBasicGroupChat, CreateNewSupergroupChat, DeleteChat,
+    GetSupergroupFullInfo, SetChatPhoto, SetSupergroupUsername,
 };
 use td_api::types as td;
 
@@ -134,6 +134,16 @@ impl Session {
                 chat_id: chat.0,
                 user_ids: members.iter().map(|user| user.0).collect(),
             })
+            .map(ok)
+    }
+
+    /// Deletes an owned group or channel for everyone (`deleteChat`).
+    pub fn delete_chat(
+        &self,
+        chat: ChatId,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&DeleteChat { chat_id: chat.0 })
             .map(ok)
     }
 }

@@ -130,7 +130,48 @@ impl InfoView {
         if let Some(removal) = self.removal(cx) {
             rows.push(removal);
         }
+        if let Some(delete) = self.delete_for_all(cx) {
+            rows.push(delete);
+        }
         rows
+    }
+
+    /// "Delete group" or "Delete channel" for its owner.
+    // shortcut: tdesktop offers it in the owner's Edit box (`EditPeerInfoBox::deleteWithConfirmation`), which comes with M6's edit box.
+    fn delete_for_all(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let chats = &self.store().read(cx).state().chats;
+        let (status, label, question) = match self.subject {
+            Subject::User(_) => return None,
+            Subject::Group(group) => (
+                chats.group_status(group),
+                key::lng_profile_delete_group,
+                key::lng_sure_delete_group,
+            ),
+            Subject::Supergroup { id, is_channel } => (
+                chats.supergroup_status(id),
+                if is_channel {
+                    key::lng_profile_delete_channel
+                } else {
+                    key::lng_profile_delete_group
+                },
+                if is_channel {
+                    key::lng_sure_delete_channel
+                } else {
+                    key::lng_sure_delete_group
+                },
+            ),
+        };
+        if status != Some(model::rights::MemberStatus::Creator) {
+            return None;
+        }
+        let (session, chat) = (self.store().read(cx).session().clone(), self.chat);
+        let confirmed = on_confirm(
+            &session,
+            move |session| Box::pin(session.delete_chat(chat)),
+            "delete for all",
+        );
+        let question = tr(cx, question).to_string();
+        Some(self.confirmed_row("info-delete-for-all", label, question, confirmed, cx))
     }
 
     /// Bots, groups and channels (`ReportAction`); users report from the

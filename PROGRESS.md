@@ -400,7 +400,8 @@
     group", a photo, Next, pick one contact you agree to add, Create: the
     group opens with its photo. New Channel: name "rgram test channel",
     Create, Private shows the invite link; Save, Skip the subscribers: the
-    channel opens. Then delete both (profile, Delete and leave / Leave).
+    channel opens. Then delete both from their profiles: Delete group,
+    Delete channel (owners only, confirmed).
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
