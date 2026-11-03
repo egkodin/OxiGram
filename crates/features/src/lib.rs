@@ -23,6 +23,7 @@ mod main_view;
 mod peer_list;
 mod peer_menu;
 mod player;
+mod presence;
 mod ranked;
 mod recipients_box;
 mod root;

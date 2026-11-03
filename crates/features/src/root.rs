@@ -258,9 +258,12 @@ impl Root {
 
 impl Render for Root {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .size_full()
-            .relative()
+        let root = div().size_full();
+        let root = match &self.screen {
+            Screen::Main(main) => crate::presence::watch_input(root, main.read(cx).presence()),
+            Screen::Blank | Screen::Intro(_) => root,
+        };
+        root.relative()
             .bg(color(cx, ColorRef::Palette(ColorId::WindowBg)))
             .map(|root| match &self.screen {
                 Screen::Blank => root,

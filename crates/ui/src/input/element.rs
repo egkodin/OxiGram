@@ -37,6 +37,9 @@ pub(super) struct Prepaint {
     origin: Point<Pixels>,
     line_height: Pixels,
     cursor: Option<gpui::PaintQuad>,
+    /// The text area between the side margins; text outside it is clipped.
+    text_bounds: Bounds<Pixels>,
+    scroll_x: Pixels,
 }
 
 impl Element for FieldElement {
@@ -116,8 +119,15 @@ impl Element for FieldElement {
             .then(|| placeholder_line(input, bounds, palette, window));
 
         let line_height = font_height(st.style.font);
+        let inner = input.text_width_inside(bounds.size.width);
+        let cursor_x = line.x_for_index(input.text_to_display(input.buffer.cursor()));
+        let scroll_x = super::next_scroll(input.scroll_x, cursor_x, line.width, inner);
+        let text_bounds = Bounds::new(
+            point(bounds.left() + px_of(st.text_margins.left), bounds.top()),
+            size(inner, bounds.size.height),
+        );
         let origin = point(
-            bounds.left() + input.text_left(bounds.size.width, line.width),
+            bounds.left() + input.text_start(bounds.size.width, line.width) - scroll_x,
             bounds.top() + px_of(st.text_margins.top),
         );
         let mut quads = if st.border_radius.0 > 0 {
@@ -128,13 +138,11 @@ impl Element for FieldElement {
             quads
         };
         if !selected.is_empty() {
-            let start = line.x_for_index(selected.start);
-            let end = line.x_for_index(selected.end);
+            let clip = |x: Pixels| x.clamp(text_bounds.left(), text_bounds.right());
+            let start = clip(origin.x + line.x_for_index(selected.start));
+            let end = clip(origin.x + line.x_for_index(selected.end));
             quads.push(fill(
-                Bounds::from_corners(
-                    point(origin.x + start, origin.y),
-                    point(origin.x + end, origin.y + line_height),
-                ),
+                Bounds::from_corners(point(start, origin.y), point(end, origin.y + line_height)),
                 hsla(palette.msg_in_bg_selected),
             ));
         }
@@ -142,9 +150,11 @@ impl Element for FieldElement {
             && input.cursor_visible
             && selected.is_empty())
         .then(|| {
-            let x = line.x_for_index(input.text_to_display(input.buffer.cursor()));
             fill(
-                Bounds::new(point(origin.x + x, origin.y), size(px(1.0), line_height)),
+                Bounds::new(
+                    point(origin.x + cursor_x, origin.y),
+                    size(px(1.0), line_height),
+                ),
                 hsla(st.text_fg.resolve(palette)),
             )
         });
@@ -156,6 +166,8 @@ impl Element for FieldElement {
             origin,
             line_height,
             cursor,
+            text_bounds,
+            scroll_x,
         }
     }
 
@@ -187,42 +199,48 @@ impl Element for FieldElement {
                 }
             });
         }
-        let Prepaint {
-            line,
-            origin,
-            line_height,
-            ..
-        } = &*prepaint;
-        if let Err(error) = line.paint(
-            *origin,
-            *line_height,
-            gpui::TextAlign::Left,
-            None,
-            window,
-            cx,
-        ) {
-            tracing::warn!(%error, "cannot paint a field's text");
-        }
-        if let Some(hint) = prepaint.hint.take() {
-            let at = point(prepaint.origin.x + prepaint.line.width, prepaint.origin.y);
-            if let Err(error) = hint.paint(
-                at,
-                prepaint.line_height,
+        let mask = gpui::ContentMask {
+            bounds: prepaint.text_bounds,
+        };
+        window.with_content_mask(Some(mask), |window| {
+            let Prepaint {
+                line,
+                origin,
+                line_height,
+                ..
+            } = &*prepaint;
+            if let Err(error) = line.paint(
+                *origin,
+                *line_height,
                 gpui::TextAlign::Left,
                 None,
                 window,
                 cx,
             ) {
-                tracing::warn!(%error, "cannot paint a field's hint");
+                tracing::warn!(%error, "cannot paint a field's text");
             }
-        }
+            if let Some(hint) = prepaint.hint.take() {
+                let at = point(prepaint.origin.x + prepaint.line.width, prepaint.origin.y);
+                if let Err(error) = hint.paint(
+                    at,
+                    prepaint.line_height,
+                    gpui::TextAlign::Left,
+                    None,
+                    window,
+                    cx,
+                ) {
+                    tracing::warn!(%error, "cannot paint a field's hint");
+                }
+            }
+        });
         if let Some(cursor) = prepaint.cursor.take() {
             window.paint_quad(cursor);
         }
-        let line = prepaint.line.clone();
+        let (line, scroll_x) = (prepaint.line.clone(), prepaint.scroll_x);
         self.input.update(cx, |input, _| {
             input.last_line = Some(line);
             input.last_bounds = Some(bounds);
+            input.scroll_x = scroll_x;
         });
     }
 }

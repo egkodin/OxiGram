@@ -104,10 +104,9 @@ fn open(
     cx: &mut App,
 ) {
     let task = crate::store::spawn(store.read(cx).session().contacts(), cx);
-    cx.spawn(async move |_| {
-        if let Err(error) = task.await {
-            tracing::warn!(%error, "loading contacts failed");
-        }
+    cx.spawn(async move |_| match task.await {
+        Ok(contacts) => tracing::debug!(count = contacts.len(), "contacts loaded"),
+        Err(error) => tracing::warn!(%error, "loading contacts failed"),
     })
     .detach();
     let weak = layers.downgrade();

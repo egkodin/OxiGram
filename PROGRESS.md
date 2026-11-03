@@ -263,11 +263,17 @@
 - Online presence (owner's go-ahead 2026-11-04): `Session::set_presence`
   sets TDLib's `online` option from the main view, online while the
   window is active, offline when it is not and when the account's view
-  is dropped (switching accounts); no idle timeout yet.
-- Found live, not fixed: the bio field is one line and does not
-  scroll to the caret (tdesktop's is multi-line); the New Group members
-  box showed "No contacts found" on the owner's account (not checked
-  whether the account has contacts).
+  is dropped (switching accounts). `features/presence.rs` adds
+  tdesktop's idle timeout: offline after 30 s without a key press, click
+  or wheel in the window (boxes included), online again on the next one;
+  checked live in the debug log (Offline after 31 s, Online on a wheel
+  turn). Shortcuts: the 30 s default, not the server's
+  `offline_idle_timeout_ms`; mouse moves and the OS idle time do not count.
+- `ui::InputField` scrolls sideways to keep the caret in view, the text
+  clipped at the field's margins (snapshots 297-300: a long bio). The bio
+  field stays one line (tdesktop's is multi-line).
+- The empty New Group members box is right: TDLib's `getContacts`
+  returned 0 for the owner's account (`contacts loaded` debug log).
 
 ### Decided by the owner (M5)
 
@@ -427,7 +433,9 @@
     Delete channel (owners only, confirmed).
 30. Online presence: bring rgram's window to the front; your own profile
     (and your account seen from another device) shows "online". Switch to
-    another app: within a minute it reads "last seen just now".
+    another app: within a minute it reads "last seen just now". Leave the
+    window in front untouched for 30 s: it reads "last seen just now";
+    scroll or type: "online" again.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

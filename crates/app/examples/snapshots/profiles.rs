@@ -16,6 +16,8 @@ use super::{Input, Scenario};
 const TOP_BAR_NAME: (f32, f32) = (480.0, 27.0);
 /// "My Profile" under the main menu's cover.
 const MY_PROFILE: (f32, f32) = (140.0, 160.0);
+/// The Bio row in one's own profile.
+const BIO_ROW: (f32, f32) = (240.0, 330.0);
 
 fn scenario(names: [&'static str; 4], first: (f32, f32), second: (f32, f32)) -> Scenario {
     let [list, opened, profile, closed] = names;
@@ -79,5 +81,28 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             MENU_BUTTON,
             MY_PROFILE,
         ),
+        // A bio longer than the field scrolls to the caret.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("297-profile-bio-menu", MouseButton::Left, MENU_BUTTON),
+                ("298-profile-bio-info", MouseButton::Left, MY_PROFILE),
+                ("299-profile-bio-box", MouseButton::Left, BIO_ROW),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![(
+                "300-profile-bio-long",
+                vec![Input::Type(
+                    "Web, Telegram, backend and AI: sites, parsers, bots",
+                )],
+            )],
+            folders: FoldersPlacement::Top,
+            histories: history::histories(),
+            steps: vec![("297-profile-bio", auth(State::Ready))],
+        },
     ]
 }

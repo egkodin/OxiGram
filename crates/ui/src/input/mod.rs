@@ -128,6 +128,8 @@ pub struct InputField {
     blink: Option<Task<()>>,
     last_line: Option<ShapedLine>,
     last_bounds: Option<Bounds<Pixels>>,
+    /// How far the text is scrolled left to keep the caret in view.
+    scroll_x: Pixels,
     _subscriptions: [gpui::Subscription; 2],
 }
 
@@ -189,6 +191,7 @@ impl InputField {
             blink: None,
             last_line: None,
             last_bounds: None,
+            scroll_x: px(0.0),
             _subscriptions: subscriptions,
         }
     }
@@ -396,8 +399,19 @@ impl InputField {
         self.display_to_text(line.closest_index_for_x(x))
     }
 
-    /// The x of the text's start inside the field.
+    /// The x of the text's start inside the field, as drawn.
     fn text_left(&self, width: Pixels, text_width: Pixels) -> Pixels {
+        self.text_start(width, text_width) - self.scroll_x
+    }
+
+    /// The width the text shows in, between the side margins.
+    fn text_width_inside(&self, width: Pixels) -> Pixels {
+        let margins = self.style.text_margins;
+        (width - px_of(margins.left) - px_of(margins.right)).max(px(0.0))
+    }
+
+    /// The x of the text's start inside the field, before scrolling.
+    fn text_start(&self, width: Pixels, text_width: Pixels) -> Pixels {
         let margins = self.style.text_margins;
         let left = px_of(margins.left);
         match self.style.text_align {
@@ -664,9 +678,34 @@ impl Render for InputField {
     }
 }
 
+/// The scroll that keeps the caret inside `inner` while moving as little as
+/// possible (`QLineEdit`'s horizontal scroll under tdesktop's fields).
+fn next_scroll(scroll: Pixels, cursor_x: Pixels, text_width: Pixels, inner: Pixels) -> Pixels {
+    let scroll = if cursor_x < scroll {
+        cursor_x
+    } else if cursor_x > scroll + inner {
+        cursor_x - inner
+    } else {
+        scroll
+    };
+    scroll.clamp(px(0.0), (text_width - inner).max(px(0.0)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scroll_follows_the_caret_out_of_view_only() {
+        let (inner, text) = (px(100.0), px(300.0));
+        // In view: no move; past the right edge: just enough to show it.
+        assert_eq!(next_scroll(px(0.0), px(80.0), text, inner), px(0.0));
+        assert_eq!(next_scroll(px(0.0), px(300.0), text, inner), px(200.0));
+        // Back past the left edge: the caret at the left edge.
+        assert_eq!(next_scroll(px(200.0), px(150.0), text, inner), px(150.0));
+        // Text that fits, or shrank: never scrolled.
+        assert_eq!(next_scroll(px(50.0), px(40.0), px(60.0), inner), px(0.0));
+    }
 
     #[test]
     fn floors_offsets_to_char_boundaries() {
