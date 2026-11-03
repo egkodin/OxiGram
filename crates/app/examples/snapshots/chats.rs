@@ -187,9 +187,12 @@ pub(crate) fn events() -> Vec<Event> {
         )),
     );
     ann.last_read_outbox = MessageId(30);
-    ann.photo = Some(Photo {
-        small: ANN_PHOTO,
-        minithumbnail: None,
+    // As TDLib sends a photo downloaded in an earlier run: the file is on
+    // disk, no `updateFile` follows, and the preview comes along.
+    ann.photo = ann_photo().map(|small| Photo {
+        small,
+        big: remote_file(FileId(961)),
+        minithumbnail: ann_minithumbnail(),
     });
 
     let mut group = chat(
@@ -394,7 +397,6 @@ pub(crate) fn events() -> Vec<Event> {
     });
 
     let mut events: Vec<Event> = vec![Event::Me(UserId(ME))];
-    events.extend(ann_photo().map(|file| Event::Chats(Change::File(file))));
     events.extend(
         users
             .into_iter()
@@ -471,6 +473,35 @@ pub(crate) fn events() -> Vec<Event> {
 }
 
 const ANN_PHOTO: FileId = FileId(960);
+
+/// A file TDLib has not downloaded.
+pub(super) fn remote_file(id: FileId) -> File {
+    File {
+        id,
+        path: None,
+        is_downloading: false,
+        downloaded: 0,
+        size: 0,
+        uploaded: 0,
+        is_uploading: false,
+    }
+}
+
+/// Ann's 40 px blurred preview, as TDLib sends it with the photo.
+fn ann_minithumbnail() -> Option<model::file::Minithumbnail> {
+    let image = image::RgbImage::from_fn(160, 160, |x, y| {
+        let stripe = u8::try_from((x + y) / 12 % 2 * 60).unwrap_or(0);
+        image::Rgb([230 - stripe, 170, 120 + stripe])
+    });
+    let small = image::imageops::resize(&image, 40, 40, image::imageops::FilterType::Triangle);
+    let mut jpeg = std::io::Cursor::new(Vec::new());
+    small.write_to(&mut jpeg, image::ImageFormat::Jpeg).ok()?;
+    Some(model::file::Minithumbnail {
+        width: 40,
+        height: 40,
+        jpeg: jpeg.into_inner(),
+    })
+}
 
 /// Ann's userpic: a 160 px JPEG as TDLib downloads small photos, with
 /// stripes that alias when scaled down roughly.

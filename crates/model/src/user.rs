@@ -2,8 +2,8 @@
 
 use td_api::enums::{UserStatus as TdUserStatus, UserType};
 
-use crate::file::Minithumbnail;
-use crate::ids::{CustomEmojiId, FileId, UserId};
+use crate::file::{File, Minithumbnail};
+use crate::ids::{CustomEmojiId, UserId};
 use crate::secret::Secret;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,10 +25,13 @@ pub struct User {
     pub username: String,
 }
 
-/// A small userpic: the file to download and its blurred preview.
+/// A userpic as TDLib sends it: the 160 px photo for lists (`small`), the
+/// 640 px one for profiles (`big`), each with its local state at the time,
+/// and the blurred preview to show until one is on disk.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Photo {
-    pub small: FileId,
+    pub small: File,
+    pub big: File,
     pub minithumbnail: Option<Minithumbnail>,
 }
 
@@ -106,7 +109,8 @@ impl From<td_api::types::User> for User {
             last_name: user.last_name,
             status: UserStatus::from(*user.status),
             photo: user.profile_photo.map(|photo| Photo {
-                small: FileId(photo.small.id),
+                small: File::from(*photo.small),
+                big: File::from(*photo.big),
                 minithumbnail: photo.minithumbnail.and_then(|m| Minithumbnail::from_td(*m)),
             }),
             accent_color: user.accent_color_id,

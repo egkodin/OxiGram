@@ -54,7 +54,7 @@ fn events(paths: &[PathBuf]) -> Vec<Event> {
     for (index, path) in (0..).zip(paths) {
         let id = FIRST_ID + index;
         let file = FileId(i32::try_from(id).unwrap_or(i32::MAX));
-        events.push(Event::Chats(Change::File(File {
+        let small = File {
             id: file,
             path: Some(path.to_string_lossy().into_owned()),
             is_downloading: false,
@@ -62,7 +62,8 @@ fn events(paths: &[PathBuf]) -> Vec<Event> {
             size: 4000,
             uploaded: 4000,
             is_uploading: false,
-        })));
+        };
+        events.push(Event::Chats(Change::File(small.clone())));
         let mut chat = chats::chat(
             -id,
             ChatKind::Group {
@@ -73,7 +74,8 @@ fn events(paths: &[PathBuf]) -> Vec<Event> {
             None,
         );
         chat.photo = Some(Photo {
-            small: file,
+            small,
+            big: chats::remote_file(FileId(file.0 + 1_000_000)),
             minithumbnail: None,
         });
         events.push(Event::Chats(Change::Chat(Box::new(chat))));

@@ -4,7 +4,7 @@ use td_api::enums::{ChatList as TdChatList, ChatType, DraftMessageContent};
 
 use crate::action_bar::ActionBar;
 use crate::file::Minithumbnail;
-use crate::ids::{BasicGroupId, ChatId, FileId, FolderId, MessageId, SupergroupId, UserId};
+use crate::ids::{BasicGroupId, ChatId, FolderId, MessageId, SupergroupId, UserId};
 use crate::message::Message;
 use crate::rights::Permissions;
 use crate::text::FormattedText;
@@ -179,7 +179,8 @@ impl From<td_api::types::Chat> for Chat {
 
 pub(crate) fn photo_of(photo: td_api::types::ChatPhotoInfo) -> Photo {
     Photo {
-        small: FileId(photo.small.id),
+        small: crate::file::File::from(*photo.small),
+        big: crate::file::File::from(*photo.big),
         minithumbnail: photo
             .minithumbnail
             .and_then(|thumbnail| Minithumbnail::from_td(*thumbnail)),

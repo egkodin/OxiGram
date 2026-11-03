@@ -290,6 +290,7 @@ impl Chats {
         match change {
             Change::Chat(chat) => {
                 let mut chat = *chat;
+                self.seed(chat.photo.as_ref());
                 let id = chat.id;
                 let positions = std::mem::take(&mut chat.positions);
                 if let Some(old) = self.chats.insert(id, chat) {
@@ -323,7 +324,10 @@ impl Chats {
             }
             Change::Position { chat, position } => self.place(chat, position),
             Change::Title { chat, title } => self.update(chat, |chat| chat.title = title),
-            Change::Photo { chat, photo } => self.update(chat, |chat| chat.photo = photo),
+            Change::Photo { chat, photo } => {
+                self.seed(photo.as_ref());
+                self.update(chat, |chat| chat.photo = photo);
+            }
             Change::ReadInbox {
                 chat,
                 last_read,
@@ -397,6 +401,7 @@ impl Chats {
                 self.unread.insert(list, unread);
             }
             Change::User(user) => {
+                self.seed(user.photo.as_ref());
                 self.users.insert(user.id, *user);
             }
             Change::Group {
@@ -430,6 +435,24 @@ impl Chats {
             }
             Change::File(file) => {
                 self.files.insert(file.id, file);
+            }
+        }
+    }
+
+    /// Learns a photo's files from the copies TDLib embeds in chats and
+    /// users: one downloaded in an earlier run gets no `updateFile`. A file
+    /// already known keeps its state unless only the copy has it on disk.
+    fn seed(&mut self, photo: Option<&Photo>) {
+        let Some(photo) = photo else {
+            return;
+        };
+        for file in [&photo.small, &photo.big] {
+            let is_newer = self
+                .files
+                .get(&file.id)
+                .is_none_or(|known| known.path.is_none() && file.path.is_some());
+            if is_newer {
+                self.files.insert(file.id, file.clone());
             }
         }
     }
@@ -648,6 +671,37 @@ mod tests {
                 format!("chat {id}"),
             )
         }))
+    }
+
+    fn photo_file(id: i32, path: Option<&str>) -> File {
+        File {
+            id: FileId(id),
+            path: path.map(str::to_owned),
+            is_downloading: false,
+            downloaded: 0,
+            size: 0,
+            uploaded: 0,
+            is_uploading: false,
+        }
+    }
+
+    #[test]
+    fn a_userpic_downloaded_before_is_known_without_update_file() {
+        let mut chats = Chats::default();
+        let Change::Chat(mut with_photo) = chat(1, 10) else {
+            unreachable!("chat() builds a Change::Chat");
+        };
+        with_photo.photo = Some(Photo {
+            small: photo_file(5, Some("/cache/small.jpg")),
+            big: photo_file(6, None),
+            minithumbnail: None,
+        });
+        // An update that already said the big one is on disk stays.
+        chats.apply(Change::File(photo_file(6, Some("/cache/big.jpg"))));
+        chats.apply(Change::Chat(with_photo));
+        let path = |id| chats.file(FileId(id)).and_then(|file| file.path.clone());
+        assert_eq!(path(5).as_deref(), Some("/cache/small.jpg"));
+        assert_eq!(path(6).as_deref(), Some("/cache/big.jpg"));
     }
 
     fn main_list(chats: &Chats) -> Vec<i64> {

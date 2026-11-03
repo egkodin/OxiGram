@@ -174,7 +174,7 @@ fn me(state: &State) -> (SharedString, UserpicSource) {
     let file = user
         .photo
         .as_ref()
-        .and_then(|photo| state.chats.file(photo.small))
+        .and_then(|photo| state.chats.file(photo.small.id))
         .and_then(|file| file.path.clone());
     let source = match (
         file,

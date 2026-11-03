@@ -724,14 +724,17 @@ pub(crate) fn photo_userpic(
     let Some(photo) = photo else {
         return (initials(), None);
     };
-    if let Some(path) = chats.file(photo.small).and_then(|file| file.path.clone()) {
+    if let Some(path) = chats
+        .file(photo.small.id)
+        .and_then(|file| file.path.clone())
+    {
         return (UserpicSource::File(path.into()), None);
     }
     let source = match &photo.minithumbnail {
         Some(thumbnail) => UserpicSource::Jpeg(ui::jpeg_image(thumbnail.jpeg.clone())),
         None => initials(),
     };
-    (source, Some(photo.small))
+    (source, Some(photo.small.id))
 }
 
 fn date_text(strings: &Strings, date: i32, now: &DateTime<Local>) -> SharedString {

@@ -133,6 +133,11 @@
   order, the closed end dimmed; a song that ends starts the next one,
   downloaded first (`Session::fetch_file`). Unit test
   `the_next_song_is_newer_and_the_ends_stop`.
+- Blurry userpics (live 2026-11-03): rows kept the 40 px minithumbnail
+  for photos TDLib had downloaded in an earlier run, because it embeds
+  those files in chats and users and sends no `updateFile`. `Photo` now
+  keeps the small and big files and the store learns them. Snapshot 209,
+  unit test `a_userpic_downloaded_before_is_known_without_update_file`.
 - Crash on quit (signal 11 after the full snapshot run): `exit` destroyed
   TDLib's statics while the `tdlib-receive` thread was still inside
   `td_receive` (crash report: that thread faults in libtdjson under
@@ -331,6 +336,9 @@
 24. Quit (Cmd-Q, then once with the Dock's Quit): rgram closes within a
     couple of seconds with no "quit unexpectedly" dialog and no new
     `rgram-*.ips` in ~/Library/Logs/DiagnosticReports.
+25. Userpics after a restart: quit rgram, start it again: the chat list,
+    group senders, top bar and main menu show sharp photos at once (no
+    blurry previews that stay); compare a few with Telegram on a phone.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
