@@ -84,6 +84,9 @@ impl Pull {
 impl HistoryView {
     /// The open chat is a channel read to its end.
     fn can_pull(&self, cx: &Context<Self>) -> bool {
+        if !crate::settings::is_pull_to_next_channel(cx) {
+            return false;
+        }
         let state = self.store.read(cx).state();
         let is_channel = state.chats.chat(self.chat).is_some_and(|chat| {
             matches!(

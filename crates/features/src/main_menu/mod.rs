@@ -226,6 +226,7 @@ fn me(state: &State) -> (SharedString, UserpicSource) {
 impl Render for MainMenu {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let night = settings::is_night_mode(cx);
+        let layers = self.layers.clone();
         let shadow = color(cx, ColorRef::Palette(ColorId::ShadowFg));
         let separator = move || div().my(px_of(MAIN_MENU_SKIP)).h(px(1.0)).bg(shadow);
         let state = self.store.read(cx).state();
@@ -321,7 +322,11 @@ impl Render for MainMenu {
                         )
                         .icon(MENU_ICON_NIGHT_MODE)
                         .toggle(night)
-                        .on_click(move |_, _, cx| settings::set_night_mode(!night, cx)),
+                        .on_click(move |_, window, cx| {
+                            let toggle: crate::boxes::Callback =
+                                std::rc::Rc::new(move |_, cx| settings::set_night_mode(!night, cx));
+                            crate::settings_screen::toggle_night_mode(&layers, toggle, window, cx);
+                        }),
                     ),
             )
             .child(Self::footer(cx))

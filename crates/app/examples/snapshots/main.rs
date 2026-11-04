@@ -162,6 +162,7 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
         cx.update(|cx| {
             features::preset_message_abilities(abilities, cx);
             features::settings::set_folders_placement(folders, cx);
+            features::settings::set_system_night_mode(false, cx);
             // A scenario that switches it must not change the next one's Enter.
             features::settings::set_send_by(features::settings::SendBy::Enter, cx);
         });

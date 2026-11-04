@@ -132,11 +132,15 @@ impl HistoryView {
             Content::Emoji {
                 sticker: Some(picture),
                 ..
-            } if super::large_emoji::is_drawable(picture) => Some(Photo {
-                width: MAX_ANIMATED_EMOJI_SIZE.0,
-                height: MAX_ANIMATED_EMOJI_SIZE.0,
-                ..self.sticker(message.id, picture, cx)
-            }),
+            } if super::large_emoji::is_drawable(picture)
+                && crate::settings::is_large_emoji(cx) =>
+            {
+                Some(Photo {
+                    width: MAX_ANIMATED_EMOJI_SIZE.0,
+                    height: MAX_ANIMATED_EMOJI_SIZE.0,
+                    ..self.sticker(message.id, picture, cx)
+                })
+            }
             _ => None,
         };
         photo.map(|photo| match message.self_destruct {

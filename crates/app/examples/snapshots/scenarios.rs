@@ -403,6 +403,24 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("326-settings-list", auth(State::Ready))],
         },
+        // Settings > Chat Settings.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("327-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("327-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("327-settings-chat", MouseButton::Left, SETTINGS_CHAT),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("327-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -846,6 +864,7 @@ const SETTINGS_PRIVACY: (f32, f32) = (300.0, 291.0);
 const SETTINGS_BLOCKED: (f32, f32) = (300.0, 270.0);
 const SETTINGS_SESSIONS: (f32, f32) = (300.0, 310.0);
 const SETTINGS_TTL: (f32, f32) = (300.0, 190.0);
+const SETTINGS_CHAT: (f32, f32) = (300.0, 336.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 /// The chat list's right edge at the default width (5/14 of 800), and in

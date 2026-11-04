@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 18 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 21 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -403,14 +403,14 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Account self-destruction period (M6) *(in progress)*
 - [ ] Archive and mute new non-contacts (M6) *(in progress)*
 - [ ] Suggest frequent contacts; delete cloud drafts; clear payment info (M6) *(in progress)*
-- [ ] Sensitive content setting (M6)
-- [ ] Chat settings: text and emoji options, large emoji, replace emoji (M6)
+- [ ] Sensitive content setting (M6) *(in progress)*
+- [ ] Chat settings: text and emoji options, large emoji, replace emoji (M6) *(in progress)*
 - [ ] Chat settings: stickers suggestions, loop animated stickers (M6)
 - [ ] Chat settings: default reaction (quick reaction) (M6)
 - [ ] Chat settings: send by Enter or Ctrl+Enter (M6) *(in progress)*
 - [ ] Auto-download and autoplay settings (M6)
 - [ ] Download folder and "ask where to save" (M6)
-- [ ] Archive settings (keep unmuted chats archived, folders) (M6)
+- [ ] Archive settings (keep unmuted chats archived, folders) (M6) *(in progress)*
 - [ ] Folders settings page (M6)
 - [ ] Language: cloud language list, search, apply without restart (M6)
 - [ ] Translation options and do-not-translate languages (M13)
@@ -431,10 +431,10 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Themes and backgrounds</b>: 0 of 9 done, 1 in progress</summary>
+<summary><b>Themes and backgrounds</b>: 0 of 9 done, 2 in progress</summary>
 
 - [ ] Day and night themes, night mode toggle in the main menu (M6) *(in progress)*
-- [ ] Follow the system dark mode (M7)
+- [ ] Follow the system dark mode (M7) *(in progress)*
 - [ ] Accent colors for the built-in themes (M6)
 - [ ] Cloud themes: list, apply, create from current, share links (M6)
 - [ ] Import and apply `.tdesktop-theme` files (M6)

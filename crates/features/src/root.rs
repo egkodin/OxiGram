@@ -35,6 +35,8 @@ pub struct Root {
     /// The terms update the box is open for (`checkLockByTerms`).
     shown_terms: Option<auth::TermsId>,
     _switched: Subscription,
+    /// Night mode follows the system's appearance.
+    _appearance: Subscription,
     /// The shown account's.
     _subscriptions: Vec<Subscription>,
 }
@@ -67,12 +69,17 @@ impl Root {
                     }
                 },
             );
+        crate::settings::follow_system_appearance(cx);
+        let appearance = cx.observe_window_appearance(window, |_, _, cx| {
+            crate::settings::follow_system_appearance(cx)
+        });
         let mut this = Self {
             shared,
             screen: Screen::Blank,
             connecting,
             shown_terms: None,
             _switched: switched,
+            _appearance: appearance,
             _subscriptions: Vec::new(),
         };
         this.show_account(store, window, cx);

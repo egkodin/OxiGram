@@ -37,6 +37,36 @@ impl SendBy {
     }
 }
 
+/// The built-in themes (`Window::Theme::EmbeddedType`); the night mode
+/// switch moves between the last day and the last night one.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EmbeddedTheme {
+    #[default]
+    Classic,
+    Day,
+    /// `night.tdesktop-theme`.
+    Tinted,
+    /// `night-green.tdesktop-theme`.
+    Night,
+}
+
+impl EmbeddedTheme {
+    #[must_use]
+    pub fn palette(self) -> Palette {
+        match self {
+            Self::Classic => Palette::DEFAULT,
+            Self::Day => Palette::DAY_BLUE,
+            Self::Tinted => Palette::NIGHT,
+            Self::Night => Palette::NIGHT_GREEN,
+        }
+    }
+
+    #[must_use]
+    pub fn is_night(self) -> bool {
+        matches!(self, Self::Tinted | Self::Night)
+    }
+}
+
 /// What a desktop notification shows (`Core::Settings::NotifyView`).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NotifyView {
@@ -114,6 +144,17 @@ struct Values {
     /// The name this device shows in the sessions list; empty is the
     /// system's (`customDeviceModel`).
     custom_device_model: String,
+    /// The theme night mode off shows (`Classic` or `Day`).
+    day_theme: EmbeddedTheme,
+    /// The theme night mode on shows (`Tinted` or `Night`).
+    night_theme: EmbeddedTheme,
+    /// Night mode follows the system (`systemDarkModeEnabled`).
+    system_night_mode: bool,
+    /// One to three emoji alone show big (`largeEmoji`).
+    large_emoji: bool,
+    /// Scrolling past a channel's end offers the next unread one
+    /// (`pullToNextChannel`).
+    pull_to_next_channel: bool,
 }
 
 impl Default for Values {
@@ -133,6 +174,11 @@ impl Default for Values {
             recent_settings_searches: Vec::new(),
             notify: Notify::default(),
             custom_device_model: String::new(),
+            day_theme: EmbeddedTheme::Classic,
+            night_theme: EmbeddedTheme::Tinted,
+            system_night_mode: true,
+            large_emoji: true,
+            pull_to_next_channel: true,
         }
     }
 }
@@ -160,7 +206,7 @@ pub fn load(path: PathBuf, cx: &mut App) {
             Values::default()
         }
     };
-    apply_theme(values.night_mode, cx);
+    apply_theme(&values, cx);
     cx.set_global(Settings {
         path: Some(path),
         values,
@@ -171,11 +217,85 @@ pub(crate) fn is_night_mode(cx: &App) -> bool {
     values(cx).is_some_and(|values| values.night_mode)
 }
 
-/// Switches between the day and night palettes and remembers the choice.
+/// Switches between the day and night themes and remembers the choice.
 pub(crate) fn set_night_mode(night_mode: bool, cx: &mut App) {
     change(cx, |values| values.night_mode = night_mode);
-    apply_theme(night_mode, cx);
+    reapply_theme(cx);
+}
+
+/// The theme shown now.
+pub(crate) fn theme(cx: &App) -> EmbeddedTheme {
+    values(cx).map_or_else(EmbeddedTheme::default, |values| {
+        if values.night_mode {
+            values.night_theme
+        } else {
+            values.day_theme
+        }
+    })
+}
+
+/// Shows `theme`, turning night mode on or off with it.
+pub(crate) fn set_theme(theme: EmbeddedTheme, cx: &mut App) {
+    change(cx, |values| {
+        values.night_mode = theme.is_night();
+        if theme.is_night() {
+            values.night_theme = theme;
+        } else {
+            values.day_theme = theme;
+        }
+    });
+    reapply_theme(cx);
+}
+
+fn reapply_theme(cx: &mut App) {
+    if let Some(values) = values(cx).cloned() {
+        apply_theme(&values, cx);
+    }
     cx.refresh_windows();
+}
+
+pub(crate) fn is_system_night_mode(cx: &App) -> bool {
+    values(cx).is_some_and(|values| values.system_night_mode)
+}
+
+/// Following the system applies its appearance at once; snapshots turn it
+/// off to stay the same on any Mac.
+pub fn set_system_night_mode(enabled: bool, cx: &mut App) {
+    change(cx, |values| values.system_night_mode = enabled);
+    if enabled {
+        follow_system_appearance(cx);
+    }
+}
+
+/// Night mode as the system's appearance says, when it is followed.
+pub(crate) fn follow_system_appearance(cx: &mut App) {
+    if !is_system_night_mode(cx) {
+        return;
+    }
+    let is_dark = matches!(
+        cx.window_appearance(),
+        gpui::WindowAppearance::Dark | gpui::WindowAppearance::VibrantDark
+    );
+    if is_dark != is_night_mode(cx) {
+        set_night_mode(is_dark, cx);
+    }
+}
+
+pub(crate) fn is_large_emoji(cx: &App) -> bool {
+    values(cx).is_none_or(|values| values.large_emoji)
+}
+
+pub(crate) fn set_large_emoji(large: bool, cx: &mut App) {
+    change(cx, |values| values.large_emoji = large);
+    cx.refresh_windows();
+}
+
+pub(crate) fn is_pull_to_next_channel(cx: &App) -> bool {
+    values(cx).is_none_or(|values| values.pull_to_next_channel)
+}
+
+pub(crate) fn set_pull_to_next_channel(enabled: bool, cx: &mut App) {
+    change(cx, |values| values.pull_to_next_channel = enabled);
 }
 
 pub(crate) fn is_archive_collapsed(cx: &App) -> bool {
@@ -365,13 +485,15 @@ fn change(cx: &mut App, edit: impl FnOnce(&mut Values)) {
     }
 }
 
-fn apply_theme(night_mode: bool, cx: &mut App) {
-    let palette = if night_mode {
-        Palette::NIGHT
+fn apply_theme(values: &Values, cx: &mut App) {
+    let theme = if values.night_mode {
+        values.night_theme
     } else {
-        Palette::DEFAULT
+        values.day_theme
     };
-    cx.set_global(Theme { palette });
+    cx.set_global(Theme {
+        palette: theme.palette(),
+    });
 }
 
 /// Writes through a temporary file so a crash leaves the old settings.
@@ -419,6 +541,11 @@ mod tests {
                 ..Notify::default()
             },
             custom_device_model: "Work Mac".to_owned(),
+            day_theme: EmbeddedTheme::Day,
+            night_theme: EmbeddedTheme::Night,
+            system_night_mode: false,
+            large_emoji: false,
+            pull_to_next_channel: false,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

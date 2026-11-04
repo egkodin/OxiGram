@@ -21,11 +21,13 @@
 
 The owner asked for tdesktop's whole Settings section, sections in order,
 without stopping. Done so far, each committed with parity rows and a live
-test (31-38): main page, rgram settings, My Account, Notifications and
+test (31-39): main page, rgram settings, My Account, Notifications and
 Sounds, Privacy and Security (all rows with state, privacy rule box),
 Blocked users, Active sessions (info box, rename, "If inactive for"),
 Connected websites, Auto-Delete Messages, the messages privacy, clear
-payment info and self-destruct boxes.
+payment info and self-destruct boxes, Chat Settings (themes,
+Auto-Night, large emoji, send-by, pull to next channel, sensitive
+content, the archive settings box).
 
 Next, in this order (see the shortcut comments in
 `crates/features/src/settings_screen/*.rs` for what each page lacks):
@@ -34,9 +36,9 @@ Next, in this order (see the shortcut comments in
    the login email (rows only show their state now); they need the
    owner's OK in live tests, as do terminating sessions, disconnecting
    websites, clearing payment info and the self-destruct period.
-2. Chat Settings (theme, night mode, backgrounds, accent colors, corner
-   radius, text size, send-by, stickers and emoji, autoplay, archive
-   settings, sensitive content from `SetupSensitiveContent`), Chat Folders.
+2. Chat Folders. Chat Settings still lacks accent colors, cloud themes,
+   backgrounds, font and text size, emoji and sticker options, quick
+   reaction and shortcuts (see `settings_screen/chat.rs`).
 3. Advanced, Speakers and Camera, Battery and Animations, Language,
    interface scale (main page row too).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
@@ -521,6 +523,14 @@ Next, in this order (see the shortcut comments in
     Auto-Delete Messages: the ticked choice matches the phone; go back
     without clicking another. Open Messages: the ticked choice matches;
     Cancel. Open Clear Payment and Shipping Info and Cancel.
+39. Chat Settings: Settings, Chat Settings. Note the ticked theme tile
+    and whether Auto-Night Mode is On. Click Day: the app turns light
+    blue; click back the noted tile. With Auto-Night on, clicking Tinted or
+    Night (or the main menu's night switch) asks to turn Auto-Night off;
+    Cancel. Toggle Large emoji off: an emoji-only message in Saved
+    Messages shows as text; toggle it back. Open Archive settings: the
+    switches match the phone (Settings, Chat Folders or the archive);
+    Done without changing them.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

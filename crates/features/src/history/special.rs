@@ -15,13 +15,18 @@ pub(super) enum Special {
 
 impl HistoryView {
     pub(super) fn special(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Special> {
+        let is_large_emoji = crate::settings::is_large_emoji(cx);
         match self.contact(message, cx) {
             Some(card) => Some(Special::Contact(card)),
             None => self
                 .poll(message, cx)
                 .map(Special::Poll)
                 .or_else(|| self.checklist(message, cx).map(Special::Checklist))
-                .or_else(|| super::large_emoji::of(message).map(Special::LargeEmoji)),
+                .or_else(|| {
+                    super::large_emoji::of(message)
+                        .filter(|_| is_large_emoji)
+                        .map(Special::LargeEmoji)
+                }),
         }
     }
 }

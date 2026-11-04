@@ -19,8 +19,25 @@ use anyhow::{Context as _, bail};
 use style::emit::IconFile;
 
 const PALETTE_SOURCE: &str = "Telegram/lib_ui/ui/colors.palette";
-/// The night theme the main menu switches to (`Window::Theme::NightThemePath`).
-const NIGHT_THEME: &str = "Telegram/Resources/night.tdesktop-theme";
+/// The embedded themes but Classic, which is the palette itself
+/// (`Window::Theme::EmbeddedThemes`): the constant, its doc, the file.
+const THEMES: [(&str, &str, &str); 3] = [
+    (
+        "NIGHT",
+        "The night palette, \"Tinted\" in Chat Settings (`night.tdesktop-theme`).",
+        "Telegram/Resources/night.tdesktop-theme",
+    ),
+    (
+        "DAY_BLUE",
+        "The \"Day\" palette (`day-blue.tdesktop-theme`).",
+        "Telegram/Resources/day-blue.tdesktop-theme",
+    ),
+    (
+        "NIGHT_GREEN",
+        "The \"Night\" palette (`night-green.tdesktop-theme`).",
+        "Telegram/Resources/night-green.tdesktop-theme",
+    ),
+];
 const THEME_COLORS: &str = "colors.tdesktop-theme";
 
 /// The style modules rgram uses; their `using` includes come along.
@@ -69,16 +86,19 @@ fn main() -> anyhow::Result<()> {
         .with_context(|| format!("reading {}", source_path.display()))?;
     let lib_ui_head = git_head(&tdesktop.join("Telegram/lib_ui"))?;
     let provenance = format!("{PALETTE_SOURCE} at lib_ui {lib_ui_head}");
-    let night_path = tdesktop.join(NIGHT_THEME);
-    let night_archive =
-        fs::read(&night_path).with_context(|| format!("reading {}", night_path.display()))?;
-    let night = String::from_utf8(zip::extract(&night_archive, THEME_COLORS)?)
-        .with_context(|| format!("decoding {}", night_path.display()))?;
-    let themes = [palette::Theme {
-        name: "NIGHT",
-        doc: "The night palette (`night.tdesktop-theme`).",
-        source: &night,
-    }];
+    let mut sources = Vec::new();
+    for (_, _, file) in THEMES {
+        let path = tdesktop.join(file);
+        let archive = fs::read(&path).with_context(|| format!("reading {}", path.display()))?;
+        let colors = String::from_utf8(zip::extract(&archive, THEME_COLORS)?)
+            .with_context(|| format!("decoding {}", path.display()))?;
+        sources.push(colors);
+    }
+    let themes: Vec<palette::Theme<'_>> = THEMES
+        .iter()
+        .zip(&sources)
+        .map(|((name, doc, _), source)| palette::Theme { name, doc, source })
+        .collect();
     let code = palette::generate(&source, &themes, &provenance)
         .with_context(|| format!("generating from {}", source_path.display()))?;
     write(&style_crate.join("src/palette.rs"), &code)?;

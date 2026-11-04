@@ -4,7 +4,9 @@
 //! button on the main page, the page's menu and close.
 // shortcut: a layer only, not the third column; tdesktop picks by the window's width.
 
+mod archive_box;
 mod blocked;
+mod chat;
 mod global_ttl;
 mod information;
 mod main_page;
@@ -24,6 +26,7 @@ mod sessions;
 mod username_box;
 mod websites;
 
+pub(crate) use chat::toggle_night_mode;
 pub(crate) use username_box::show as show_username_box;
 
 use gpui::{
@@ -214,6 +217,7 @@ impl SettingsLayer {
             PageId::Sessions => cx.new(|cx| sessions::SessionsPage::new(env, cx)).into(),
             PageId::Websites => cx.new(|cx| websites::WebsitesPage::new(env, cx)).into(),
             PageId::GlobalTtl => cx.new(|cx| global_ttl::GlobalTtlPage::new(env, cx)).into(),
+            PageId::Chat => cx.new(|cx| chat::ChatPage::new(env, cx)).into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),

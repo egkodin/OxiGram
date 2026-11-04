@@ -8,6 +8,7 @@
 
 pub mod account;
 pub mod action_bar;
+pub mod archive_settings;
 pub mod auth;
 pub mod chat;
 pub mod chat_actions;
