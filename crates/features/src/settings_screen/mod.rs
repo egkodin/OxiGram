@@ -15,6 +15,7 @@ mod folder_chats_box;
 mod folders;
 mod global_ttl;
 mod information;
+mod language_box;
 mod main_page;
 mod messages_box;
 mod notifications;

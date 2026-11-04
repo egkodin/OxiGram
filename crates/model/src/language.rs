@@ -4,7 +4,7 @@ use std::future::Future;
 
 use futures::FutureExt as _;
 use td_api::enums::{LanguagePackStringValue, OptionValue};
-use td_api::functions::{GetLanguagePackStrings, GetOption};
+use td_api::functions::{GetLanguagePackStrings, GetLocalizationTargetInfo, GetOption};
 
 use crate::session::{RequestError, Session};
 
@@ -22,7 +22,42 @@ pub enum PackValue {
     Plural([String; 6]),
 }
 
+/// A language the interface can switch to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LanguagePack {
+    pub id: String,
+    pub name: String,
+    pub native_name: String,
+    /// Telegram's own translation, not one made on the platform by users.
+    pub is_official: bool,
+}
+
 impl Session {
+    /// The languages Telegram offers and those added from links
+    /// (`CloudManager::requestLanguageList`).
+    pub fn language_packs(
+        &self,
+    ) -> impl Future<Output = Result<Vec<LanguagePack>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetLocalizationTargetInfo { only_local: false })
+            .map(|result| {
+                result
+                    .map(|info| {
+                        let packs = info.language_packs.into_iter();
+                        packs
+                            .filter(|pack| pack.is_official || pack.is_installed)
+                            .map(|pack| LanguagePack {
+                                id: pack.id,
+                                name: pack.name,
+                                native_name: pack.native_name,
+                                is_official: pack.is_official,
+                            })
+                            .collect()
+                    })
+                    .map_err(RequestError::from)
+            })
+    }
+
     /// Strings of `pack` (all of them when `keys` is empty).
     pub fn language_pack_strings(
         &self,

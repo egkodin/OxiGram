@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 26 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 27 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -412,7 +412,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Download folder and "ask where to save" (M6)
 - [ ] Archive settings (keep unmuted chats archived, folders) (M6) *(in progress)*
 - [ ] Folders settings page (M6) *(in progress)*
-- [ ] Language: cloud language list, search, apply without restart (M6)
+- [ ] Language: cloud language list, search, apply without restart (M6) *(in progress)*
 - [ ] Translation options and do-not-translate languages (M13)
 - [ ] Interface scale (100–300 %, follows system) (M6)
 - [ ] Connection type and proxies: SOCKS5, MTProto, HTTP, list, check, share links (M6) *(in progress)*

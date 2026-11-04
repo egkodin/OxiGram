@@ -51,8 +51,8 @@ Next, in this order (see the shortcut comments in
    title, tray/Dock, spellchecker, export and updates have nothing in
    rgram to control yet: leave them out and list them in parity.
    Speakers and Camera done (devices, accept calls, system settings),
-   Battery and Animations done (Power Usage box). Then Language,
-   interface scale (main page row too).
+   Battery and Animations done (Power Usage box), Language done
+   (Language box). Then interface scale (main page row too).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
    FAQ/Features (done), Ask a Question (confirmation, then the support chat;
    writing to support needs the owner's OK).
@@ -570,6 +570,10 @@ Next, in this order (see the shortcut comments in
     no longer slide or ripple; open Animated Stickers, untick "Autoplay
     in chat", Save: a video sticker in Saved Messages stands still. Turn
     both back on and Save.
+44. Language: Settings, Language. The list matches the phone's
+    (official languages with native names, English ticked); type "deu":
+    only German stays; pick it: the interface switches to German at
+    once (the main page row reads "Deutsch"); pick English back, OK.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

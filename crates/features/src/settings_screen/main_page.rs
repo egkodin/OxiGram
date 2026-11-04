@@ -467,8 +467,9 @@ fn run(action: Action, env: &Env, window: &mut Window, cx: &mut App) {
         Action::Faq => cx.open_url(&tr(cx, key::lng_settings_faq_link)),
         Action::Features => cx.open_url(&tr(cx, key::lng_telegram_features_url)),
         Action::PowerSaving => super::power_box::show(env, window, cx),
+        Action::Language => super::language_box::show(env, window, cx),
         // shortcut: these boxes come with their sections later in M7; until then the rows do nothing.
-        Action::Language | Action::AskQuestion | Action::SendGift => {
+        Action::AskQuestion | Action::SendGift => {
             tracing::debug!(?action, "settings action not built yet");
         }
     }
