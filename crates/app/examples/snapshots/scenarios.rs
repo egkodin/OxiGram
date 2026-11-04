@@ -495,6 +495,110 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("330-settings-list", auth(State::Ready))],
         },
+        // Settings > Advanced.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("331-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("331-settings-main", MouseButton::Left, SETTINGS_ROW),
+                (
+                    "331-settings-advanced",
+                    MouseButton::Left,
+                    SETTINGS_ADVANCED,
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("331-settings-list", auth(State::Ready))],
+        },
+        // Settings > Advanced > Connection type.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("332-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("332-settings-main", MouseButton::Left, SETTINGS_ROW),
+                (
+                    "332-settings-advanced",
+                    MouseButton::Left,
+                    SETTINGS_ADVANCED,
+                ),
+                (
+                    "332-settings-proxies",
+                    MouseButton::Left,
+                    SETTINGS_CONNECTION,
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("332-settings-list", auth(State::Ready))],
+        },
+        // Settings > Advanced > Manage local storage.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("333-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("333-settings-main", MouseButton::Left, SETTINGS_ROW),
+                (
+                    "333-settings-advanced",
+                    MouseButton::Left,
+                    SETTINGS_ADVANCED,
+                ),
+                ("333-settings-storage", MouseButton::Left, SETTINGS_STORAGE),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("333-settings-list", auth(State::Ready))],
+        },
+        // Settings > Advanced > Connection type > Add proxy.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("334-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("334-settings-main", MouseButton::Left, SETTINGS_ROW),
+                (
+                    "334-settings-advanced",
+                    MouseButton::Left,
+                    SETTINGS_ADVANCED,
+                ),
+                (
+                    "334-settings-proxies",
+                    MouseButton::Left,
+                    SETTINGS_CONNECTION,
+                ),
+                (
+                    "334-settings-proxy-add",
+                    MouseButton::Left,
+                    SETTINGS_PROXY_ADD,
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("334-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -943,6 +1047,10 @@ const SETTINGS_FOLDERS: (f32, f32) = (300.0, 381.0);
 const SETTINGS_FOLDER_CREATE: (f32, f32) = (300.0, 372.0);
 const SETTINGS_FOLDER_ADD_CHATS: (f32, f32) = (300.0, 247.0);
 const SETTINGS_FOLDER_TYPE: (f32, f32) = (400.0, 330.0);
+const SETTINGS_ADVANCED: (f32, f32) = (300.0, 426.0);
+const SETTINGS_CONNECTION: (f32, f32) = (300.0, 142.0);
+const SETTINGS_STORAGE: (f32, f32) = (300.0, 182.0);
+const SETTINGS_PROXY_ADD: (f32, f32) = (522.0, 410.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 /// The chat list's right edge at the default width (5/14 of 800), and in

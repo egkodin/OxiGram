@@ -42,6 +42,7 @@ const THEME_COLORS: &str = "colors.tdesktop-theme";
 
 /// The style modules rgram uses; their `using` includes come along.
 const STYLE_ROOTS: &[&str] = &[
+    "boxes/connection_box.style",
     "boxes/polls.style",
     "dialogs/dialogs.style",
     "dialogs/dialogs_widget.style",

@@ -4,6 +4,7 @@
 //! button on the main page, the page's menu and close.
 // shortcut: a layer only, not the third column; tdesktop picks by the window's width.
 
+mod advanced;
 mod archive_box;
 mod blocked;
 mod chat;
@@ -19,6 +20,8 @@ mod payment_box;
 mod personal_channel;
 mod privacy;
 mod privacy_box;
+mod proxies_box;
+mod proxy_box;
 mod qr_box;
 mod rgram_page;
 mod rows;
@@ -26,6 +29,7 @@ mod search;
 mod self_destruct_box;
 mod session_box;
 mod sessions;
+mod storage;
 mod username_box;
 mod websites;
 
@@ -75,6 +79,7 @@ pub(crate) enum PageId {
     Chat,
     Folders,
     Advanced,
+    Storage,
     Calls,
     Premium,
     Credits,
@@ -96,6 +101,7 @@ impl PageId {
             Self::Chat => key::lng_settings_section_chat_settings,
             Self::Folders => key::lng_filters_title,
             Self::Advanced => key::lng_settings_advanced,
+            Self::Storage => key::lng_local_storage_title,
             Self::Calls => key::lng_settings_section_devices,
             Self::Premium | Self::Business => key::lng_premium_summary_title,
             Self::Credits => key::lng_credits_summary_title,
@@ -109,6 +115,7 @@ impl PageId {
             Self::Blocked | Self::Sessions | Self::Websites | Self::GlobalTtl => {
                 Some(Self::Privacy)
             }
+            Self::Storage => Some(Self::Advanced),
             _ => Some(Self::Main),
         }
     }
@@ -222,6 +229,8 @@ impl SettingsLayer {
             PageId::GlobalTtl => cx.new(|cx| global_ttl::GlobalTtlPage::new(env, cx)).into(),
             PageId::Chat => cx.new(|cx| chat::ChatPage::new(env, cx)).into(),
             PageId::Folders => cx.new(|cx| folders::FoldersPage::new(env, cx)).into(),
+            PageId::Advanced => cx.new(|cx| advanced::AdvancedPage::new(env, cx)).into(),
+            PageId::Storage => cx.new(|cx| storage::StoragePage::new(env, cx)).into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),

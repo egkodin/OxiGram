@@ -42,7 +42,7 @@ Next, in this order (see the shortcut comments in
    shortcuts (`settings_screen/chat.rs`); Folders lacks the icon picker,
    tags, tab styles, invite links and the tab menu's Edit items
    (`folders.rs`, `folder_box.rs`).
-3. Advanced (in progress): Data and storage first: Connection type with
+3. Advanced (Data and storage done; the rows below were left out): Data and storage first: Connection type with
    the proxies box (TDLib `getProxies`, `addProxy`, `editProxy`,
    `enableProxy`, `disableProxy`, `removeProxy`, `pingProxy`), Manage
    local storage (`getStorageStatisticsFast`, `optimizeStorage`; clearing
@@ -550,6 +550,13 @@ Next, in this order (see the shortcut comments in
     editor. Note "Tabs view", switch it: the tabs move; switch it back.
     Press no bin and no Create unless you agree (a new folder is deleted
     the same way).
+41. Advanced, read-only: Settings, Advanced. "Connection type" reads
+    "Default (TCP used)" (or the proxy the phone app does not share);
+    open it: the IPv6 tick and the proxy list match what tdesktop showed
+    on this Mac, pings come in; Close without changes. Open "Manage local
+    storage": the sizes look like rgram's cache; press no Clear unless
+    you agree (it deletes only local copies). "Downloads" opens the
+    downloads list.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
