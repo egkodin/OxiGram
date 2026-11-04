@@ -13,7 +13,7 @@ Every user-visible feature of Telegram Desktop, from
 [docs/parity.md](docs/parity.md). A feature is checked only after it ran on a
 live account; *in progress* means the code exists but has not been verified
 live yet. Regenerate the list with `scripts/readme-todo.sh`.
-
+<details>
 <!-- todo:begin -->
 <details>
 <summary><b>Sign-in</b>: 0 of 23 done, 21 in progress</summary>
@@ -679,7 +679,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Fact checks on channel posts (view and edit) (M13)
 
 </details>
-
+</details>
 <!-- todo:end -->
 
 ## Telegram API credentials
