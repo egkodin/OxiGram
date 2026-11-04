@@ -33,6 +33,7 @@ pub mod polls;
 pub mod premium;
 pub mod premium_limits;
 pub mod settings;
+pub mod settings_active_sessions;
 pub mod userpic_button;
 pub mod widgets;
 pub mod window;

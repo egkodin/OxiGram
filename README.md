@@ -736,6 +736,9 @@ next to this repository (or the path given as its argument):
 cargo run -p style-gen
 ```
 
+Its output is unformatted; run `cargo fmt -p style` before reading the diff.
+A new style root also needs its `pub mod` line in `crates/style/src/lib.rs`.
+
 ## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE) and [NOTICE.md](NOTICE.md) for the

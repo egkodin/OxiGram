@@ -32,6 +32,7 @@ const STYLE_ROOTS: &[&str] = &[
     "history/view/controls/history_view_voice_record_bar.style",
     "info/info.style",
     "media/view/media_view.style",
+    "settings/sections/settings_active_sessions.style",
     "intro/intro.style",
     "ui/boxes/choose_date_time.style",
     "ui/boxes/country_select_box.style",
