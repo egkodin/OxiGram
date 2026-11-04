@@ -37,6 +37,49 @@ impl SendBy {
     }
 }
 
+/// What a desktop notification shows (`Core::Settings::NotifyView`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum NotifyView {
+    #[default]
+    NameAndPreview,
+    NameOnly,
+    Nothing,
+}
+
+/// The app's own notification switches (`Core::Settings`), next to the
+/// ones Telegram keeps per kind of chat.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Notify {
+    /// Desktop notifications (`desktopNotify`).
+    pub desktop: bool,
+    /// The Dock bounces (`flashBounceNotify`).
+    pub flash_bounce: bool,
+    /// Sounds play (`soundNotify`).
+    pub sound: bool,
+    pub view: NotifyView,
+    /// Muted chats count in the badge (`includeMutedCounter`).
+    pub include_muted: bool,
+    /// The badge counts messages, not chats (`countUnreadMessages`).
+    pub count_messages: bool,
+    /// New pinned messages notify (`notifyAboutPinned`).
+    pub about_pinned: bool,
+}
+
+impl Default for Notify {
+    fn default() -> Self {
+        Self {
+            desktop: true,
+            flash_bounce: true,
+            sound: true,
+            view: NotifyView::default(),
+            include_muted: true,
+            count_messages: true,
+            about_pinned: true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 struct Values {
@@ -67,6 +110,7 @@ struct Values {
     /// (`Settings::RecentSearches`).
     // shortcut: app-wide; tdesktop keeps them per account, which matters once several accounts search settings.
     recent_settings_searches: Vec<String>,
+    notify: Notify,
 }
 
 impl Default for Values {
@@ -84,6 +128,7 @@ impl Default for Values {
             active_account: 0,
             main_menu_accounts_shown: false,
             recent_settings_searches: Vec::new(),
+            notify: Notify::default(),
         }
     }
 }
@@ -166,6 +211,14 @@ pub fn send_by(cx: &App) -> SendBy {
 /// Open fields follow it (they observe [`Settings`]).
 pub fn set_send_by(send_by: SendBy, cx: &mut App) {
     change(cx, |values| values.send_by = send_by);
+}
+
+pub(crate) fn notify(cx: &App) -> Notify {
+    values(cx).map_or_else(Notify::default, |values| values.notify)
+}
+
+pub(crate) fn set_notify(notify: Notify, cx: &mut App) {
+    change(cx, |values| values.notify = notify);
 }
 
 pub(crate) fn recent_search_hashtags(cx: &App) -> crate::hashtags::Recent {
@@ -344,6 +397,10 @@ mod tests {
             active_account: 2,
             main_menu_accounts_shown: true,
             recent_settings_searches: vec!["main/language".to_owned()],
+            notify: Notify {
+                view: NotifyView::NameOnly,
+                ..Notify::default()
+            },
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

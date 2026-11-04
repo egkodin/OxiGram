@@ -377,15 +377,15 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 5 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 7 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
 - [ ] Own profile QR code: card, copy and share the link (M6) *(in progress)*
 - [ ] My account: name, username, bio, birthday, phone number change (M6) *(in progress)*
 - [ ] Personal channel (M6) *(in progress)*
-- [ ] Notifications: private chats, groups, channels, stories, reactions (M6)
-- [ ] Notifications: sound, preview, sender, count badge, include muted (M6)
+- [ ] Notifications: private chats, groups, channels, stories, reactions (M6) *(in progress)*
+- [ ] Notifications: sound, preview, sender, count badge, include muted (M6) *(in progress)*
 - [ ] Notification exceptions per chat (M6)
 - [ ] Custom notification sounds (upload, choose, per chat) (M6)
 - [ ] Privacy: phone number, last seen (with read-time hiding), profile photo (M6)

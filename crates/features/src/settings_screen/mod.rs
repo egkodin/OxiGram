@@ -6,6 +6,7 @@
 
 mod information;
 mod main_page;
+mod notifications;
 mod personal_channel;
 mod qr_box;
 mod rgram_page;
@@ -92,7 +93,7 @@ impl PageId {
 
     /// Every page's search entries.
     fn entries() -> impl Iterator<Item = &'static Entry> {
-        main_page::entries()
+        main_page::entries().chain(notifications::entries())
     }
 }
 
@@ -183,6 +184,9 @@ impl SettingsLayer {
             PageId::Main => cx.new(|cx| main_page::MainPage::new(env, cx)).into(),
             PageId::Information => cx
                 .new(|cx| information::InformationPage::new(env, window, cx))
+                .into(),
+            PageId::Notifications => cx
+                .new(|cx| notifications::NotificationsPage::new(env, cx))
                 .into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.

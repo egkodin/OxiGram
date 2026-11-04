@@ -462,6 +462,12 @@
     Personal channel: your public channels list (or "You don't have any");
     Done without choosing. The bio: only with your OK, add a "." at the
     end, wait two seconds, check it on the phone, then remove it again.
+33. Notifications, read-only: Settings, Notifications and Sounds. Under
+    "Notifications for chats" the private chats, groups and channels
+    toggles match the phone's defaults, and their gray line says "Click
+    here to change" or "On/Off, N exceptions". Note each toggle, and
+    "Contact joined Telegram"; change nothing unless you agree, and if you
+    do, set it back the same way.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

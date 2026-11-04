@@ -23,6 +23,7 @@ pub mod language;
 pub mod location;
 pub mod message;
 pub mod message_actions;
+pub mod notifications;
 pub mod phone;
 pub mod poll;
 pub mod profile;
