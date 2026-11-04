@@ -4,6 +4,7 @@
 //! button on the main page, the page's menu and close.
 // shortcut: a layer only, not the third column; tdesktop picks by the window's width.
 
+mod blocked;
 mod information;
 mod main_page;
 mod notifications;
@@ -54,6 +55,7 @@ pub(crate) enum PageId {
     Information,
     Notifications,
     Privacy,
+    Blocked,
     Chat,
     Folders,
     Advanced,
@@ -71,6 +73,7 @@ impl PageId {
             Self::Information => key::lng_settings_section_info,
             Self::Notifications => key::lng_settings_section_notify,
             Self::Privacy => key::lng_settings_section_privacy,
+            Self::Blocked => key::lng_settings_blocked_users,
             Self::Chat => key::lng_settings_section_chat_settings,
             Self::Folders => key::lng_filters_title,
             Self::Advanced => key::lng_settings_advanced,
@@ -84,6 +87,7 @@ impl PageId {
     fn parent(self) -> Option<Self> {
         match self {
             Self::Main => None,
+            Self::Blocked => Some(Self::Privacy),
             _ => Some(Self::Main),
         }
     }
@@ -191,6 +195,7 @@ impl SettingsLayer {
                 .new(|cx| notifications::NotificationsPage::new(env, cx))
                 .into(),
             PageId::Privacy => cx.new(|cx| privacy::PrivacyPage::new(env, cx)).into(),
+            PageId::Blocked => cx.new(|cx| blocked::BlockedPage::new(env, cx)).into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),

@@ -6,7 +6,10 @@
 use std::future::Future;
 
 use futures::FutureExt as _;
-use td_api::enums::{BlockList, OptionValue, UserPrivacySetting, UserPrivacySettingRule as TdRule};
+use td_api::enums::{
+    BlockList, MessageSender, OptionValue, UserPrivacySetting, UserPrivacySettingRule as TdRule,
+};
+use td_api::functions::SetMessageSenderBlockList;
 use td_api::functions::{
     GetAccountTtl, GetActiveSessions, GetArchiveChatListSettings, GetBlockedMessageSenders,
     GetConnectedWebsites, GetDefaultMessageAutoDeleteTime, GetLoginPasskeys,
@@ -200,6 +203,38 @@ impl PrivacyRule {
     }
 }
 
+/// Someone on the blocked list.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Blocked {
+    User(UserId),
+    Chat(ChatId),
+}
+
+impl Blocked {
+    fn td(self) -> MessageSender {
+        match self {
+            Self::User(user) => MessageSender::User(td::MessageSenderUser { user_id: user.0 }),
+            Self::Chat(chat) => MessageSender::Chat(td::MessageSenderChat { chat_id: chat.0 }),
+        }
+    }
+}
+
+impl From<MessageSender> for Blocked {
+    fn from(sender: MessageSender) -> Self {
+        match sender {
+            MessageSender::User(user) => Self::User(UserId(user.user_id)),
+            MessageSender::Chat(chat) => Self::Chat(ChatId(chat.chat_id)),
+        }
+    }
+}
+
+/// A slice of the blocked list and how long the whole list is.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BlockedSlice {
+    pub total: i32,
+    pub senders: Vec<Blocked>,
+}
+
 /// Who may start a chat (`Api::GlobalPrivacy` for new chats).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NewChatPrivacy {
@@ -308,6 +343,39 @@ impl Session {
                     .map(|senders| senders.total_count)
                     .map_err(request_error)
             })
+    }
+
+    pub fn blocked(
+        &self,
+        offset: i32,
+        limit: i32,
+    ) -> impl Future<Output = Result<BlockedSlice, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetBlockedMessageSenders {
+                block_list: Box::new(BlockList::Main(td::BlockListMain {})),
+                offset,
+                limit,
+            })
+            .map(|result| {
+                result
+                    .map(|senders| BlockedSlice {
+                        total: senders.total_count,
+                        senders: senders.senders.into_iter().map(Blocked::from).collect(),
+                    })
+                    .map_err(request_error)
+            })
+    }
+
+    pub fn unblock(
+        &self,
+        sender: Blocked,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&SetMessageSenderBlockList {
+                sender_id: Box::new(sender.td()),
+                block_list: None,
+            })
+            .map(|result| result.map(drop).map_err(request_error))
     }
 
     pub fn sessions_count(

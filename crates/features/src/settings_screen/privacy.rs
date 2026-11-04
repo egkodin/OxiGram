@@ -1,7 +1,7 @@
 //! "Privacy and Security" (`Settings::PrivacySecurity`): the security rows
 //! with their states, every privacy rule, archiving strangers, suggested
 //! contacts and the account's self-destruct period.
-// shortcut: the security rows, messages privacy, payment info and self-destruct show their state but open nothing yet, and there are no file confirmations; with rows "Privacy and security" and the pages they open.
+// shortcut: the security rows but Blocked users, messages privacy, payment info and self-destruct show their state but open nothing yet, and there are no file confirmations; with rows "Privacy and security" and the pages they open.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -20,7 +20,7 @@ use style::menu_icons::{
 use style::settings::{SETTINGS_PRIVACY_SECURITY_PADDING, SETTINGS_PRIVACY_SKIP};
 use ui::SettingsButton;
 
-use super::{Env, privacy_box, rows};
+use super::{Env, PageId, privacy_box, rows};
 use crate::lang::{strings, tr, tr_plural};
 
 /// TDLib's options for strangers' chats and suggested contacts.
@@ -294,13 +294,17 @@ impl PrivacyPage {
             Some(0) | None => tr(cx, key::lng_settings_no_blocked_users),
             Some(count) => count.to_string().into(),
         };
-        items.push(row(
-            "security/blocked",
-            key::lng_settings_blocked_users,
-            MENU_ICON_BLOCK,
-            blocked,
-            cx,
-        ));
+        let env = self.env.clone();
+        items.push(
+            rows::button(
+                "security/blocked",
+                tr(cx, key::lng_settings_blocked_users),
+                MENU_ICON_BLOCK,
+            )
+            .label(blocked)
+            .on_click(move |_, window, cx| env.open(PageId::Blocked, window, cx))
+            .into_any_element(),
+        );
         if loaded.websites > 0 {
             let count = loaded.websites.to_string().into();
             items.push(row(

@@ -384,7 +384,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Privacy: forwards, calls, voice messages, invites, birthday, gifts, bio | M6 | in progress | Same box as the row above, plus saved music. Not verified live. Missing: forwards' sample message, calls' peer-to-peer part, Premium rows (voices, gifts' mini apps) |
 | settings | Privacy: messages from non-contacts (Premium or Stars price) | M13 | todo | |
 | settings | Privacy rule exceptions (always/never share with) | M6 | in progress | "Always"/"Never" rows shown where the option leaves room for them, with tdesktop's count label; editing opens the contacts box with the list ticked, and picked users leave the other list. Missing: picking groups and non-contacts (groups already there stay) |
-| settings | Blocked users | M6 | todo | |
+| settings | Blocked users | M6 | in progress | Settings > Privacy and Security > Blocked users (snapshot 324): Block user (a contact, then tdesktop's confirmation; blocks through TDLib), what blocking does, the count and the list (`getBlockedMessageSenders`) with tdesktop's status line, Unblock on each row and the profile on click. Not verified live (live test 35). Missing: more than the first 100, picking from chats rather than contacts, the empty list's animation |
 | settings | Active sessions: list, terminate, terminate all, auto-terminate period | M6 | todo | |
 | settings | Logged-in websites (Log in with Telegram) | M6 | todo | |
 | settings | Unconfirmed new login review and denial | M6 | todo | |

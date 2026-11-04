@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 12 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 13 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -392,7 +392,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Privacy: forwards, calls, voice messages, invites, birthday, gifts, bio (M6) *(in progress)*
 - [ ] Privacy: messages from non-contacts (Premium or Stars price) (M13)
 - [ ] Privacy rule exceptions (always/never share with) (M6) *(in progress)*
-- [ ] Blocked users (M6)
+- [ ] Blocked users (M6) *(in progress)*
 - [ ] Active sessions: list, terminate, terminate all, auto-terminate period (M6)
 - [ ] Logged-in websites (Log in with Telegram) (M6)
 - [ ] Unconfirmed new login review and denial (M6)

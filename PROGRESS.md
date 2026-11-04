@@ -17,6 +17,32 @@
 - TDLib and FFmpeg builds live in ~/.cache/rgram, one version each.
 - Every milestone report gives the sizes of target/ and .git.
 
+## Settings section (M6/M7 request, in progress)
+
+The owner asked for tdesktop's whole Settings section, sections in order,
+without stopping. Done so far, each committed with parity rows and a live
+test (31-35): main page, rgram settings, My Account, Notifications and
+Sounds, Privacy and Security (all rows with state, privacy rule box),
+Blocked users.
+
+Next, in this order (see the shortcut comments in
+`crates/features/src/settings_screen/*.rs` for what each page lacks):
+
+1. Privacy and Security's pages: Active sessions (`settings_active_sessions.cpp`:
+   this device, terminate all, others, the info box, "if inactive for"),
+   Websites, Auto-delete (`GlobalTTL`), self-destruct box, messages privacy
+   box, clear payment info box. Terminating sessions and the self-destruct
+   period need the owner's OK in live tests; 2FA, passcode and passkeys
+   flows need it too (rows only show their state now).
+2. Chat Settings (theme, night mode, backgrounds, accent colors, corner
+   radius, text size, send-by, stickers and emoji, autoplay, archive
+   settings, sensitive content from `SetupSensitiveContent`), Chat Folders.
+3. Advanced, Speakers and Camera, Battery and Animations, Language,
+   interface scale (main page row too).
+4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
+   FAQ/Features (done), Ask a Question (confirmation, then the support chat;
+   writing to support needs the owner's OK).
+
 ## M5: Media (in progress, started while the live runs of M1-M4 go on)
 
 ### Done (code, checks green)
@@ -475,6 +501,10 @@
     number: the chosen option is ticked, the exceptions rows show their
     counts; Cancel without saving. Note "Suggest frequent contacts" and,
     if shown, "Archive and mute"; change nothing unless you agree.
+35. Blocked users, read-only: Privacy and Security, Blocked users. The
+    count and list match the phone, each with its phone, @username or
+    "bot". Do not press Block user or Unblock unless you agree; if you
+    unblock someone to test, block them again the same way.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
