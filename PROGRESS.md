@@ -42,8 +42,16 @@ Next, in this order (see the shortcut comments in
    shortcuts (`settings_screen/chat.rs`); Folders lacks the icon picker,
    tags, tab styles, invite links and the tab menu's Edit items
    (`folders.rs`, `folder_box.rs`).
-3. Advanced, Speakers and Camera, Battery and Animations, Language,
-   interface scale (main page row too).
+3. Advanced (in progress): Data and storage first: Connection type with
+   the proxies box (TDLib `getProxies`, `addProxy`, `editProxy`,
+   `enableProxy`, `disableProxy`, `removeProxy`, `pingProxy`), Manage
+   local storage (`getStorageStatisticsFast`, `optimizeStorage`; clearing
+   only the local cache, ask the owner before the live test), Downloads
+   (the existing downloads view). Auto-download, download path, window
+   title, tray/Dock, spellchecker, export and updates have nothing in
+   rgram to control yet: leave them out and list them in parity.
+   Then Speakers and Camera, Battery and Animations, Language, interface
+   scale (main page row too).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
    FAQ/Features (done), Ask a Question (confirmation, then the support chat;
    writing to support needs the owner's OK).
