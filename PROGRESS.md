@@ -50,9 +50,9 @@ Next, in this order (see the shortcut comments in
    (the existing downloads view). Auto-download, download path, window
    title, tray/Dock, spellchecker, export and updates have nothing in
    rgram to control yet: leave them out and list them in parity.
-   Speakers and Camera done (devices, accept calls, system settings).
-   Then Battery and Animations, Language, interface scale (main page row
-   too).
+   Speakers and Camera done (devices, accept calls, system settings),
+   Battery and Animations done (Power Usage box). Then Language,
+   interface scale (main page row too).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
    FAQ/Features (done), Ask a Question (confirmation, then the support chat;
    writing to support needs the owner's OK).
@@ -565,6 +565,11 @@ Next, in this order (see the shortcut comments in
     calls on this device" matches the phone's session list (Devices,
     this Mac); toggle it and back. "Open system sound preferences" opens
     macOS Sound.
+43. Battery and Animations: Settings, Battery and Animations. All on;
+    turn "Interface animations" off, Save: Settings' pages and buttons
+    no longer slide or ripple; open Animated Stickers, untick "Autoplay
+    in chat", Save: a video sticker in Saved Messages stands still. Turn
+    both back on and Save.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

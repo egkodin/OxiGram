@@ -618,6 +618,47 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("335-settings-list", auth(State::Ready))],
         },
+        // Settings > Battery and Animations.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("336-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("336-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("336-settings-power", MouseButton::Left, SETTINGS_POWER),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("336-settings-list", auth(State::Ready))],
+        },
+        // Settings > Battery and Animations > Animated Stickers.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("337-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("337-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("337-settings-power", MouseButton::Left, SETTINGS_POWER),
+                (
+                    "337-settings-power-stickers",
+                    MouseButton::Left,
+                    SETTINGS_POWER_STICKERS,
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("337-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -1071,6 +1112,8 @@ const SETTINGS_CONNECTION: (f32, f32) = (300.0, 142.0);
 const SETTINGS_STORAGE: (f32, f32) = (300.0, 182.0);
 const SETTINGS_PROXY_ADD: (f32, f32) = (522.0, 410.0);
 const SETTINGS_CALLS: (f32, f32) = (300.0, 451.0);
+const SETTINGS_POWER: (f32, f32) = (300.0, 491.0);
+const SETTINGS_POWER_STICKERS: (f32, f32) = (300.0, 240.0);
 const SETTINGS_OUTPUT: (f32, f32) = (300.0, 142.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);

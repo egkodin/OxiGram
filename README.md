@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 25 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 26 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -417,7 +417,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Interface scale (100–300 %, follows system) (M6)
 - [ ] Connection type and proxies: SOCKS5, MTProto, HTTP, list, check, share links (M6) *(in progress)*
 - [ ] Data and storage: cache size limits, clear cache, storage usage (M6) *(in progress)*
-- [ ] Power saving and animation toggles (M8)
+- [ ] Power saving and animation toggles (M8) *(in progress)*
 - [ ] System window frame option (M7)
 - [ ] Tray, launch at startup, start minimized, close to tray (M7)
 - [ ] Calls settings: devices, peer-to-peer, accept calls on this device (M12) *(in progress)*

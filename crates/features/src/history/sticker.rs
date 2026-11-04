@@ -12,6 +12,7 @@ use style::chat::MAX_STICKER_SIZE;
 use super::HistoryView;
 use super::documents::current;
 use super::photo::{PHOTO_PRIORITY, Photo};
+use crate::power_saving::Flag;
 
 /// `DownscaledSize` into the sticker box: smaller ones keep their size.
 fn size(picture: &StickerPicture) -> (i32, i32) {
@@ -60,8 +61,10 @@ impl HistoryView {
         }
         let (width, height) = size(picture);
         let frame = match picture.kind {
-            StickerKind::Video => self.video_sticker(message, picture, (width, height), cx),
-            StickerKind::Still | StickerKind::Animated => None,
+            StickerKind::Video if crate::power_saving::plays(Flag::StickersChat, cx) => {
+                self.video_sticker(message, picture, (width, height), cx)
+            }
+            StickerKind::Still | StickerKind::Animated | StickerKind::Video => None,
         };
         Photo {
             width,

@@ -44,7 +44,7 @@ struct Ripple {
 impl ButtonState {
     /// Starts a ripple at `position` (window coordinates).
     pub(crate) fn press(&mut self, position: Point<Pixels>, cx: &mut Context<Self>) {
-        let Some(bounds) = self.bounds else {
+        let Some(bounds) = self.bounds.filter(|_| !crate::anim::are_disabled()) else {
             return;
         };
         let origin = position - bounds.origin;

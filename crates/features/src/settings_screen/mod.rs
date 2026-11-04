@@ -20,6 +20,7 @@ mod messages_box;
 mod notifications;
 mod payment_box;
 mod personal_channel;
+mod power_box;
 mod privacy;
 mod privacy_box;
 mod proxies_box;

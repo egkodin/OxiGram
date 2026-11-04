@@ -160,6 +160,8 @@ struct Values {
     playback_device: String,
     /// The microphone's cpal id; empty is the system's (`captureDeviceId`).
     capture_device: String,
+    /// The animations turned off, in tdesktop's bits (`powerSaving`).
+    power_saving: u32,
 }
 
 impl Default for Values {
@@ -186,6 +188,7 @@ impl Default for Values {
             pull_to_next_channel: true,
             playback_device: String::new(),
             capture_device: String::new(),
+            power_saving: 0,
         }
     }
 }
@@ -215,6 +218,7 @@ pub fn load(path: PathBuf, cx: &mut App) {
     };
     apply_theme(&values, cx);
     apply_devices(&values);
+    crate::power_saving::apply(crate::power_saving::Saving(values.power_saving));
     cx.set_global(Settings {
         path: Some(path),
         values,
@@ -351,6 +355,15 @@ pub(crate) fn notify(cx: &App) -> Notify {
 
 pub(crate) fn set_notify(notify: Notify, cx: &mut App) {
     change(cx, |values| values.notify = notify);
+}
+
+pub(crate) fn power_saving(cx: &App) -> crate::power_saving::Saving {
+    crate::power_saving::Saving(values(cx).map_or(0, |values| values.power_saving))
+}
+
+pub(crate) fn set_power_saving(saving: crate::power_saving::Saving, cx: &mut App) {
+    crate::power_saving::apply(saving);
+    change(cx, |values| values.power_saving = saving.0);
 }
 
 fn apply_devices(values: &Values) {
@@ -581,6 +594,7 @@ mod tests {
             pull_to_next_channel: false,
             playback_device: "coreaudio:speakers".to_owned(),
             capture_device: "coreaudio:mic".to_owned(),
+            power_saving: 5,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

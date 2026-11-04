@@ -3,6 +3,7 @@
 //! after the end gives the final value. Elements that read a running
 //! animation request the next frame.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use gpui::Window;
@@ -30,6 +31,23 @@ impl Easing {
     }
 }
 
+/// "Interface animations" off in Power Usage (`anim::Disabled`).
+static ARE_DISABLED: AtomicBool = AtomicBool::new(false);
+
+/// Animations from now on jump to their end.
+pub fn disable() {
+    ARE_DISABLED.store(true, Ordering::Relaxed);
+}
+
+pub fn enable() {
+    ARE_DISABLED.store(false, Ordering::Relaxed);
+}
+
+#[must_use]
+pub fn are_disabled() -> bool {
+    ARE_DISABLED.load(Ordering::Relaxed)
+}
+
 /// An animation that may be running.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Simple(Option<Running>);
@@ -46,7 +64,12 @@ struct Running {
 impl Simple {
     /// Starts moving from `from` to `to` over `duration_ms` milliseconds, as
     /// the style durations are written.
+    /// With animations off it is finished at once.
     pub fn start(&mut self, from: f32, to: f32, duration_ms: i32, easing: Easing) {
+        if are_disabled() {
+            self.0 = None;
+            return;
+        }
         let duration = Duration::from_millis(u64::try_from(duration_ms).unwrap_or(0));
         self.0 = Some(Running {
             from,
