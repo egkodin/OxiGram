@@ -43,6 +43,27 @@ where
         .unwrap_or_default()
 }
 
+/// "October 26 at 10:00", with the year once it is far from today
+/// (`langDateTimeFull`).
+pub(crate) fn date_time_full<Tz: TimeZone>(
+    strings: &Strings,
+    unix_time: i32,
+    now: &DateTime<Tz>,
+) -> String
+where
+    Tz::Offset: std::fmt::Display,
+{
+    let tz = now.timezone();
+    let day = day(unix_time, &tz).unwrap_or_else(|| now.date_naive());
+    i18n::fill(
+        strings.text(key::lng_mediaview_date_time),
+        &[
+            ("date", &date_badge(strings, day, now)),
+            ("time", &time(unix_time, &tz)),
+        ],
+    )
+}
+
 /// The badge text for `date` (`langDayOfMonthFull`): "October 26", with
 /// the year once it is far from today.
 pub(crate) fn date_badge<Tz: TimeZone>(

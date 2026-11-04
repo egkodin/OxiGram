@@ -21,18 +21,19 @@
 
 The owner asked for tdesktop's whole Settings section, sections in order,
 without stopping. Done so far, each committed with parity rows and a live
-test (31-35): main page, rgram settings, My Account, Notifications and
+test (31-38): main page, rgram settings, My Account, Notifications and
 Sounds, Privacy and Security (all rows with state, privacy rule box),
-Blocked users.
+Blocked users, Active sessions (info box, rename, "If inactive for"),
+Connected websites, Auto-Delete Messages, the messages privacy, clear
+payment info and self-destruct boxes.
 
 Next, in this order (see the shortcut comments in
 `crates/features/src/settings_screen/*.rs` for what each page lacks):
 
-1. Privacy and Security's pages: the session info box, Websites,
-   Auto-delete (`GlobalTTL`), messages privacy box, clear payment info box
-   (Blocked users, Active sessions and the self-destruct box are done). Terminating sessions and the self-destruct
-   period need the owner's OK in live tests; 2FA, passcode and passkeys
-   flows need it too (rows only show their state now).
+1. Privacy and Security's remaining flows: 2FA, passcode, passkeys and
+   the login email (rows only show their state now); they need the
+   owner's OK in live tests, as do terminating sessions, disconnecting
+   websites, clearing payment info and the self-destruct period.
 2. Chat Settings (theme, night mode, backgrounds, accent colors, corner
    radius, text size, send-by, stickers and emoji, autoplay, archive
    settings, sensitive content from `SetupSensitiveContent`), Chat Folders.
@@ -510,6 +511,16 @@ Next, in this order (see the shortcut comments in
     activity. Open "If inactive for...": the ticked choice matches the
     phone; Cancel. Press no terminate button. Also open "If away for..."
     at the bottom of Privacy and Security and Cancel.
+37. Session details, read-only: Active sessions, click another device: the
+    box shows its name, last activity, application, system, IP and
+    location as the phone does; Done. Click "Rename": the field holds the
+    name you set before (empty at first); Cancel. Press no Terminate.
+38. Websites, auto-delete and messages, read-only: Privacy and Security.
+    If "Connected websites" shows, open it: the list matches the phone;
+    click a row, check the box, Done; press no Disconnect. Open
+    Auto-Delete Messages: the ticked choice matches the phone; go back
+    without clicking another. Open Messages: the ticked choice matches;
+    Cancel. Open Clear Payment and Shipping Info and Cancel.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

@@ -1,7 +1,7 @@
 //! "Privacy and Security" (`Settings::PrivacySecurity`): the security rows
 //! with their states, every privacy rule, archiving strangers, suggested
 //! contacts and the account's self-destruct period.
-// shortcut: the security rows but Blocked users and Active sessions, messages privacy, and payment info show their state but open nothing yet, and there are no file confirmations; with rows "Privacy and security" and the pages they open.
+// shortcut: two-step verification, passcode, passkeys, and the login email rows show their state but open nothing yet, and there are no file confirmations; with rows "Privacy and security" and the pages they open.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -20,7 +20,7 @@ use style::menu_icons::{
 use style::settings::{SETTINGS_PRIVACY_SECURITY_PADDING, SETTINGS_PRIVACY_SKIP};
 use ui::SettingsButton;
 
-use super::{Env, PageId, privacy_box, rows, self_destruct_box};
+use super::{Env, PageId, messages_box, payment_box, privacy_box, rows, self_destruct_box};
 use crate::lang::{strings, tr};
 
 /// TDLib's options for strangers' chats and suggested contacts.
@@ -243,13 +243,17 @@ impl PrivacyPage {
                 password,
                 cx,
             ),
-            row(
+            rows::button(
                 "security/ttl",
-                key::lng_settings_ttl_title,
+                tr(cx, key::lng_settings_ttl_title),
                 MENU_ICON_TTL,
-                auto_delete,
-                cx,
-            ),
+            )
+            .label(auto_delete)
+            .on_click({
+                let env = self.env.clone();
+                move |_, window, cx| env.open(PageId::GlobalTtl, window, cx)
+            })
+            .into_any_element(),
             // shortcut: no local passcode yet, so it reads off; with row "Passcode lock".
             row(
                 "security/passcode",
@@ -306,14 +310,17 @@ impl PrivacyPage {
             .into_any_element(),
         );
         if loaded.websites > 0 {
-            let count = loaded.websites.to_string().into();
-            items.push(row(
-                "security/websites",
-                key::lng_settings_logged_in,
-                MENU_ICON_IP_ADDRESS,
-                count,
-                cx,
-            ));
+            let env = self.env.clone();
+            items.push(
+                rows::button(
+                    "security/websites",
+                    tr(cx, key::lng_settings_logged_in),
+                    MENU_ICON_IP_ADDRESS,
+                )
+                .label(loaded.websites.to_string())
+                .on_click(move |_, window, cx| env.open(PageId::Websites, window, cx))
+                .into_any_element(),
+            );
         }
         let sessions = loaded
             .sessions
@@ -385,12 +392,26 @@ impl PrivacyPage {
             }
             Some(_) => tr(cx, key::lng_edit_privacy_everyone).to_string(),
         };
+        let (env, weak, current) = (self.env.clone(), cx.weak_entity(), self.loaded.new_chats);
         items.push(
             rows::plain(
                 "privacy/messages",
                 tr(cx, key::lng_settings_messages_privacy),
             )
             .label(messages)
+            .on_click(move |_, window, cx| {
+                let Some(current) = current else {
+                    return;
+                };
+                let weak = weak.clone();
+                let on_saved: messages_box::OnSaved = Rc::new(move |privacy, cx| {
+                    let _ = weak.update(cx, |this: &mut PrivacyPage, cx| {
+                        this.loaded.new_chats = Some(privacy);
+                        cx.notify();
+                    });
+                });
+                messages_box::show(&env, current, on_saved, window, cx);
+            })
             .into_any_element(),
         );
         for rule in RULES_AFTER_MESSAGES {
@@ -454,6 +475,10 @@ impl PrivacyPage {
                 "privacy/bots_payment",
                 tr(cx, key::lng_settings_clear_payment_info),
             )
+            .on_click({
+                let env = self.env.clone();
+                move |_, window, cx| payment_box::show(&env, window, cx)
+            })
             .into_any_element(),
             rows::skip(),
             rows::divider(cx),

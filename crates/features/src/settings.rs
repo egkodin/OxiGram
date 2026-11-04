@@ -111,6 +111,9 @@ struct Values {
     // shortcut: app-wide; tdesktop keeps them per account, which matters once several accounts search settings.
     recent_settings_searches: Vec<String>,
     notify: Notify,
+    /// The name this device shows in the sessions list; empty is the
+    /// system's (`customDeviceModel`).
+    custom_device_model: String,
 }
 
 impl Default for Values {
@@ -129,6 +132,7 @@ impl Default for Values {
             main_menu_accounts_shown: false,
             recent_settings_searches: Vec::new(),
             notify: Notify::default(),
+            custom_device_model: String::new(),
         }
     }
 }
@@ -219,6 +223,19 @@ pub(crate) fn notify(cx: &App) -> Notify {
 
 pub(crate) fn set_notify(notify: Notify, cx: &mut App) {
     change(cx, |values| values.notify = notify);
+}
+
+/// The name TDLib reports for this device, if the owner renamed it.
+#[must_use]
+pub fn custom_device_model(cx: &App) -> Option<String> {
+    values(cx)
+        .map(|values| values.custom_device_model.clone())
+        .filter(|name| !name.is_empty())
+}
+
+/// Takes effect at the next start: TDLib reads the name once.
+pub(crate) fn set_custom_device_model(name: String, cx: &mut App) {
+    change(cx, |values| values.custom_device_model = name);
 }
 
 pub(crate) fn recent_search_hashtags(cx: &App) -> crate::hashtags::Recent {
@@ -401,6 +418,7 @@ mod tests {
                 view: NotifyView::NameOnly,
                 ..Notify::default()
             },
+            custom_device_model: "Work Mac".to_owned(),
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

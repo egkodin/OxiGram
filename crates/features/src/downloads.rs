@@ -36,7 +36,7 @@ use ui::{IconButton, RadialState, color, font, font_height, icon, icon_size, pai
 use crate::dialogs::content_preview;
 use crate::file_sizes::{progress_text, size_text};
 use crate::history::layout;
-use crate::lang::{strings, tr, tr_with};
+use crate::lang::{strings, tr};
 use crate::store::spawn;
 use crate::{Layers, Store, px_of};
 
@@ -200,16 +200,7 @@ fn row(entry: &Entry, state: &model::State, cx: &App) -> Option<Row> {
 
 /// "Oct 28 at 10:00" (`langDateTime`).
 fn date(unix_time: i32, cx: &App) -> String {
-    let now = chrono::Local::now();
-    let day = layout::day(unix_time, &chrono::Local).unwrap_or_else(|| now.date_naive());
-    tr_with(
-        cx,
-        key::lng_mediaview_date_time,
-        &[
-            ("date", &layout::date_badge(strings(cx), day, &now)),
-            ("time", &layout::time(unix_time, &chrono::Local)),
-        ],
-    )
+    layout::date_time_full(strings(cx), unix_time, &chrono::Local::now())
 }
 
 /// A file's square without a thumbnail (`DocumentGenericPreview`): one of

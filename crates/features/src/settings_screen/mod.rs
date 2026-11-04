@@ -5,9 +5,12 @@
 // shortcut: a layer only, not the third column; tdesktop picks by the window's width.
 
 mod blocked;
+mod global_ttl;
 mod information;
 mod main_page;
+mod messages_box;
 mod notifications;
+mod payment_box;
 mod personal_channel;
 mod privacy;
 mod privacy_box;
@@ -16,8 +19,10 @@ mod rgram_page;
 mod rows;
 mod search;
 mod self_destruct_box;
+mod session_box;
 mod sessions;
 mod username_box;
+mod websites;
 
 pub(crate) use username_box::show as show_username_box;
 
@@ -59,6 +64,8 @@ pub(crate) enum PageId {
     Privacy,
     Blocked,
     Sessions,
+    Websites,
+    GlobalTtl,
     Chat,
     Folders,
     Advanced,
@@ -78,6 +85,8 @@ impl PageId {
             Self::Privacy => key::lng_settings_section_privacy,
             Self::Blocked => key::lng_settings_blocked_users,
             Self::Sessions => key::lng_settings_sessions_title,
+            Self::Websites => key::lng_settings_connected_title,
+            Self::GlobalTtl => key::lng_settings_ttl_title,
             Self::Chat => key::lng_settings_section_chat_settings,
             Self::Folders => key::lng_filters_title,
             Self::Advanced => key::lng_settings_advanced,
@@ -91,7 +100,9 @@ impl PageId {
     fn parent(self) -> Option<Self> {
         match self {
             Self::Main => None,
-            Self::Blocked | Self::Sessions => Some(Self::Privacy),
+            Self::Blocked | Self::Sessions | Self::Websites | Self::GlobalTtl => {
+                Some(Self::Privacy)
+            }
             _ => Some(Self::Main),
         }
     }
@@ -201,6 +212,8 @@ impl SettingsLayer {
             PageId::Privacy => cx.new(|cx| privacy::PrivacyPage::new(env, cx)).into(),
             PageId::Blocked => cx.new(|cx| blocked::BlockedPage::new(env, cx)).into(),
             PageId::Sessions => cx.new(|cx| sessions::SessionsPage::new(env, cx)).into(),
+            PageId::Websites => cx.new(|cx| websites::WebsitesPage::new(env, cx)).into(),
+            PageId::GlobalTtl => cx.new(|cx| global_ttl::GlobalTtlPage::new(env, cx)).into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),
@@ -215,6 +228,11 @@ impl SettingsLayer {
             self.focus.focus(window, cx);
         } else if self.stack.len() > 1 {
             self.stack.pop();
+            // Privacy's rows show what its pages change; ask Telegram again (tdesktop's values are live).
+            if self.current() == PageId::Privacy {
+                self.stack.pop();
+                self.push(PageId::Privacy, window, cx);
+            }
         }
         cx.notify();
     }

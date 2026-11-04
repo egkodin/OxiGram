@@ -25,6 +25,7 @@ pub struct BoxFrame {
     title: Option<SharedString>,
     content: Vec<AnyElement>,
     buttons: Vec<RoundButton>,
+    left_buttons: Vec<RoundButton>,
     top_buttons: Vec<AnyElement>,
 }
 
@@ -46,6 +47,7 @@ impl BoxFrame {
             title: None,
             content: Vec::new(),
             buttons: Vec::new(),
+            left_buttons: Vec::new(),
             top_buttons: Vec::new(),
         }
     }
@@ -75,6 +77,13 @@ impl BoxFrame {
         self
     }
 
+    /// Adds a button at the bottom left (`addLeftButton`).
+    #[must_use]
+    pub fn left_button(mut self, button: RoundButton) -> Self {
+        self.left_buttons.push(button);
+        self
+    }
+
     /// Adds a button at the title's right; the first is the rightmost
     /// (`addTopButton`).
     #[must_use]
@@ -91,7 +100,7 @@ impl RenderOnce for BoxFrame {
         let max_height =
             window.viewport_size().height - px_of(st.margin.top.0) - px_of(st.margin.bottom.0);
         let padding = st.button_padding;
-        let has_buttons = !self.buttons.is_empty();
+        let has_buttons = !self.buttons.is_empty() || !self.left_buttons.is_empty();
         let title = self.title.map(|title| {
             div().relative().h(px_of(BOX_TITLE_HEIGHT.0)).child(
                 div()
@@ -155,7 +164,17 @@ impl RenderOnce for BoxFrame {
                         .pt(px_of(padding.top.0))
                         .pr(px_of(padding.right.0))
                         .pb(px_of(padding.bottom.0))
-                        .children(self.buttons),
+                        .children(self.buttons)
+                        .when(!self.left_buttons.is_empty(), |row| {
+                            row.child(
+                                div()
+                                    .flex()
+                                    .flex_1()
+                                    .gap(px_of(padding.left.0))
+                                    .pl(px_of(padding.left.0))
+                                    .children(self.left_buttons),
+                            )
+                        }),
                 )
             })
     }

@@ -10,12 +10,15 @@ use td_api::enums::{
     BlockList, MessageSender, OptionValue, UserPrivacySetting, UserPrivacySettingRule as TdRule,
 };
 use td_api::functions::{
+    DeleteSavedCredentials, DeleteSavedOrderInfo, SetAccountTtl, SetDefaultMessageAutoDeleteTime,
+    SetMessageSenderBlockList,
+};
+use td_api::functions::{
     GetAccountTtl, GetActiveSessions, GetArchiveChatListSettings, GetBlockedMessageSenders,
     GetConnectedWebsites, GetDefaultMessageAutoDeleteTime, GetLoginPasskeys,
     GetNewChatPrivacySettings, GetOption, GetPasswordState, GetUserPrivacySettingRules,
-    SetArchiveChatListSettings, SetOption, SetUserPrivacySettingRules,
+    SetArchiveChatListSettings, SetNewChatPrivacySettings, SetOption, SetUserPrivacySettingRules,
 };
-use td_api::functions::{SetAccountTtl, SetMessageSenderBlockList};
 use td_api::types as td;
 
 use crate::{ChatId, RequestError, Session, UserId};
@@ -300,6 +303,38 @@ impl Session {
             })
     }
 
+    pub fn set_new_chat_privacy(
+        &self,
+        privacy: NewChatPrivacy,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&SetNewChatPrivacySettings {
+                settings: Box::new(td::NewChatPrivacySettings {
+                    allow_new_chats_from_unknown_users: privacy.allow_unknown,
+                    incoming_paid_message_star_count: privacy.paid_stars,
+                }),
+            })
+            .map(|result| result.map(drop).map_err(request_error))
+    }
+
+    /// Forgets the shipping address payments filled in.
+    pub fn delete_saved_order_info(
+        &self,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&DeleteSavedOrderInfo {})
+            .map(|result| result.map(drop).map_err(request_error))
+    }
+
+    /// Forgets the saved payment card.
+    pub fn delete_saved_credentials(
+        &self,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&DeleteSavedCredentials {})
+            .map(|result| result.map(drop).map_err(request_error))
+    }
+
     pub fn password_summary(
         &self,
     ) -> impl Future<Output = Result<PasswordSummary, RequestError>> + Send + use<> {
@@ -340,6 +375,18 @@ impl Session {
         self.client()
             .request(&GetDefaultMessageAutoDeleteTime {})
             .map(|result| result.map(|time| time.time).map_err(request_error))
+    }
+
+    /// Seconds new chats' messages live; 0 keeps them.
+    pub fn set_default_auto_delete(
+        &self,
+        seconds: i32,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&SetDefaultMessageAutoDeleteTime {
+                message_auto_delete_time: Box::new(td::MessageAutoDeleteTime { time: seconds }),
+            })
+            .map(|result| result.map(drop).map_err(request_error))
     }
 
     pub fn blocked_count(&self) -> impl Future<Output = Result<i32, RequestError>> + Send + use<> {

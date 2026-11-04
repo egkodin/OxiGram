@@ -74,6 +74,15 @@ fn main() -> anyhow::Result<()> {
             Ok(path) => features::settings::load(path, cx),
             Err(error) => tracing::warn!("{error}"),
         }
+        let parameters = parameters.map(
+            |parameters| match features::settings::custom_device_model(cx) {
+                Some(device_model) => Parameters {
+                    device_model,
+                    ..parameters
+                },
+                None => parameters,
+            },
+        );
         let content = match (parameters, data) {
             (Ok(parameters), Ok(data)) => {
                 Content::Signed(client::start(runtime, parameters, data, cx))
