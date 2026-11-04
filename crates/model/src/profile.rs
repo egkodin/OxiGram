@@ -8,9 +8,9 @@ use futures::FutureExt as _;
 use td_api::enums::{BlockList, MessageSender, SearchMessagesFilter, SupergroupMembersFilter};
 use td_api::functions::{
     GetBasicGroupFullInfo, GetChatMessageCount, GetGroupsInCommon, GetSupergroupFullInfo,
-    GetSupergroupMembers, GetUserFullInfo, GetUserProfilePhotos, RemoveContacts, ReportChat,
-    SearchChatMessages, SendMessage, SetBio, SetBirthdate, SetMessageSenderBlockList, SetName,
-    SetUsername,
+    GetSupergroupMembers, GetUserFullInfo, GetUserLink, GetUserProfilePhotos, RemoveContacts,
+    ReportChat, SearchChatMessages, SendMessage, SetBio, SetBirthdate, SetMessageSenderBlockList,
+    SetName, SetUsername,
 };
 use td_api::types as td;
 
@@ -402,6 +402,18 @@ impl Session {
     }
 
     /// Sends `user`'s contact card to `chat` (`SendContact`).
+    /// The own profile's link for its QR code: t.me/username, or a
+    /// temporary contact link without one (`getUserLink`).
+    pub fn user_link(&self) -> impl Future<Output = Result<String, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetUserLink {
+                remove_messages_fee: false,
+                return_permanent_link: false,
+                revoke_previous_links: false,
+            })
+            .map(|result| result.map(|link| link.url).map_err(RequestError::from))
+    }
+
     pub fn send_contact(
         &self,
         chat: ChatId,

@@ -371,8 +371,9 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| settings | Main page with account card, sections and settings search | M6 | todo | |
-| settings | Settings search with keyboard navigation | M6 | todo | |
+| settings | Main page with account card, sections and settings search | M6 | in progress | snapshots 145, 313-315: the layer with back, search, menu (Add Account, Edit info, Log Out) and close, the cover (photo opens the photo viewer, username copies the link or asks for one), the sections in tdesktop's order with the language label, Premium and help groups; search by title and keywords, recent searches; shortcuts: the Premium stars are flat, no Stars balance or TON row, no keys legend button, Battery and Animations, Language, Ask a Question and Send a Gift do nothing yet, the sections open empty until built; FAQ and Features open in the browser; not verified live yet |
+| settings | Settings search with keyboard navigation | M6 | todo | no arrow keys, no FAQ articles from the FAQ page |
+| settings | Own profile QR code: card, copy and share the link | M6 | in progress | snapshot 317: the code of `getUserLink` with the username under it, copy and share (the recipients box) pass the link; shortcuts: no colour themes, emoji or gift patterns, no countdown for a contact link, copy gives the link, not the card's image; not verified live yet |
 | settings | My account: name, username, bio, birthday, phone number change | M6 | todo | |
 | settings | Personal channel | M6 | todo | |
 | settings | Notifications: private chats, groups, channels, stories, reactions | M6 | todo | |
@@ -398,7 +399,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Chat settings: text and emoji options, large emoji, replace emoji | M6 | todo | |
 | settings | Chat settings: stickers suggestions, loop animated stickers | M6 | todo | |
 | settings | Chat settings: default reaction (quick reaction) | M6 | todo | |
-| settings | Chat settings: send by Enter or Ctrl+Enter | M6 | in progress | snapshots 143-146: the radios in a settings box from the main menu, until the settings screen; not verified live yet |
+| settings | Chat settings: send by Enter or Ctrl+Enter | M6 | in progress | snapshots 143-146: the radios on the "rgram settings" page of Settings; not in Chat Settings yet; not verified live yet |
 | settings | Auto-download and autoplay settings | M6 | todo | |
 | settings | Download folder and "ask where to save" | M6 | todo | |
 | settings | Archive settings (keep unmuted chats archived, folders) | M6 | todo | |

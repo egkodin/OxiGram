@@ -10,3 +10,6 @@
 "rgram_intro_email_reset" = "Reset login email";
 "rgram_intro_email_reset_about" = "Resetting the login email takes {when}. After that, the code goes to your phone number.";
 "rgram_intro_email_reset_pending" = "The login email will be reset in {when}.";
+
+// Settings: the app's own options, where tdesktop forks put theirs.
+"rgram_settings_title" = "rgram settings";

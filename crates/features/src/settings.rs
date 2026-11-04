@@ -63,6 +63,10 @@ struct Values {
     active_account: u32,
     /// The main menu's account list is open (`mainMenuAccountsShown`).
     main_menu_accounts_shown: bool,
+    /// Settings search results opened, newest first
+    /// (`Settings::RecentSearches`).
+    // shortcut: app-wide; tdesktop keeps them per account, which matters once several accounts search settings.
+    recent_settings_searches: Vec<String>,
 }
 
 impl Default for Values {
@@ -79,6 +83,7 @@ impl Default for Values {
             accounts: Vec::new(),
             active_account: 0,
             main_menu_accounts_shown: false,
+            recent_settings_searches: Vec::new(),
         }
     }
 }
@@ -185,6 +190,23 @@ pub(crate) fn remove_search_hashtag(tag: &str, cx: &mut App) {
         values
             .recent_search_hashtags
             .retain(|(known, _)| known != tag);
+    });
+}
+
+/// How many recent settings searches are kept (`RecentSearches::kLimit`).
+const RECENT_SETTINGS_SEARCHES: usize = 32;
+
+pub(crate) fn recent_settings_searches(cx: &App) -> Vec<String> {
+    values(cx).map_or_else(Vec::new, |values| values.recent_settings_searches.clone())
+}
+
+/// Moves `id` to the front of the recent settings searches.
+pub(crate) fn bump_settings_search(id: &str, cx: &mut App) {
+    change(cx, |values| {
+        let list = &mut values.recent_settings_searches;
+        list.retain(|known| known != id);
+        list.insert(0, id.to_owned());
+        list.truncate(RECENT_SETTINGS_SEARCHES);
     });
 }
 
@@ -321,6 +343,7 @@ mod tests {
             accounts: vec![0, 2],
             active_account: 2,
             main_menu_accounts_shown: true,
+            recent_settings_searches: vec!["main/language".to_owned()],
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

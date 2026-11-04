@@ -3,16 +3,17 @@
 //! buttons (`SetupSharedMediaClassic`).
 
 use chrono::{Datelike as _, Local};
+use gpui::Entity;
 use gpui::{
     AnyElement, App, Context, InteractiveElement as _, IntoElement, ParentElement, SharedString,
     StatefulInteractiveElement as _, Styled, Window, div, prelude::*,
 };
 use i18n::{Key, key};
-use model::MessageId;
 use model::chat_actions::Muting;
 use model::file::File;
 use model::profile::{Birthday, SharedMedia};
 use model::user::Photo;
+use model::{MessageId, UserId};
 use style::ColorId;
 use style::boxes::{INFO_LABEL, INFO_LABEL_SKIP, INFO_LABELED};
 use style::info::{
@@ -28,6 +29,7 @@ use crate::dialogs::photo_userpic;
 use crate::history::{MediaEntry, MediaKind, open_media};
 use crate::lang::{strings, tr, tr_plural, tr_with};
 use crate::px_of;
+use crate::{Layers, Store};
 
 /// `infoProfileLabeledPadding`, which lives in info_profile_actions.style.
 // shortcut: the style file is not generated yet; regenerate crates/style with it when more of its values are needed.
@@ -168,43 +170,11 @@ impl InfoView {
         let Some(photo) = look.photo else {
             return;
         };
-        let Subject::User(user) = self.subject else {
-            let files = vec![photo.big];
-            self.show_photos(files, look.name, window, cx);
-            return;
-        };
-        let task = crate::store::spawn(self.store().read(cx).session().profile_photos(user), cx);
-        cx.spawn_in(window, async move |this, cx| match task.await {
-            Ok(files) => {
-                let _ = this.update_in(cx, |this, window, cx| {
-                    this.show_photos(files, look.name, window, cx);
-                });
-            }
-            Err(error) => tracing::warn!(%error, "profile photos failed"),
-        })
-        .detach();
-    }
-
-    fn show_photos(&self, files: Vec<File>, name: String, window: &mut Window, cx: &mut App) {
-        if files.is_empty() {
-            return;
+        let (store, layers) = (self.store().clone(), self.layers().clone());
+        match self.subject {
+            Subject::User(user) => open_user_photos(store, layers, user, look.name, window, cx),
+            _ => show_photos(&store, &layers, vec![photo.big], look.name, window, cx),
         }
-        let entries = files
-            .into_iter()
-            .zip(1..)
-            .map(|(file, index)| MediaEntry {
-                message: MessageId(index),
-                kind: MediaKind::Photo,
-                file: Some(file),
-                still: None,
-                dimensions: None,
-                caption: String::new(),
-                sender: name.clone(),
-                date: String::new(),
-                is_saveable: false,
-            })
-            .collect();
-        open_media(self.store().clone(), self.layers(), entries, 0, window, cx);
     }
 
     pub(super) fn details(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
@@ -492,4 +462,54 @@ fn birthday_text(birthday: Birthday, cx: &App) -> String {
         i64::from(age),
         &[("date", &date)],
     )
+}
+
+/// Opens `user`'s profile photos in the media viewer (`Role::OpenPhoto`).
+pub(crate) fn open_user_photos(
+    store: Entity<Store>,
+    layers: Entity<Layers>,
+    user: UserId,
+    name: String,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let task = crate::store::spawn(store.read(cx).session().profile_photos(user), cx);
+    window
+        .spawn(cx, async move |cx| match task.await {
+            Ok(files) => {
+                let _ =
+                    cx.update(|window, cx| show_photos(&store, &layers, files, name, window, cx));
+            }
+            Err(error) => tracing::warn!(%error, "profile photos failed"),
+        })
+        .detach();
+}
+
+fn show_photos(
+    store: &Entity<Store>,
+    layers: &Entity<Layers>,
+    files: Vec<File>,
+    name: String,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    if files.is_empty() {
+        return;
+    }
+    let entries = files
+        .into_iter()
+        .zip(1..)
+        .map(|(file, index)| MediaEntry {
+            message: MessageId(index),
+            kind: MediaKind::Photo,
+            file: Some(file),
+            still: None,
+            dimensions: None,
+            caption: String::new(),
+            sender: name.clone(),
+            date: String::new(),
+            is_saveable: false,
+        })
+        .collect();
+    open_media(store.clone(), layers, entries, 0, window, cx);
 }

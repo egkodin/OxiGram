@@ -24,6 +24,8 @@ pub struct SettingsButton {
     style: &'static SettingsStyle,
     text: SharedString,
     icon: Option<style::Icon>,
+    /// The value at the right (`CreateRightLabel`).
+    label: Option<SharedString>,
     /// `Some` draws a toggle in that state at the right.
     toggled: Option<bool>,
     on_click: Option<ClickHandler>,
@@ -40,9 +42,16 @@ impl SettingsButton {
             style,
             text: text.into(),
             icon: None,
+            label: None,
             toggled: None,
             on_click: None,
         }
+    }
+
+    #[must_use]
+    pub fn label(mut self, label: impl Into<SharedString>) -> Self {
+        self.label = Some(label.into());
+        self
     }
 
     #[must_use]
@@ -131,6 +140,21 @@ impl RenderOnce for SettingsButton {
                     ))
                     .child(self.text),
             )
+            .when_some(self.label, |this, label| {
+                let right = &st.right_label;
+                let label_font = right.style.font;
+                this.child(
+                    div()
+                        .absolute()
+                        .right(px_of(st.padding.right))
+                        .top(px_of(st.padding.top))
+                        .font(font(label_font))
+                        .text_size(px_of(label_font.size))
+                        .line_height(font_height(label_font))
+                        .text_color(color(cx, right.text_fg))
+                        .child(label),
+                )
+            })
             .when_some(self.toggled, |this, toggled| {
                 let toggle_size = toggle_size(toggle);
                 this.child(

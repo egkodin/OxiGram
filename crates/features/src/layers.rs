@@ -32,6 +32,21 @@ pub enum Dismiss {
     ButtonsOnly,
 }
 
+/// What a new layer does with the one open.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stacking {
+    Replace,
+    /// The open one comes back when the new one closes.
+    Above,
+}
+
+/// The info layer's top and bottom margin (`LayerWidget::countGeometry`).
+pub(crate) fn info_top(window: &Window) -> Pixels {
+    let minimal = crate::px_of(style::info::INFO_LAYER_TOP_MINIMAL);
+    let maximal = crate::px_of(style::info::INFO_LAYER_TOP_MAXIMAL);
+    (window.viewport_size().height / 24.0).clamp(minimal, maximal)
+}
+
 /// Runs when the box is dismissed by Escape or a click outside.
 pub type OnDismiss = Box<dyn FnOnce(&mut Window, &mut App)>;
 
@@ -40,7 +55,11 @@ pub type OnDismiss = Box<dyn FnOnce(&mut Window, &mut App)>;
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum Placement {
     Center,
-    Left { width: Pixels },
+    /// Near the top, as the profile and Settings (`Info::LayerWidget`).
+    Info,
+    Left {
+        width: Pixels,
+    },
     Full,
 }
 
@@ -118,6 +137,22 @@ impl Layers {
             self.below.push(shown);
         }
         self.show_at(view, Placement::Center, Dismiss::Allowed, None, window, cx);
+    }
+
+    /// Shows `view` near the window's top, as tdesktop's profile and
+    /// Settings layer, replacing the open box or over it.
+    pub fn show_info<V: Render + Focusable>(
+        &mut self,
+        view: Entity<V>,
+        stacking: Stacking,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match stacking {
+            Stacking::Replace => self.below.clear(),
+            Stacking::Above => self.below.extend(self.current.take()),
+        }
+        self.show_at(view, Placement::Info, Dismiss::Allowed, None, window, cx);
     }
 
     /// Slides `view`, `width` wide, in from the left edge, as the main menu.
@@ -307,6 +342,16 @@ impl Layers {
                         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                         .child(view),
                 ),
+                Placement::Info => this
+                    .justify_center()
+                    .items_start()
+                    .pt(info_top(window))
+                    .child(
+                        div()
+                            .opacity(opacity)
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .child(view),
+                    ),
                 Placement::Full => this.child(div().size_full().opacity(opacity).child(view)),
                 Placement::Left { width } => this.child(
                     div()

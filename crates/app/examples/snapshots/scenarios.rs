@@ -231,6 +231,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
                 ("143-settings-chat", MouseButton::Left, SAVED_ROW),
                 ("144-settings-menu", MouseButton::Left, MENU_BUTTON),
                 ("145-settings-box", MouseButton::Left, SETTINGS_ROW),
+                ("145-settings-rgram", MouseButton::Left, RGRAM_SETTINGS_ROW),
                 (
                     "146-settings-cmd-enter",
                     MouseButton::Left,
@@ -259,6 +260,42 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             folders: FoldersPlacement::Top,
             histories: history::histories(),
             steps: vec![("143-settings-list", auth(State::Ready))],
+        },
+        // Settings search finds Privacy by a keyword; the QR box opens
+        // from the cover.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("313-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("313-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("314-settings-search", MouseButton::Left, SETTINGS_SEARCH),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![("315-settings-found", vec![Input::Type("pass")])],
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("313-settings-list", auth(State::Ready))],
+        },
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("316-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("316-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("317-settings-qr", MouseButton::Left, SETTINGS_QR),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("316-settings-list", auth(State::Ready))],
         },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
@@ -685,11 +722,16 @@ const FIRST_MENU_ITEM: (f32, f32) = (200.0, 144.0);
 const SECOND_MENU_ITEM: (f32, f32) = (200.0, 178.0);
 /// The main menu's first row, under its cover.
 const FIRST_MAIN_MENU_ROW: (f32, f32) = (100.0, 154.0);
-/// The main menu's Settings row, and in the settings box the Cmd+Enter
-/// choice and Close.
+/// The main menu's Settings row.
 const SETTINGS_ROW: (f32, f32) = (100.0, 407.0);
+/// Settings' "rgram settings" row, then its Cmd+Enter choice and the
+/// layer's close button.
+const RGRAM_SETTINGS_ROW: (f32, f32) = (300.0, 566.0);
 const SEND_BY_CTRL_ENTER: (f32, f32) = (330.0, 326.0);
-const SETTINGS_CLOSE: (f32, f32) = (516.0, 377.0);
+const SETTINGS_CLOSE: (f32, f32) = (568.0, 48.0);
+/// The settings layer's search button and the cover's QR button.
+const SETTINGS_SEARCH: (f32, f32) = (482.0, 48.0);
+const SETTINGS_QR: (f32, f32) = (564.0, 124.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 /// The chat list's right edge at the default width (5/14 of 800), and in

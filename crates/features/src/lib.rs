@@ -28,7 +28,7 @@ mod ranked;
 mod recipients_box;
 mod root;
 pub mod settings;
-mod settings_box;
+mod settings_screen;
 mod status;
 pub mod store;
 pub mod toast;

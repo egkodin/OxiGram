@@ -9,6 +9,7 @@ mod edit;
 mod media_list;
 mod report;
 mod rows;
+pub(crate) use rows::open_user_photos;
 
 use std::collections::HashSet;
 use std::future::Future;
@@ -21,16 +22,14 @@ use i18n::key;
 use model::chat::{Chat, ChatKind};
 use model::profile::{GroupProfile, Member, SharedMedia, UserProfile};
 use model::{BasicGroupId, ChatId, FileId, RequestError, State, SupergroupId, UserId};
-use style::info::{
-    INFO_DESIRED_WIDTH, INFO_LAYER_TOP_BAR, INFO_LAYER_TOP_BAR_CLOSE, INFO_LAYER_TOP_MINIMAL,
-};
+use style::info::{INFO_DESIRED_WIDTH, INFO_LAYER_TOP_BAR, INFO_LAYER_TOP_BAR_CLOSE};
 use style::layers::BOX_RADIUS;
 use style::widgets::BOX_DIVIDER_HEIGHT;
 use style::{ColorId, ColorRef};
 use ui::{IconButton, color, font, font_height};
 
 use crate::lang::tr;
-use crate::layers::{Dismiss, Layers};
+use crate::layers::{Layers, Stacking};
 use crate::links::Targets;
 use crate::px_of;
 use crate::store::Store;
@@ -69,7 +68,17 @@ pub(crate) fn show(targets: Targets, chat: ChatId, window: &mut Window, cx: &mut
     let layers = targets.layers.clone();
     let view = cx.new(|cx| InfoView::new(targets, chat, cx));
     layers.update(cx, |layers, cx| {
-        layers.show(view, Dismiss::Allowed, None, window, cx);
+        layers.show_info(view, Stacking::Replace, window, cx)
+    });
+}
+
+/// Opens the profile of `chat` over the open box, which comes back when it
+/// closes (a profile opened from Settings).
+pub(crate) fn show_above(targets: Targets, chat: ChatId, window: &mut Window, cx: &mut App) {
+    let layers = targets.layers.clone();
+    let view = cx.new(|cx| InfoView::new(targets, chat, cx));
+    layers.update(cx, |layers, cx| {
+        layers.show_info(view, Stacking::Above, window, cx)
     });
 }
 
@@ -320,7 +329,7 @@ pub(super) fn text(
 
 impl Render for InfoView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let max_height = window.viewport_size().height - px_of(INFO_LAYER_TOP_MINIMAL) * 2.0;
+        let max_height = window.viewport_size().height - crate::layers::info_top(window) * 2.0;
         let top_bar = self.top_bar(cx);
         let cover = self.cover(cx);
         let details = self.details(cx);

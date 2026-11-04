@@ -444,6 +444,16 @@
     another app: within a minute it reads "last seen just now". Leave the
     window in front untouched for 30 s: it reads "last seen just now";
     scroll or type: "online" again.
+31. Settings main page, read-only (no switch flips): main menu, Settings:
+    your photo, name, phone and @username show as on the phone; the
+    sections list in tdesktop's order, Language says your language. Click
+    the photo: your photos open in the viewer (Escape). The search button:
+    type "pass": Privacy and Security shows; Escape twice closes the search,
+    then Settings. The QR button: a code shows with your username; scan it
+    with the phone's camera: it opens your profile; do not press copy or
+    share. The menu: Add Account, Edit info and Log Out show (press none).
+    "rgram settings": the send-by choice matches Chat Settings (do not
+    change it). Escape goes back a page, then closes.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

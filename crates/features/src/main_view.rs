@@ -411,7 +411,7 @@ impl MainView {
                     let on_logout: boxes::Callback = Rc::new(move |window, cx| {
                         let _ = weak.update(cx, |this, cx| this.confirm_logout(window, cx));
                     });
-                    crate::settings_box::show(&this.layers, on_logout, window, cx);
+                    crate::settings_screen::show(this.link_targets(), on_logout, window, cx);
                 }
             }
         })
