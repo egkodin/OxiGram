@@ -38,6 +38,8 @@ pub(crate) struct Many {
     pub done: gpui::SharedString,
     pub on_done: OnDone,
     pub cancel: Cancel,
+    /// Ticked when the box opens.
+    pub picked: Vec<UserId>,
 }
 
 /// What the box's other button does.
@@ -135,7 +137,10 @@ fn open(
             hovered: None,
             requested_files: HashSet::new(),
             on_chosen,
-            many: many.map(|many| (many, Vec::new())),
+            many: many.map(|many| {
+                let picked = many.picked.clone();
+                (many, picked)
+            }),
             _subscriptions: [search_changed, store_changed],
         }
     });

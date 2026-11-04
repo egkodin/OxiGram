@@ -26,6 +26,7 @@ pub mod message_actions;
 pub mod notifications;
 pub mod phone;
 pub mod poll;
+pub mod privacy;
 pub mod profile;
 pub mod reaction;
 pub mod rights;

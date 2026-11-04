@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 7 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 12 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -388,10 +388,10 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Notifications: sound, preview, sender, count badge, include muted (M6) *(in progress)*
 - [ ] Notification exceptions per chat (M6)
 - [ ] Custom notification sounds (upload, choose, per chat) (M6)
-- [ ] Privacy: phone number, last seen (with read-time hiding), profile photo (M6)
-- [ ] Privacy: forwards, calls, voice messages, invites, birthday, gifts, bio (M6)
+- [ ] Privacy: phone number, last seen (with read-time hiding), profile photo (M6) *(in progress)*
+- [ ] Privacy: forwards, calls, voice messages, invites, birthday, gifts, bio (M6) *(in progress)*
 - [ ] Privacy: messages from non-contacts (Premium or Stars price) (M13)
-- [ ] Privacy rule exceptions (always/never share with) (M6)
+- [ ] Privacy rule exceptions (always/never share with) (M6) *(in progress)*
 - [ ] Blocked users (M6)
 - [ ] Active sessions: list, terminate, terminate all, auto-terminate period (M6)
 - [ ] Logged-in websites (Log in with Telegram) (M6)
@@ -401,8 +401,8 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Login email change (M6)
 - [ ] Global auto-delete timer (M6)
 - [ ] Account self-destruction period (M6)
-- [ ] Archive and mute new non-contacts (M6)
-- [ ] Suggest frequent contacts; delete cloud drafts; clear payment info (M6)
+- [ ] Archive and mute new non-contacts (M6) *(in progress)*
+- [ ] Suggest frequent contacts; delete cloud drafts; clear payment info (M6) *(in progress)*
 - [ ] Sensitive content setting (M6)
 - [ ] Chat settings: text and emoji options, large emoji, replace emoji (M6)
 - [ ] Chat settings: stickers suggestions, loop animated stickers (M6)

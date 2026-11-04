@@ -94,7 +94,6 @@ pub(super) fn button(
     SettingsButton::new(id, &SETTINGS_BUTTON, text).icon(icon)
 }
 
-#[expect(dead_code, reason = "the sections after the main page use it")]
 /// A row without an icon (`settingsButtonNoIcon`).
 pub(super) fn plain(
     id: impl Into<gpui::ElementId>,

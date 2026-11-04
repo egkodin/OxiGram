@@ -52,6 +52,7 @@ mod selection;
 mod send_files_box;
 mod send_menu;
 mod service;
+pub(crate) use service::ttl as format_ttl;
 mod special;
 mod spoiler;
 mod sponsored;

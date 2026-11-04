@@ -66,7 +66,7 @@ fn names(strings: &Strings, names: &[String]) -> String {
 }
 
 /// An auto-delete period in its largest unit (`Ui::FormatTTL`).
-fn ttl(strings: &Strings, seconds: i32) -> String {
+pub(crate) fn ttl(strings: &Strings, seconds: i32) -> String {
     let days = seconds / DAY;
     if seconds < DAY {
         plural(strings, key::lng_hours, seconds / HOUR)

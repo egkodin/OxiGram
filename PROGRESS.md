@@ -468,6 +468,13 @@
     here to change" or "On/Off, N exceptions". Note each toggle, and
     "Contact joined Telegram"; change nothing unless you agree, and if you
     do, set it back the same way.
+34. Privacy and Security, read-only: Settings, Privacy and Security. The
+    Security rows show the phone's states (Two-Step Verification on/off,
+    Auto-Delete, Blocked users count, Active sessions count). Each Privacy
+    row's label matches the phone (with -N/+N for exceptions). Open Phone
+    number: the chosen option is ticked, the exceptions rows show their
+    counts; Cancel without saving. Note "Suggest frequent contacts" and,
+    if shown, "Archive and mute"; change nothing unless you agree.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

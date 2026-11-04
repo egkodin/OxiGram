@@ -240,6 +240,7 @@ fn pick_members(
             Rc::new(move |members, window, cx| done(targets.clone(), members, window, cx))
         },
         cancel,
+        picked: Vec::new(),
     };
     contacts_box::show_many(&targets.store, &targets.layers, many, window, cx);
 }

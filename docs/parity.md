@@ -380,10 +380,10 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Notifications: sound, preview, sender, count badge, include muted | M6 | in progress | The switches are there and persist in settings.json (desktop, Dock bounce, sound, name, text, pinned messages, include muted, count unread) but change nothing yet: rgram has no desktop notifications, sounds or Dock badge (M7). No preview card, volume slider, calls or system integration groups, or "include muted in folder counters" |
 | settings | Notification exceptions per chat | M6 | todo | |
 | settings | Custom notification sounds (upload, choose, per chat) | M6 | todo | |
-| settings | Privacy: phone number, last seen (with read-time hiding), profile photo | M6 | todo | |
-| settings | Privacy: forwards, calls, voice messages, invites, birthday, gifts, bio | M6 | todo | |
+| settings | Privacy: phone number, last seen (with read-time hiding), profile photo | M6 | in progress | Settings > Privacy and Security (snapshots 322-323): each row shows TDLib's rule (`getUserPrivacySettingRules`) as tdesktop labels it, with the -/+ exception counts; the box has the three options, the warning, the exceptions and saves with `setUserPrivacySettingRules`. Not verified live (live test 34). Missing: last seen's read-time switch and one-time confirmation, phone number's "who can find me by number", profile photo's public photo |
+| settings | Privacy: forwards, calls, voice messages, invites, birthday, gifts, bio | M6 | in progress | Same box as the row above, plus saved music. Not verified live. Missing: forwards' sample message, calls' peer-to-peer part, Premium rows (voices, gifts' mini apps) |
 | settings | Privacy: messages from non-contacts (Premium or Stars price) | M13 | todo | |
-| settings | Privacy rule exceptions (always/never share with) | M6 | todo | |
+| settings | Privacy rule exceptions (always/never share with) | M6 | in progress | "Always"/"Never" rows shown where the option leaves room for them, with tdesktop's count label; editing opens the contacts box with the list ticked, and picked users leave the other list. Missing: picking groups and non-contacts (groups already there stay) |
 | settings | Blocked users | M6 | todo | |
 | settings | Active sessions: list, terminate, terminate all, auto-terminate period | M6 | todo | |
 | settings | Logged-in websites (Log in with Telegram) | M6 | todo | |
@@ -393,8 +393,8 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Login email change | M6 | todo | |
 | settings | Global auto-delete timer | M6 | todo | |
 | settings | Account self-destruction period | M6 | todo | |
-| settings | Archive and mute new non-contacts | M6 | todo | |
-| settings | Suggest frequent contacts; delete cloud drafts; clear payment info | M6 | todo | |
+| settings | Archive and mute new non-contacts | M6 | in progress | Shown when TDLib's `can_archive_and_mute_new_chats_from_unknown_users` is on; the toggle sets `archive_and_mute_new_chats_from_unknown_users`, keeping the other archive settings. Not verified live |
+| settings | Suggest frequent contacts; delete cloud drafts; clear payment info | M6 | in progress | The frequent contacts toggle sets TDLib's `disable_top_chats`. Missing: the clear payment info box (the row opens nothing), deleting cloud drafts; not verified live |
 | settings | Sensitive content setting | M6 | todo | |
 | settings | Chat settings: text and emoji options, large emoji, replace emoji | M6 | todo | |
 | settings | Chat settings: stickers suggestions, loop animated stickers | M6 | todo | |
