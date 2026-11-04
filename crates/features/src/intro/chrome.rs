@@ -3,8 +3,8 @@
 //! buttons, and the links under them.
 
 use gpui::{
-    AnyElement, App, Entity, IntoElement, ParentElement, Pixels, SharedString, Styled, Window, div,
-    linear_color_stop, linear_gradient, px,
+    AnyElement, App, Entity, InteractiveElement as _, IntoElement, ParentElement, Pixels,
+    SharedString, Styled, Window, div, linear_color_stop, linear_gradient, px,
 };
 use model::Environment;
 use style::intro::{
@@ -125,6 +125,7 @@ impl Frame<'_> {
 
         root = match &self.departing {
             None => root.child(step_layer(
+                CURRENT,
                 g,
                 self.header,
                 self.step,
@@ -134,20 +135,26 @@ impl Frame<'_> {
             )),
             Some(departing) if cover_change => {
                 let was_top = g.content_top(departing.had_cover);
-                root.children(header_labels(g, departing.header, was_top, 1.0 - p))
-                    .children(header_labels(g, self.header, content_top, p))
-                    .child(moving_body(
-                        g,
-                        departing.step,
-                        p * f32::from(g.height - body_top(g, departing.had_cover)),
-                        1.0 - p,
-                    ))
-                    .child(moving_body(
-                        g,
-                        self.step,
-                        (1.0 - p) * f32::from(g.height - body_top(g, has_cover)),
-                        p,
-                    ))
+                root.child(scoped(
+                    DEPARTING,
+                    header_labels(g, departing.header, was_top, 1.0 - p),
+                ))
+                .child(scoped(
+                    CURRENT,
+                    header_labels(g, self.header, content_top, p),
+                ))
+                .child(moving_body(
+                    g,
+                    departing.step,
+                    p * f32::from(g.height - body_top(g, departing.had_cover)),
+                    1.0 - p,
+                ))
+                .child(moving_body(
+                    g,
+                    self.step,
+                    (1.0 - p) * f32::from(g.height - body_top(g, has_cover)),
+                    p,
+                ))
             }
             Some(departing) => {
                 let width = f32::from(px_of(INTRO_STEP_WIDTH));
@@ -158,6 +165,7 @@ impl Frame<'_> {
                     g,
                     content_top,
                     step_layer(
+                        DEPARTING,
                         g,
                         departing.header,
                         departing.step,
@@ -170,6 +178,7 @@ impl Frame<'_> {
                     g,
                     content_top,
                     step_layer(
+                        CURRENT,
                         g,
                         self.header,
                         self.step,
@@ -343,7 +352,7 @@ fn body_top(g: Geometry, has_cover: bool) -> Pixels {
     g.content_top(has_cover) + description_top + font_height(INTRO_DESCRIPTION.style.font) * 2.0
 }
 
-fn slide_clip(g: Geometry, content_top: Pixels, layer: gpui::Div) -> gpui::Div {
+fn slide_clip(g: Geometry, content_top: Pixels, layer: impl IntoElement) -> gpui::Div {
     let left = ((g.width - px_of(INTRO_STEP_WIDTH)) / 2.0).floor();
     div()
         .absolute()
@@ -363,17 +372,29 @@ fn slide_clip(g: Geometry, content_top: Pixels, layer: gpui::Div) -> gpui::Div {
         )
 }
 
+/// The id scopes of the leaving and the coming step, so their labels
+/// keep apart while both are drawn.
+const DEPARTING: &str = "intro-departing";
+const CURRENT: &str = "intro-current";
+
+/// Header labels under their own id scope.
+fn scoped(scope: &'static str, labels: Vec<gpui::Div>) -> gpui::Stateful<gpui::Div> {
+    div().id(scope).absolute().inset_0().children(labels)
+}
+
 /// A step with its header, shifted by `dx`.
 fn step_layer(
+    scope: &'static str,
     g: Geometry,
     header: &Header,
     step: &Step,
     error: Option<(&StepError, f32)>,
     dx: Pixels,
     alpha: f32,
-) -> gpui::Div {
+) -> gpui::Stateful<gpui::Div> {
     let content_top = g.content_top(header.has_cover);
     let mut layer = div()
+        .id(scope)
         .absolute()
         .left(dx)
         .top_0()
