@@ -215,11 +215,10 @@
   stop; when the OS quits the app, gpui waits only 200 ms, so that path
   may still crash (wake `td_receive` with a request if live test 24 shows
   it); the `history-perf` example still quits without stopping it.
-- Player bar: songs only (a voice shows none); no playlist panel, no
-  volume, repeat, order or speed; square play and pause glyphs without
-  the morph. The playlist is the songs the history had loaded when one
-  started, not the chat's shared music; the next song plays only once it
-  is fully downloaded, and the bar hides in between.
+- Player bar: songs only (a voice shows none); no volume, repeat, order
+  or speed; square play and pause glyphs without the morph. The next
+  song plays only once it is fully downloaded, and the bar hides in
+  between.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
@@ -272,6 +271,12 @@
 - `ui::InputField` scrolls sideways to keep the caret in view, the text
   clipped at the field's margins (snapshots 297-300: a long bio). The bio
   field stays one line (tdesktop's is multi-line).
+- Playlist panel (`player/panel.rs`, snapshot 212): resting on the
+  player bar's name opens the chat's songs under it, newest first; a
+  click plays or pauses one. The playlist is now the chat's 32 songs
+  around the one playing (`Session::shared_media_around`), not only the
+  history's loaded ones. Shortcuts: no month headers, download icon or
+  progress in the panel, no fade.
 - The empty New Group members box is right: TDLib's `getContacts`
   returned 0 for the owner's account (`contacts loaded` debug log).
 
@@ -284,8 +289,8 @@
 
 ### Next steps (M5, offline), in the owner's order
 
-- The playlist panel (row 301), then repeat, order, speed and volume
-  (row 302), and the bar for voices with their queue (row 304).
+- Repeat, order, speed and volume (row 302), then the bar for voices
+  with their queue (row 304).
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)
@@ -395,7 +400,10 @@
     the row shows the time played; the cross stops it and the bar goes.
     With two or more songs in the chat: previous and next move between
     them (the oldest has previous dimmed, the newest next); let a song
-    end: the next newer one downloads and plays.
+    end: the next newer one downloads and plays. Rest the pointer on the
+    bar's name: the playlist opens under it with the chat's songs, newest
+    on top, the playing one scrolled into view with "played / length";
+    click another song: it plays; move the pointer away: it closes.
 24. Quit (Cmd-Q, then once with the Dock's Quit): rgram closes within a
     couple of seconds with no "quit unexpectedly" dialog and no new
     `rgram-*.ips` in ~/Library/Logs/DiagnosticReports.

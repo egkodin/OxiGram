@@ -1,14 +1,16 @@
 //! The bar above the chat while a song plays (`Media::Player::Widget`):
 //! previous, play and pause, next, "Performer – Title", the time, close,
-//! and the played line along the bottom, which a click seeks.
+//! and the played line along the bottom, which a click seeks; resting on
+//! the name opens the playlist panel.
 
 use std::cell::Cell;
 use std::rc::Rc;
 
 use gpui::{
-    AnyElement, App, Bounds, Entity, FontWeight, Hsla, InteractiveElement as _, IntoElement as _,
-    MouseButton, MouseDownEvent, ParentElement as _, PathBuilder, Pixels, Point,
-    StatefulInteractiveElement as _, Styled as _, Window, canvas, div, point, px, size,
+    AnyElement, App, Bounds, DispatchPhase, Entity, FontWeight, HitboxBehavior, Hsla,
+    InteractiveElement as _, IntoElement as _, MouseButton, MouseDownEvent, MouseMoveEvent,
+    ParentElement as _, PathBuilder, Pixels, Point, StatefulInteractiveElement as _, Styled as _,
+    Window, canvas, div, point, px, size,
 };
 use style::media_player::{
     MEDIA_PLAYER_CLOSE, MEDIA_PLAYER_HEIGHT, MEDIA_PLAYER_NAME, MEDIA_PLAYER_NEXT_BUTTON,
@@ -27,7 +29,7 @@ use crate::px_of;
 const LABEL_TOP: f32 = 22.0 - 14.0;
 
 /// The bar for the song playing; none for a voice or nothing.
-// shortcut: no volume, repeat, order or speed, no playlist panel; with rows 301-302.
+// shortcut: no volume, repeat, order or speed; with row 302.
 pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let state = player.read(cx);
     let playing = state.current()?;
@@ -61,7 +63,7 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .right(right)
         .flex()
         .whitespace_nowrap()
-        .child(name(performer, title, cx))
+        .child(name(performer, title, color(cx, MEDIA_PLAYER_NAME.text_fg)))
         .child(time(sound, cx));
     let close = div()
         .absolute()
@@ -84,7 +86,9 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .child(controls)
         .child(labels)
         .child(close)
-        .child(playback(player, sound.progress(), cx));
+        .child(playback(player, sound.progress(), cx))
+        .child(labels_hover(player, left, right))
+        .children(super::panel::panel(player, cx));
     Some(element.into_any_element())
 }
 
@@ -127,8 +131,37 @@ fn palette(cx: &App, id: ColorId) -> Hsla {
     color(cx, ColorRef::Palette(id))
 }
 
+/// Follows the pointer over the name and the time, above the played line
+/// (`updateOverLabelsState`), for the playlist panel.
+fn labels_hover(player: &Entity<Player>, left: Pixels, right: Pixels) -> AnyElement {
+    let player = player.clone();
+    let line = px_of(MEDIA_PLAYER_PLAYBACK.full_width);
+    canvas(
+        move |bounds, window, _| {
+            let labels = Bounds::from_corners(
+                point(bounds.left() + left, bounds.top()),
+                point(bounds.right() - right, bounds.bottom() - line),
+            );
+            window.insert_hitbox(labels, HitboxBehavior::Normal)
+        },
+        move |bounds, hitbox, window, _| {
+            window.on_mouse_event(move |event: &MouseMoveEvent, phase, window, cx| {
+                let is_over = hitbox.is_hovered(window);
+                if phase != DispatchPhase::Bubble || player.read(cx).is_over_labels() == is_over {
+                    return;
+                }
+                let x = event.position.x - bounds.left();
+                player.update(cx, |player, cx| player.hover_labels(is_over, x, cx));
+            });
+        },
+    )
+    .absolute()
+    .size_full()
+    .into_any_element()
+}
+
 /// The performer in semibold, then the title (`textWithEntities(true)`).
-fn name(performer: &str, title: &str, cx: &App) -> AnyElement {
+pub(super) fn name(performer: &str, title: &str, fg: Hsla) -> AnyElement {
     let style = &MEDIA_PLAYER_NAME.style.font;
     let text = if performer.is_empty() {
         title.to_owned()
@@ -143,7 +176,7 @@ fn name(performer: &str, title: &str, cx: &App) -> AnyElement {
         .font(font(*style))
         .text_size(px_of(style.size))
         .line_height(font_height(*style))
-        .text_color(color(cx, MEDIA_PLAYER_NAME.text_fg))
+        .text_color(fg)
         .when_some_performer(performer)
         .child(
             div()

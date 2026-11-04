@@ -18,18 +18,6 @@ use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
 use crate::player::{Playlist, Song, Sound, Track};
 
-fn song(message: &Message) -> Option<Song> {
-    let Content::Audio { name, music, .. } = &message.content else {
-        return None;
-    };
-    let (performer, title) = music.parts(name);
-    Some(Song {
-        message: message.id,
-        file: music.file.id,
-        track: Track::Song { performer, title },
-    })
-}
-
 fn seconds(duration: std::time::Duration) -> i32 {
     i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
 }
@@ -108,7 +96,7 @@ impl HistoryView {
                 history
                     .messages()
                     .iter()
-                    .filter_map(|message| song(message))
+                    .filter_map(|message| Song::of(message))
                     .collect()
             })
             .unwrap_or_default();

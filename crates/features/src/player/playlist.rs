@@ -2,6 +2,7 @@
 //! music in message order, the next one newer; a song that ends starts the
 //! next.
 
+use model::message::{Content, Message};
 use model::{ChatId, FileId, MessageId, Session};
 
 use super::Track;
@@ -12,6 +13,24 @@ pub(crate) struct Song {
     pub message: MessageId,
     pub file: FileId,
     pub track: Track,
+    /// In seconds.
+    pub duration: i32,
+}
+
+impl Song {
+    /// `message`'s song; none when it is not music.
+    pub(crate) fn of(message: &Message) -> Option<Self> {
+        let Content::Audio { name, music, .. } = &message.content else {
+            return None;
+        };
+        let (performer, title) = music.parts(name);
+        Some(Self {
+            message: message.id,
+            file: music.file.id,
+            track: Track::Song { performer, title },
+            duration: music.duration,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,7 +39,8 @@ pub(crate) enum Step {
     Next,
 }
 
-// shortcut: only the songs the history had loaded when one started, not the chat's shared music (`searchChatMessages`); when the playlist panel comes (row 301).
+/// The history's loaded songs when one starts, then the chat's shared
+/// music around it once that arrives.
 #[derive(Debug)]
 pub(crate) struct Playlist {
     pub chat: ChatId,
@@ -55,6 +75,7 @@ mod tests {
                 message: MessageId(id),
                 file: FileId(1),
                 track: Track::Voice,
+                duration: 0,
             })
             .collect()
     }

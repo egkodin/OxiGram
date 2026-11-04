@@ -18,7 +18,7 @@ use crate::file::File;
 use crate::message::Message;
 use crate::rights::MemberStatus;
 use crate::text::FormattedText;
-use crate::{BasicGroupId, ChatId, RequestError, Session, SupergroupId, UserId};
+use crate::{BasicGroupId, ChatId, MessageId, RequestError, Session, SupergroupId, UserId};
 
 /// How many shared media, members or groups one request brings.
 // shortcut: one page of each list; page with offsets when a profile needs more.
@@ -260,15 +260,39 @@ impl Session {
         chat: ChatId,
         media: SharedMedia,
     ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
+        self.search_media(chat, media, MessageId(0), 0, PAGE)
+    }
+
+    /// Up to `limit` messages of the list around `around`, half of them
+    /// newer, newest first (`Memento::setAroundId`).
+    pub fn shared_media_around(
+        &self,
+        chat: ChatId,
+        media: SharedMedia,
+        around: MessageId,
+        limit: i32,
+    ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
+        // A negative offset adds that many newer messages to the older ones.
+        self.search_media(chat, media, around, -(limit / 2), limit)
+    }
+
+    fn search_media(
+        &self,
+        chat: ChatId,
+        media: SharedMedia,
+        from: MessageId,
+        offset: i32,
+        limit: i32,
+    ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
         self.client()
             .request(&SearchChatMessages {
                 chat_id: chat.0,
                 topic_id: None,
                 query: String::new(),
                 sender_id: None,
-                from_message_id: 0,
-                offset: 0,
-                limit: PAGE,
+                from_message_id: from.0,
+                offset,
+                limit,
                 filter: Some(Box::new(media.filter())),
             })
             .map(|result| {

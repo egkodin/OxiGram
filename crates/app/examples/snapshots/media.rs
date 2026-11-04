@@ -49,6 +49,8 @@ const PLAYABLE_ROUND: (f32, f32) = (664.0, 192.0);
 const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/clip.mp4");
 /// The first song's play circle in Saved Messages.
 const FIRST_SONG: (f32, f32) = (550.0, 445.0);
+/// The player bar's "Performer – Title".
+const BAR_NAME: (f32, f32) = (450.0, 17.0);
 /// A WebM sticker's clip: VP9 with alpha, clear but for a red square.
 const ALPHA_CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../media/fixtures/alpha.webm");
 /// An 8 s square clip, long enough to still play when the harness draws.
@@ -311,7 +313,7 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
         },
         // Songs: "Performer – Title" or the file name, the length (and
         // size until downloaded); Play plays it, silently here, with the
-        // time played.
+        // time played; the bar's name opens the playlist.
         Scenario {
             abilities: None,
             others: Vec::new(),
@@ -320,7 +322,8 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
                 ("210-music-chat", MouseButton::Left, SAVED_ROW),
                 ("211-music-playing", MouseButton::Left, FIRST_SONG),
             ],
-            drags: Vec::new(),
+            // Resting on the bar's name opens the playlist under it.
+            drags: vec![("212-music-panel", BAR_NAME, (BAR_NAME.0 + 4.0, BAR_NAME.1))],
             drops: Vec::new(),
             scrolls: Vec::new(),
             keys: Vec::new(),
