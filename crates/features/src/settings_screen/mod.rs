@@ -7,6 +7,9 @@
 mod archive_box;
 mod blocked;
 mod chat;
+mod folder_box;
+mod folder_chats_box;
+mod folders;
 mod global_ttl;
 mod information;
 mod main_page;
@@ -218,6 +221,7 @@ impl SettingsLayer {
             PageId::Websites => cx.new(|cx| websites::WebsitesPage::new(env, cx)).into(),
             PageId::GlobalTtl => cx.new(|cx| global_ttl::GlobalTtlPage::new(env, cx)).into(),
             PageId::Chat => cx.new(|cx| chat::ChatPage::new(env, cx)).into(),
+            PageId::Folders => cx.new(|cx| folders::FoldersPage::new(env, cx)).into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),

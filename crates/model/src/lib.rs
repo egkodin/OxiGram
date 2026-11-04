@@ -12,6 +12,7 @@ pub mod archive_settings;
 pub mod auth;
 pub mod chat;
 pub mod chat_actions;
+pub mod chat_folders;
 pub mod chats;
 pub mod checklist;
 pub mod create;

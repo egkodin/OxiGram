@@ -87,6 +87,8 @@ pub struct Folder {
     pub name: FormattedText,
     /// Removing it also turns off the invite links the user made.
     pub has_my_invite_links: bool,
+    /// It has invite links: a shared folder (`chatlist()`).
+    pub is_shareable: bool,
     /// TDLib's icon name, such as "Work" or "Custom"; TDLib picks one when
     /// the user did not.
     pub icon: String,
@@ -264,6 +266,7 @@ impl From<td_api::types::ChatFolderInfo> for Folder {
             id: FolderId(folder.id),
             name: FormattedText::from(*folder.name.text),
             has_my_invite_links: folder.has_my_invite_links,
+            is_shareable: folder.is_shareable,
             icon: folder.icon.name,
         }
     }

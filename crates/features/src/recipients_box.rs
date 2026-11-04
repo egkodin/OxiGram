@@ -97,14 +97,14 @@ pub(crate) fn show(
 }
 
 /// The chat with the user themself, if TDLib sent it.
-fn saved_messages(state: &State) -> Option<ChatId> {
+pub(crate) fn saved_messages(state: &State) -> Option<ChatId> {
     let me = state.me?;
     // TDLib gives a private chat the id of its user.
     let chat = ChatId(me.0);
     state.chats.chat(chat).map(|_| chat)
 }
 
-fn name(state: &State, strings: &Strings, chat: ChatId) -> String {
+pub(crate) fn name(state: &State, strings: &Strings, chat: ChatId) -> String {
     if Some(chat) == saved_messages(state) {
         return strings.text(key::lng_saved_messages).to_owned();
     }

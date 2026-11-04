@@ -76,7 +76,30 @@ pub(crate) fn row(
     cx: &App,
 ) -> Stateful<Div> {
     let st = &CONTACTS_WITH_STORIES.item;
-    let status_fg = if look.is_active {
+    let userpic = Userpic::new(px_of(st.photo_size), look.userpic).into_any_element();
+    row_with(
+        id,
+        userpic,
+        look.name,
+        look.status,
+        look.is_active,
+        is_hovered,
+        cx,
+    )
+}
+
+/// A row with any picture at the userpic's place, as chat types have.
+pub(crate) fn row_with(
+    id: impl Into<ElementId>,
+    userpic: AnyElement,
+    name: SharedString,
+    status: SharedString,
+    is_active: bool,
+    is_hovered: bool,
+    cx: &App,
+) -> Stateful<Div> {
+    let st = &CONTACTS_WITH_STORIES.item;
+    let status_fg = if is_active {
         st.status_fg_active
     } else if is_hovered {
         st.status_fg_over
@@ -103,7 +126,7 @@ pub(crate) fn row(
                 .absolute()
                 .left(px_of(st.photo_position.x))
                 .top(px_of(st.photo_position.y))
-                .child(Userpic::new(px_of(st.photo_size), look.userpic)),
+                .child(userpic),
         )
         .child(
             div()
@@ -119,7 +142,7 @@ pub(crate) fn row(
                 .whitespace_nowrap()
                 .overflow_hidden()
                 .text_ellipsis()
-                .child(look.name),
+                .child(name),
         )
         .child(
             div()
@@ -131,7 +154,7 @@ pub(crate) fn row(
                 .line_height(font_height(status_font))
                 .text_color(color(cx, status_fg))
                 .whitespace_nowrap()
-                .child(look.status),
+                .child(status),
         )
 }
 

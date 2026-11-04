@@ -104,15 +104,15 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Chat folders</b>: 1 of 10 done, 3 in progress</summary>
+<summary><b>Chat folders</b>: 1 of 10 done, 5 in progress</summary>
 
 - [x] Folder tabs on top or in a left sidebar, with unread counts (M2)
 - [ ] "All chats" tab and its position (M2) *(in progress)*
 - [ ] Folder tab context menu: edit, mark as read, add chats, delete (M2) *(in progress)*
 - [ ] Reorder folders by dragging tabs (M2) *(in progress)*
-- [ ] Folder editor: name with emoji, icon, included and excluded chat types and chats (M6)
+- [ ] Folder editor: name with emoji, icon, included and excluded chat types and chats (M6) *(in progress)*
 - [ ] Folder color and folder tags on chat rows (Premium) (M13)
-- [ ] Recommended folders (M6)
+- [ ] Recommended folders (M6) *(in progress)*
 - [ ] Shareable folder links: create, edit, delete, join from a link (M6)
 - [ ] Add a chat to a folder from the context menu or by drag and drop (M6)
 - [ ] Folder limit box (M6)
@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 21 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 22 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -411,7 +411,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Auto-download and autoplay settings (M6)
 - [ ] Download folder and "ask where to save" (M6)
 - [ ] Archive settings (keep unmuted chats archived, folders) (M6) *(in progress)*
-- [ ] Folders settings page (M6)
+- [ ] Folders settings page (M6) *(in progress)*
 - [ ] Language: cloud language list, search, apply without restart (M6)
 - [ ] Translation options and do-not-translate languages (M13)
 - [ ] Interface scale (100–300 %, follows system) (M6)

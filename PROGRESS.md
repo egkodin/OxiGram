@@ -21,13 +21,14 @@
 
 The owner asked for tdesktop's whole Settings section, sections in order,
 without stopping. Done so far, each committed with parity rows and a live
-test (31-39): main page, rgram settings, My Account, Notifications and
+test (31-40): main page, rgram settings, My Account, Notifications and
 Sounds, Privacy and Security (all rows with state, privacy rule box),
 Blocked users, Active sessions (info box, rename, "If inactive for"),
 Connected websites, Auto-Delete Messages, the messages privacy, clear
 payment info and self-destruct boxes, Chat Settings (themes,
 Auto-Night, large emoji, send-by, pull to next channel, sensitive
-content, the archive settings box).
+content, the archive settings box), Chat Folders (list, editor with the
+type and chat chooser, recommended folders, tabs view).
 
 Next, in this order (see the shortcut comments in
 `crates/features/src/settings_screen/*.rs` for what each page lacks):
@@ -36,9 +37,11 @@ Next, in this order (see the shortcut comments in
    the login email (rows only show their state now); they need the
    owner's OK in live tests, as do terminating sessions, disconnecting
    websites, clearing payment info and the self-destruct period.
-2. Chat Folders. Chat Settings still lacks accent colors, cloud themes,
-   backgrounds, font and text size, emoji and sticker options, quick
-   reaction and shortcuts (see `settings_screen/chat.rs`).
+2. Chat Settings still lacks accent colors, cloud themes, backgrounds,
+   font and text size, emoji and sticker options, quick reaction and
+   shortcuts (`settings_screen/chat.rs`); Folders lacks the icon picker,
+   tags, tab styles, invite links and the tab menu's Edit items
+   (`folders.rs`, `folder_box.rs`).
 3. Advanced, Speakers and Camera, Battery and Animations, Language,
    interface scale (main page row too).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
@@ -531,6 +534,14 @@ Next, in this order (see the shortcut comments in
     Messages shows as text; toggle it back. Open Archive settings: the
     switches match the phone (Settings, Chat Folders or the archive);
     Done without changing them.
+40. Folders, read-only: Settings, Folders. The list matches the phone's
+    folders with sensible chat counts; recommended folders, if any, show
+    their descriptions (press no Add). Click a folder: Edit Folder shows
+    its name and the types and chats it includes and excludes as the
+    phone does; open "Add Chats", check the ticks, Cancel; Cancel the
+    editor. Note "Tabs view", switch it: the tabs move; switch it back.
+    Press no bin and no Create unless you agree (a new folder is deleted
+    the same way).
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

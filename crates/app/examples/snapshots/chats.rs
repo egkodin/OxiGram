@@ -447,6 +447,7 @@ pub(crate) fn events() -> Vec<Event> {
             id: FolderId(id),
             name: FormattedText::plain(name),
             has_my_invite_links: false,
+            is_shareable: false,
             icon: icon.to_owned(),
         })
         .collect(),

@@ -421,6 +421,80 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("327-settings-list", auth(State::Ready))],
         },
+        // Settings > Folders.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("328-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("328-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("328-settings-folders", MouseButton::Left, SETTINGS_FOLDERS),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("328-settings-list", auth(State::Ready))],
+        },
+        // Settings > Folders > Create new folder.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("329-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("329-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("329-settings-folders", MouseButton::Left, SETTINGS_FOLDERS),
+                (
+                    "329-settings-folder-new",
+                    MouseButton::Left,
+                    SETTINGS_FOLDER_CREATE,
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("329-settings-list", auth(State::Ready))],
+        },
+        // Settings > Folders > Create new folder > Add Chats.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("330-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("330-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("330-settings-folders", MouseButton::Left, SETTINGS_FOLDERS),
+                (
+                    "330-settings-folder-new",
+                    MouseButton::Left,
+                    SETTINGS_FOLDER_CREATE,
+                ),
+                (
+                    "330-settings-folder-chats",
+                    MouseButton::Left,
+                    SETTINGS_FOLDER_ADD_CHATS,
+                ),
+                (
+                    "330-settings-folder-type",
+                    MouseButton::Left,
+                    SETTINGS_FOLDER_TYPE,
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("330-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -865,6 +939,10 @@ const SETTINGS_BLOCKED: (f32, f32) = (300.0, 270.0);
 const SETTINGS_SESSIONS: (f32, f32) = (300.0, 310.0);
 const SETTINGS_TTL: (f32, f32) = (300.0, 190.0);
 const SETTINGS_CHAT: (f32, f32) = (300.0, 336.0);
+const SETTINGS_FOLDERS: (f32, f32) = (300.0, 381.0);
+const SETTINGS_FOLDER_CREATE: (f32, f32) = (300.0, 372.0);
+const SETTINGS_FOLDER_ADD_CHATS: (f32, f32) = (300.0, 247.0);
+const SETTINGS_FOLDER_TYPE: (f32, f32) = (400.0, 330.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 /// The chat list's right edge at the default width (5/14 of 800), and in

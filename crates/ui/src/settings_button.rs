@@ -24,6 +24,8 @@ pub struct SettingsButton {
     style: &'static SettingsStyle,
     text: SharedString,
     icon: Option<style::Icon>,
+    /// A circle behind the icon (`IconType::Round`).
+    icon_bg: Option<ColorRef>,
     /// The value at the right (`CreateRightLabel`).
     label: Option<SharedString>,
     /// `Some` draws a toggle in that state at the right.
@@ -42,6 +44,7 @@ impl SettingsButton {
             style,
             text: text.into(),
             icon: None,
+            icon_bg: None,
             label: None,
             toggled: None,
             on_click: None,
@@ -57,6 +60,14 @@ impl SettingsButton {
     #[must_use]
     pub fn icon(mut self, icon: style::Icon) -> Self {
         self.icon = Some(icon);
+        self
+    }
+
+    /// The icon on a circle of `bg`, keeping its own color on hover.
+    #[must_use]
+    pub fn icon_round(mut self, icon: style::Icon, bg: ColorRef) -> Self {
+        self.icon = Some(icon);
+        self.icon_bg = Some(bg);
         self
     }
 
@@ -110,19 +121,22 @@ impl RenderOnce for SettingsButton {
                 Shape::RoundRect { radius: px(0.0) },
             )))
             .when_some(self.icon, |this, shown| {
-                let top = (height - icon_size(shown).height) / 2.0;
-                let view = if hovered {
+                let shown_size = icon_size(shown);
+                let top = (height - shown_size.height) / 2.0;
+                let view = if hovered && self.icon_bg.is_none() {
                     icon(shown).color(ColorRef::Palette(ColorId::MenuIconFgOver))
                 } else {
                     icon(shown)
                 };
-                this.child(
-                    div()
-                        .absolute()
-                        .left(px_of(st.icon_left))
-                        .top(top)
-                        .child(view),
-                )
+                let holder = div()
+                    .absolute()
+                    .left(px_of(st.icon_left))
+                    .top(top)
+                    .w(shown_size.width)
+                    .h(shown_size.height)
+                    .rounded_full()
+                    .when_some(self.icon_bg, |this, bg| this.bg(color(cx, bg)));
+                this.child(holder.child(view))
             })
             .child(
                 div()
