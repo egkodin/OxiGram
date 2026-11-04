@@ -7,6 +7,7 @@ mod columns;
 mod connecting;
 mod contacts_box;
 mod create_chat;
+mod currency;
 mod dialogs;
 mod downloads;
 mod file_sizes;
@@ -20,6 +21,7 @@ pub mod layers;
 mod links;
 mod main_menu;
 mod main_view;
+mod payments;
 mod peer_list;
 mod peer_menu;
 mod player;
@@ -41,6 +43,7 @@ pub use history::{preset_message_abilities, preset_voice_samples};
 pub use lang::Lang;
 pub use layers::Layers;
 pub use root::Root;
+pub use settings_screen::preset_premium_offer;
 pub use store::{Store, StoreEvent};
 
 gpui::actions!(

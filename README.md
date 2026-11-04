@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 28 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 29 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -424,7 +424,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Keyboard shortcuts page (M8)
 - [ ] Experimental settings (M14)
 - [ ] Local passcode and auto-lock timer (M7)
-- [ ] Ask a question (support chat) and FAQ link (M6)
+- [ ] Ask a question (support chat) and FAQ link (M6) *(in progress)*
 - [ ] Telegram features page link and About box (M6)
 - [ ] Default interface for chats: one-column, two-column preferences (M2)
 
@@ -570,16 +570,16 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Payments, Stars and gifts</b>: 0 of 13 done</summary>
+<summary><b>Payments, Stars and gifts</b>: 0 of 13 done, 2 in progress</summary>
 
 - [ ] Checkout panel for invoices: items, shipping, tips, total (M13)
 - [ ] Card entry with tokenization (Stripe, SmartGlocal) and saved credentials (M13)
 - [ ] 3-D Secure and provider pages (M13)
 - [ ] Receipts (M13)
-- [ ] Stars balance, top-up, transactions history (M13)
+- [ ] Stars balance, top-up, transactions history (M13) *(in progress)*
 - [ ] Stars invoices, subscriptions and their management (M13)
 - [ ] Gift Stars to a user (M13)
-- [ ] Send a gift (with message, anonymously) (M13)
+- [ ] Send a gift (with message, anonymously) (M13) *(in progress)*
 - [ ] Received gifts: show on profile, convert, upgrade, transfer, wear (M13)
 - [ ] Gift resale market with filters (M13)
 - [ ] Gift auctions (M13)
@@ -589,14 +589,14 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Premium and Business</b>: 0 of 11 done</summary>
+<summary><b>Premium and Business</b>: 0 of 11 done, 2 in progress</summary>
 
-- [ ] Premium page with features and subscribe (M13)
+- [ ] Premium page with features and subscribe (M13) *(in progress)*
 - [ ] Limit-reached boxes with upgrade (M13)
 - [ ] Feature previews (M13)
 - [ ] Gift Premium, gift codes, giveaways (M13)
 - [ ] Boosts: boost a chat, boost links, boost list (M13)
-- [ ] Business hub page (M13)
+- [ ] Business hub page (M13) *(in progress)*
 - [ ] Away and greeting messages (M13)
 - [ ] Quick replies with shortcuts and editor (M13)
 - [ ] Working hours and location (M13)

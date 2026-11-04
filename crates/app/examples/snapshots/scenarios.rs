@@ -698,6 +698,43 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("339-settings-list", auth(State::Ready))],
         },
+        // Settings, Telegram Premium: the cover, the periods with the
+        // annual discount, the features and the subscribe button.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("340-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("340-settings-main", MouseButton::Left, SETTINGS_ROW),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("340-settings-scrolled", SETTINGS_MIDDLE, -400.0)],
+            keys: vec![("340-settings-premium", vec![Input::Click(SETTINGS_PREMIUM)])],
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("340-settings-list", auth(State::Ready))],
+        },
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("341-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("341-settings-main", MouseButton::Left, SETTINGS_ROW),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("341-settings-scrolled", SETTINGS_MIDDLE, -400.0)],
+            keys: vec![(
+                "341-settings-business",
+                vec![Input::Click(SETTINGS_BUSINESS)],
+            )],
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("341-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -1153,6 +1190,9 @@ const SETTINGS_PROXY_ADD: (f32, f32) = (522.0, 410.0);
 const SETTINGS_CALLS: (f32, f32) = (300.0, 451.0);
 const SETTINGS_POWER: (f32, f32) = (300.0, 491.0);
 const SETTINGS_LANGUAGE: (f32, f32) = (300.0, 531.0);
+/// The Premium section's rows once the main page scrolled 400 px.
+const SETTINGS_PREMIUM: (f32, f32) = (300.0, 320.0);
+const SETTINGS_BUSINESS: (f32, f32) = (300.0, 400.0);
 const SETTINGS_MIDDLE: (f32, f32) = (400.0, 400.0);
 const SETTINGS_POWER_STICKERS: (f32, f32) = (300.0, 240.0);
 const SETTINGS_OUTPUT: (f32, f32) = (300.0, 142.0);

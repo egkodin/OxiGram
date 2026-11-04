@@ -54,9 +54,12 @@ Next, in this order (see the shortcut comments in
    Battery and Animations done (Power Usage box), Language done
    (Language box), Default interface scale done (main page switch and
    slider, restart, zoom in the vendored gpui_macos).
-4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
-   FAQ/Features (done), Ask a Question (confirmation, then the support chat;
-   writing to support needs the owner's OK).
+4. Premium, My Stars, Business, Send a Gift and Ask a Question are built
+   (live tests 46-50); every buy button stops at TDLib's payment form
+   (`getPaymentForm`) with a toast until checkout lands in M13. Left for
+   M13: feature previews, the Business feature pages, Star gifts, Stars
+   gifting and subscriptions. Every Settings page now opens something;
+   the blank fallback page is gone.
 
 ## M5: Media (in progress, started while the live runs of M1-M4 go on)
 
@@ -579,6 +582,22 @@ Next, in this order (see the shortcut comments in
     on at 100 %; drag the slider to 125 %, release, "Restart now": rgram
     starts again with everything larger, clicks land where drawn; turn
     "Default interface scale" back on, "Restart now": back to 100 %.
+46. Premium, read-only: Settings, Telegram Premium. The periods and
+    prices match the phone's; "Subscribe for ... per month" shows the
+    toast "Checkout isn't in rgram yet..." and nothing is paid. With
+    Premium: "You are all set!" with the renewal date, no button.
+47. My Stars, read-only: Settings, My Stars. The balance matches the
+    phone's; the tabs list the same transactions; "Top Up Balance" lists
+    the packages with prices, a package shows the same toast.
+48. Business: Settings, Telegram Business. The rows match the phone's
+    order. With Premium only: note "Sponsored Messages", flip it, check
+    the phone shows the same, flip it back.
+49. Send a Gift, read-only: Settings, Send a Gift, pick a contact: "Gift
+    Premium" with the contact's name and the periods; "See Features"
+    opens the Premium page; a period shows the toast, nothing is paid.
+50. Ask a Question: Settings, Ask a Question. "Telegram FAQ" opens the
+    FAQ in the browser. "Ask a Volunteer" opens the support chat; type
+    nothing there.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

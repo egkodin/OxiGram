@@ -51,11 +51,13 @@ const STYLE_ROOTS: &[&str] = &[
     "info/info.style",
     "media/view/media_view.style",
     "settings/sections/settings_active_sessions.style",
+    "settings/sections/settings_premium.style",
     "intro/intro.style",
     "ui/boxes/choose_date_time.style",
     "ui/boxes/country_select_box.style",
     "ui/chat/chat.style",
     "ui/chat/chat_style.style",
+    "ui/effects/credits.style",
     "ui/filter_icons.style",
     "window/window.style",
     "window/window_main_menu.style",
@@ -72,8 +74,9 @@ const LOGO_ICONS: &[&str] = &[
 ];
 
 /// Icons tdesktop draws from code or Lottie rather than a style, which
-/// rgram draws as masks: the send button's microphone (`paintRecord`).
-const CODE_ICONS: &[&str] = &["chat/input_record"];
+/// rgram draws as masks: the send button's microphone (`paintRecord`) and
+/// the Premium page's star (`Ui::Premium::ColorizedSvg`).
+const CODE_ICONS: &[&str] = &["chat/input_record", "settings/star"];
 
 fn main() -> anyhow::Result<()> {
     let repo = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");

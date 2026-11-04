@@ -416,7 +416,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Keyboard shortcuts page | M8 | todo | |
 | settings | Experimental settings | M14 | todo | |
 | settings | Local passcode and auto-lock timer | M7 | todo | |
-| settings | Ask a question (support chat) and FAQ link | M6 | todo | |
+| settings | Ask a question (support chat) and FAQ link | M6 | in progress | The main page's FAQ row opens the FAQ link; "Ask a Question" opens tdesktop's confirmation (`OpenAskQuestionConfirm`): "Ask a Volunteer" opens the support chat (`getSupportUser`, `createPrivateChat`; nothing is sent), "Telegram FAQ" opens the FAQ link. Not verified live |
 | settings | Telegram features page link and About box | M6 | todo | |
 | settings | Default interface for chats: one-column, two-column preferences | M2 | todo | |
 
@@ -563,10 +563,10 @@ is the definition of done: rgram is finished when every row is `done`, or
 | payments | Card entry with tokenization (Stripe, SmartGlocal) and saved credentials | M13 | todo | |
 | payments | 3-D Secure and provider pages | M13 | todo | |
 | payments | Receipts | M13 | todo | |
-| stars | Stars balance, top-up, transactions history | M13 | todo | |
+| stars | Stars balance, top-up, transactions history | M13 | in progress | unit tests (`cargo test -p model stars`, `cargo test -p features stars`): "My Stars" (`Settings::Credits`) with the cover, "Top Up Balance" (TDLib's packages, "More Options" for the rest, prices in tdesktop's currency format) and the balance; All/Incoming/Outgoing tabs list the first 50 transactions (`getStarTransactions`) with the party, date, refund mark and signed amount. A package stops at TDLib's payment form (`getPaymentForm`) with a toast; no checkout. Missing: userpics and gift stickers on rows, the entry box, subscriptions, gifting Stars, paging. Not verified live |
 | stars | Stars invoices, subscriptions and their management | M13 | todo | |
 | stars | Gift Stars to a user | M13 | todo | |
-| gifts | Send a gift (with message, anonymously) | M13 | todo | |
+| gifts | Send a gift (with message, anonymously) | M13 | in progress | unit test (`cargo test -p features gift`): Settings' "Send a Gift" opens "Gift Premium or Stars" (the contacts box over Settings), then "Gift Premium" with tdesktop's about ("See Features" opens the Premium page) and TDLib's periods (`getPremiumGiftPaymentOptions`) with prices; a period stops at TDLib's payment form. Missing: Star gifts (paid from the balance at once, so left out), the message, anonymity, the cover, stickers, birthdays first. Not verified live |
 | gifts | Received gifts: show on profile, convert, upgrade, transfer, wear | M13 | todo | |
 | gifts | Gift resale market with filters | M13 | todo | |
 | gifts | Gift auctions | M13 | todo | |
@@ -577,12 +577,12 @@ is the definition of done: rgram is finished when every row is `done`, or
 
 | Area | Feature | Milestone | Status | Verified |
 |---|---|---|---|---|
-| premium | Premium page with features and subscribe | M13 | todo | |
+| premium | Premium page with features and subscribe | M13 | in progress | snapshot 340 and unit tests (`cargo test -p features premium`, `cargo test -p features currency`): the gradient cover ("You are all set!" with the renewal text when subscribed), the periods with tdesktop's discount and per-month price, the features in the server's order (`getPremiumFeatures`) with the gradient icons, and "Subscribe for … per month", which stops at TDLib's payment form with a toast (a bot link is not followed: starting the bot would message it). Missing: feature previews, cover sticker and stars, the pinned button's glare. Not verified live |
 | premium | Limit-reached boxes with upgrade | M13 | todo | |
 | premium | Feature previews | M13 | todo | |
 | premium | Gift Premium, gift codes, giveaways | M13 | todo | |
 | premium | Boosts: boost a chat, boost links, boost list | M13 | todo | |
-| business | Business hub page | M13 | todo | |
+| business | Business hub page | M13 | in progress | snapshot 341 and unit tests (`cargo test -p model business`, `cargo test -p features business`): the cover ("unlocked" with Premium), the features in the server's order (`getBusinessFeatures`, tdesktop's fallback order) and, without Premium, the subscribe button that stops at the payment form; with Premium, "Sponsored Messages" with its switch (`toggleHasSponsoredMessagesEnabled`, read from the own full info) and the link to the ad platform. Missing: the rows open nothing yet (the preview box, the feature pages below). Not verified live |
 | business | Away and greeting messages | M13 | todo | |
 | business | Quick replies with shortcuts and editor | M13 | todo | |
 | business | Working hours and location | M13 | todo | |

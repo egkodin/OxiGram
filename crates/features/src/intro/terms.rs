@@ -153,7 +153,7 @@ fn open(
 
 /// The text with bold spans and links, and each link's URL in order.
 // shortcut: italics, code and mentions render plain; tdesktop's mention toast comes with M10 bots.
-fn markup_of(text: &FormattedText) -> (Markup, Vec<String>) {
+pub(crate) fn markup_of(text: &FormattedText) -> (Markup, Vec<String>) {
     let mut entities: Vec<_> = text
         .entities
         .iter()

@@ -326,6 +326,7 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/chat/ephemeral_badge@2x.png")),
             x3: Some(include_bytes!("../icons/chat/ephemeral_badge@3x.png")),
         },
+        "chat/filled_forge" => IconFiles::Svg(include_bytes!("../icons/chat/filled_forge.svg")),
         "chat/filled_requests" => {
             IconFiles::Svg(include_bytes!("../icons/chat/filled_requests.svg"))
         }
@@ -504,6 +505,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
         "chat/mini_external_link" => {
             IconFiles::Svg(include_bytes!("../icons/chat/mini_external_link.svg"))
         }
+        "chat/mini_gift_hidden" => IconFiles::Png {
+            x1: include_bytes!("../icons/chat/mini_gift_hidden.png"),
+            x2: Some(include_bytes!("../icons/chat/mini_gift_hidden@2x.png")),
+            x3: Some(include_bytes!("../icons/chat/mini_gift_hidden@3x.png")),
+        },
         "chat/mini_lock" => IconFiles::Png {
             x1: include_bytes!("../icons/chat/mini_lock.png"),
             x2: Some(include_bytes!("../icons/chat/mini_lock@2x.png")),
@@ -533,6 +539,7 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/chat/mini_subscribers@2x.png")),
             x3: Some(include_bytes!("../icons/chat/mini_subscribers@3x.png")),
         },
+        "chat/mini_ton_bold" => IconFiles::Svg(include_bytes!("../icons/chat/mini_ton_bold.svg")),
         "chat/new_topic" => IconFiles::Svg(include_bytes!("../icons/chat/new_topic.svg")),
         "chat/paid_approve" => IconFiles::Svg(include_bytes!("../icons/chat/paid_approve.svg")),
         "chat/paid_decline" => IconFiles::Svg(include_bytes!("../icons/chat/paid_decline.svg")),
@@ -1762,6 +1769,9 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/limits/links@2x.png")),
             x3: Some(include_bytes!("../icons/limits/links@3x.png")),
         },
+        "limits/mini_gift_lock" => {
+            IconFiles::Svg(include_bytes!("../icons/limits/mini_gift_lock.svg"))
+        }
         "limits/pins" => IconFiles::Png {
             x1: include_bytes!("../icons/limits/pins.png"),
             x2: Some(include_bytes!("../icons/limits/pins@2x.png")),
@@ -3031,6 +3041,7 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/menu/violence@2x.png")),
             x3: Some(include_bytes!("../icons/menu/violence@3x.png")),
         },
+        "menu/wallet" => IconFiles::Svg(include_bytes!("../icons/menu/wallet.svg")),
         "menu/welcome_message" => {
             IconFiles::Svg(include_bytes!("../icons/menu/welcome_message.svg"))
         }
@@ -3046,6 +3057,7 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/mini_forward@2x.png")),
             x3: Some(include_bytes!("../icons/mini_forward@3x.png")),
         },
+        "mini_replace" => IconFiles::Svg(include_bytes!("../icons/mini_replace.svg")),
         "mini_reply_story" => IconFiles::Png {
             x1: include_bytes!("../icons/mini_reply_story.png"),
             x2: Some(include_bytes!("../icons/mini_reply_story@2x.png")),
@@ -3076,11 +3088,17 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/payments/payment_card@2x.png")),
             x3: Some(include_bytes!("../icons/payments/payment_card@3x.png")),
         },
+        "payments/premium_emoji" => IconFiles::Png {
+            x1: include_bytes!("../icons/payments/premium_emoji.png"),
+            x2: Some(include_bytes!("../icons/payments/premium_emoji@2x.png")),
+            x3: Some(include_bytes!("../icons/payments/premium_emoji@3x.png")),
+        },
         "payments/small_star" => IconFiles::Png {
             x1: include_bytes!("../icons/payments/small_star.png"),
             x2: Some(include_bytes!("../icons/payments/small_star@2x.png")),
             x3: Some(include_bytes!("../icons/payments/small_star@3x.png")),
         },
+        "payments/ton_emoji" => IconFiles::Svg(include_bytes!("../icons/payments/ton_emoji.svg")),
         "payments/ton_emoji_body" => {
             IconFiles::Svg(include_bytes!("../icons/payments/ton_emoji_body.svg"))
         }
@@ -3490,6 +3508,16 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/settings/add@2x.png")),
             x3: Some(include_bytes!("../icons/settings/add@3x.png")),
         },
+        "settings/button_auction" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/button_auction.png"),
+            x2: Some(include_bytes!("../icons/settings/button_auction@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/button_auction@3x.png")),
+        },
+        "settings/chat" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/chat.png"),
+            x2: Some(include_bytes!("../icons/settings/chat@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/chat@3x.png")),
+        },
         "settings/devices/device_desktop_mac" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/devices/device_desktop_mac.png"),
             x2: Some(include_bytes!(
@@ -3630,6 +3658,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/settings/earn@2x.png")),
             x3: Some(include_bytes!("../icons/settings/earn@3x.png")),
         },
+        "settings/emoji" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/emoji.png"),
+            x2: Some(include_bytes!("../icons/settings/emoji@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/emoji@3x.png")),
+        },
         "settings/filled_verify_age" => {
             IconFiles::Svg(include_bytes!("../icons/settings/filled_verify_age.svg"))
         }
@@ -3648,11 +3681,25 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/settings/interface_scale@2x.png")),
             x3: Some(include_bytes!("../icons/settings/interface_scale@3x.png")),
         },
+        "settings/large_auctions" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/large_auctions.png"),
+            x2: Some(include_bytes!("../icons/settings/large_auctions@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/large_auctions@3x.png")),
+        },
         "settings/mini_gift" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/mini_gift.png"),
             x2: Some(include_bytes!("../icons/settings/mini_gift@2x.png")),
             x3: Some(include_bytes!("../icons/settings/mini_gift@3x.png")),
         },
+        "settings/mini_gift_order_date" => {
+            IconFiles::Svg(include_bytes!("../icons/settings/mini_gift_order_date.svg"))
+        }
+        "settings/mini_gift_order_number" => IconFiles::Svg(include_bytes!(
+            "../icons/settings/mini_gift_order_number.svg"
+        )),
+        "settings/mini_gift_order_price" => IconFiles::Svg(include_bytes!(
+            "../icons/settings/mini_gift_order_price.svg"
+        )),
         "settings/photo" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/photo.png"),
             x2: Some(include_bytes!("../icons/settings/photo@2x.png")),
@@ -3740,6 +3787,15 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/settings/premium/business/earn_stars@3x.png"
             )),
         },
+        "settings/premium/channels_off" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/channels_off.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/channels_off@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/channels_off@3x.png"
+            )),
+        },
         "settings/premium/checklist" => {
             IconFiles::Svg(include_bytes!("../icons/settings/premium/checklist.svg"))
         }
@@ -3747,6 +3803,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x1: include_bytes!("../icons/settings/premium/double.png"),
             x2: Some(include_bytes!("../icons/settings/premium/double@2x.png")),
             x3: Some(include_bytes!("../icons/settings/premium/double@3x.png")),
+        },
+        "settings/premium/effects" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/effects.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/effects@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/effects@3x.png")),
         },
         "settings/premium/features/feature_color_names" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/premium/features/feature_color_names.png"),
@@ -3865,6 +3926,39 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/settings/premium/features/feature_wallpaper@3x.png"
             )),
         },
+        "settings/premium/files" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/files.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/files@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/files@3x.png")),
+        },
+        "settings/premium/lastseen" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/lastseen.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/lastseen@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/lastseen@3x.png")),
+        },
+        "settings/premium/like" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/like.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/like@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/like@3x.png")),
+        },
+        "settings/premium/market" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/market.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/market@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/market@3x.png")),
+        },
+        "settings/premium/peer_colors" => {
+            IconFiles::Svg(include_bytes!("../icons/settings/premium/peer_colors.svg"))
+        }
+        "settings/premium/play" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/play.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/play@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/play@3x.png")),
+        },
+        "settings/premium/privacy" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/privacy.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/privacy@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/privacy@3x.png")),
+        },
         "settings/premium/promo/business_away" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/premium/promo/business_away.png"),
             x2: Some(include_bytes!(
@@ -3928,6 +4022,14 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
                 "../icons/settings/premium/promo/business_quickreply@3x.png"
             )),
         },
+        "settings/premium/rich" => {
+            IconFiles::Svg(include_bytes!("../icons/settings/premium/rich.svg"))
+        }
+        "settings/premium/speed" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/speed.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/speed@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/speed@3x.png")),
+        },
         "settings/premium/star" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/premium/star.png"),
             x2: Some(include_bytes!("../icons/settings/premium/star@2x.png")),
@@ -3966,10 +4068,35 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/settings/premium/timer@2x.png")),
             x3: Some(include_bytes!("../icons/settings/premium/timer@3x.png")),
         },
+        "settings/premium/translations" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/translations.png"),
+            x2: Some(include_bytes!(
+                "../icons/settings/premium/translations@2x.png"
+            )),
+            x3: Some(include_bytes!(
+                "../icons/settings/premium/translations@3x.png"
+            )),
+        },
+        "settings/premium/voice" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/premium/voice.png"),
+            x2: Some(include_bytes!("../icons/settings/premium/voice@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/premium/voice@3x.png")),
+        },
         "settings/remove" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/remove.png"),
             x2: Some(include_bytes!("../icons/settings/remove@2x.png")),
             x3: Some(include_bytes!("../icons/settings/remove@3x.png")),
+        },
+        "settings/star" => IconFiles::Svg(include_bytes!("../icons/settings/star.svg")),
+        "settings/stickers" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/stickers.png"),
+            x2: Some(include_bytes!("../icons/settings/stickers@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/stickers@3x.png")),
+        },
+        "settings/stories" => IconFiles::Png {
+            x1: include_bytes!("../icons/settings/stories.png"),
+            x2: Some(include_bytes!("../icons/settings/stories@2x.png")),
+            x3: Some(include_bytes!("../icons/settings/stories@3x.png")),
         },
         "settings/ttl/autodelete_off" => IconFiles::Png {
             x1: include_bytes!("../icons/settings/ttl/autodelete_off.png"),
@@ -4099,6 +4226,11 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/title_shadow_restore@2x.png")),
             x3: Some(include_bytes!("../icons/title_shadow_restore@3x.png")),
         },
+        "toast/auction" => IconFiles::Png {
+            x1: include_bytes!("../icons/toast/auction.png"),
+            x2: Some(include_bytes!("../icons/toast/auction@2x.png")),
+            x3: Some(include_bytes!("../icons/toast/auction@3x.png")),
+        },
         "toast/check" => IconFiles::Svg(include_bytes!("../icons/toast/check.svg")),
         "toast/info" => IconFiles::Png {
             x1: include_bytes!("../icons/toast/info.png"),
@@ -4220,6 +4352,13 @@ pub fn icon_files(name: &str) -> Option<IconFiles> {
             x2: Some(include_bytes!("../icons/volume_mute@2x.png")),
             x3: Some(include_bytes!("../icons/volume_mute@3x.png")),
         },
+        "wallet/menu_bars" => IconFiles::Svg(include_bytes!("../icons/wallet/menu_bars.svg")),
+        "wallet/move_to_gifts" => {
+            IconFiles::Svg(include_bytes!("../icons/wallet/move_to_gifts.svg"))
+        }
+        "wallet/move_to_wallet" => {
+            IconFiles::Svg(include_bytes!("../icons/wallet/move_to_wallet.svg"))
+        }
         "win_quit" => IconFiles::Png {
             x1: include_bytes!("../icons/win_quit.png"),
             x2: Some(include_bytes!("../icons/win_quit@2x.png")),

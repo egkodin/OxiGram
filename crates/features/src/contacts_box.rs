@@ -59,6 +59,8 @@ pub(crate) struct ContactsBox {
     requested_files: HashSet<FileId>,
     on_chosen: OnChosen,
     many: Option<(Many, Vec<UserId>)>,
+    /// A title of its own, with "Cancel", over the layer below.
+    title: Option<gpui::SharedString>,
     _subscriptions: [Subscription; 2],
 }
 
@@ -83,7 +85,20 @@ pub(crate) fn show(
     window: &mut Window,
     cx: &mut App,
 ) {
-    open(store, layers, on_chosen, None, window, cx);
+    open(store, layers, on_chosen, None, None, window, cx);
+}
+
+/// The box under `title`, kept over the layer below it, as "Gift Premium
+/// or Stars" picks its recipient (`ChooseStarGiftRecipient`).
+pub(crate) fn show_above(
+    store: &Entity<Store>,
+    layers: &Entity<Layers>,
+    title: gpui::SharedString,
+    on_chosen: OnChosen,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    open(store, layers, on_chosen, None, Some(title), window, cx);
 }
 
 /// The box with checks; `many.on_done` gets the picked contacts.
@@ -94,7 +109,15 @@ pub(crate) fn show_many(
     window: &mut Window,
     cx: &mut App,
 ) {
-    open(store, layers, Rc::new(|_, _, _| {}), Some(many), window, cx);
+    open(
+        store,
+        layers,
+        Rc::new(|_, _, _| {}),
+        Some(many),
+        None,
+        window,
+        cx,
+    );
 }
 
 fn open(
@@ -102,9 +125,11 @@ fn open(
     layers: &Entity<Layers>,
     on_chosen: OnChosen,
     many: Option<Many>,
+    title: Option<gpui::SharedString>,
     window: &mut Window,
     cx: &mut App,
 ) {
+    let is_above = title.is_some();
     let task = crate::store::spawn(store.read(cx).session().contacts(), cx);
     cx.spawn(async move |_| match task.await {
         Ok(contacts) => tracing::debug!(count = contacts.len(), "contacts loaded"),
@@ -141,11 +166,16 @@ fn open(
                 let picked = many.picked.clone();
                 (many, picked)
             }),
+            title,
             _subscriptions: [search_changed, store_changed],
         }
     });
     layers.update(cx, |layers, cx| {
-        layers.show(view, Dismiss::Allowed, None, window, cx)
+        if is_above {
+            layers.show_above(view, window, cx);
+        } else {
+            layers.show(view, Dismiss::Allowed, None, window, cx);
+        }
     });
 }
 
@@ -316,11 +346,14 @@ impl Render for ContactsBox {
                 (many.title.clone(), key::lng_create_group_skip, Cancel::Skip)
             }
             Some((many, _)) => (many.title.clone(), key::lng_cancel, Cancel::Close),
-            None => (
-                tr(cx, key::lng_contacts_header),
-                key::lng_close,
-                Cancel::Close,
-            ),
+            None => match &self.title {
+                Some(title) => (title.clone(), key::lng_cancel, Cancel::Close),
+                None => (
+                    tr(cx, key::lng_contacts_header),
+                    key::lng_close,
+                    Cancel::Close,
+                ),
+            },
         };
         let done = self.many.as_ref().map(|(many, _)| {
             let entity = entity.clone();

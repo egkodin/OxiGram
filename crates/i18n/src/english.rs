@@ -8232,11 +8232,12 @@ pub mod key {
     pub const rgram_intro_email_reset_about: Key = Key(8222);
     pub const rgram_intro_email_reset_pending: Key = Key(8223);
     pub const rgram_intro_premium_required: Key = Key(8224);
-    pub const rgram_settings_title: Key = Key(8225);
+    pub const rgram_payment_form_later: Key = Key(8225);
+    pub const rgram_settings_title: Key = Key(8226);
 }
 
 /// Key names in key order (sorted), for language packs.
-pub(crate) static NAMES: [&str; 8226] = [
+pub(crate) static NAMES: [&str; 8227] = [
     "lng_about_done",
     "lng_about_psa_default",
     "lng_about_random",
@@ -16462,11 +16463,12 @@ pub(crate) static NAMES: [&str; 8226] = [
     "rgram_intro_email_reset_about",
     "rgram_intro_email_reset_pending",
     "rgram_intro_premium_required",
+    "rgram_payment_form_later",
     "rgram_settings_title",
 ];
 
 /// The English strings in key order.
-pub(crate) static ENGLISH: [Value<&str>; 8226] = [
+pub(crate) static ENGLISH: [Value<&str>; 8227] = [
     Value::Text("Done"),
     Value::Text(
         "This message provides you with a public service announcement. To remove it from your chat list, right click it and select **Hide**.",
@@ -29689,5 +29691,6 @@ pub(crate) static ENGLISH: [Value<&str>; 8226] = [
     Value::Text(
         "Signing in to this number from a new device requires Telegram Premium, which only Telegram's mobile apps can sell. Buy it there, then sign in here again.\n\nSupport: {email}",
     ),
+    Value::Text("Checkout isn't in rgram yet. Buy it in another Telegram app."),
     Value::Text("rgram settings"),
 ];

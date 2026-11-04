@@ -7,8 +7,8 @@ use futures::FutureExt as _;
 use td_api::enums::TopChatCategory;
 use td_api::functions::{
     AddRecentlyFoundChat, ClearRecentlyFoundChats, CreatePrivateChat, GetContacts,
-    GetRecommendedChats, GetTopChats, RemoveRecentlyFoundChat, RemoveTopChat, SearchChats,
-    SearchChatsOnServer, SearchMessages, SearchPublicChat, SearchPublicChats,
+    GetRecommendedChats, GetSupportUser, GetTopChats, RemoveRecentlyFoundChat, RemoveTopChat,
+    SearchChats, SearchChatsOnServer, SearchMessages, SearchPublicChat, SearchPublicChats,
     SearchRecentlyFoundChats,
 };
 use td_api::types::{TopChatCategoryUsers, TopChatCategoryWebAppBots};
@@ -278,6 +278,24 @@ impl Session {
     }
 
     /// The private chat with `user`, for a mention by name.
+    /// The chat with Telegram's support (`help.getSupport`); opening it
+    /// sends nothing.
+    pub fn support_chat(
+        &self,
+    ) -> impl Future<Output = Result<ChatId, RequestError>> + Send + use<> {
+        let client = self.client().clone();
+        async move {
+            let user = client.request(&GetSupportUser {}).await?;
+            let chat = client
+                .request(&CreatePrivateChat {
+                    user_id: user.id,
+                    force: false,
+                })
+                .await?;
+            Ok(ChatId(chat.id))
+        }
+    }
+
     pub fn create_private_chat(
         &self,
         user: UserId,

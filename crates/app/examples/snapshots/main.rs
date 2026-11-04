@@ -77,6 +77,8 @@ enum Input {
     Type(&'static str),
     /// One key press, such as `shift-enter`.
     Key(&'static str),
+    /// A left click, for a row only reachable after a scroll.
+    Click((f32, f32)),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -105,6 +107,7 @@ fn main() -> anyhow::Result<()> {
         }
         features::init(cx);
         features::preset_voice_samples(VOICE_RATE, voice_samples(), cx);
+        features::preset_premium_offer(premium_offer(), cx);
         let close = client.clone();
         let session = Session::new(client);
         cx.spawn(async move |cx| {
@@ -235,6 +238,29 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     Ok(())
 }
 
+/// Telegram's usual Premium offer, so the page shows without TDLib.
+fn premium_offer() -> model::premium::PremiumOffer {
+    use model::premium::{Feature, PaymentLink, PremiumOffer, SubscriptionOption};
+    let option = |months, amount| SubscriptionOption {
+        currency: "USD".to_owned(),
+        amount,
+        months,
+        link: PaymentLink::Other,
+    };
+    PremiumOffer {
+        status: model::text::FormattedText::default(),
+        options: vec![option(12, 3999), option(1, 499)],
+        features: vec![
+            Feature::Stories,
+            Feature::MoreUpload,
+            Feature::DoubleLimits,
+            Feature::LastSeen,
+            Feature::VoiceToText,
+            Feature::FasterDownload,
+        ],
+    }
+}
+
 fn press(input: &Input, window: &mut Window, cx: &mut App) -> anyhow::Result<()> {
     match input {
         Input::Type(text) => {
@@ -260,6 +286,7 @@ fn press(input: &Input, window: &mut Window, cx: &mut App) -> anyhow::Result<()>
             window.dispatch_keystroke(keystroke, cx);
             window.draw(cx).clear(cx);
         }
+        Input::Click((x, y)) => click(MouseButton::Left, point(px(*x), px(*y)), window, cx),
     }
     Ok(())
 }

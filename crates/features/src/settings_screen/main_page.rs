@@ -33,6 +33,7 @@ use super::search::{Entry, Target};
 use super::{Env, PageId, rows};
 use crate::dialogs::photo_userpic;
 use crate::lang::{format_phone, tr};
+use crate::links::Targets;
 use crate::px_of;
 
 /// `kUserpicPriority`-like: the cover's photo comes before lists.
@@ -471,11 +472,48 @@ fn run(action: Action, env: &Env, window: &mut Window, cx: &mut App) {
         Action::Features => cx.open_url(&tr(cx, key::lng_telegram_features_url)),
         Action::PowerSaving => super::power_box::show(env, window, cx),
         Action::Language => super::language_box::show(env, window, cx),
-        // shortcut: these boxes come with their sections later in M7; until then the rows do nothing.
-        Action::AskQuestion | Action::SendGift => {
-            tracing::debug!(?action, "settings action not built yet");
-        }
+        Action::SendGift => super::gift_box::show(env, window, cx),
+        Action::AskQuestion => ask_question(env, window, cx),
     }
+}
+
+/// `OpenAskQuestionConfirm`: the support chat, or the FAQ instead.
+fn ask_question(env: &Env, window: &mut Window, cx: &mut App) {
+    let mut args = crate::boxes::ConfirmArgs::new(ui::Markup::plain(
+        tr(cx, key::lng_settings_ask_sure).to_string(),
+    ));
+    args.confirm_text = Some(tr(cx, key::lng_settings_ask_ok));
+    args.cancel_text = Some(tr(cx, key::lng_settings_faq_button));
+    args.strict_cancel = true;
+    let targets = env.targets.clone();
+    args.confirmed = Some(std::rc::Rc::new(move |window, cx| {
+        open_support(&targets, window, cx);
+    }));
+    args.cancelled = Some(std::rc::Rc::new(|_, cx| {
+        cx.open_url(&tr(cx, key::lng_settings_faq_link));
+    }));
+    crate::boxes::confirm(&env.targets.layers, args, window, cx);
+}
+
+fn open_support(targets: &Targets, window: &mut Window, cx: &mut App) {
+    let task = crate::store::spawn(targets.store.read(cx).session().support_chat(), cx);
+    let targets = targets.clone();
+    window
+        .spawn(cx, async move |cx| {
+            let result = task.await;
+            let _ = cx.update(|window, cx| match result {
+                Ok(chat) => {
+                    targets
+                        .layers
+                        .update(cx, |layers, cx| layers.close_all(window, cx));
+                    targets
+                        .dialogs
+                        .update(cx, |dialogs, cx| dialogs.select(chat, cx));
+                }
+                Err(error) => tracing::warn!(%error, "opening the support chat failed"),
+            });
+        })
+        .detach();
 }
 
 /// "My Account" and the menu's "Edit info": the own profile over Settings.

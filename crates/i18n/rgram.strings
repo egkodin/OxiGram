@@ -13,3 +13,6 @@
 
 // Settings: the app's own options, where tdesktop forks put theirs.
 "rgram_settings_title" = "rgram settings";
+
+// Buttons that would pay stop at TDLib's payment form until checkout lands.
+"rgram_payment_form_later" = "Checkout isn't in rgram yet. Buy it in another Telegram app.";
