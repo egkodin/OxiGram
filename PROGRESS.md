@@ -454,6 +454,14 @@
     share. The menu: Add Account, Edit info and Log Out show (press none).
     "rgram settings": the send-by choice matches Chat Settings (do not
     change it). Escape goes back a page, then closes.
+32. My Account, read-only unless you agree: Settings, menu, Edit info:
+    your photo, name, "online", bio, name, phone, @username, personal
+    channel and birthday match the phone. Click the phone: the box says to
+    change it in the mobile app. Click the username: type "ab": "too
+    short"; type a name you know is taken: "already taken"; Cancel. Click
+    Personal channel: your public channels list (or "You don't have any");
+    Done without choosing. The bio: only with your OK, add a "." at the
+    end, wait two seconds, check it on the phone, then remove it again.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

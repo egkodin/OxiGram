@@ -20,6 +20,7 @@ use style::widgets::DEFAULT_INPUT_FIELD;
 use ui::{BoxFrame, InputField, RoundButton};
 
 use super::{InfoView, text};
+use crate::Store;
 use crate::lang::tr;
 use crate::layers::Layers;
 use crate::px_of;
@@ -27,19 +28,20 @@ use crate::px_of;
 /// `kMaxBioLength` without Premium.
 // shortcut: 70 characters for everyone; Premium's 140 comes with the Premium checks (M13).
 const MAX_BIO: usize = 70;
-/// `Ui::kMaxUsernameLength`.
-const MAX_USERNAME: usize = 32;
 /// tdesktop's `kMaxNameLength`... TDLib's limit for a first or last name.
 const MAX_NAME: usize = 64;
 const FIELD_SKIP: style::Px = style::Px(12);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Field {
+pub(crate) enum Field {
     Name,
     Bio,
     Username,
     Birthday,
 }
+
+/// Runs after a change is saved.
+pub(crate) type Saved = Rc<dyn Fn(&mut App)>;
 
 type Save = Rc<
     dyn Fn(
@@ -55,8 +57,8 @@ struct EditBox {
     fields: Vec<Entity<InputField>>,
     session: Session,
     save: Save,
-    /// The profile to reload once saved.
-    profile: WeakEntity<InfoView>,
+    /// Runs once saved, as the profile reloads.
+    on_saved: Saved,
     layers: WeakEntity<Layers>,
     focus: FocusHandle,
 }
@@ -85,7 +87,7 @@ impl EditBox {
         cx.spawn_in(window, async move |this, cx| match task.await {
             Ok(()) => {
                 let _ = this.update_in(cx, |this, window, cx| {
-                    let _ = this.profile.update(cx, |profile, cx| profile.reload(cx));
+                    (this.on_saved)(cx);
                     if let Some(layers) = this.layers.upgrade() {
                         layers.update(cx, |layers, cx| layers.close(window, cx));
                     }
@@ -181,151 +183,183 @@ fn birthday_value(birthday: Option<Birthday>) -> String {
     }
 }
 
+/// One's own details the boxes start from.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct OwnDetails {
+    pub bio: String,
+    pub birthday: Option<Birthday>,
+}
+
+/// Opens the box for one's own `field` over the open layer; `on_saved`
+/// runs once Telegram has it.
+pub(crate) fn edit_own(
+    field: Field,
+    store: &Entity<Store>,
+    layers: &Entity<Layers>,
+    details: OwnDetails,
+    on_saved: Saved,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    let state = store.read(cx).state();
+    let Some(user) = state.me.and_then(|me| state.chats.user(me)) else {
+        return;
+    };
+    if field == Field::Username {
+        crate::settings_screen::show_username_box(store, layers, on_saved, window, cx);
+        return;
+    }
+    let OwnDetails { bio, birthday } = details;
+    // (title, about, fields as placeholder, value and length, save)
+    let (title, about, specs, save): (_, _, Vec<(SharedString, String, usize)>, Save) = match field
+    {
+        Field::Name => (
+            tr(cx, key::lng_edit_self_title),
+            None,
+            vec![
+                (
+                    tr(cx, key::lng_signup_firstname),
+                    user.first_name.clone(),
+                    MAX_NAME,
+                ),
+                (
+                    tr(cx, key::lng_signup_lastname),
+                    user.last_name.clone(),
+                    MAX_NAME,
+                ),
+            ],
+            Rc::new(|session: &Session, values: &[String]| {
+                let first = values.first().filter(|first| !first.is_empty())?.clone();
+                let last = values.get(1).cloned().unwrap_or_default();
+                Some(Box::pin(session.set_name(first, last)) as Pin<Box<_>>)
+            }),
+        ),
+        Field::Bio => (
+            tr(cx, key::lng_bio_placeholder),
+            Some(tr(cx, key::lng_settings_about_bio)),
+            vec![(tr(cx, key::lng_bio_placeholder), bio, MAX_BIO)],
+            Rc::new(|session: &Session, values: &[String]| {
+                Some(Box::pin(session.set_bio(values.first()?.clone())) as Pin<Box<_>>)
+            }),
+        ),
+        Field::Username | Field::Birthday => (
+            tr(cx, key::lng_settings_birthday_label),
+            None,
+            vec![(
+                SharedString::from("31.12.1990"),
+                birthday_value(birthday),
+                10,
+            )],
+            Rc::new(|session: &Session, values: &[String]| {
+                let value = values.first()?;
+                // An empty field removes the birthday.
+                let birthday = if value.is_empty() {
+                    None
+                } else {
+                    Some(parse_birthday(value)?)
+                };
+                Some(Box::pin(session.set_birthday(birthday)) as Pin<Box<_>>)
+            }),
+        ),
+    };
+    // shortcut: the birthday is typed as day.month.year instead of tdesktop's wheels (`EditBirthdayBox`); add the picker with the calendar's date wheels.
+    let session = store.read(cx).session().clone();
+    let weak_layers = layers.downgrade();
+    let view = cx.new(|cx| {
+        let fields: Vec<Entity<InputField>> = specs
+            .into_iter()
+            .map(|(placeholder, value, max_length)| {
+                cx.new(|cx| {
+                    let mut field = InputField::new(&DEFAULT_INPUT_FIELD, placeholder, window, cx)
+                        .with_max_length(max_length);
+                    field.set_text(&value, None, cx);
+                    field
+                })
+            })
+            .collect();
+        EditBox {
+            title,
+            about,
+            fields,
+            session,
+            save,
+            on_saved,
+            layers: weak_layers,
+            focus: cx.focus_handle(),
+        }
+    });
+    let first = view.read(cx).fields.first().cloned();
+    layers.update(cx, |layers, cx| layers.show_above(view, window, cx));
+    if let Some(first) = first {
+        first.update(cx, |field, cx| field.focus(window, cx));
+    }
+}
+
 impl InfoView {
     /// Opens the box for `field` over the profile.
     pub(super) fn edit(&mut self, field: Field, window: &mut Window, cx: &mut Context<Self>) {
-        let state = self.store().read(cx).state();
-        let Some(user) = state.me.and_then(|me| state.chats.user(me)) else {
-            return;
+        let details = OwnDetails {
+            bio: self
+                .user
+                .as_ref()
+                .map(|p| p.bio.text.clone())
+                .unwrap_or_default(),
+            birthday: self.user.as_ref().and_then(|p| p.birthday),
         };
-        let bio = self
-            .user
-            .as_ref()
-            .map(|p| p.bio.text.clone())
-            .unwrap_or_default();
-        let birthday = self.user.as_ref().and_then(|p| p.birthday);
-        // (title, about, fields as placeholder, value and length, save)
-        let (title, about, specs, save): (_, _, Vec<(SharedString, String, usize)>, Save) =
-            match field {
-                Field::Name => (
-                    tr(cx, key::lng_edit_self_title),
-                    None,
-                    vec![
-                        (
-                            tr(cx, key::lng_signup_firstname),
-                            user.first_name.clone(),
-                            MAX_NAME,
-                        ),
-                        (
-                            tr(cx, key::lng_signup_lastname),
-                            user.last_name.clone(),
-                            MAX_NAME,
-                        ),
-                    ],
-                    Rc::new(|session: &Session, values: &[String]| {
-                        let first = values.first().filter(|first| !first.is_empty())?.clone();
-                        let last = values.get(1).cloned().unwrap_or_default();
-                        Some(Box::pin(session.set_name(first, last)) as Pin<Box<_>>)
-                    }),
-                ),
-                Field::Bio => (
-                    tr(cx, key::lng_bio_placeholder),
-                    Some(tr(cx, key::lng_settings_about_bio)),
-                    vec![(tr(cx, key::lng_bio_placeholder), bio, MAX_BIO)],
-                    Rc::new(|session: &Session, values: &[String]| {
-                        Some(Box::pin(session.set_bio(values.first()?.clone())) as Pin<Box<_>>)
-                    }),
-                ),
-                Field::Username => (
-                    tr(cx, key::lng_username_title),
-                    Some(tr(cx, key::lng_username_description1)),
-                    vec![(
-                        tr(cx, key::lng_info_username_label),
-                        user.username.clone(),
-                        MAX_USERNAME,
-                    )],
-                    Rc::new(|session: &Session, values: &[String]| {
-                        let username = values.first()?.trim_start_matches('@').to_owned();
-                        Some(Box::pin(session.set_username(username)) as Pin<Box<_>>)
-                    }),
-                ),
-                Field::Birthday => (
-                    tr(cx, key::lng_settings_birthday_label),
-                    None,
-                    vec![(
-                        SharedString::from("31.12.1990"),
-                        birthday_value(birthday),
-                        10,
-                    )],
-                    Rc::new(|session: &Session, values: &[String]| {
-                        let value = values.first()?;
-                        // An empty field removes the birthday.
-                        let birthday = if value.is_empty() {
-                            None
-                        } else {
-                            Some(parse_birthday(value)?)
-                        };
-                        Some(Box::pin(session.set_birthday(birthday)) as Pin<Box<_>>)
-                    }),
-                ),
-            };
-        // shortcut: the birthday is typed as day.month.year instead of tdesktop's wheels (`EditBirthdayBox`); add the picker with the calendar's date wheels.
-        let session = self.store().read(cx).session().clone();
-        let layers = self.layers().clone();
         let profile = cx.weak_entity();
-        let view = cx.new(|cx| {
-            let fields: Vec<Entity<InputField>> = specs
-                .into_iter()
-                .map(|(placeholder, value, max_length)| {
-                    cx.new(|cx| {
-                        let mut field =
-                            InputField::new(&DEFAULT_INPUT_FIELD, placeholder, window, cx)
-                                .with_max_length(max_length);
-                        field.set_text(&value, None, cx);
-                        field
-                    })
-                })
-                .collect();
-            EditBox {
-                title,
-                about,
-                fields,
-                session,
-                save,
-                profile,
-                layers: layers.downgrade(),
-                focus: cx.focus_handle(),
-            }
+        let on_saved: Saved = Rc::new(move |cx| {
+            let _ = profile.update(cx, |profile, cx| profile.reload(cx));
         });
-        let first = view.read(cx).fields.first().cloned();
-        layers.update(cx, |layers, cx| layers.show_above(view, window, cx));
-        if let Some(first) = first {
-            first.update(cx, |field, cx| field.focus(window, cx));
-        }
+        let (store, layers) = (self.store().clone(), self.layers().clone());
+        edit_own(field, &store, &layers, details, on_saved, window, cx);
     }
 
     /// "Set Photo": picks an image and makes it the profile photo.
-    // shortcut: no crop editor (`Editor::PrepareProfilePhoto`); the photo goes as it is, TDLib crops it square.
     pub(super) fn pick_photo(&mut self, cx: &mut Context<Self>) {
-        let paths = cx.prompt_for_paths(PathPromptOptions {
-            files: true,
-            directories: false,
-            multiple: false,
-            prompt: Some(tr(cx, key::lng_choose_image)),
-        });
-        cx.spawn(async move |this, cx| {
-            let Ok(Ok(Some(mut paths))) = paths.await else {
-                return;
-            };
-            let Some(path) = paths.pop() else {
-                return;
-            };
-            let _ = this.update(cx, |this, cx| {
-                let task = this
-                    .store()
-                    .read(cx)
-                    .session()
-                    .set_profile_photo(&path.to_string_lossy());
-                this.load(
-                    task,
-                    "profile photo",
-                    |this, (), _| this.requested.clear(),
-                    cx,
-                );
+        let profile = cx.weak_entity();
+        let on_done: Saved = Rc::new(move |cx| {
+            let _ = profile.update(cx, |profile, cx| {
+                profile.requested.clear();
+                profile.reload(cx);
             });
-        })
-        .detach();
+        });
+        pick_own_photo(self.store(), on_done, cx);
     }
+}
+
+/// Picks an image and makes it one's profile photo; `on_done` runs once
+/// it is set.
+// shortcut: no crop editor (`Editor::PrepareProfilePhoto`); the photo goes as it is, TDLib crops it square.
+pub(crate) fn pick_own_photo(store: &Entity<Store>, on_done: Saved, cx: &mut App) {
+    let paths = cx.prompt_for_paths(PathPromptOptions {
+        files: true,
+        directories: false,
+        multiple: false,
+        prompt: Some(tr(cx, key::lng_choose_image)),
+    });
+    let store = store.clone();
+    cx.spawn(async move |cx| {
+        let Ok(Ok(Some(mut paths))) = paths.await else {
+            return;
+        };
+        let Some(path) = paths.pop() else {
+            return;
+        };
+        let task = cx.update(|cx| {
+            let request = store
+                .read(cx)
+                .session()
+                .set_profile_photo(&path.to_string_lossy());
+            crate::store::spawn(request, cx)
+        });
+        match task.await {
+            Ok(()) => {
+                cx.update(|cx| on_done(cx));
+            }
+            Err(error) => tracing::warn!(%error, "setting the profile photo failed"),
+        }
+    })
+    .detach();
 }
 
 #[cfg(test)]

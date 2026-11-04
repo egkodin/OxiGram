@@ -6,6 +6,7 @@
 //! Responses to requests only report success or an error; every state change
 //! arrives as an event.
 
+pub mod account;
 pub mod action_bar;
 pub mod auth;
 pub mod chat;

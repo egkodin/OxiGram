@@ -6,10 +6,11 @@
 
 mod actions;
 mod edit;
+pub(crate) use edit::{Field as OwnField, OwnDetails, Saved, edit_own, pick_own_photo};
 mod media_list;
 mod report;
 mod rows;
-pub(crate) use rows::open_user_photos;
+pub(crate) use rows::{birthday_text, open_user_photos};
 
 use std::collections::HashSet;
 use std::future::Future;

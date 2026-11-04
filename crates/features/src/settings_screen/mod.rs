@@ -4,11 +4,16 @@
 //! button on the main page, the page's menu and close.
 // shortcut: a layer only, not the third column; tdesktop picks by the window's width.
 
+mod information;
 mod main_page;
+mod personal_channel;
 mod qr_box;
 mod rgram_page;
 mod rows;
 mod search;
+mod username_box;
+
+pub(crate) use username_box::show as show_username_box;
 
 use gpui::{
     AnyElement, AnyView, App, AppContext as _, Context, DismissEvent, Entity, FocusHandle,
@@ -172,10 +177,13 @@ impl Focusable for SettingsLayer {
 }
 
 impl SettingsLayer {
-    fn push(&mut self, id: PageId, _window: &mut Window, cx: &mut Context<Self>) {
+    fn push(&mut self, id: PageId, window: &mut Window, cx: &mut Context<Self>) {
         let env = self.env.clone();
         let view: AnyView = match id {
             PageId::Main => cx.new(|cx| main_page::MainPage::new(env, cx)).into(),
+            PageId::Information => cx
+                .new(|cx| information::InformationPage::new(env, window, cx))
+                .into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),

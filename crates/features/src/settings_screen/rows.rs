@@ -31,7 +31,6 @@ pub(super) fn divider(cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-#[expect(dead_code, reason = "the sections after the main page use it")]
 /// Gray text on the divider's band, explaining the rows above.
 pub(super) fn divider_text(text: impl Into<SharedString>, cx: &App) -> AnyElement {
     let label = &DEFAULT_DIVIDER_LABEL.label;

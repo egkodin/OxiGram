@@ -90,6 +90,9 @@ pub(crate) fn group_digits(number: i64) -> String {
 /// (`Ui::FormatPhone`), else "+" and the digits.
 pub(crate) fn format_phone(digits: &str) -> String {
     let digits = digits.trim_start_matches('+');
+    if digits.is_empty() {
+        return String::new();
+    }
     match model::phone::number_info("en", digits) {
         Ok(info) if !info.formatted.contains('-') => {
             format!("+{} {}", info.calling_code, info.formatted)

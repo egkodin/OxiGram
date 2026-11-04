@@ -328,11 +328,7 @@ impl MainPage {
         let (userpic, missing) =
             photo_userpic(&state.chats, user.photo.as_ref(), user.accent_color, &name);
         let has_photo = user.photo.is_some();
-        let phone = if user.phone.is_empty() {
-            String::new()
-        } else {
-            format_phone(user.phone.expose())
-        };
+        let phone = format_phone(user.phone.expose());
         let username = user.username.clone();
         if let Some(file) = missing {
             self.download(file, cx);

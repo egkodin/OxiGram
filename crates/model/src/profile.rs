@@ -31,6 +31,8 @@ pub struct UserProfile {
     pub birthday: Option<Birthday>,
     pub common_groups: i32,
     pub is_blocked: bool,
+    /// The channel shown on the profile.
+    pub personal_chat: Option<ChatId>,
 }
 
 /// A birthday; the year is hidden by some users.
@@ -166,6 +168,8 @@ impl Session {
                         birthday: info.birthdate.map(|date| birthday(*date)),
                         common_groups: info.group_in_common_count,
                         is_blocked: matches!(info.block_list.as_deref(), Some(BlockList::Main(_))),
+                        personal_chat: (info.personal_chat_id != 0)
+                            .then_some(ChatId(info.personal_chat_id)),
                     })
                     .map_err(RequestError::from)
             })

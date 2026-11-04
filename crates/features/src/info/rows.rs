@@ -433,7 +433,7 @@ pub(super) fn media_phrase(media: SharedMedia) -> (Key, style::Icon) {
 }
 
 /// "November 3, 1990 (35 years old)" or "November 3" (`Data::Birthday`).
-fn birthday_text(birthday: Birthday, cx: &App) -> String {
+pub(crate) fn birthday_text(birthday: Birthday, cx: &App) -> String {
     let index = usize::try_from(birthday.month - 1).unwrap_or(0).min(11);
     let month = tr(cx, MONTHS[index]);
     let day = birthday.day.to_string();
