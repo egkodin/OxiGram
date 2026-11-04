@@ -412,7 +412,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Power saving and animation toggles | M8 | todo | |
 | settings | System window frame option | M7 | todo | |
 | settings | Tray, launch at startup, start minimized, close to tray | M7 | todo | |
-| settings | Calls settings: devices, peer-to-peer, accept calls on this device | M12 | todo | |
+| settings | Calls settings: devices, peer-to-peer, accept calls on this device | M12 | in progress | snapshot 335: "Speakers and Camera" with "Output device" and "Input device" (the chosen name or "Default") that open tdesktop's chooser (Default and the system's devices from cpal, a radio applies at once, OK closes); the choice is saved in settings.json and voice messages, music and video sound play through it, voice messages record from the chosen microphone (both fall back to the system's when it is unplugged); "Accept calls on this device" reads and sets this session's `can_accept_calls` (`toggleSessionCanAcceptCalls`); "Open system sound preferences" opens macOS Sound settings; not verified live yet (live test 42); no microphone level test, separate call devices or camera section until calls (M12); peer-to-peer is in Privacy and Security |
 | settings | Keyboard shortcuts page | M8 | todo | |
 | settings | Experimental settings | M14 | todo | |
 | settings | Local passcode and auto-lock timer | M7 | todo | |

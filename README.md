@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 24 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 25 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -420,7 +420,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Power saving and animation toggles (M8)
 - [ ] System window frame option (M7)
 - [ ] Tray, launch at startup, start minimized, close to tray (M7)
-- [ ] Calls settings: devices, peer-to-peer, accept calls on this device (M12)
+- [ ] Calls settings: devices, peer-to-peer, accept calls on this device (M12) *(in progress)*
 - [ ] Keyboard shortcuts page (M8)
 - [ ] Experimental settings (M14)
 - [ ] Local passcode and auto-lock timer (M7)

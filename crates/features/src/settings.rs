@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use gpui::{App, Global};
+use media::devices::Direction;
 use serde::{Deserialize, Serialize};
 use style::Palette;
 use ui::Theme;
@@ -155,6 +156,10 @@ struct Values {
     /// Scrolling past a channel's end offers the next unread one
     /// (`pullToNextChannel`).
     pull_to_next_channel: bool,
+    /// The speakers' cpal id; empty is the system's (`playbackDeviceId`).
+    playback_device: String,
+    /// The microphone's cpal id; empty is the system's (`captureDeviceId`).
+    capture_device: String,
 }
 
 impl Default for Values {
@@ -179,6 +184,8 @@ impl Default for Values {
             system_night_mode: true,
             large_emoji: true,
             pull_to_next_channel: true,
+            playback_device: String::new(),
+            capture_device: String::new(),
         }
     }
 }
@@ -207,6 +214,7 @@ pub fn load(path: PathBuf, cx: &mut App) {
         }
     };
     apply_theme(&values, cx);
+    apply_devices(&values);
     cx.set_global(Settings {
         path: Some(path),
         values,
@@ -343,6 +351,31 @@ pub(crate) fn notify(cx: &App) -> Notify {
 
 pub(crate) fn set_notify(notify: Notify, cx: &mut App) {
     change(cx, |values| values.notify = notify);
+}
+
+fn apply_devices(values: &Values) {
+    let id = |id: &str| Some(id.to_owned()).filter(|id| !id.is_empty());
+    media::devices::choose(Direction::Output, id(&values.playback_device));
+    media::devices::choose(Direction::Input, id(&values.capture_device));
+}
+
+/// The chosen speakers or microphone; None is the system's.
+pub(crate) fn audio_device(direction: Direction, cx: &App) -> Option<String> {
+    let id = values(cx).map(|values| match direction {
+        Direction::Output => values.playback_device.clone(),
+        Direction::Input => values.capture_device.clone(),
+    });
+    id.filter(|id| !id.is_empty())
+}
+
+/// Sound goes through `id` from now on, also after a restart.
+pub(crate) fn set_audio_device(direction: Direction, id: Option<String>, cx: &mut App) {
+    media::devices::choose(direction, id.clone());
+    let id = id.unwrap_or_default();
+    change(cx, |values| match direction {
+        Direction::Output => values.playback_device = id,
+        Direction::Input => values.capture_device = id,
+    });
 }
 
 /// The name TDLib reports for this device, if the owner renamed it.
@@ -546,6 +579,8 @@ mod tests {
             system_night_mode: false,
             large_emoji: false,
             pull_to_next_channel: false,
+            playback_device: "coreaudio:speakers".to_owned(),
+            capture_device: "coreaudio:mic".to_owned(),
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

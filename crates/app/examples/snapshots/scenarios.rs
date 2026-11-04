@@ -599,6 +599,25 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("334-settings-list", auth(State::Ready))],
         },
+        // Settings > Speakers and Camera > Output device.
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("335-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("335-settings-main", MouseButton::Left, SETTINGS_ROW),
+                ("335-settings-calls", MouseButton::Left, SETTINGS_CALLS),
+                ("335-settings-output", MouseButton::Left, SETTINGS_OUTPUT),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("335-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -1051,6 +1070,8 @@ const SETTINGS_ADVANCED: (f32, f32) = (300.0, 426.0);
 const SETTINGS_CONNECTION: (f32, f32) = (300.0, 142.0);
 const SETTINGS_STORAGE: (f32, f32) = (300.0, 182.0);
 const SETTINGS_PROXY_ADD: (f32, f32) = (522.0, 410.0);
+const SETTINGS_CALLS: (f32, f32) = (300.0, 451.0);
+const SETTINGS_OUTPUT: (f32, f32) = (300.0, 142.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);
 const FIRST_BAR_MENU_ITEM: (f32, f32) = (200.0, 131.0);
 /// The chat list's right edge at the default width (5/14 of 800), and in

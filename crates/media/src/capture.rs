@@ -10,7 +10,7 @@ use std::sync::mpsc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-use cpal::traits::{DeviceTrait as _, HostTrait as _, StreamTrait as _};
+use cpal::traits::{DeviceTrait as _, StreamTrait as _};
 
 use crate::encode::{EncodeError, RATE, VoiceWriter};
 use crate::resample::Resampler;
@@ -128,8 +128,7 @@ impl Recorder {
         let (samples, received) = mpsc::channel();
         let (stream, rate) = match source {
             Source::Microphone => {
-                let device = cpal::default_host()
-                    .default_input_device()
+                let device = crate::devices::device(crate::devices::Direction::Input)
                     .ok_or(RecordError::NoDevice)?;
                 let supported = device.default_input_config()?;
                 let config = supported.config();

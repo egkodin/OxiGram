@@ -7,7 +7,9 @@
 mod advanced;
 mod archive_box;
 mod blocked;
+mod calls;
 mod chat;
+mod device_box;
 mod folder_box;
 mod folder_chats_box;
 mod folders;
@@ -231,6 +233,7 @@ impl SettingsLayer {
             PageId::Folders => cx.new(|cx| folders::FoldersPage::new(env, cx)).into(),
             PageId::Advanced => cx.new(|cx| advanced::AdvancedPage::new(env, cx)).into(),
             PageId::Storage => cx.new(|cx| storage::StoragePage::new(env, cx)).into(),
+            PageId::Calls => cx.new(|cx| calls::CallsPage::new(env, cx)).into(),
             PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
             // shortcut: the sections not built yet open empty; each lands with its own step of M7.
             _ => cx.new(|_| Blank).into(),

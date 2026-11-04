@@ -7,6 +7,7 @@ use futures::FutureExt as _;
 use td_api::enums::SessionDeviceType;
 use td_api::functions::{
     GetActiveSessions, SetInactiveSessionTtl, TerminateAllOtherSessions, TerminateSession,
+    ToggleSessionCanAcceptCalls,
 };
 use td_api::types as td;
 
@@ -63,6 +64,8 @@ pub struct ActiveSession {
     pub is_current: bool,
     /// Signed in with the code but not the cloud password yet.
     pub is_password_pending: bool,
+    /// Incoming calls ring here.
+    pub can_accept_calls: bool,
     pub device: Device,
     pub device_model: String,
     pub application: String,
@@ -88,6 +91,7 @@ impl From<td::Session> for ActiveSession {
             id: SessionId(session.id),
             is_current: session.is_current,
             is_password_pending: session.is_password_pending,
+            can_accept_calls: session.can_accept_calls,
             device: Device::from(session.device_type.as_ref()),
             device_model: session.device_model,
             application,
@@ -144,6 +148,20 @@ impl Session {
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         self.client()
             .request(&TerminateAllOtherSessions {})
+            .map(|result| result.map(drop).map_err(RequestError::from))
+    }
+
+    /// Lets calls ring in session `id` or not (`toggleCallsDisabledHere`).
+    pub fn set_session_accepts_calls(
+        &self,
+        id: SessionId,
+        can_accept_calls: bool,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&ToggleSessionCanAcceptCalls {
+                session_id: id.0,
+                can_accept_calls,
+            })
             .map(|result| result.map(drop).map_err(RequestError::from))
     }
 

@@ -11,7 +11,7 @@ use std::sync::{Arc, Condvar, Mutex, MutexGuard, TryLockError};
 use std::thread;
 use std::time::Duration;
 
-use cpal::traits::{DeviceTrait as _, HostTrait as _, StreamTrait as _};
+use cpal::traits::{DeviceTrait as _, StreamTrait as _};
 use ffmpeg::format::sample::{Sample, Type};
 use ffmpeg::software::resampling;
 use ffmpeg::{ChannelLayout, Packet, codec, frame, media};
@@ -29,7 +29,7 @@ const SILENT_CHANNELS: u16 = 2;
 const SILENT_TICK: Duration = Duration::from_millis(10);
 
 /// Set by automated runs: players keep time without opening the output.
-static IS_SILENT: AtomicBool = AtomicBool::new(false);
+pub(crate) static IS_SILENT: AtomicBool = AtomicBool::new(false);
 
 /// Players started from now on play nothing aloud; their clocks still run.
 pub fn silence_output() {
@@ -226,7 +226,7 @@ impl Output {
         if IS_SILENT.load(Ordering::Relaxed) {
             return Self::Silent;
         }
-        let device = cpal::default_host().default_output_device();
+        let device = crate::devices::device(crate::devices::Direction::Output);
         match device.map(|device| (device.default_output_config(), device)) {
             Some((Ok(config), device)) => Self::Device { device, config },
             Some((Err(error), _)) => {

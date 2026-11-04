@@ -50,8 +50,9 @@ Next, in this order (see the shortcut comments in
    (the existing downloads view). Auto-download, download path, window
    title, tray/Dock, spellchecker, export and updates have nothing in
    rgram to control yet: leave them out and list them in parity.
-   Then Speakers and Camera, Battery and Animations, Language, interface
-   scale (main page row too).
+   Speakers and Camera done (devices, accept calls, system settings).
+   Then Battery and Animations, Language, interface scale (main page row
+   too).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
    FAQ/Features (done), Ask a Question (confirmation, then the support chat;
    writing to support needs the owner's OK).
@@ -557,6 +558,13 @@ Next, in this order (see the shortcut comments in
     storage": the sizes look like rgram's cache; press no Clear unless
     you agree (it deletes only local copies). "Downloads" opens the
     downloads list.
+42. Speakers and Camera: Settings, Speakers and Camera. Both devices
+    read "Default"; open "Output device": the Mac's outputs are listed;
+    pick another, play a voice message in Saved Messages (the owner
+    listens; no sound in automated runs), set Default back. "Accept
+    calls on this device" matches the phone's session list (Devices,
+    this Mac); toggle it and back. "Open system sound preferences" opens
+    macOS Sound.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

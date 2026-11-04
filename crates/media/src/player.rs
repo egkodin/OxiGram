@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
-use cpal::traits::{DeviceTrait as _, HostTrait as _, StreamTrait as _};
+use cpal::traits::{DeviceTrait as _, StreamTrait as _};
 
 use crate::decode::Decoded;
 use crate::encode::RATE;
@@ -81,9 +81,8 @@ impl Player {
     ///
     /// When there is no output device or it cannot be opened.
     pub fn start(decoded: &Decoded) -> Result<Self, PlayError> {
-        let device = cpal::default_host()
-            .default_output_device()
-            .ok_or(PlayError::NoDevice)?;
+        let device =
+            crate::devices::device(crate::devices::Direction::Output).ok_or(PlayError::NoDevice)?;
         let supported = device.default_output_config()?;
         let config = supported.config();
         let base_step = f64::from(RATE) / f64::from(config.sample_rate);
