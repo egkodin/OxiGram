@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 13 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 15 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -393,14 +393,14 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Privacy: messages from non-contacts (Premium or Stars price) (M13)
 - [ ] Privacy rule exceptions (always/never share with) (M6) *(in progress)*
 - [ ] Blocked users (M6) *(in progress)*
-- [ ] Active sessions: list, terminate, terminate all, auto-terminate period (M6)
+- [ ] Active sessions: list, terminate, terminate all, auto-terminate period (M6) *(in progress)*
 - [ ] Logged-in websites (Log in with Telegram) (M6)
 - [ ] Unconfirmed new login review and denial (M6)
 - [ ] Passkeys management (M7)
 - [ ] Two-step verification: set, change, hint, recovery email, remove (M6)
 - [ ] Login email change (M6)
 - [ ] Global auto-delete timer (M6)
-- [ ] Account self-destruction period (M6)
+- [ ] Account self-destruction period (M6) *(in progress)*
 - [ ] Archive and mute new non-contacts (M6) *(in progress)*
 - [ ] Suggest frequent contacts; delete cloud drafts; clear payment info (M6) *(in progress)*
 - [ ] Sensitive content setting (M6)

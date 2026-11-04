@@ -385,14 +385,14 @@ is the definition of done: rgram is finished when every row is `done`, or
 | settings | Privacy: messages from non-contacts (Premium or Stars price) | M13 | todo | |
 | settings | Privacy rule exceptions (always/never share with) | M6 | in progress | "Always"/"Never" rows shown where the option leaves room for them, with tdesktop's count label; editing opens the contacts box with the list ticked, and picked users leave the other list. Missing: picking groups and non-contacts (groups already there stay) |
 | settings | Blocked users | M6 | in progress | Settings > Privacy and Security > Blocked users (snapshot 324): Block user (a contact, then tdesktop's confirmation; blocks through TDLib), what blocking does, the count and the list (`getBlockedMessageSenders`) with tdesktop's status line, Unblock on each row and the profile on click. Not verified live (live test 35). Missing: more than the first 100, picking from chats rather than contacts, the empty list's animation |
-| settings | Active sessions: list, terminate, terminate all, auto-terminate period | M6 | todo | |
+| settings | Active sessions: list, terminate, terminate all, auto-terminate period | M6 | in progress | Privacy and Security > Active sessions (snapshot 325, loading state only): this device, Terminate all other sessions, incomplete logins and other devices (`getActiveSessions`) with tdesktop's device icons and colors, app line and place with last activity, a terminate button per row and the "If inactive for" box (`setInactiveSessionTtl`); terminating asks first. Rows not seen rendered yet (live test 36). Missing: the session info box on click, renaming this device |
 | settings | Logged-in websites (Log in with Telegram) | M6 | todo | |
 | settings | Unconfirmed new login review and denial | M6 | todo | |
 | settings | Passkeys management | M7 | todo | |
 | settings | Two-step verification: set, change, hint, recovery email, remove | M6 | todo | |
 | settings | Login email change | M6 | todo | |
 | settings | Global auto-delete timer | M6 | todo | |
-| settings | Account self-destruction period | M6 | todo | |
+| settings | Account self-destruction period | M6 | in progress | "If away for..." shows TDLib's period (`getAccountTtl`) and opens tdesktop's box (1, 3, 6, 12, 18, 24 months) that saves with `setAccountTtl`. Not verified live; changing it needs the owner's OK. Missing: the box's "Delete account" menu |
 | settings | Archive and mute new non-contacts | M6 | in progress | Shown when TDLib's `can_archive_and_mute_new_chats_from_unknown_users` is on; the toggle sets `archive_and_mute_new_chats_from_unknown_users`, keeping the other archive settings. Not verified live |
 | settings | Suggest frequent contacts; delete cloud drafts; clear payment info | M6 | in progress | The frequent contacts toggle sets TDLib's `disable_top_chats`. Missing: the clear payment info box (the row opens nothing), deleting cloud drafts; not verified live |
 | settings | Sensitive content setting | M6 | todo | |

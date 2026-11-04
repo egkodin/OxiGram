@@ -37,6 +37,7 @@ mod secret;
 pub mod send;
 pub mod send_files;
 mod session;
+pub mod sessions;
 pub mod sponsored;
 mod state;
 pub mod sticker;

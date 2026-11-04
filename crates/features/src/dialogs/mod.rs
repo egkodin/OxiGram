@@ -744,7 +744,7 @@ pub(crate) fn photo_userpic(
     (source, Some(photo.small.id))
 }
 
-fn date_text(strings: &Strings, date: i32, now: &DateTime<Local>) -> SharedString {
+pub(crate) fn date_text(strings: &Strings, date: i32, now: &DateTime<Local>) -> SharedString {
     match date::format(i64::from(date), now) {
         DialogDate::Time(text) | DialogDate::Date(text) => text.into(),
         DialogDate::Weekday(day) => strings.text(weekday_key(day)).into(),

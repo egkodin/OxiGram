@@ -9,13 +9,13 @@ use futures::FutureExt as _;
 use td_api::enums::{
     BlockList, MessageSender, OptionValue, UserPrivacySetting, UserPrivacySettingRule as TdRule,
 };
-use td_api::functions::SetMessageSenderBlockList;
 use td_api::functions::{
     GetAccountTtl, GetActiveSessions, GetArchiveChatListSettings, GetBlockedMessageSenders,
     GetConnectedWebsites, GetDefaultMessageAutoDeleteTime, GetLoginPasskeys,
     GetNewChatPrivacySettings, GetOption, GetPasswordState, GetUserPrivacySettingRules,
     SetArchiveChatListSettings, SetOption, SetUserPrivacySettingRules,
 };
+use td_api::functions::{SetAccountTtl, SetMessageSenderBlockList};
 use td_api::types as td;
 
 use crate::{ChatId, RequestError, Session, UserId};
@@ -320,6 +320,17 @@ impl Session {
         self.client()
             .request(&GetAccountTtl {})
             .map(|result| result.map(|ttl| ttl.days).map_err(request_error))
+    }
+
+    pub fn set_account_ttl_days(
+        &self,
+        days: i32,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&SetAccountTtl {
+                ttl: Box::new(td::AccountTtl { days }),
+            })
+            .map(|result| result.map(drop).map_err(request_error))
     }
 
     /// Seconds new chats' messages live, 0 for off.

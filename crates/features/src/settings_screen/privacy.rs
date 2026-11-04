@@ -1,7 +1,7 @@
 //! "Privacy and Security" (`Settings::PrivacySecurity`): the security rows
 //! with their states, every privacy rule, archiving strangers, suggested
 //! contacts and the account's self-destruct period.
-// shortcut: the security rows but Blocked users, messages privacy, payment info and self-destruct show their state but open nothing yet, and there are no file confirmations; with rows "Privacy and security" and the pages they open.
+// shortcut: the security rows but Blocked users and Active sessions, messages privacy, and payment info show their state but open nothing yet, and there are no file confirmations; with rows "Privacy and security" and the pages they open.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -20,8 +20,8 @@ use style::menu_icons::{
 use style::settings::{SETTINGS_PRIVACY_SECURITY_PADDING, SETTINGS_PRIVACY_SKIP};
 use ui::SettingsButton;
 
-use super::{Env, PageId, privacy_box, rows};
-use crate::lang::{strings, tr, tr_plural};
+use super::{Env, PageId, privacy_box, rows, self_destruct_box};
+use crate::lang::{strings, tr};
 
 /// TDLib's options for strangers' chats and suggested contacts.
 const CAN_ARCHIVE: &str = "can_archive_and_mute_new_chats_from_unknown_users";
@@ -320,13 +320,17 @@ impl PrivacyPage {
             .filter(|count| *count > 0)
             .map(|count| count.to_string())
             .unwrap_or_default();
-        items.push(row(
-            "security/sessions",
-            key::lng_settings_show_sessions,
-            MENU_ICON_DEVICES,
-            sessions.into(),
-            cx,
-        ));
+        let env = self.env.clone();
+        items.push(
+            rows::button(
+                "security/sessions",
+                tr(cx, key::lng_settings_show_sessions),
+                MENU_ICON_DEVICES,
+            )
+            .label(sessions)
+            .on_click(move |_, window, cx| env.open(PageId::Sessions, window, cx))
+            .into_any_element(),
+        );
         items.push(rows::skip());
         items.push(rows::divider_text(
             tr(cx, key::lng_settings_sessions_about),
@@ -471,11 +475,11 @@ impl PrivacyPage {
             rows::skip(),
             rows::divider_text(tr(cx, key::lng_settings_top_peers_about), cx),
         ]);
-        let days = self
-            .loaded
-            .account_ttl
-            .map(|days| days_label(days, cx))
+        let account_ttl = self.loaded.account_ttl;
+        let days = account_ttl
+            .map(|days| self_destruct_box::days_label(days, cx))
             .unwrap_or_default();
+        let (env, weak) = (self.env.clone(), cx.weak_entity());
         items.extend([
             rows::skip(),
             rows::subtitle(tr(cx, key::lng_settings_destroy_title), cx),
@@ -484,6 +488,26 @@ impl PrivacyPage {
                 tr(cx, key::lng_settings_destroy_if),
             )
             .label(days)
+            .on_click(move |_, window, cx| {
+                let Some(current) = account_ttl else {
+                    return;
+                };
+                let weak = weak.clone();
+                let on_saved: self_destruct_box::OnSaved = Rc::new(move |days, cx| {
+                    let _ = weak.update(cx, |this: &mut PrivacyPage, cx| {
+                        this.loaded.account_ttl = Some(days);
+                        cx.notify();
+                    });
+                });
+                self_destruct_box::show(
+                    &env,
+                    self_destruct_box::Kind::Account,
+                    current,
+                    on_saved,
+                    window,
+                    cx,
+                );
+            })
             .into_any_element(),
             rows::skip(),
         ]);
@@ -531,15 +555,6 @@ fn with_counts(base: String, never: i64, always: i64) -> String {
         base
     } else {
         format!("{base} ({})", added.join(", "))
-    }
-}
-
-/// `SelfDestructionBox::DaysLabel`.
-fn days_label(days: i32, cx: &App) -> String {
-    match days {
-        0 => String::new(),
-        days if days > 25 => tr_plural(cx, key::lng_months, i64::from((days / 30).max(1)), &[]),
-        days => tr_plural(cx, key::lng_weeks, i64::from((days / 7).max(1)), &[]),
     }
 }
 

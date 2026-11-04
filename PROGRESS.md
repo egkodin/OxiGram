@@ -28,10 +28,9 @@ Blocked users.
 Next, in this order (see the shortcut comments in
 `crates/features/src/settings_screen/*.rs` for what each page lacks):
 
-1. Privacy and Security's pages: Active sessions (`settings_active_sessions.cpp`:
-   this device, terminate all, others, the info box, "if inactive for"),
-   Websites, Auto-delete (`GlobalTTL`), self-destruct box, messages privacy
-   box, clear payment info box. Terminating sessions and the self-destruct
+1. Privacy and Security's pages: the session info box, Websites,
+   Auto-delete (`GlobalTTL`), messages privacy box, clear payment info box
+   (Blocked users, Active sessions and the self-destruct box are done). Terminating sessions and the self-destruct
    period need the owner's OK in live tests; 2FA, passcode and passkeys
    flows need it too (rows only show their state now).
 2. Chat Settings (theme, night mode, backgrounds, accent colors, corner
@@ -505,6 +504,12 @@ Next, in this order (see the shortcut comments in
     count and list match the phone, each with its phone, @username or
     "bot". Do not press Block user or Unblock unless you agree; if you
     unblock someone to test, block them again the same way.
+36. Active sessions, read-only: Privacy and Security, Active sessions.
+    "This device" shows this Mac with rgram's app line; the other devices
+    match the phone, each with its device icon, app, place and last
+    activity. Open "If inactive for...": the ticked choice matches the
+    phone; Cancel. Press no terminate button. Also open "If away for..."
+    at the bottom of Privacy and Security and Cancel.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 
