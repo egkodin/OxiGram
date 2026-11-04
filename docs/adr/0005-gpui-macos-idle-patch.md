@@ -68,3 +68,19 @@ and applies the patches in `vendor/patches/`.
   parked" must follow it.
 - If upstream implements `frame_waker` for macOS, the patch is dropped and this
   ADR is superseded.
+
+## Addendum: interface scale (2026-11-04)
+
+tdesktop's "Default interface scale" (50–300 %) enlarges the whole UI. gpui has
+no app-wide zoom, so `vendor/patches/gpui_macos-0002-interface-zoom.patch` adds
+one to the same vendored crate: `gpui_macos::set_interface_zoom` is read before
+the first window opens. The window reports `backing scale × zoom` as its scale
+factor and divides its content size, mouse positions, screen points and pixel
+scroll deltas by the zoom; the Metal layer keeps the real backing scale, and
+the minimum size, `resize` and the IME rectangle go back to points by
+multiplying. A new scale needs a restart, as in tdesktop.
+
+- Linux and Windows ignore the setting until their backends get the same
+  patch (M8).
+- Snapshots run on the test platform, so they cannot show the zoom; it was
+  checked live at 150 % (drawing, clicks, small targets).

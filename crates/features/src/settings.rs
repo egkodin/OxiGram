@@ -162,6 +162,8 @@ struct Values {
     capture_device: String,
     /// The animations turned off, in tdesktop's bits (`powerSaving`).
     power_saving: u32,
+    /// The interface scale in percent; 0 is the default (`kScaleAuto`).
+    interface_scale: u32,
 }
 
 impl Default for Values {
@@ -189,6 +191,7 @@ impl Default for Values {
             playback_device: String::new(),
             capture_device: String::new(),
             power_saving: 0,
+            interface_scale: 0,
         }
     }
 }
@@ -364,6 +367,27 @@ pub(crate) fn power_saving(cx: &App) -> crate::power_saving::Saving {
 pub(crate) fn set_power_saving(saving: crate::power_saving::Saving, cx: &mut App) {
     crate::power_saving::apply(saving);
     change(cx, |values| values.power_saving = saving.0);
+}
+
+/// The interface scale in percent; 0 is the default, 100 % (`cConfigScale`).
+#[must_use]
+pub fn interface_scale(cx: &App) -> u32 {
+    values(cx).map_or(0, |values| values.interface_scale)
+}
+
+/// How many points a pixel of the interface takes, read once at start.
+#[must_use]
+pub fn interface_zoom(cx: &App) -> f32 {
+    match interface_scale(cx) {
+        0 => 1.0,
+        #[expect(clippy::cast_precision_loss, reason = "a few hundred percent")]
+        scale => scale as f32 / 100.0,
+    }
+}
+
+/// Takes effect at the next start, as in tdesktop.
+pub(crate) fn set_interface_scale(scale: u32, cx: &mut App) {
+    change(cx, |values| values.interface_scale = scale);
 }
 
 fn apply_devices(values: &Values) {
@@ -595,6 +619,7 @@ mod tests {
             playback_device: "coreaudio:speakers".to_owned(),
             capture_device: "coreaudio:mic".to_owned(),
             power_saving: 5,
+            interface_scale: 150,
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

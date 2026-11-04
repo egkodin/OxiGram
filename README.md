@@ -377,7 +377,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 27 in progress</summary>
+<summary><b>Settings</b>: 0 of 48 done, 28 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -414,7 +414,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Folders settings page (M6) *(in progress)*
 - [ ] Language: cloud language list, search, apply without restart (M6) *(in progress)*
 - [ ] Translation options and do-not-translate languages (M13)
-- [ ] Interface scale (100–300 %, follows system) (M6)
+- [ ] Interface scale (100–300 %, follows system) (M6) *(in progress)*
 - [ ] Connection type and proxies: SOCKS5, MTProto, HTTP, list, check, share links (M6) *(in progress)*
 - [ ] Data and storage: cache size limits, clear cache, storage usage (M6) *(in progress)*
 - [ ] Power saving and animation toggles (M8) *(in progress)*

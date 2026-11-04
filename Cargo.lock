@@ -4806,6 +4806,7 @@ dependencies = [
  "features",
  "futures",
  "gpui",
+ "gpui_macos",
  "gpui_platform",
  "i18n",
  "image",

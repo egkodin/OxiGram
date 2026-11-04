@@ -43,6 +43,14 @@ pub use layers::Layers;
 pub use root::Root;
 pub use store::{Store, StoreEvent};
 
+gpui::actions!(
+    rgram,
+    [
+        /// Quits as the Quit item does, then starts rgram again (`Core::Restart`).
+        RestartApp
+    ]
+);
+
 /// Installs the screens' globals and key bindings. Call after `ui::init`.
 pub fn init(cx: &mut App) {
     cx.set_global(Lang::default());

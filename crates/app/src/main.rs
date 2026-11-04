@@ -74,6 +74,9 @@ fn main() -> anyhow::Result<()> {
             Ok(path) => features::settings::load(path, cx),
             Err(error) => tracing::warn!("{error}"),
         }
+        // Before the window opens: windows read the zoom as they are made.
+        #[cfg(target_os = "macos")]
+        gpui_macos::set_interface_zoom(features::settings::interface_zoom(cx));
         let parameters = parameters.map(
             |parameters| match features::settings::custom_device_model(cx) {
                 Some(device_model) => Parameters {

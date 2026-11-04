@@ -1,4 +1,4 @@
-// Modified by rgram: the display link parks while idle; see "rgram patch" below and ADR 0005.
+// Modified by rgram: the display link parks while idle, and the interface zoom; see "rgram patch" below and ADR 0005.
 use crate::{
     BoolExt, MacDisplay, NSRange, NSStringExt, TISCopyCurrentKeyboardInputSource,
     TISGetInputSourceProperty, WindowFrameSource, events::platform_input_from_native,
@@ -68,7 +68,7 @@ use std::{
     rc::Rc,
     sync::{
         Arc, Once, Weak,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU32, Ordering},
     },
     time::Duration,
 };
@@ -362,11 +362,26 @@ extern "C" fn window_state_unarchiver_restoration_options(
     }
 }
 
+/// rgram patch (ADR 0005): the interface zoom (Settings, "Default interface
+/// scale"), how many points one gpui pixel takes; set before windows open.
+static INTERFACE_ZOOM: AtomicU32 = AtomicU32::new(1.0f32.to_bits());
+
+/// rgram patch (ADR 0005): windows opened from now on draw gpui's pixels
+/// `zoom` times larger, from 50 % to 300 %.
+pub fn set_interface_zoom(zoom: f32) {
+    INTERFACE_ZOOM.store(zoom.clamp(0.5, 3.0).to_bits(), Ordering::Relaxed);
+}
+
+pub(crate) fn interface_zoom() -> f32 {
+    f32::from_bits(INTERFACE_ZOOM.load(Ordering::Relaxed))
+}
+
 pub(crate) fn convert_mouse_position(position: NSPoint, window_height: Pixels) -> Point<Pixels> {
+    let zoom = interface_zoom();
     point(
-        px(position.x as f32),
+        px(position.x as f32 / zoom),
         // macOS screen coordinates are relative to bottom left
-        window_height - px(position.y as f32),
+        window_height - px(position.y as f32 / zoom),
     )
 }
 
@@ -949,11 +964,13 @@ impl MacWindowState {
             .native_window()
             .contentView()
             .map_or_default(|view| view.frame().size);
-        size(px(width as f32), px(height as f32))
+        // rgram patch (ADR 0005): gpui's size is the zoomed one.
+        let zoom = interface_zoom();
+        size(px(width as f32 / zoom), px(height as f32 / zoom))
     }
 
     fn scale_factor(&self) -> f32 {
-        get_scale_factor(self.native_window)
+        get_scale_factor(self.native_window) * interface_zoom()
     }
 
     fn window_bounds(&self) -> WindowBounds {
@@ -1187,9 +1204,10 @@ impl MacWindow {
             let _: () = msg_send![native_window, setMovable: is_movable.to_objc()];
 
             if let Some(window_min_size) = window_min_size {
+                let zoom = f64::from(interface_zoom());
                 let _: () = msg_send![native_window, setContentMinSize: NSSize {
-                    width: window_min_size.width.to_f64(),
-                    height: window_min_size.height.to_f64(),
+                    width: window_min_size.width.to_f64() * zoom,
+                    height: window_min_size.height.to_f64() * zoom,
                 }];
             }
 
@@ -1464,9 +1482,10 @@ impl PlatformWindow for MacWindow {
         this.foreground_executor
             .spawn(async move {
                 if_window_not_closed(closed, || unsafe {
+                    let zoom = interface_zoom();
                     let _: () = msg_send![window, setContentSize: NSSize {
-                        width: size.width.as_f32() as f64,
-                        height: size.height.as_f32() as f64,
+                        width: (size.width.as_f32() * zoom) as f64,
+                        height: (size.height.as_f32() * zoom) as f64,
                     }];
                 })
             })
@@ -3173,9 +3192,10 @@ fn update_window_scale_factor(window_state: &Arc<Mutex<MacWindowState>>) {
     let layer = lock.renderer.layer_ptr().cast::<AnyObject>();
     if !layer.is_null() {
         unsafe {
+            // rgram patch (ADR 0005): the layer keeps the screen's own scale.
             let _: () = msg_send![
                 layer,
-                setContentsScale: scale_factor as f64
+                setContentsScale: get_scale_factor(lock.native_window) as f64
             ];
         }
     }
@@ -3378,8 +3398,8 @@ extern "C" fn set_frame_size(this: &AnyObject, _: Sel, size: NSSize) {
         let _: () = msg_send![super(this, class!(NSView)), setFrameSize: size];
     }
 
-    let scale_factor = lock.scale_factor();
-    let drawable_size = new_size.to_device_pixels(scale_factor);
+    // rgram patch (ADR 0005): `new_size` is in points, so the screen's scale.
+    let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window));
     lock.renderer.update_drawable_size(drawable_size);
 
     if let Some(mut callback) = lock.resize_callback.take() {
@@ -3479,6 +3499,11 @@ extern "C" fn first_rect_for_character_range(
     .map_or(
         NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 0.)),
         |bounds| {
+            let zoom = interface_zoom();
+            let bounds = Bounds::new(
+                point(bounds.origin.x * zoom, bounds.origin.y * zoom),
+                size(bounds.size.width * zoom, bounds.size.height * zoom),
+            );
             NSRect::new(
                 NSPoint::new(
                     frame.origin.x + bounds.origin.x.as_f32() as f64,
@@ -3666,8 +3691,9 @@ fn screen_point_to_gpui_point(this: &AnyObject, position: NSPoint) -> Point<Pixe
     let frame = get_frame(this);
     let window_x = position.x - frame.origin.x;
     let window_y = frame.size.height - (position.y - frame.origin.y);
+    let zoom = f64::from(interface_zoom());
 
-    point(px(window_x as f32), px(window_y as f32))
+    point(px((window_x / zoom) as f32), px((window_y / zoom) as f32))
 }
 
 fn is_drag_from_this_window(this: &AnyObject, dragging_info: *mut AnyObject) -> bool {

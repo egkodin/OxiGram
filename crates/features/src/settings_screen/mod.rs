@@ -29,6 +29,7 @@ mod proxy_box;
 mod qr_box;
 mod rgram_page;
 mod rows;
+mod scale;
 mod search;
 mod self_destruct_box;
 mod session_box;

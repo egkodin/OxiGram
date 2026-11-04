@@ -681,6 +681,23 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             histories: Vec::new(),
             steps: vec![("338-settings-list", auth(State::Ready))],
         },
+        // Settings, scrolled to "Default interface scale".
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![
+                ("339-settings-menu", MouseButton::Left, MENU_BUTTON),
+                ("339-settings-main", MouseButton::Left, SETTINGS_ROW),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: vec![("339-settings-scale", SETTINGS_MIDDLE, -400.0)],
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("339-settings-list", auth(State::Ready))],
+        },
         // Types in Saved Messages' field: it grows, then scrolls; sending
         // fails with no account, so the text comes back.
         Scenario {
@@ -1136,6 +1153,7 @@ const SETTINGS_PROXY_ADD: (f32, f32) = (522.0, 410.0);
 const SETTINGS_CALLS: (f32, f32) = (300.0, 451.0);
 const SETTINGS_POWER: (f32, f32) = (300.0, 491.0);
 const SETTINGS_LANGUAGE: (f32, f32) = (300.0, 531.0);
+const SETTINGS_MIDDLE: (f32, f32) = (400.0, 400.0);
 const SETTINGS_POWER_STICKERS: (f32, f32) = (300.0, 240.0);
 const SETTINGS_OUTPUT: (f32, f32) = (300.0, 142.0);
 const ARCHIVE_BAR: (f32, f32) = (150.0, 105.0);

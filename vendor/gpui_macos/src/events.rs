@@ -1,3 +1,4 @@
+// Modified by rgram: positions and scrolling follow the interface zoom; see ADR 0005.
 use gpui::{
     Capslock, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
     MouseDownEvent, MouseExitEvent, MouseMoveEvent, MousePressureEvent, MouseUpEvent,
@@ -159,11 +160,7 @@ pub(crate) unsafe fn platform_input_from_native(
                 window_height.map(|window_height| {
                     PlatformInput::MouseDown(MouseDownEvent {
                         button,
-                        position: point(
-                            px(native_event.locationInWindow().x as f32),
-                            // MacOS screen coordinates are relative to bottom left
-                            window_height - px(native_event.locationInWindow().y as f32),
-                        ),
+                        position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                         modifiers: read_modifiers(native_event),
                         click_count: native_event.clickCount() as usize,
                         first_mouse: false,
@@ -184,10 +181,7 @@ pub(crate) unsafe fn platform_input_from_native(
                 window_height.map(|window_height| {
                     PlatformInput::MouseUp(MouseUpEvent {
                         button,
-                        position: point(
-                            px(native_event.locationInWindow().x as f32),
-                            window_height - px(native_event.locationInWindow().y as f32),
-                        ),
+                        position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                         modifiers: read_modifiers(native_event),
                         click_count: native_event.clickCount() as usize,
                     })
@@ -206,10 +200,7 @@ pub(crate) unsafe fn platform_input_from_native(
                         },
                         pressure,
                         modifiers: read_modifiers(native_event),
-                        position: point(
-                            px(native_event.locationInWindow().x as f32),
-                            window_height - px(native_event.locationInWindow().y as f32),
-                        ),
+                        position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                     })
                 })
             }
@@ -228,10 +219,7 @@ pub(crate) unsafe fn platform_input_from_native(
                     Some(direction) => window_height.map(|window_height| {
                         PlatformInput::MouseDown(MouseDownEvent {
                             button: MouseButton::Navigate(direction),
-                            position: point(
-                                px(native_event.locationInWindow().x as f32),
-                                window_height - px(native_event.locationInWindow().y as f32),
-                            ),
+                            position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                             modifiers: read_modifiers(native_event),
                             click_count: 1,
                             first_mouse: false,
@@ -250,10 +238,7 @@ pub(crate) unsafe fn platform_input_from_native(
                 let magnification = native_event.magnification() as f32;
 
                 PlatformInput::Pinch(PinchEvent {
-                    position: point(
-                        px(native_event.locationInWindow().x as f32),
-                        window_height - px(native_event.locationInWindow().y as f32),
-                    ),
+                    position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                     delta: magnification,
                     modifiers: read_modifiers(native_event),
                     phase,
@@ -272,16 +257,14 @@ pub(crate) unsafe fn platform_input_from_native(
                 );
 
                 let delta = if native_event.hasPreciseScrollingDeltas() {
-                    ScrollDelta::Pixels(raw_data.map(px))
+                    // rgram patch (ADR 0005): scrolls the same distance on screen.
+                    ScrollDelta::Pixels(raw_data.map(|value| px(value / crate::interface_zoom())))
                 } else {
                     ScrollDelta::Lines(raw_data)
                 };
 
                 PlatformInput::Scroll(ScrollEvent {
-                    position: point(
-                        px(native_event.locationInWindow().x as f32),
-                        window_height - px(native_event.locationInWindow().y as f32),
-                    ),
+                    position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                     delta,
                     touch_phase: phase,
                     modifiers: read_modifiers(native_event),
@@ -304,30 +287,21 @@ pub(crate) unsafe fn platform_input_from_native(
                 window_height.map(|window_height| {
                     PlatformInput::MouseMove(MouseMoveEvent {
                         pressed_button: Some(pressed_button),
-                        position: point(
-                            px(native_event.locationInWindow().x as f32),
-                            window_height - px(native_event.locationInWindow().y as f32),
-                        ),
+                        position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                         modifiers: read_modifiers(native_event),
                     })
                 })
             }
             NSEventType::MouseMoved => window_height.map(|window_height| {
                 PlatformInput::MouseMove(MouseMoveEvent {
-                    position: point(
-                        px(native_event.locationInWindow().x as f32),
-                        window_height - px(native_event.locationInWindow().y as f32),
-                    ),
+                    position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
                     pressed_button: None,
                     modifiers: read_modifiers(native_event),
                 })
             }),
             NSEventType::MouseExited => window_height.map(|window_height| {
                 PlatformInput::MouseExited(MouseExitEvent {
-                    position: point(
-                        px(native_event.locationInWindow().x as f32),
-                        window_height - px(native_event.locationInWindow().y as f32),
-                    ),
+                    position: crate::convert_mouse_position(native_event.locationInWindow(), window_height),
 
                     pressed_button: None,
                     modifiers: read_modifiers(native_event),

@@ -43,6 +43,8 @@ pub(crate) use platform::*;
 pub(crate) use window::*;
 
 pub use platform::MacPlatform;
+// rgram patch (ADR 0005): Settings' "Default interface scale".
+pub use window::set_interface_zoom;
 
 trait BoolExt {
     fn to_objc(self) -> Bool;

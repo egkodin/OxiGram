@@ -52,7 +52,8 @@ Next, in this order (see the shortcut comments in
    rgram to control yet: leave them out and list them in parity.
    Speakers and Camera done (devices, accept calls, system settings),
    Battery and Animations done (Power Usage box), Language done
-   (Language box). Then interface scale (main page row too).
+   (Language box), Default interface scale done (main page switch and
+   slider, restart, zoom in the vendored gpui_macos).
 4. Premium, My Stars, Business, Send a Gift (stop at TDLib's payment form),
    FAQ/Features (done), Ask a Question (confirmation, then the support chat;
    writing to support needs the owner's OK).
@@ -574,6 +575,10 @@ Next, in this order (see the shortcut comments in
     (official languages with native names, English ticked); type "deu":
     only German stays; pick it: the interface switches to German at
     once (the main page row reads "Deutsch"); pick English back, OK.
+45. Interface scale: Settings, main page. "Default interface scale" is
+    on at 100 %; drag the slider to 125 %, release, "Restart now": rgram
+    starts again with everything larger, clicks land where drawn; turn
+    "Default interface scale" back on, "Restart now": back to 100 %.
 
 ## M4: Compose and sending (in progress, offline: the owner is away from the Mac)
 

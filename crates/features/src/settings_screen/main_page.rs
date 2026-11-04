@@ -288,15 +288,18 @@ pub(super) fn entries() -> impl Iterator<Item = &'static Entry> {
 pub(super) struct MainPage {
     env: Env,
     requested: HashSet<FileId>,
+    scale: gpui::Entity<super::scale::ScaleRow>,
     _store: Subscription,
 }
 
 impl MainPage {
     pub(super) fn new(env: Env, cx: &mut Context<Self>) -> Self {
         let store = cx.observe(&env.targets.store, |_, _, cx| cx.notify());
+        let scale = cx.new(|_| super::scale::ScaleRow::new(env.clone()));
         Self {
             env,
             requested: HashSet::new(),
+            scale,
             _store: store,
         }
     }
@@ -492,6 +495,10 @@ impl Render for MainPage {
         column.push(rows::skip());
         column.extend(self.group(SECTIONS, cx));
         column.extend(self.group(RGRAM, cx));
+        column.push(rows::skip());
+        column.push(rows::divider(cx));
+        column.push(rows::skip());
+        column.push(self.scale.clone().into_any_element());
         column.push(rows::skip());
         for group in [PREMIUM, HELP] {
             column.push(rows::divider(cx));

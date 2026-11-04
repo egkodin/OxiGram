@@ -44,6 +44,8 @@ struct Shutdown {
     clients: Vec<Running>,
     stopper: tg::Stopper,
     is_quitting: bool,
+    /// Start rgram again once TDLib has closed (`Core::Restart`).
+    is_restarting: bool,
 }
 
 impl Shutdown {
@@ -75,8 +77,13 @@ pub(crate) fn init(cx: &mut App, stopper: tg::Stopper) {
         clients: Vec::new(),
         stopper,
         is_quitting: false,
+        is_restarting: false,
     });
     cx.on_action(|_: &Quit, cx| quit(cx));
+    cx.on_action(|_: &features::RestartApp, cx| {
+        cx.global_mut::<Shutdown>().is_restarting = true;
+        quit(cx);
+    });
     cx.bind_keys([KeyBinding::new(QUIT_SHORTCUT, Quit, None)]);
     set_menus(cx);
     cx.observe_global::<features::Lang>(set_menus).detach();
@@ -167,9 +174,27 @@ pub(crate) fn quit(cx: &mut App) {
         cx.background_executor()
             .spawn(async move { stopper.stop() })
             .await;
-        cx.update(|cx| cx.quit());
+        cx.update(|cx| {
+            if cx.global::<Shutdown>().is_restarting {
+                start_again();
+            }
+            cx.quit();
+        });
     })
     .detach();
+}
+
+/// Starts this binary again with the same arguments; TDLib's database is
+/// closed by now, so the new process can open it.
+fn start_again() {
+    let started = std::env::current_exe().and_then(|path| {
+        std::process::Command::new(path)
+            .args(std::env::args_os().skip(1))
+            .spawn()
+    });
+    if let Err(error) = started {
+        tracing::error!(%error, "starting rgram again failed");
+    }
 }
 
 /// A [`Closed`] future and the sender that resolves it.
