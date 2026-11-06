@@ -122,7 +122,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Chat screen</b>: 0 of 55 done, 41 in progress</summary>
+<summary><b>Chat screen</b>: 0 of 55 done, 42 in progress</summary>
 
 - [ ] Title bar: name, status (online, last seen, members, subscribers), typing (M3) *(in progress)*
 - [ ] Title bar buttons: search, call, video call, info panel, menu (M3) *(in progress)*
@@ -144,7 +144,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Entities: emails, phone numbers, bank cards with their menus (M3) *(in progress)*
 - [ ] Entities: spoilers with the reveal animation (M3) *(in progress)*
 - [ ] Entities: block quotes and expandable quotes (M3) *(in progress)*
-- [ ] Entities: custom emoji in text (M5)
+- [ ] Entities: custom emoji in text (M5) *(in progress)*
 - [ ] Entities: formatted dates and timestamps (timecodes) (M3) *(in progress)*
 - [ ] Large single emoji and animated emoji (M5) *(in progress)*
 - [ ] Emoji interactions (click an animated emoji, see the partner's) (M5)
@@ -183,12 +183,12 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Reactions</b>: 0 of 7 done, 4 in progress</summary>
+<summary><b>Reactions</b>: 0 of 7 done, 5 in progress</summary>
 
 - [ ] Reaction counters in bubbles with userpics in small chats (M3) *(in progress)*
 - [ ] Hover button, reaction strip and expanded selector with custom emoji (M4) *(in progress)*
 - [ ] Quick reaction on double-click (M4) *(in progress)*
-- [ ] Reaction animations (M8)
+- [ ] Reaction animations (M8) *(in progress)*
 - [ ] Who reacted list with tabs per reaction (M3) *(in progress)*
 - [ ] Paid star reactions with the top senders list (M13)
 - [ ] Allowed reactions per chat (M6)

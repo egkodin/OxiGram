@@ -76,6 +76,12 @@ impl Root {
         // The title bar dims with the window, as the native one does.
         cx.observe_window_activation(window, |_, _, cx| cx.notify())
             .detach();
+        // Animations stop while nothing of the window shows (`isHidden`).
+        window
+            .observe_window_visibility(|visibility, _, cx| {
+                crate::lottie::set_window_visible(visibility.is_visible(), cx);
+            })
+            .detach();
         let mut this = Self {
             shared,
             screen: Screen::Blank,

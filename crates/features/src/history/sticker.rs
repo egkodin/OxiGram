@@ -38,11 +38,29 @@ fn size(picture: &StickerPicture) -> (i32, i32) {
 
 impl HistoryView {
     /// `message`'s sticker: the file of a still one, else its still; a
-    /// video one loops over its still once on disk.
-    // shortcut: animated (TGS) stickers show their still; playing them comes with the Lottie player.
+    /// video one loops over its still once on disk, a TGS one plays in the
+    /// Lottie player.
     pub(super) fn sticker(
         &mut self,
         message: MessageId,
+        picture: &StickerPicture,
+        cx: &mut Context<Self>,
+    ) -> Photo {
+        let still = self.sticker_still(picture, cx);
+        let size = super::animated::box_size(&still);
+        let frame = match picture.kind {
+            StickerKind::Video if crate::power_saving::plays(Flag::StickersChat, cx) => {
+                self.video_sticker(message, picture, (still.width, still.height), cx)
+            }
+            StickerKind::Animated => self.lottie_sticker(picture, size, cx),
+            StickerKind::Still | StickerKind::Video => None,
+        };
+        Photo { frame, ..still }
+    }
+
+    /// The sticker's picture before it moves: its file or its still.
+    pub(super) fn sticker_still(
+        &mut self,
         picture: &StickerPicture,
         cx: &mut Context<Self>,
     ) -> Photo {
@@ -60,24 +78,19 @@ impl HistoryView {
             }
         }
         let (width, height) = size(picture);
-        let frame = match picture.kind {
-            StickerKind::Video if crate::power_saving::plays(Flag::StickersChat, cx) => {
-                self.video_sticker(message, picture, (width, height), cx)
-            }
-            StickerKind::Still | StickerKind::Animated | StickerKind::Video => None,
-        };
         Photo {
             width,
             height,
             source: path.map(|path| ImageSource::from(PathBuf::from(path))),
             thumbnail: None,
             video: None,
-            frame,
+            frame: None,
             map: None,
             placeholder: None,
             spoiler: None,
             open: None,
             once: None,
+            effect: None,
         }
     }
 }
@@ -85,7 +98,7 @@ impl HistoryView {
 impl HistoryView {
     /// A WebM sticker's frame, muted and looped as GIFs are; it downloads
     /// the first time it shows.
-    fn video_sticker(
+    pub(super) fn video_sticker(
         &mut self,
         message: MessageId,
         picture: &StickerPicture,
@@ -125,6 +138,8 @@ mod tests {
             dimensions: Dimensions::new(width, height),
             file,
             still: None,
+            premium_effect: None,
+            skin_tone: None,
         })
     }
 

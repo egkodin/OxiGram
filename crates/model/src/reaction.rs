@@ -6,14 +6,16 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::ReactionType;
 use td_api::functions::{
-    AddMessageReaction, GetMessageAddedReactions, GetMessageAvailableReactions,
+    AddMessageReaction, GetEmojiReaction, GetMessageAddedReactions, GetMessageAvailableReactions,
     RemoveMessageReaction,
 };
 use td_api::types::{ReactionTypeCustomEmoji, ReactionTypeEmoji, ReactionTypePaid};
 
+use crate::file::File;
 use crate::ids::{ChatId, CustomEmojiId, MessageId};
 use crate::message::Sender;
 use crate::session::{RequestError, Session};
+use crate::sticker::{StickerKind, StickerPicture};
 
 /// A message's reactions, in the order TDLib sends them.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -222,6 +224,41 @@ impl From<ReactionType> for ReactionKind {
             ReactionType::Paid(_) => Self::Paid,
         }
     }
+}
+
+/// An emoji reaction's TGS animations (`getEmojiReaction`): the strip
+/// plays `appear`, a reaction the user adds plays `center` and `around`.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ReactionAnimations {
+    pub appear: Option<File>,
+    pub center: Option<File>,
+    pub around: Option<File>,
+}
+
+impl Session {
+    /// The animations of an emoji reaction.
+    pub fn emoji_reaction(
+        &self,
+        emoji: String,
+    ) -> impl Future<Output = Result<ReactionAnimations, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetEmojiReaction { emoji })
+            .map(|result| {
+                result
+                    .map_err(RequestError::from)
+                    .map(|reaction| ReactionAnimations {
+                        appear: tgs(*reaction.appear_animation),
+                        center: reaction.center_animation.and_then(|sticker| tgs(*sticker)),
+                        around: reaction.around_animation.and_then(|sticker| tgs(*sticker)),
+                    })
+            })
+    }
+}
+
+/// The sticker's file when it is Lottie.
+fn tgs(sticker: td_api::types::Sticker) -> Option<File> {
+    let picture = StickerPicture::from(sticker);
+    (picture.kind == StickerKind::Animated).then_some(picture.file)
 }
 
 #[cfg(test)]

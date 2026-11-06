@@ -1,11 +1,11 @@
 //! Reacting to messages: a chip toggles the user's reaction, a double
 //! click adds the quick one, and the menu opens under a strip of the
 //! reactions the message takes (`Reactions::Selector`).
-// shortcut: no expanded selector with every emoji and no big-reaction effects; with the emoji panel's reaction tab and the Lottie player.
+// shortcut: no expanded selector with every emoji, no select animation on hover and no big-reaction effect; with the emoji panel's reaction tab.
 
 use gpui::{
     AnyElement, App, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, Task, div, prelude::FluentBuilder as _,
+    StatefulInteractiveElement as _, Styled as _, Task, div, img, prelude::FluentBuilder as _,
 };
 use model::MessageId;
 use model::reaction::ReactionKind;
@@ -33,6 +33,8 @@ pub(super) struct Strip {
     message: MessageId,
     kinds: Vec<ReactionKind>,
     chosen: Vec<ReactionKind>,
+    /// The appear animations' clock, fresh each time the menu opens.
+    instance: u64,
 }
 
 impl HistoryView {
@@ -52,6 +54,7 @@ impl HistoryView {
         let task = if is_chosen {
             spawn(session.remove_reaction(self.chat, message, kind), cx)
         } else {
+            self.start_flying(message, kind, cx);
             spawn(session.add_reaction(self.chat, message, kind), cx)
         };
         cx.spawn(async move |_, _| {
@@ -106,17 +109,19 @@ impl HistoryView {
         .detach();
     }
 
-    pub(super) fn strip(&self, message: MessageId, kinds: Vec<ReactionKind>) -> Option<Strip> {
+    pub(super) fn strip(&mut self, message: MessageId, kinds: Vec<ReactionKind>) -> Option<Strip> {
         let found = self.shown.iter().find(|shown| shown.id == message)?;
+        let chosen = chosen(found);
         (!kinds.is_empty()).then(|| Strip {
             message,
             kinds,
-            chosen: chosen(found),
+            chosen,
+            instance: self.motions.next_instance(),
         })
     }
 
     /// The strip's row of reactions; a pick closes the menu.
-    pub(super) fn strip_element(&self, strip: &Strip, cx: &mut Context<Self>) -> AnyElement {
+    pub(super) fn strip_element(&mut self, strip: &Strip, cx: &mut Context<Self>) -> AnyElement {
         let weak = cx.weak_entity();
         let over = color(cx, ColorRef::Palette(ColorId::WindowBgOver));
         let active = color(cx, ColorRef::Palette(ColorId::WindowBgActive)).opacity(CHOSEN_OPACITY);
@@ -128,7 +133,10 @@ impl HistoryView {
             .map(|(index, kind)| {
                 let shown = picture(&self.store, kind, cx);
                 let is_chosen = strip.chosen.contains(kind);
-                let face = emoji(kind, shown.as_deref());
+                let face = match self.strip_frame(kind, strip.instance, cx) {
+                    Some(frame) => img(frame).size_full().into_any_element(),
+                    None => emoji(kind, shown.as_deref()).into_any_element(),
+                };
                 let (weak, kind, message) = (weak.clone(), kind.clone(), strip.message);
                 div()
                     .id(("reaction-strip", index))

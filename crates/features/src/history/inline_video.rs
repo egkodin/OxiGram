@@ -35,6 +35,11 @@ pub(super) struct Frame {
 }
 
 impl HistoryView {
+    /// The window's scale, as the last frame drew it.
+    pub(super) fn display_scale(&self) -> f32 {
+        self.inline.scale
+    }
+
     /// Stops what scrolled away or ended, and keeps the rest moving.
     pub(super) fn tick_inline(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let inline = &mut self.inline;
@@ -48,6 +53,7 @@ impl HistoryView {
             seen.contains(id) && !playback.is_finished()
         });
         media_video::drop_retired(window, cx);
+        crate::lottie::drop_retired(window, cx);
         if inline
             .playing
             .values()

@@ -38,8 +38,12 @@ The owner asked for ten things at once; state of each:
    `viewMessages` so TDLib refreshes their reactions. Paid reactions are
    never sent.
 6. Lone emoji: Telegram's picture via `getAnimatedEmoji` when TDLib sent
-   none. Not done: playing animated (TGS/Lottie) emoji and reactions;
-   that needs a Lottie renderer, a new dependency the owner decides on.
+   none. Lottie (ADR 0007, tlottie as tdesktop): TGS stickers loop,
+   animated emoji and dice play once (a click replays), custom emoji alone
+   show big and loop, Premium stickers play their effect, the reaction
+   strip plays appear animations, an added reaction plays its center and
+   around animations, custom emoji loop in chips; Power Usage's switches
+   apply; numbers in docs/perf.md. Not done: custom emoji inside text.
 7. Interface animations: the message menu fades in, the pull card grows
    and slides away; boxes already faded. Frames only while running.
 8. The comments bar sits inside photo posts' bubbles.
@@ -63,7 +67,17 @@ Live tests (read-only unless they say Saved Messages):
 55. Saved Messages only: right-click a message, pick 👍 in the strip,
     click its chip to take it back; double-click a message for ❤ and
     again to remove it. Elsewhere only look at the strip, pick nothing.
-56. A chat with a lone emoji: Telegram's picture at the big size (still).
+56. A chat with a lone emoji: it plays once at the big size; a click
+    plays it again.
+57. A chat with TGS stickers: they loop; a Premium sticker plays its
+    effect beside it once. Power Usage, "Autoplay in chat" (stickers) off:
+    they stand still. Restore it.
+58. A message's menu: the strip's emoji grow in (appear animation); pick
+    nothing outside Saved Messages. A chip of an animated custom emoji
+    reaction loops.
+59. A message of custom emoji only: shown big, looping.
+60. Hide the window (minimize) while stickers play and back: they pause
+    and go on; idle CPU with the chat open (`ps -o time=` over 10 s).
 
 ## Settings section (M6/M7 request, in progress)
 

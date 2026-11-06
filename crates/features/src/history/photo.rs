@@ -3,6 +3,7 @@
 //! time on a dark pill over it when no caption follows.
 
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::prelude::FluentBuilder as _;
@@ -11,8 +12,10 @@ use gpui::{
     ParentElement as _, Pixels, RenderImage, SharedString, Styled, StyledImage as _, canvas, div,
     img, px,
 };
+use model::MessageId;
 use model::file::{Dimensions, File};
 use model::message::{Content, Media, Message};
+use model::sticker::{StickerKind, StickerPicture};
 use style::chat::{
     HISTORY_PHOTO_BUBBLE_MIN_WIDTH, MAX_ANIMATED_EMOJI_SIZE, MAX_MEDIA_SIZE, MEDIA_CAPTION_SKIP,
     MEDIA_IN_BUBBLE_SKIP, MIN_PHOTO_SIZE, MSG_DATE_IMG_DELTA, MSG_DATE_IMG_PADDING, MSG_PADDING,
@@ -26,6 +29,7 @@ use super::album::{self, Pictures};
 use super::bubble::{self, Foot, InfoOn, Item};
 use super::documents::current;
 use super::video::Video;
+use crate::power_saving::Flag;
 use crate::px_of;
 
 /// Photos in view load before userpics (TDLib's 1..=32, higher first).
@@ -51,6 +55,8 @@ pub(super) struct Photo {
     pub open: Option<bubble::OnClick>,
     /// Set on view-once and timed media: the fire over the cover.
     pub once: Option<model::message::SelfDestruct>,
+    /// A Premium sticker's effect around it.
+    pub effect: Option<super::animated::Effect>,
 }
 
 /// `QSize::scaled` with `Qt::KeepAspectRatio` (`expanding` false) or
@@ -111,26 +117,51 @@ fn size(dimensions: Option<Dimensions>) -> (i32, i32) {
 }
 
 impl HistoryView {
-    /// A lone emoji's picture from `getAnimatedEmoji`, at the animated
-    /// emoji's size, once on disk.
-    fn animated_emoji(&mut self, emoji: &str, cx: &mut Context<Self>) -> Option<Photo> {
-        let key = crate::store::EmojiKey::Animated(emoji.to_owned());
-        let path = self
+    /// An animated emoji at `Sticker::EmojiSize`, played once and again on a
+    /// click.
+    fn emoji_sticker(
+        &mut self,
+        message: MessageId,
+        picture: &StickerPicture,
+        cx: &mut Context<Self>,
+    ) -> Photo {
+        let side = MAX_ANIMATED_EMOJI_SIZE.0;
+        #[expect(clippy::cast_precision_loss, reason = "a size in points")]
+        let size = (side as f32, side as f32);
+        let still = self.sticker_still(picture, cx);
+        let frame = match picture.kind {
+            StickerKind::Animated => self.lottie_emoji(message, picture, size, cx),
+            StickerKind::Video if crate::power_saving::plays(Flag::EmojiChat, cx) => {
+                self.video_sticker(message, picture, (side, side), cx)
+            }
+            StickerKind::Still | StickerKind::Video => None,
+        };
+        let weak = cx.weak_entity();
+        let replayed = picture.clone();
+        Photo {
+            width: side,
+            height: side,
+            frame,
+            open: Some(Rc::new(move |_, _, cx| {
+                let _ = weak.update(cx, |this, cx| {
+                    this.replay_emoji(message, &replayed, size, cx)
+                });
+            })),
+            ..still
+        }
+    }
+
+    /// A lone emoji's sticker from `getAnimatedEmoji`, once TDLib tells.
+    fn animated_emoji(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
+        let Content::Emoji { emoji, .. } = &message.content else {
+            return None;
+        };
+        let key = crate::store::EmojiKey::Animated(emoji.clone());
+        let sticker = self
             .store
-            .update(cx, |store, cx| store.emoji_picture(&key, cx))?;
-        Some(Photo {
-            width: MAX_ANIMATED_EMOJI_SIZE.0,
-            height: MAX_ANIMATED_EMOJI_SIZE.0,
-            source: Some(ImageSource::from(std::path::PathBuf::from(path))),
-            thumbnail: None,
-            video: None,
-            frame: None,
-            map: None,
-            placeholder: None,
-            spoiler: None,
-            open: None,
-            once: None,
-        })
+            .update(cx, |store, cx| store.emoji_sticker(&key, cx))
+            .filter(super::large_emoji::is_drawable)?;
+        Some(self.emoji_sticker(message.id, &sticker, cx))
     }
 
     /// A photo, video or GIF message's picture.
@@ -149,7 +180,7 @@ impl HistoryView {
             Content::Sticker {
                 picture: Some(picture),
                 ..
-            } => Some(self.sticker(message.id, picture, cx)),
+            } => Some(self.premium_sticker(message, picture, cx)),
             // `Sticker::EmojiSize`, for animated emoji and dice alike.
             Content::Emoji {
                 sticker: Some(picture),
@@ -157,18 +188,13 @@ impl HistoryView {
             } if super::large_emoji::is_drawable(picture)
                 && crate::settings::is_large_emoji(cx) =>
             {
-                Some(Photo {
-                    width: MAX_ANIMATED_EMOJI_SIZE.0,
-                    height: MAX_ANIMATED_EMOJI_SIZE.0,
-                    ..self.sticker(message.id, picture, cx)
-                })
+                Some(self.emoji_sticker(message.id, picture, cx))
             }
             // TDLib had no sticker yet: Telegram's picture once asked for,
             // the glyph until then.
-            Content::Emoji {
-                emoji,
-                sticker: None,
-            } if crate::settings::is_large_emoji(cx) => self.animated_emoji(emoji, cx),
+            Content::Emoji { sticker: None, .. } if crate::settings::is_large_emoji(cx) => {
+                self.animated_emoji(message, cx)
+            }
             _ => None,
         };
         photo.map(|photo| match message.self_destruct {
@@ -208,12 +234,42 @@ impl HistoryView {
             spoiler: None,
             open: None,
             once: None,
+            effect: None,
         }
     }
 }
 
 /// The picture with the bubble's corners where it meets the bubble's edge.
-pub(super) fn picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
+pub(super) fn picture(mut photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
+    let Some(effect) = photo.effect.take() else {
+        return plain_picture(photo, corners, cx);
+    };
+    let image = effect.image;
+    // Over the messages around it, unclipped, as tdesktop's effects layer.
+    div()
+        .relative()
+        .child(plain_picture(photo, corners, cx))
+        .child(
+            canvas(
+                |_, _, _| (),
+                move |bounds, (), window, _| {
+                    if let Err(error) =
+                        window.paint_image(bounds, bounds, Corners::default(), image, 0, false)
+                    {
+                        tracing::warn!(%error, "cannot paint an effect frame");
+                    }
+                },
+            )
+            .absolute()
+            .left(px(effect.left))
+            .top(px(effect.top))
+            .w(px(effect.width))
+            .h(px(effect.height)),
+        )
+        .into_any_element()
+}
+
+fn plain_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     let (width, height) = (px_of(Px(photo.width)), px_of(Px(photo.height)));
     if let Some(frame) = photo.frame {
         return playing(frame, corners)

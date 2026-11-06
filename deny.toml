@@ -58,4 +58,6 @@ allow-git = [
     "https://github.com/zed-industries/wasm_thread",
     "https://github.com/zed-industries/xim-rs",
     "https://github.com/zed-industries/zed",
+    # The Lottie renderer tdesktop uses, pinned by rev (ADR 0007).
+    "https://github.com/dkaraush/tlottie",
 ]

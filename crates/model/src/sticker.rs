@@ -29,6 +29,10 @@ pub struct StickerPicture {
     pub file: File,
     /// TDLib's thumbnail when it is a picture gpui draws (WebP, PNG or JPEG).
     pub still: Option<File>,
+    /// A Premium sticker's effect around it (`premium_animation`).
+    pub premium_effect: Option<File>,
+    /// An animated emoji's skin tone, `fitzpatrick_type` 2 to 6.
+    pub skin_tone: Option<u8>,
 }
 
 impl From<td_api::types::Sticker> for StickerPicture {
@@ -45,11 +49,19 @@ impl From<td_api::types::Sticker> for StickerPicture {
             )
             .then(|| File::from(*thumbnail.file))
         });
+        let premium_effect = match *sticker.full_type {
+            StickerFullType::Regular(regular) => {
+                regular.premium_animation.map(|file| File::from(*file))
+            }
+            StickerFullType::Mask(_) | StickerFullType::CustomEmoji(_) => None,
+        };
         Self {
             kind,
             dimensions: Dimensions::new(sticker.width, sticker.height),
             file: File::from(*sticker.sticker),
             still,
+            premium_effect,
+            skin_tone: None,
         }
     }
 }
@@ -91,16 +103,26 @@ impl crate::session::Session {
         self.client()
             .request(&GetAnimatedEmoji { emoji })
             .map(|result| {
-                result.map_err(RequestError::from).map(|animated| {
-                    animated
-                        .sticker
-                        .map(|sticker| StickerPicture::from(*sticker))
-                })
+                result
+                    .map_err(RequestError::from)
+                    .map(StickerPicture::from_animated_emoji)
             })
     }
 }
 
 impl StickerPicture {
+    /// The sticker of an animated emoji, with its skin tone.
+    #[must_use]
+    pub fn from_animated_emoji(animated: td_api::types::AnimatedEmoji) -> Option<Self> {
+        let skin_tone = u8::try_from(animated.fitzpatrick_type)
+            .ok()
+            .filter(|tone| *tone > 0);
+        animated.sticker.map(|sticker| Self {
+            skin_tone,
+            ..Self::from(*sticker)
+        })
+    }
+
     /// The file gpui can draw: the sticker itself when it is a picture, else
     /// its still.
     #[must_use]

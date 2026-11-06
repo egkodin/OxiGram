@@ -9,6 +9,9 @@ mod chats;
 mod creates;
 mod deletes;
 mod history;
+mod lottie;
+mod lottie_soak;
+
 mod media;
 mod profiles;
 mod scenarios;
@@ -136,6 +139,13 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
     {
         return soak::run(session, seconds, cx).await;
     }
+    if let Some(seconds) = std::env::var("SNAPSHOTS_LOTTIE")
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        return lottie_soak::run(session, seconds, cx).await;
+    }
+
     // SNAPSHOTS_ONLY=41,77 runs the scenarios whose first step starts so.
     let only = std::env::var("SNAPSHOTS_ONLY").unwrap_or_default();
     let only: Vec<&str> = only.split(',').filter(|part| !part.is_empty()).collect();
@@ -444,10 +454,40 @@ fn accounts(
 
 pub(crate) fn open(accounts: Entity<Accounts>, cx: &mut App) -> anyhow::Result<AnyWindowHandle> {
     let bounds = Bounds::centered(None, size(px(WIDTH), px(HEIGHT)), cx);
-    let options = WindowOptions {
-        window_bounds: Some(WindowBounds::Windowed(bounds)),
-        ..Default::default()
-    };
+    open_with(
+        accounts,
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            ..Default::default()
+        },
+        cx,
+    )
+}
+
+/// A window above all others that takes no focus, so it gets display-link
+/// frames and no App Nap while it is measured.
+pub(crate) fn open_on_top(
+    accounts: Entity<Accounts>,
+    cx: &mut App,
+) -> anyhow::Result<AnyWindowHandle> {
+    let bounds = Bounds::centered(None, size(px(WIDTH), px(HEIGHT)), cx);
+    open_with(
+        accounts,
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            kind: gpui::WindowKind::PopUp,
+            focus: false,
+            ..Default::default()
+        },
+        cx,
+    )
+}
+
+fn open_with(
+    accounts: Entity<Accounts>,
+    options: WindowOptions,
+    cx: &mut App,
+) -> anyhow::Result<AnyWindowHandle> {
     let window = cx.open_window(options, |window, cx| {
         cx.new(|cx| Root::new(accounts, window, cx))
     })?;

@@ -1,6 +1,8 @@
 //! Message text with its entities (`Ui::Text::String`): blocks for code
 //! and quotes, styled runs inside them, and what each link opens.
 
+// shortcut: custom emoji inside a text show their fallback emoji; drawing them needs images placed at their runs in gpui's text layout, when inline custom emoji come up.
+
 use std::ops::Range;
 
 use gpui::{FontStyle, FontWeight, Hsla, StrikethroughStyle, TextRun, UnderlineStyle, px};

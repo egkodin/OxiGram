@@ -360,6 +360,12 @@ pub(crate) fn set_notify(notify: Notify, cx: &mut App) {
     change(cx, |values| values.notify = notify);
 }
 
+/// Power Usage's switches as tdesktop's bits, for the snapshots' soak.
+#[doc(hidden)]
+pub fn preset_power_saving(bits: u32, cx: &mut App) {
+    set_power_saving(crate::power_saving::Saving(bits), cx);
+}
+
 pub(crate) fn power_saving(cx: &App) -> crate::power_saving::Saving {
     crate::power_saving::Saving(values(cx).map_or(0, |values| values.power_saving))
 }

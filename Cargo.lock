@@ -3185,9 +3185,13 @@ version = "0.1.0"
 dependencies = [
  "cpal",
  "ffmpeg-next",
+ "flate2",
+ "futures",
+ "futures-channel",
  "ogg",
  "opus",
  "thiserror 2.0.21",
+ "tlottie",
  "tracing",
 ]
 
@@ -5707,6 +5711,11 @@ name = "tinyvec"
 version = "1.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
+
+[[package]]
+name = "tlottie"
+version = "0.1.0"
+source = "git+https://github.com/dkaraush/tlottie?rev=758c7cb74444f1c3c9923065c40fdb3aad8b7d60#758c7cb74444f1c3c9923065c40fdb3aad8b7d60"
 
 [[package]]
 name = "tokio"

@@ -6,9 +6,11 @@ use std::future::Future;
 use std::time::Duration;
 
 use gpui::{App, Context, EventEmitter, Task};
+use model::file::File;
 use model::history::Page;
 use model::message::Message;
-use model::sticker::StickerPicture;
+use model::reaction::ReactionAnimations;
+use model::sticker::{StickerKind, StickerPicture};
 use model::thread::Key;
 use model::{
     ChatId, CustomEmojiId, Environment, Event, FileId, MessageId, RequestError, Session, State,
@@ -36,7 +38,17 @@ pub struct Store {
     userpics: HashMap<FileId, Userpic>,
     /// Emoji pictures asked for this run: None while they load or when
     /// Telegram has none.
-    emoji: HashMap<EmojiKey, Option<String>>,
+    emoji: HashMap<EmojiKey, Option<Emoji>>,
+    /// Emoji reactions' animations asked for this run, by emoji.
+    reaction_animations: HashMap<String, Option<ReactionAnimations>>,
+}
+
+/// What an emoji is drawn from.
+#[derive(Debug, Clone)]
+struct Emoji {
+    /// The still picture's path once on disk.
+    still: Option<String>,
+    sticker: StickerPicture,
 }
 
 /// An emoji drawn from Telegram's own picture.
@@ -98,6 +110,7 @@ impl Store {
             forwarding: HashMap::new(),
             userpics: HashMap::new(),
             emoji: HashMap::new(),
+            reaction_animations: HashMap::new(),
         }
     }
 
@@ -141,6 +154,25 @@ impl Store {
     /// it, and views draw again when it lands.
     // shortcut: one request per emoji and no retry; batch ids and retry when long reaction lists or a flaky network show gaps.
     pub fn emoji_picture(&mut self, key: &EmojiKey, cx: &mut Context<Self>) -> Option<String> {
+        self.emoji(key, cx)?.still
+    }
+
+    /// The TGS file of an animated emoji, asked for as `emoji_picture` is.
+    pub fn emoji_animation(&mut self, key: &EmojiKey, cx: &mut Context<Self>) -> Option<File> {
+        let sticker = self.emoji(key, cx)?.sticker;
+        (sticker.kind == StickerKind::Animated).then_some(sticker.file)
+    }
+
+    /// The emoji's sticker, asked for as `emoji_picture` is.
+    pub fn emoji_sticker(
+        &mut self,
+        key: &EmojiKey,
+        cx: &mut Context<Self>,
+    ) -> Option<StickerPicture> {
+        Some(self.emoji(key, cx)?.sticker)
+    }
+
+    fn emoji(&mut self, key: &EmojiKey, cx: &mut Context<Self>) -> Option<Emoji> {
         if let Some(known) = self.emoji.get(key) {
             return known.clone();
         }
@@ -148,14 +180,39 @@ impl Store {
         let task = spawn(fetch_emoji(self.session.clone(), key.clone()), cx);
         let key = key.clone();
         cx.spawn(async move |this, cx| match task.await {
-            Ok(Some(path)) => {
+            Ok(Some(emoji)) => {
                 let _ = this.update(cx, |this, cx| {
-                    this.emoji.insert(key, Some(path));
+                    this.emoji.insert(key, Some(emoji));
                     cx.notify();
                 });
             }
             Ok(None) => {}
             Err(error) => tracing::warn!(%error, "loading an emoji picture failed"),
+        })
+        .detach();
+        None
+    }
+
+    /// An emoji reaction's animations; the first ask fetches them.
+    pub fn reaction_animations(
+        &mut self,
+        emoji: &str,
+        cx: &mut Context<Self>,
+    ) -> Option<ReactionAnimations> {
+        if let Some(known) = self.reaction_animations.get(emoji) {
+            return known.clone();
+        }
+        self.reaction_animations.insert(emoji.to_owned(), None);
+        let task = spawn(self.session.emoji_reaction(emoji.to_owned()), cx);
+        let emoji = emoji.to_owned();
+        cx.spawn(async move |this, cx| match task.await {
+            Ok(animations) => {
+                let _ = this.update(cx, |this, cx| {
+                    this.reaction_animations.insert(emoji, Some(animations));
+                    cx.notify();
+                });
+            }
+            Err(error) => tracing::warn!(%error, "loading a reaction's animations failed"),
         })
         .detach();
         None
@@ -291,7 +348,7 @@ fn log_failure(
 
 /// Runs a session request off the UI thread.
 /// Finds an emoji's sticker and downloads the picture gpui draws.
-async fn fetch_emoji(session: Session, key: EmojiKey) -> Result<Option<String>, RequestError> {
+async fn fetch_emoji(session: Session, key: EmojiKey) -> Result<Option<Emoji>, RequestError> {
     let picture: Option<StickerPicture> = match key {
         EmojiKey::Custom(id) => session
             .custom_emoji(vec![id])
@@ -301,16 +358,23 @@ async fn fetch_emoji(session: Session, key: EmojiKey) -> Result<Option<String>, 
             .map(|(_, picture)| picture),
         EmojiKey::Animated(emoji) => session.animated_emoji(emoji).await?,
     };
-    let Some(file) = picture.as_ref().and_then(StickerPicture::drawable) else {
+    let Some(picture) = picture else {
         return Ok(None);
     };
-    if file.path.is_some() {
-        return Ok(file.path.clone());
-    }
-    Ok(session
-        .download_whole_file(file.id, EMOJI_PRIORITY)
-        .await?
-        .path)
+    let still = match picture.drawable() {
+        Some(file) if file.path.is_some() => file.path.clone(),
+        Some(file) => {
+            session
+                .download_whole_file(file.id, EMOJI_PRIORITY)
+                .await?
+                .path
+        }
+        None => None,
+    };
+    Ok(Some(Emoji {
+        still,
+        sticker: picture,
+    }))
 }
 
 pub fn spawn<T: Send + 'static>(

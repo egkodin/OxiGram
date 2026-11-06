@@ -59,6 +59,9 @@ use crate::{columns, settings};
 
 /// Chats asked from TDLib at a time.
 const PAGE: i32 = 50;
+/// After a failed page, the wait before the list asks again: every frame
+/// would ask otherwise.
+const LOAD_RETRY: std::time::Duration = std::time::Duration::from_secs(2);
 /// Load the next page when this few loaded rows are left below the view.
 const PRELOAD_ROWS: usize = 10;
 /// Userpic downloads go before media but after what the user opened.
@@ -273,14 +276,14 @@ impl Dialogs {
         );
         cx.spawn(async move |this, cx| {
             let result = task.await;
+            if let Err(error) = &result {
+                tracing::warn!(%error, "loading chats failed");
+                cx.background_executor().timer(LOAD_RETRY).await;
+            }
             this.update(cx, |this, cx| {
                 this.loading = match result {
-                    Ok(ListLoad::HasMore) => Loading::Idle,
+                    Ok(ListLoad::HasMore) | Err(_) => Loading::Idle,
                     Ok(ListLoad::Complete) => Loading::Complete,
-                    Err(error) => {
-                        tracing::warn!(%error, "loading chats failed");
-                        Loading::Idle
-                    }
                 };
                 cx.notify();
             })

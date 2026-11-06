@@ -481,11 +481,14 @@ fn big_emoji() -> Vec<Message> {
     let text =
         |id, from, ago, text: &str| place(id, from, ago, Content::text(FormattedText::plain(text)));
     let path = sticker_file();
+    let animation = super::lottie::tgs(0);
     let picture = StickerPicture {
         kind: StickerKind::Animated,
         dimensions: Dimensions::new(512, 512),
-        file: file(990, path.as_deref()),
+        file: file(990, animation.as_deref()),
         still: Some(file(991, path.as_deref())),
+        premium_effect: None,
+        skin_tone: None,
     };
     vec![
         text(1, MARIA, 5 * HOUR, "😂"),
@@ -565,12 +568,19 @@ fn checklists() -> Vec<Message> {
 
 fn stickers() -> Vec<Message> {
     let path = sticker_file();
+    let animation = super::lottie::tgs(1);
     let sticker = |id: i64, from: i64, ago: i32, kind: StickerKind, still: Option<File>| {
+        let shown = match kind {
+            StickerKind::Animated => animation.as_deref(),
+            StickerKind::Still | StickerKind::Video => path.as_deref(),
+        };
         let picture = StickerPicture {
             kind,
             dimensions: Dimensions::new(512, 512),
-            file: file(i32::try_from(960 + id).unwrap_or(960), path.as_deref()),
+            file: file(i32::try_from(960 + id).unwrap_or(960), shown),
             still,
+            premium_effect: None,
+            skin_tone: None,
         };
         place(
             id,
@@ -1021,6 +1031,8 @@ fn inline_videos(still: &Path) -> Vec<Message> {
         dimensions: Dimensions::new(512, 512),
         file: file(1215, Some(Path::new(ALPHA_CLIP))),
         still: None,
+        premium_effect: None,
+        skin_tone: None,
     };
     let sticker = saved(
         3,

@@ -22,6 +22,7 @@ use style::chat::{
 use style::{ColorId, ColorRef};
 use ui::{UserpicSource, color, font, font_height};
 
+use super::reaction_motion::{Motion, chip_face};
 use super::userpics_row::userpics_row;
 use super::{HistoryView, layout, sender_face};
 use crate::px_of;
@@ -47,6 +48,7 @@ pub(super) struct Button {
     is_chosen: bool,
     /// A custom emoji's picture once on disk.
     picture: Option<String>,
+    motion: Motion,
     on_toggle: OnToggle,
 }
 
@@ -108,6 +110,7 @@ impl HistoryView {
                     label,
                     is_chosen: reaction.is_chosen,
                     picture: None,
+                    motion: Motion::default(),
                     on_toggle: Rc::new(move |_, cx| {
                         let _ = weak.update(cx, |this, cx| {
                             this.toggle_reaction(message_id, &kind, is_chosen, cx);
@@ -123,6 +126,7 @@ impl HistoryView {
             .into_iter()
             .map(|button| Button {
                 picture: picture(&self.store, &button.kind, cx),
+                motion: self.chip_motion(message_id, &button.kind, cx),
                 ..button
             })
             .collect()
@@ -235,7 +239,10 @@ fn element(button: Button, out: bool, is_selected: bool, cx: &App) -> AnyElement
         // The row under it starts a selection on press.
         .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_click(move |_, window, cx| on_toggle(window, cx))
-        .child(emoji(&button.kind, button.picture.as_deref()))
+        .child(chip_face(
+            button.motion,
+            emoji(&button.kind, button.picture.as_deref()).into_any_element(),
+        ))
         .map(|this| match button.label {
             Label::Count(count) if count.is_empty() => this,
             Label::Count(count) => this.child(

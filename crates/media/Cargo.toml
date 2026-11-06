@@ -1,6 +1,6 @@
 [package]
 name = "media"
-description = "Voice capture and encoding, and video and audio decoding through FFmpeg"
+description = "Voice capture and encoding, video and audio decoding through FFmpeg, and Lottie through tlottie"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,10 +9,16 @@ publish.workspace = true
 [dependencies]
 cpal.workspace = true
 ffmpeg-next.workspace = true
+flate2.workspace = true
+futures-channel.workspace = true
 ogg.workspace = true
 opus.workspace = true
 thiserror.workspace = true
+tlottie.workspace = true
 tracing.workspace = true
+
+[dev-dependencies]
+futures.workspace = true
 
 [features]
 # Links the FFmpeg that scripts/build-ffmpeg.sh builds statically, found

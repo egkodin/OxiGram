@@ -713,16 +713,17 @@ impl HistoryView {
     }
 
     pub(super) fn menu_overlay(
-        &self,
+        &mut self,
         window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let open = self.menu.as_ref()?;
+        // Out while it draws, as its frames need the view.
+        let taken = self.menu.as_mut()?.strip.take();
+        let strip = taken.as_ref().map(|strip| self.strip_element(strip, cx));
+        let open = self.menu.as_mut()?;
+        open.strip = taken;
+        let open = &*open;
         let shown = open.appear.value_in(window, 1.0);
-        let strip = open
-            .strip
-            .as_ref()
-            .map(|strip| self.strip_element(strip, cx));
         Some(
             deferred(
                 anchored()

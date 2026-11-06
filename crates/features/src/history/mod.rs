@@ -3,6 +3,7 @@
 //! scrolls toward them.
 
 mod album;
+mod animated;
 mod attach;
 mod authors;
 mod body;
@@ -42,6 +43,7 @@ mod pinned_section;
 mod poll;
 mod pull_next;
 mod reacting;
+mod reaction_motion;
 mod reactions;
 mod reactions_box;
 mod read_date;
@@ -200,6 +202,8 @@ pub(crate) struct HistoryView {
     focus: FocusHandle,
     _subscription: Subscription,
     _player_subscription: Subscription,
+    _lottie_subscription: Subscription,
+    motions: reaction_motion::Motions,
 }
 
 impl std::fmt::Debug for HistoryView {
@@ -304,6 +308,8 @@ impl HistoryView {
             focus,
             _subscription: subscription,
             _player_subscription: player_subscription,
+            _lottie_subscription: crate::lottie::observe(cx),
+            motions: reaction_motion::Motions::default(),
         };
         // shortcut: threads open at their newest reply, not the first unread; with the thread's read state (M4).
         let page = match key.topic {

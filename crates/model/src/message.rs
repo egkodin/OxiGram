@@ -846,10 +846,7 @@ impl From<MessageContent> for Content {
                 }
             }
             MessageContent::MessageAnimatedEmoji(emoji) => Self::Emoji {
-                sticker: emoji
-                    .animated_emoji
-                    .sticker
-                    .map(|sticker| Box::new(StickerPicture::from(*sticker))),
+                sticker: StickerPicture::from_animated_emoji(*emoji.animated_emoji).map(Box::new),
                 emoji: emoji.emoji,
             },
             // shortcut: a slot machine shows its emoji, not its five layered reels; with the Lottie player (M8).

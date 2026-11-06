@@ -11,6 +11,7 @@ mod decode;
 pub mod devices;
 mod encode;
 mod hw;
+pub mod lottie;
 mod player;
 mod resample;
 mod video;

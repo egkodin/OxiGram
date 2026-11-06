@@ -63,6 +63,13 @@ Terriberry, CSIRO, Gregory Maxwell, Mark Borgerding, Erik de Castro Lopo and
 others, licensed under the BSD 3-Clause License. The `opusic-sys` crate builds
 it from source and links it statically.
 
+## tlottie
+
+Animated stickers, emoji and reactions are drawn with tlottie
+(<https://github.com/dkaraush/tlottie>), by its authors, licensed
+under the MIT License. Cargo builds it from source at a pinned revision and
+links it statically, as tdesktop does.
+
 ## Rust crates
 
 Third-party crates keep their own licenses; `cargo deny check licenses` verifies

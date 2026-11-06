@@ -159,6 +159,43 @@ lays out only the visible rows (about 11 of 9 cells); the rows are built
 once when the panel opens and the panel draws nothing while hidden. To
 check on the live run: frame times while scrolling the panel quickly.
 
+## Lottie: a chat of 300 animated emoji
+
+Mac mini, Apple M4, macOS 27.2, 2× scaling (2026-11-06). `SNAPSHOTS_ON_TOP=1
+SNAPSHOTS_LOTTIE=60` with the snapshots example built in release (LTO off,
+16 codegen units, so not the shipped profile): Maria's chat with 300 animated
+emoji in eight TGS files (60 frames at 60 fps, 112 px, so 224 px frames at
+2×), each its own player as tdesktop's per-message emoji. The window floats
+over the others so the display link draws it as in the app. One run each;
+`SNAPSHOTS_LOTTIE_EMPTY=1` is the same window without the emoji.
+
+| Phase | CPU | Footprint | RSS | Players | Lottie frames/s |
+|---|---|---|---|---|---|
+| Empty chat, idle (baseline) | 1.9 % | 71 MB | 106 MB | 0 | 0 |
+| Opened, the emoji on screen played once, then idle | 2.9 % | 137 MB | 120 MB | 5 | 9 (over 31 s) |
+| Scrolling at 15,000 px/s for 60 s | 22–33 % | 187–220 MB | 188–218 MB | 63–68 | 700–1,560 |
+| Left alone after scrolling, 30 s | 1.8 % | 167 MB | 219 MB | 5 | 8 |
+| Power Usage all off, scrolling | 25 % | 170 MB | 222 MB | 70 | 18 |
+| Power Usage all off, idle | 1.3 % | 149 MB | 222 MB | 6 | 0 |
+
+- Idle CPU with the chat open equals the empty baseline: once each emoji has
+  played, nothing redraws. The baseline's 1–2 % is the harness: TDLib gets
+  no parameters, so the chat list asks for a page every 2 s and fails.
+- Memory is bounded by the players: those off screen close after 3 s, and
+  beyond 32 the oldest close at once. Before that cap a fast scroll kept all
+  300 open and the footprint peaked at 412 MB. Frames are not cached (a
+  224 px emoji is 12 MB of frames, over the 4 MiB per-animation limit), so
+  each is rendered on the `lottie` thread when due.
+- Scrolling with Power Usage all off costs about as much as with it on: the
+  scroll itself, not Lottie (18 frames/s are the first frames).
+- RSS stays near its peak after scrolling (the allocator keeps the pages);
+  the footprint is what comes back.
+- Found on the way: the chat list asked for the next page every frame after
+  a failed one, redrawing the window forever (3,000 frames in 20 s); it now
+  waits 2 s.
+- Not measured: the shipped release profile, a real chat on the account,
+  big stickers (512 px frames) looping.
+
 ## How to measure
 
 - Frame timing and memory under scrolling: the spike method in
