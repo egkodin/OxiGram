@@ -1,9 +1,15 @@
 //! A sticker as a message shows it (`messageSticker`): its file and size,
 //! and a still for the animated kinds.
 
-use td_api::enums::{StickerFormat, ThumbnailFormat};
+use std::future::Future;
+
+use futures::FutureExt as _;
+use td_api::enums::{StickerFormat, StickerFullType, ThumbnailFormat};
+use td_api::functions::{GetAnimatedEmoji, GetCustomEmojiStickers};
 
 use crate::file::{Dimensions, File};
+use crate::ids::CustomEmojiId;
+use crate::session::RequestError;
 
 /// How the sticker's file draws.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,6 +50,64 @@ impl From<td_api::types::Sticker> for StickerPicture {
             dimensions: Dimensions::new(sticker.width, sticker.height),
             file: File::from(*sticker.sticker),
             still,
+        }
+    }
+}
+
+impl crate::session::Session {
+    /// Custom emoji by id (`getCustomEmojiStickers`), as pictures; ids TDLib
+    /// does not know are left out.
+    pub fn custom_emoji(
+        &self,
+        ids: Vec<CustomEmojiId>,
+    ) -> impl Future<Output = Result<Vec<(CustomEmojiId, StickerPicture)>, RequestError>> + Send + use<>
+    {
+        self.client()
+            .request(&GetCustomEmojiStickers {
+                custom_emoji_ids: ids.into_iter().map(|id| id.0).collect(),
+            })
+            .map(|result| {
+                result.map_err(RequestError::from).map(|stickers| {
+                    stickers
+                        .stickers
+                        .into_iter()
+                        .filter_map(|sticker| match &*sticker.full_type {
+                            StickerFullType::CustomEmoji(custom) => {
+                                Some((CustomEmojiId(custom.custom_emoji_id), sticker.into()))
+                            }
+                            StickerFullType::Regular(_) | StickerFullType::Mask(_) => None,
+                        })
+                        .collect()
+                })
+            })
+    }
+
+    /// The animated version of a lone emoji (`getAnimatedEmoji`); None when
+    /// Telegram has none.
+    pub fn animated_emoji(
+        &self,
+        emoji: String,
+    ) -> impl Future<Output = Result<Option<StickerPicture>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetAnimatedEmoji { emoji })
+            .map(|result| {
+                result.map_err(RequestError::from).map(|animated| {
+                    animated
+                        .sticker
+                        .map(|sticker| StickerPicture::from(*sticker))
+                })
+            })
+    }
+}
+
+impl StickerPicture {
+    /// The file gpui can draw: the sticker itself when it is a picture, else
+    /// its still.
+    #[must_use]
+    pub fn drawable(&self) -> Option<&File> {
+        match self.kind {
+            StickerKind::Still => Some(&self.file),
+            StickerKind::Animated | StickerKind::Video => self.still.as_ref(),
         }
     }
 }

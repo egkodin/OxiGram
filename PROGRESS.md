@@ -17,6 +17,54 @@
 - TDLib and FFmpeg builds live in ~/.cache/rgram, one version each.
 - Every milestone report gives the sizes of target/ and .git.
 
+## OxiGram request (2026-11-06, in progress)
+
+The owner asked for ten things at once; state of each:
+
+1. Renamed to OxiGram: the `oxigram` package and binary, window title,
+   strings, `OxiGram.app` (bundle id `org.oxigram.client`). The data
+   directory moves from `rgram` to `OxiGram` on first start when only
+   the old one exists; the `RGRAM_*` variables and the `rgram.api_id` /
+   `rgram.api_hash` Keychain items keep their names.
+2. Icon: the owner's `Telegram_Orange.icns` is copied to
+   `resources/OxiGram.icns`, git-ignored, and goes into local bundles
+   only: it is Telegram's logo (ADR 0004 §2.4); a build for anyone else
+   needs OxiGram's own icon.
+3. Pull to the next channel needs a scroll that starts after a pause and
+   moves at half speed; the card animates.
+4. Blurry userpics: stopped downloads are asked again (store).
+5. Reactions: chips toggle, a strip over the message menu, double-click
+   quick reaction, custom emoji pictures; messages in view go to
+   `viewMessages` so TDLib refreshes their reactions. Paid reactions are
+   never sent.
+6. Lone emoji: Telegram's picture via `getAnimatedEmoji` when TDLib sent
+   none. Not done: playing animated (TGS/Lottie) emoji and reactions;
+   that needs a Lottie renderer, a new dependency the owner decides on.
+7. Interface animations: the message menu fades in, the pull card grows
+   and slides away; boxes already faded. Frames only while running.
+8. The comments bar sits inside photo posts' bubbles.
+9. The macOS title bar is drawn in the theme's colors.
+10. Channel posts show the channel's name.
+
+Live tests (read-only unless they say Saved Messages):
+
+51. Start OxiGram.app: the Dock and window show OxiGram, the old chats are
+    there (the data directory moved), the title bar has the theme's
+    colors and turns pale when another window is active; drag it, double
+    click it.
+52. Chat list: every userpic sharp within a few seconds, also after a
+    restart.
+53. A channel read to its end: a slow scroll past the bottom grows the
+    capsule, a fling from mid-history stops at the bottom; a firm second
+    pull opens the next channel, letting go early slides it away.
+54. Channel photo posts: the channel's name in color, the reactions
+    under the caption (paid as a star, custom emoji as their pictures),
+    the comments bar inside the bubble.
+55. Saved Messages only: right-click a message, pick 👍 in the strip,
+    click its chip to take it back; double-click a message for ❤ and
+    again to remove it. Elsewhere only look at the strip, pick nothing.
+56. A chat with a lone emoji: Telegram's picture at the big size (still).
+
 ## Settings section (M6/M7 request, in progress)
 
 The owner asked for tdesktop's whole Settings section, sections in order,
@@ -1092,7 +1140,7 @@ M3, history:
 
 - `cargo fmt`, `cargo clippy --all-targets --all-features -- -D warnings`,
   `cargo test` green.
-- Snapshots 11-40 (`cargo run -p rgram --example snapshots`): chat list with
+- Snapshots 11-40 (`cargo run -p oxigram --example snapshots`): chat list with
   folder tabs, main menu, night mode, contacts box, folder switch, archive,
   chat and archive context menus, collapsed archive, archive in the main
   menu, pinned drag, folder tab menus; compared by eye with tdesktop's style and layout code.
@@ -1137,7 +1185,7 @@ M3, history:
   its own), `RGRAM_TEST_DC=1`, TDLib parameters on request, language pack on
   start, a new client after `authorizationStateClosed` (log out, QR to phone),
   close TDLib before quitting, localized Quit menu.
-- `cargo run -p rgram --example snapshots`: renders each sign-in screen with a
+- `cargo run -p oxigram --example snapshots`: renders each sign-in screen with a
   preset state to `target/snapshots/*.png` through gpui's `render_to_image`,
   offline (TDLib never gets parameters).
 
@@ -1228,7 +1276,7 @@ M3, history:
   `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --all-features --no-deps`.
 - `cargo deny check`: advisories, bans, licenses and sources ok.
   `cargo audit`: no vulnerabilities; 6 unmaintained crates, all under gpui.
-- `cargo run -p rgram`: one 800×600 window opens; the log shows
+- `cargo run -p oxigram`: one 800×600 window opens; the log shows
   `TDLib is ready version=1.8.69` and, without credentials, the credentials
   error. Release build: 9.7 MB binary, 1.2 % idle CPU, 46.6 MB idle footprint.
 

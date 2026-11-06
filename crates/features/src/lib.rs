@@ -34,6 +34,10 @@ pub mod settings;
 mod settings_screen;
 mod status;
 pub mod store;
+pub mod title_bar;
+
+/// What the app calls itself in its title bar and menu footer.
+pub const APP_NAME: &str = "OxiGram";
 pub mod toast;
 
 use gpui::{App, Pixels, px};

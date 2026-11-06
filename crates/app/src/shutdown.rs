@@ -18,7 +18,7 @@ use td_api::functions::Close;
 
 actions!(rgram, [Quit]);
 
-const APP_NAME: &str = "rgram";
+const APP_NAME: &str = "OxiGram";
 
 /// How long quitting waits for TDLib to report that it closed.
 const CLOSE_TIMEOUT: Duration = Duration::from_secs(5);

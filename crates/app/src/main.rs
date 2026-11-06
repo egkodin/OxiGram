@@ -167,7 +167,7 @@ fn print_version() -> anyhow::Result<()> {
         anyhow::bail!("TDLib returned a non-string version");
     };
     println!(
-        "rgram {} (TDLib {})",
+        "OxiGram {} (TDLib {})",
         env!("CARGO_PKG_VERSION"),
         version.value
     );
@@ -201,13 +201,16 @@ fn open_main_window(cx: &mut App, content: Content) -> anyhow::Result<()> {
     let options = WindowOptions {
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         window_min_size: Some(size(px(WINDOW_MIN_WIDTH), px(WINDOW_MIN_HEIGHT))),
+        // The bar is drawn in the theme's colours (`features::title_bar`).
         titlebar: Some(TitlebarOptions {
-            title: Some("rgram".into()),
+            title: Some(features::APP_NAME.into()),
+            appears_transparent: true,
             ..Default::default()
         }),
-        app_id: Some("rgram".to_owned()),
+        app_id: Some("oxigram".to_owned()),
         ..Default::default()
     };
+    features::title_bar::enable(cx);
     match content {
         Content::Signed(accounts) => cx
             .open_window(options, |window, cx| {
@@ -218,24 +221,34 @@ fn open_main_window(cx: &mut App, content: Content) -> anyhow::Result<()> {
             .open_window(options, |_, cx| cx.new(|_| Notice { notice }))
             .map(drop),
     }
-    .context("opening the main window (rgram needs a working GPU driver)")
+    .context("opening the main window (OxiGram needs a working GPU driver)")
 }
 
-/// Why rgram cannot start, such as missing API credentials.
+/// Why OxiGram cannot start, such as missing API credentials.
 struct Notice {
     notice: SharedString,
 }
 
 impl Render for Notice {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .size_full()
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let notice = div()
+            .flex_1()
             .p_8()
             .flex()
             .items_center()
             .justify_center()
             .bg(ui::color(cx, ColorRef::Palette(ColorId::WindowBg)))
             .text_color(ui::color(cx, ColorRef::Palette(ColorId::WindowFg)))
-            .child(self.notice.clone())
+            .child(self.notice.clone());
+        div()
+            .size_full()
+            .flex()
+            .flex_col()
+            .child(features::title_bar::title_bar(
+                features::APP_NAME,
+                window,
+                cx,
+            ))
+            .child(notice)
     }
 }

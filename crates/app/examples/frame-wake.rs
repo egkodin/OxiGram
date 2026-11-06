@@ -1,7 +1,7 @@
 //! Checks that a window redraws after its display link has parked (ADR 0005).
 //!
 //! A counter changes every two seconds, long after the link parks. Run it with
-//! `RUST_LOG=gpui_macos=trace,frame_wake=info cargo run -p rgram --example frame-wake`:
+//! `RUST_LOG=gpui_macos=trace,frame_wake=info cargo run -p oxigram --example frame-wake`:
 //! each "rendered" line must follow a "display link resumed" line on macOS.
 
 use std::time::Duration;

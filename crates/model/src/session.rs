@@ -256,6 +256,24 @@ impl Session {
             })
     }
 
+    /// Downloads `file` and resolves to it once the download stops, done
+    /// (with its path) or short of it.
+    pub fn download_whole_file(
+        &self,
+        file: FileId,
+        priority: i32,
+    ) -> impl Future<Output = Result<crate::file::File, RequestError>> + Send + use<> {
+        self.client
+            .request(&DownloadFile {
+                file_id: file.0,
+                priority,
+                offset: 0,
+                limit: 0,
+                synchronous: true,
+            })
+            .map(|result| result.map(crate::file::File::from).map_err(RequestError))
+    }
+
     /// Stops a download; the part already loaded stays for a later one.
     pub fn cancel_download_file(
         &self,

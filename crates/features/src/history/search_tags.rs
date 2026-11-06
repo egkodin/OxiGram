@@ -26,7 +26,7 @@ use style::{ColorId, ColorRef};
 use ui::{color, font, font_height};
 
 use super::HistoryView;
-use super::reactions::emoji;
+use super::reactions::{emoji, picture};
 use crate::lang::tr;
 use crate::px_of;
 use crate::store::spawn;
@@ -129,7 +129,14 @@ impl HistoryView {
 
     /// The pills under the field, wrapping to more rows when they need.
     // shortcut: no right-click menu to rename a tag or show it in the chat; with sending reactions (M4).
-    pub(super) fn search_tags(&self, cx: &Context<Self>) -> Option<AnyElement> {
+    pub(super) fn search_tags(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        let kinds: Vec<ReactionKind> = (self.search.as_ref()?.tags.as_ref()?.shown())
+            .map(|tag| tag.kind.clone())
+            .collect();
+        let pictures: Vec<_> = kinds
+            .iter()
+            .map(|kind| picture(&self.store, kind, cx))
+            .collect();
         let tags = self.search.as_ref()?.tags.as_ref()?;
         let state = self.store.read(cx).state();
         let is_premium = state
@@ -152,11 +159,12 @@ impl HistoryView {
                 Look::Normal
             };
             let kind = tag.kind.clone();
+            let shown = pictures.get(index).cloned().flatten();
             let weak = cx.weak_entity();
             let pill = pill(
                 ("history-search-tag", index),
                 look,
-                emoji(&tag.kind),
+                emoji(&tag.kind, shown.as_deref()),
                 tag.text(),
                 cx,
             )

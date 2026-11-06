@@ -63,7 +63,7 @@ and applies the patches in `vendor/patches/`.
   measured on those systems in M8.
 - `crates/app/examples/frame-wake.rs` checks the behavior. A counter changes
   every two seconds; with
-  `RUST_LOG=gpui_macos=trace,frame_wake=info cargo run -p rgram --example frame-wake`
+  `RUST_LOG=gpui_macos=trace,frame_wake=info cargo run -p oxigram --example frame-wake`
   each "rendered" line must follow "display link resumed", and "display link
   parked" must follow it.
 - If upstream implements `frame_waker` for macOS, the patch is dropped and this

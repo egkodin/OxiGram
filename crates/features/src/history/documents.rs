@@ -74,9 +74,11 @@ impl HistoryView {
         })
     }
 
-    /// Downloads a userpic once per history view.
+    /// Downloads a userpic, asked again when it stops short.
     pub(super) fn request_file(&mut self, file: FileId, cx: &mut Context<Self>) {
-        self.fetch(file, super::USERPIC_PRIORITY, cx);
+        self.store.update(cx, |store, cx| {
+            store.load_userpic(file, super::USERPIC_PRIORITY, cx);
+        });
     }
 
     /// Downloads a file once per history view.

@@ -1079,7 +1079,7 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             clicks: vec![("75-history-pull-open", MouseButton::Left, LANDSCAPES_ROW)],
             drags: Vec::new(),
             drops: Vec::new(),
-            scrolls: vec![("76-history-next-channel", HISTORY_MIDDLE, -150.0)],
+            scrolls: vec![("76-history-next-channel", HISTORY_MIDDLE, -250.0)],
             keys: Vec::new(),
             folders: FoldersPlacement::Top,
             histories: history::histories(),

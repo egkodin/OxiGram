@@ -175,7 +175,7 @@ mod tests {
     fn english_comes_from_tdesktop() {
         let strings = Strings::english();
         assert_eq!(strings.text(key::lng_intro_next), "Next");
-        assert_eq!(strings.text(key::rgram_app_name), "rgram");
+        assert_eq!(strings.text(key::rgram_app_name), "OxiGram");
         assert_eq!(Key::from_name("lng_intro_next"), Some(key::lng_intro_next));
         assert_eq!(key::lng_intro_next.name(), "lng_intro_next");
         assert_eq!(Key::from_name("lng_missing_key"), None);

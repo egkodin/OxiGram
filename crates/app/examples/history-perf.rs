@@ -5,7 +5,7 @@
 //! The window must stay visible and on top: macOS stops frame callbacks for
 //! occluded windows. Run the release build, three times (docs/perf.md):
 //!
-//! cargo run --release -p rgram --example history-perf -- [output directory]
+//! cargo run --release -p oxigram --example history-perf -- [output directory]
 
 #[path = "snapshots/chats.rs"]
 mod chats;

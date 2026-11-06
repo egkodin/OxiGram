@@ -111,6 +111,28 @@ fn size(dimensions: Option<Dimensions>) -> (i32, i32) {
 }
 
 impl HistoryView {
+    /// A lone emoji's picture from `getAnimatedEmoji`, at the animated
+    /// emoji's size, once on disk.
+    fn animated_emoji(&mut self, emoji: &str, cx: &mut Context<Self>) -> Option<Photo> {
+        let key = crate::store::EmojiKey::Animated(emoji.to_owned());
+        let path = self
+            .store
+            .update(cx, |store, cx| store.emoji_picture(&key, cx))?;
+        Some(Photo {
+            width: MAX_ANIMATED_EMOJI_SIZE.0,
+            height: MAX_ANIMATED_EMOJI_SIZE.0,
+            source: Some(ImageSource::from(std::path::PathBuf::from(path))),
+            thumbnail: None,
+            video: None,
+            frame: None,
+            map: None,
+            placeholder: None,
+            spoiler: None,
+            open: None,
+            once: None,
+        })
+    }
+
     /// A photo, video or GIF message's picture.
     pub(super) fn photo(&mut self, message: &Message, cx: &mut Context<Self>) -> Option<Photo> {
         let photo = match &message.content {
@@ -141,6 +163,12 @@ impl HistoryView {
                     ..self.sticker(message.id, picture, cx)
                 })
             }
+            // TDLib had no sticker yet: Telegram's picture once asked for,
+            // the glyph until then.
+            Content::Emoji {
+                emoji,
+                sticker: None,
+            } if crate::settings::is_large_emoji(cx) => self.animated_emoji(emoji, cx),
             _ => None,
         };
         photo.map(|photo| match message.self_destruct {
@@ -384,7 +412,16 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
         .children(header)
         .child(picture)
         .children(below)
-        .children(comments)
+        .children(comments.map(|button| {
+            // The text bubble's padding, which the button's margins undo;
+            // the gap over its line is the caption's own bottom padding.
+            div()
+                .mt(-px_of(MSG_PADDING.bottom))
+                .pl(px_of(MSG_PADDING.left))
+                .pr(px_of(MSG_PADDING.right))
+                .pb(px_of(MSG_PADDING.bottom))
+                .child(button)
+        }))
 }
 
 /// A venue's title and address in the link preview's fonts, the time

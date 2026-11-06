@@ -2,7 +2,6 @@
 //! then the main chat list in its order, filtered by name, only chats the
 //! user can write in.
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use chrono::Local;
@@ -37,7 +36,6 @@ pub(crate) struct RecipientsBox {
     search: Entity<InputField>,
     query: Vec<String>,
     hovered: Option<usize>,
-    requested_files: HashSet<FileId>,
     on_chosen: OnChosen,
     _subscriptions: [Subscription; 2],
 }
@@ -86,7 +84,6 @@ pub(crate) fn show(
             search,
             query: Vec::new(),
             hovered: None,
-            requested_files: HashSet::new(),
             on_chosen,
             _subscriptions: [search_changed, store_changed],
         }
@@ -156,22 +153,9 @@ impl RecipientsBox {
     }
 
     fn download(&mut self, file: FileId, cx: &mut Context<Self>) {
-        if !self.requested_files.insert(file) {
-            return;
-        }
-        let task = crate::store::spawn(
-            self.store
-                .read(cx)
-                .session()
-                .download_file(file, USERPIC_PRIORITY),
-            cx,
-        );
-        cx.spawn(async move |_, _| {
-            if let Err(error) = task.await {
-                tracing::warn!(%error, "userpic download failed");
-            }
-        })
-        .detach();
+        self.store.update(cx, |store, cx| {
+            store.load_userpic(file, USERPIC_PRIORITY, cx)
+        });
     }
 
     /// The row's look: the user's status, or the group's member count.

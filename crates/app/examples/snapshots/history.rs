@@ -322,6 +322,12 @@ fn landscapes() -> Vec<Message> {
             reaction("👍", 1, false, &[2]),
         ]),
         replies: Some(Replies::default()),
+        // A photo post, so its comments button sits under the picture.
+        content: Content::Photo(model::message::Media {
+            caption: FormattedText::plain("Morning mist over the lake."),
+            dimensions: model::file::Dimensions::new(800, 600),
+            ..model::message::Media::default()
+        }),
         ..post(48, 28 * HOUR, "Morning mist over the lake.")
     };
     let time_only = DateFormat::Absolute {

@@ -1,7 +1,7 @@
 //! Times a window's start: from `main` to the window opening (the Metal
 //! renderer, and with `runtime-shaders` the shader compile) and to its first
 //! frame, then quits. Compare the shader modes (docs/perf.md):
-//! `cargo run -q -p rgram --example cold-start` and the same with
+//! `cargo run -q -p oxigram --example cold-start` and the same with
 //! `--features rgram/runtime-shaders`.
 
 use std::time::{Duration, Instant};

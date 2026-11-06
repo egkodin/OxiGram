@@ -3,12 +3,25 @@
 
 use std::collections::HashMap;
 use std::future::Future;
+use std::time::Duration;
 
 use gpui::{App, Context, EventEmitter, Task};
 use model::history::Page;
 use model::message::Message;
+use model::sticker::StickerPicture;
 use model::thread::Key;
-use model::{ChatId, Environment, Event, MessageId, Session, State, auth};
+use model::{
+    ChatId, CustomEmojiId, Environment, Event, FileId, MessageId, RequestError, Session, State,
+    auth,
+};
+
+/// A userpic whose download stopped short is asked for this many times in
+/// all, as TDLib does not retry a stopped download on its own.
+const USERPIC_TRIES: u8 = 3;
+/// The wait before the second try, doubled before each next one.
+const USERPIC_RETRY: Duration = Duration::from_secs(2);
+/// Emoji pictures download ahead of photos, behind userpics.
+const EMOJI_PRIORITY: i32 = 16;
 
 /// The model state and the session that changes it.
 #[derive(Debug)]
@@ -19,6 +32,40 @@ pub struct Store {
     /// Messages picked for forwarding, by the chat they go to, until that
     /// chat's field takes them (`History::setForwardDraft`).
     forwarding: HashMap<ChatId, Forwarding>,
+    /// Userpics asked for: how many tries, and whether one is running.
+    userpics: HashMap<FileId, Userpic>,
+    /// Emoji pictures asked for this run: None while they load or when
+    /// Telegram has none.
+    emoji: HashMap<EmojiKey, Option<String>>,
+}
+
+/// An emoji drawn from Telegram's own picture.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum EmojiKey {
+    /// A custom emoji (`getCustomEmojiStickers`).
+    Custom(CustomEmojiId),
+    /// A lone emoji's big version (`getAnimatedEmoji`).
+    Animated(String),
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct Userpic {
+    tries: u8,
+    is_loading: bool,
+}
+
+impl Userpic {
+    /// Starts a try, with the pause before the one after it; None while one
+    /// runs or when all were used.
+    fn start(&mut self) -> Option<Duration> {
+        if self.is_loading || self.tries >= USERPIC_TRIES {
+            return None;
+        }
+        let pause = USERPIC_RETRY * (1 << self.tries);
+        self.tries += 1;
+        self.is_loading = true;
+        Some(pause)
+    }
 }
 
 /// Messages of one chat waiting to be forwarded, with the bar's lines,
@@ -49,7 +96,69 @@ impl Store {
             session,
             environment,
             forwarding: HashMap::new(),
+            userpics: HashMap::new(),
+            emoji: HashMap::new(),
         }
+    }
+
+    /// Downloads a userpic once per run; its path reaches the state when
+    /// done. One that stops short is asked again after a pause, up to
+    /// `USERPIC_TRIES` times, from the next render that draws it.
+    pub fn load_userpic(&mut self, file: FileId, priority: i32, cx: &mut Context<Self>) {
+        let userpic = self.userpics.entry(file).or_default();
+        let Some(pause) = userpic.start() else {
+            return;
+        };
+        let task = spawn(self.session.download_whole_file(file, priority), cx);
+        cx.spawn(async move |this, cx| {
+            let done = match task.await {
+                Ok(loaded) if loaded.path.is_some() => Some(loaded),
+                Ok(_) => None,
+                Err(error) => {
+                    tracing::warn!(%error, "downloading a userpic failed");
+                    None
+                }
+            };
+            if let Some(loaded) = done {
+                let _ = this.update(cx, |this, cx| {
+                    this.apply(Event::Chats(model::chats::Change::File(loaded)), cx);
+                });
+                return;
+            }
+            cx.background_executor().timer(pause).await;
+            let _ = this.update(cx, |this, cx| {
+                if let Some(userpic) = this.userpics.get_mut(&file) {
+                    userpic.is_loading = false;
+                }
+                // Views draw again and ask for it once more.
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    /// The path of an emoji's picture once on disk; the first ask fetches
+    /// it, and views draw again when it lands.
+    // shortcut: one request per emoji and no retry; batch ids and retry when long reaction lists or a flaky network show gaps.
+    pub fn emoji_picture(&mut self, key: &EmojiKey, cx: &mut Context<Self>) -> Option<String> {
+        if let Some(known) = self.emoji.get(key) {
+            return known.clone();
+        }
+        self.emoji.insert(key.clone(), None);
+        let task = spawn(fetch_emoji(self.session.clone(), key.clone()), cx);
+        let key = key.clone();
+        cx.spawn(async move |this, cx| match task.await {
+            Ok(Some(path)) => {
+                let _ = this.update(cx, |this, cx| {
+                    this.emoji.insert(key, Some(path));
+                    cx.notify();
+                });
+            }
+            Ok(None) => {}
+            Err(error) => tracing::warn!(%error, "loading an emoji picture failed"),
+        })
+        .detach();
+        None
     }
 
     pub fn set_forwarding(&mut self, to: ChatId, forwarding: Forwarding, cx: &mut Context<Self>) {
@@ -181,9 +290,50 @@ fn log_failure(
 }
 
 /// Runs a session request off the UI thread.
+/// Finds an emoji's sticker and downloads the picture gpui draws.
+async fn fetch_emoji(session: Session, key: EmojiKey) -> Result<Option<String>, RequestError> {
+    let picture: Option<StickerPicture> = match key {
+        EmojiKey::Custom(id) => session
+            .custom_emoji(vec![id])
+            .await?
+            .into_iter()
+            .next()
+            .map(|(_, picture)| picture),
+        EmojiKey::Animated(emoji) => session.animated_emoji(emoji).await?,
+    };
+    let Some(file) = picture.as_ref().and_then(StickerPicture::drawable) else {
+        return Ok(None);
+    };
+    if file.path.is_some() {
+        return Ok(file.path.clone());
+    }
+    Ok(session
+        .download_whole_file(file.id, EMOJI_PRIORITY)
+        .await?
+        .path)
+}
+
 pub fn spawn<T: Send + 'static>(
     future: impl Future<Output = T> + Send + 'static,
     cx: &App,
 ) -> Task<T> {
     cx.background_executor().spawn(future)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_userpic_is_tried_three_times_with_growing_pauses() {
+        let mut userpic = Userpic::default();
+        assert_eq!(userpic.start(), Some(Duration::from_secs(2)));
+        assert_eq!(userpic.start(), None, "one try runs at a time");
+        userpic.is_loading = false;
+        assert_eq!(userpic.start(), Some(Duration::from_secs(4)));
+        userpic.is_loading = false;
+        assert_eq!(userpic.start(), Some(Duration::from_secs(8)));
+        userpic.is_loading = false;
+        assert_eq!(userpic.start(), None, "three tries in all");
+    }
 }

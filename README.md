@@ -1,6 +1,6 @@
-# rgram
+# OxiGram
 
-rgram is an unofficial desktop client for Telegram, written in Rust. It uses the
+OxiGram (formerly rgram) is an unofficial desktop client for Telegram, written in Rust. It uses the
 Telegram API through [TDLib](https://github.com/tdlib/td) and is not affiliated
 with Telegram. It aims to look and behave like Telegram Desktop while starting
 faster and using less memory.
@@ -183,11 +183,11 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Reactions</b>: 0 of 7 done, 2 in progress</summary>
+<summary><b>Reactions</b>: 0 of 7 done, 4 in progress</summary>
 
 - [ ] Reaction counters in bubbles with userpics in small chats (M3) *(in progress)*
-- [ ] Hover button, reaction strip and expanded selector with custom emoji (M4)
-- [ ] Quick reaction on double-click (M4)
+- [ ] Hover button, reaction strip and expanded selector with custom emoji (M4) *(in progress)*
+- [ ] Quick reaction on double-click (M4) *(in progress)*
 - [ ] Reaction animations (M8)
 - [ ] Who reacted list with tabs per reaction (M3) *(in progress)*
 - [ ] Paid star reactions with the top senders list (M13)
@@ -379,7 +379,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Settings</b>: 0 of 48 done, 29 in progress</summary>
+<summary><b>Settings</b>: 0 of 49 done, 30 in progress</summary>
 
 - [ ] Main page with account card, sections and settings search (M6) *(in progress)*
 - [ ] Settings search with keyboard navigation (M6)
@@ -421,6 +421,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Data and storage: cache size limits, clear cache, storage usage (M6) *(in progress)*
 - [ ] Power saving and animation toggles (M8) *(in progress)*
 - [ ] System window frame option (M7)
+- [ ] Title bar in the theme's colors (macOS) (M8) *(in progress)*
 - [ ] Tray, launch at startup, start minimized, close to tray (M7)
 - [ ] Calls settings: devices, peer-to-peer, accept calls on this device (M12) *(in progress)*
 - [ ] Keyboard shortcuts page (M8)
@@ -717,7 +718,7 @@ clone; the checkout is only read. macOS needs `cmake`, `ninja`, `gperf` and
 With TDLib built:
 
 ```bash
-cargo run -p rgram
+cargo run -p oxigram
 cargo test --workspace
 ```
 
@@ -726,12 +727,15 @@ checks it; install it with `xcodebuild -downloadComponent MetalToolchain`).
 `cargo run` and `cargo test` find `libtdjson` on their own. `RGRAM_LOG` sets the
 log filter (default `info`), for example `RGRAM_LOG=tg=debug`.
 
-On macOS, `bash scripts/build-macos-app.sh` builds `target/rgram.app`. First
+On macOS, `bash scripts/build-macos-app.sh` builds `target/OxiGram.app`, with
+the icon from `resources/OxiGram.icns` when that file exists. First
 build TDLib and the static FFmpeg with `scripts/build-ffmpeg.sh`. The app reads
 credentials from this checkout's `.env`, or from the `rgram.api_id` and
 `rgram.api_hash` Keychain entries described in `scripts/run-live.sh`. It does
 not contain credentials. Move an existing app out of `target` before rebuilding.
-The app is locally ad-hoc signed, not notarized for distribution.
+The app is locally ad-hoc signed, not notarized for distribution. The
+environment variables (`RGRAM_*`) and Keychain entries kept their rgram names;
+the data directory moves from `rgram` to `OxiGram` on the first start.
 
 `tools/style-gen` regenerates `crates/style` from the Telegram Desktop checkout
 next to this repository (or the path given as its argument):

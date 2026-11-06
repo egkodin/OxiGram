@@ -73,6 +73,9 @@ impl Root {
         let appearance = cx.observe_window_appearance(window, |_, _, cx| {
             crate::settings::follow_system_appearance(cx)
         });
+        // The title bar dims with the window, as the native one does.
+        cx.observe_window_activation(window, |_, _, cx| cx.notify())
+            .detach();
         let mut this = Self {
             shared,
             screen: Screen::Blank,
@@ -264,20 +267,32 @@ impl Root {
 }
 
 impl Render for Root {
-    fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let root = div().size_full();
         let root = match &self.screen {
             Screen::Main(main) => crate::presence::watch_input(root, main.read(cx).presence()),
             Screen::Blank | Screen::Intro(_) => root,
         };
-        root.relative()
-            .bg(color(cx, ColorRef::Palette(ColorId::WindowBg)))
-            .map(|root| match &self.screen {
-                Screen::Blank => root,
-                Screen::Intro(intro) => root.child(intro.clone()),
-                Screen::Main(main) => root.child(main.clone()),
+        let title = cx
+            .has_global::<crate::title_bar::Custom>()
+            .then(|| crate::title_bar::title_bar(crate::APP_NAME, window, cx));
+        let screen = div()
+            .flex_1()
+            .min_h_0()
+            .relative()
+            .map(|screen| match &self.screen {
+                Screen::Blank => screen,
+                Screen::Intro(intro) => screen.child(intro.clone()),
+                Screen::Main(main) => screen.child(main.clone()),
             })
-            .child(self.connecting.clone())
+            .child(self.connecting.clone());
+        // Boxes cover the whole window, so their sizes keep using its height.
+        root.relative()
+            .flex()
+            .flex_col()
+            .bg(color(cx, ColorRef::Palette(ColorId::WindowBg)))
+            .children(title)
+            .child(screen)
             .child(self.shared.layers.clone())
     }
 }

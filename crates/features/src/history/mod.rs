@@ -4,6 +4,7 @@
 
 mod album;
 mod attach;
+mod authors;
 mod body;
 mod bubble;
 mod calendar;
@@ -40,6 +41,7 @@ mod pinned;
 mod pinned_section;
 mod poll;
 mod pull_next;
+mod reacting;
 mod reactions;
 mod reactions_box;
 mod read_date;
@@ -48,6 +50,7 @@ mod schedule_box;
 mod scheduled_section;
 mod scroll_date;
 mod search_tags;
+mod seen;
 mod selection;
 mod send_files_box;
 mod send_menu;
@@ -93,17 +96,16 @@ use gpui::{
     IntoElement, ListAlignment, ListState, ParentElement, Render, SharedString, Styled,
     Subscription, Window, div, list, px,
 };
-use model::chat::ChatKind;
 use model::history::Page;
-use model::message::{Content, Message, Sender, Service, Topic};
+use model::message::{Content, Message, Service, Topic};
 use model::thread::Key;
 use model::{ChatId, FileId, MessageId, State};
 use style::{ColorId, ColorRef};
 use ui::color;
 
-use self::bubble::{Author, Item, Run};
+use self::authors::{sender_color, sender_face};
+use self::bubble::{Item, Run};
 use crate::Store;
-use crate::dialogs::photo_userpic;
 use crate::lang::strings;
 use crate::layers::Layers;
 
@@ -152,6 +154,8 @@ pub(crate) struct HistoryView {
     loading: Option<Page>,
     /// Set when items changed, so the ends are checked once laid out.
     needs_preload_check: bool,
+    /// Messages reported in view this time the chat is open.
+    viewed: HashSet<MessageId>,
     requested_files: HashSet<FileId>,
     maps: location::Maps,
     poll_picks: poll::Picks,
@@ -253,6 +257,7 @@ impl HistoryView {
                     this.on_scroll_pins(cx);
                     this.on_scroll_date(cx);
                     this.view_ad(cx);
+                    this.view_visible(cx);
                 });
             });
         });
@@ -266,6 +271,7 @@ impl HistoryView {
             shown: Vec::new(),
             loading: None,
             needs_preload_check: false,
+            viewed: HashSet::new(),
             requested_files: HashSet::new(),
             maps: location::Maps::default(),
             poll_picks: poll::Picks::default(),
@@ -485,7 +491,12 @@ impl HistoryView {
             .via_bot
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
         let comments = self.comments(&message, cx);
-        let reactions = self.reaction_buttons(&message, cx);
+        // An album's reactions are its first message's, as tdesktop shows.
+        let reacted = album
+            .as_ref()
+            .and_then(|rows| self.shown.get(rows.start).cloned())
+            .unwrap_or_else(|| message.clone());
+        let reactions = self.reaction_buttons(&reacted, cx);
         let (file, photo) = self.media(album, &message, cx);
         if let Some((_, Some(file))) = &author {
             let file = *file;
@@ -625,37 +636,6 @@ impl HistoryView {
         })
         .detach();
     }
-
-    /// The author of an incoming message in a group, with the userpic file
-    /// to download.
-    fn author(&self, state: &State, message: &Message) -> Option<(Author, Option<FileId>)> {
-        let chats = &state.chats;
-        let is_group = chats.chat(self.chat).is_some_and(|chat| match chat.kind {
-            ChatKind::Group { .. } => true,
-            ChatKind::Supergroup { is_channel, .. } => !is_channel,
-            ChatKind::Private { .. } | ChatKind::Secret { .. } => false,
-        });
-        if !is_group || message.is_outgoing {
-            return None;
-        }
-        let (name, color_index, (userpic, file)) = sender_face(chats, message.sender)?;
-        Some((
-            Author {
-                name: name.into(),
-                color_index,
-                userpic,
-            },
-            file,
-        ))
-    }
-}
-
-/// The color of whoever sent `message` (`colorIndex`).
-fn sender_color(state: &State, message: &Message) -> i32 {
-    match message.sender {
-        Sender::User(id) => state.chats.user(id).map_or(0, |user| user.accent_color),
-        Sender::Chat(id) => state.chats.chat(id).map_or(0, |chat| chat.accent_color),
-    }
 }
 
 impl Render for HistoryView {
@@ -670,6 +650,7 @@ impl Render for HistoryView {
                     this.preload(cx);
                     this.update_pins(cx);
                     this.view_ad(cx);
+                    this.view_visible(cx);
                 });
             });
         }
@@ -764,7 +745,7 @@ impl Render for HistoryView {
                         .size_full()
                         .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM) + self.pull_shift()),
                     )
-                    .children(self.pull_indicator(cx))
+                    .children(self.pull_indicator(window, cx))
                     .children(self.floating_date(cx))
                     // shortcut: no down button in the pinned section; it comes with the section stack (M8).
                     .children(
@@ -780,26 +761,6 @@ impl Render for HistoryView {
             .children(has_field.then(|| self.emoji_panel(window, cx)).flatten())
             .children(can_attach.then(|| self.drop_area(cx)).flatten())
             .children(can_attach.then(|| self.voice_overlay(cx)).flatten())
-            .children(self.menu_overlay())
-    }
-}
-
-/// A sender's name, color and userpic, with the photo file to download.
-fn sender_face(
-    chats: &model::chats::Chats,
-    sender: Sender,
-) -> Option<(String, i32, (ui::UserpicSource, Option<FileId>))> {
-    match sender {
-        Sender::User(id) => {
-            let user = chats.user(id)?;
-            let name = user.name();
-            let userpic = photo_userpic(chats, user.photo.as_ref(), user.accent_color, &name);
-            Some((name, user.accent_color, userpic))
-        }
-        Sender::Chat(id) => {
-            let chat = chats.chat(id)?;
-            let userpic = photo_userpic(chats, chat.photo.as_ref(), chat.accent_color, &chat.title);
-            Some((chat.title.clone(), chat.accent_color, userpic))
-        }
+            .children(self.menu_overlay(window, cx))
     }
 }

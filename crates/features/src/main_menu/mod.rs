@@ -28,12 +28,10 @@ use ui::{PopupMenu, SettingsButton, Userpic, UserpicSource, color, font, font_he
 
 use crate::accounts::Accounts;
 use crate::lang::{tr, tr_with};
-use crate::{Layers, Store, px_of, settings};
+use crate::{APP_NAME, Layers, Store, px_of, settings};
 
 /// The userpic in the cover (`mainMenuUserpic`).
 const USERPIC_SIZE: f32 = 48.0;
-/// What rgram calls itself in the footer, where tdesktop names itself.
-const APP_NAME: &str = "rgram";
 
 /// A menu button the main view acts on; the menu closes first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

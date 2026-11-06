@@ -29681,8 +29681,8 @@ pub(crate) static ENGLISH: [Value<&str>; 8227] = [
         "You paid {count} Stars.",
         "You paid {count} Stars.",
     ]),
-    Value::Text("rgram"),
-    Value::Text("Welcome to rgram, an unofficial\nTelegram desktop client."),
+    Value::Text("OxiGram"),
+    Value::Text("Welcome to OxiGram, an unofficial\nTelegram desktop client."),
     Value::Text("Reset login email"),
     Value::Text(
         "Resetting the login email takes {when}. After that, the code goes to your phone number.",
@@ -29691,6 +29691,6 @@ pub(crate) static ENGLISH: [Value<&str>; 8227] = [
     Value::Text(
         "Signing in to this number from a new device requires Telegram Premium, which only Telegram's mobile apps can sell. Buy it there, then sign in here again.\n\nSupport: {email}",
     ),
-    Value::Text("Checkout isn't in rgram yet. Buy it in another Telegram app."),
-    Value::Text("rgram settings"),
+    Value::Text("Checkout isn't in OxiGram yet. Buy it in another Telegram app."),
+    Value::Text("OxiGram settings"),
 ];

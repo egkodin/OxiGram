@@ -201,10 +201,21 @@ impl Session {
         chat: ChatId,
         message: MessageId,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.view_messages(chat, vec![message])
+    }
+
+    /// Tells TDLib the user sees `messages` in the chat's history, which
+    /// refreshes their views and reactions and reads them; nothing with
+    /// `Views::Withhold`.
+    pub fn view_messages(
+        &self,
+        chat: ChatId,
+        messages: Vec<MessageId>,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
         let request = (self.views() == crate::Views::Report).then(|| {
             self.client().request(&ViewMessages {
                 chat_id: chat.0,
-                message_ids: vec![message.0],
+                message_ids: messages.into_iter().map(|id| id.0).collect(),
                 source: Some(Box::new(MessageSource::ChatHistory(
                     MessageSourceChatHistory {},
                 ))),

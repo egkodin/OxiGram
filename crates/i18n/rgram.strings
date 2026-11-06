@@ -2,8 +2,8 @@
 // official app (ADR 0004). Same format as tdesktop's lang.strings; lang-gen
 // merges them into the English table.
 
-"rgram_intro_about" = "Welcome to rgram, an unofficial\nTelegram desktop client.";
-"rgram_app_name" = "rgram";
+"rgram_intro_about" = "Welcome to OxiGram, an unofficial\nTelegram desktop client.";
+"rgram_app_name" = "OxiGram";
 
 // TDLib states tdesktop has no screen for.
 "rgram_intro_premium_required" = "Signing in to this number from a new device requires Telegram Premium, which only Telegram's mobile apps can sell. Buy it there, then sign in here again.\n\nSupport: {email}";
@@ -12,7 +12,7 @@
 "rgram_intro_email_reset_pending" = "The login email will be reset in {when}.";
 
 // Settings: the app's own options, where tdesktop forks put theirs.
-"rgram_settings_title" = "rgram settings";
+"rgram_settings_title" = "OxiGram settings";
 
 // Buttons that would pay stop at TDLib's payment form until checkout lands.
-"rgram_payment_form_later" = "Checkout isn't in rgram yet. Buy it in another Telegram app.";
+"rgram_payment_form_later" = "Checkout isn't in OxiGram yet. Buy it in another Telegram app.";

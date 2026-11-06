@@ -2,7 +2,7 @@
 //! past the bottom of a channel grows a capsule with an arrow; far enough,
 //! it shows the next unread channel, and letting go there opens it.
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use gpui::{
     AnyElement, Bounds, Context, Hsla, IntoElement as _, ParentElement as _, PathBuilder, Pixels,
@@ -20,6 +20,7 @@ use style::chat_helpers::{
     HISTORY_PULL_NEXT_THRESHOLD,
 };
 use style::{ColorId, ColorRef};
+use ui::anim::{Easing, Simple};
 use ui::{Userpic, color, font, font_height};
 
 use super::{HistoryEvent, HistoryView, pinned_section};
@@ -29,8 +30,18 @@ use crate::px_of;
 
 /// A wheel has no lift, so a pause this long lets go of the pull.
 const RELEASE_AFTER: Duration = Duration::from_millis(250);
+/// A pull starts only with a scroll this long after the one before, so the
+/// scroll (or its momentum) that reached the bottom never starts one.
+const GESTURE_GAP: Duration = Duration::from_millis(250);
+/// The pull grows by this share of the scroll, so opening the next channel
+/// takes a deliberate swipe.
+const RESISTANCE: f32 = 0.5;
 /// The list scrolls this far per wheel line, as gpui's list does.
 const LINE_HEIGHT: f32 = 20.0;
+/// How long the card takes to grow in or shrink back.
+const EXPAND_MS: i32 = 150;
+/// How long the indicator takes to slide away after letting go.
+const RETRACT_MS: i32 = 200;
 /// Counts above this read "999+".
 const MAX_COUNT: i32 = 999;
 
@@ -55,6 +66,17 @@ pub(super) struct Pull {
     /// After letting go, until the scrolling stops, so momentum does not
     /// start another pull.
     is_settling: bool,
+    /// When the last scroll came, to tell a new gesture from a running one.
+    last_scroll: Option<Instant>,
+    /// The card growing in, or shrinking back to the capsule.
+    expand: Simple,
+    /// The indicator sliding away after letting go, from its height then.
+    retract: Simple,
+}
+
+/// A scroll at `now` begins a new gesture.
+fn is_new_gesture(last_scroll: Option<Instant>, now: Instant) -> bool {
+    last_scroll.is_none_or(|last| now.saturating_duration_since(last) >= GESTURE_GAP)
 }
 
 impl Pull {
@@ -63,20 +85,24 @@ impl Pull {
     }
 
     /// How tall the indicator is: the pull, grown to the card once ready.
-    // shortcut: the card grows at once; tdesktop animates the expand, the release and a bounce.
+    // shortcut: no bounce after the card grows, which tdesktop adds.
     fn shown(&self) -> f32 {
-        let card = len(HISTORY_PULL_NEXT_EXPAND);
-        let grown = if self.is_ready() {
-            self.amount + card - threshold()
-        } else {
-            self.amount
-        };
-        grown.min(len(HISTORY_PULL_NEXT_MAX_HEIGHT))
+        if self.amount <= 0.0 {
+            return self.retract.value(0.0);
+        }
+        let card = len(HISTORY_PULL_NEXT_EXPAND) - threshold();
+        let progress = self.expand.value(if self.is_ready() { 1.0 } else { 0.0 });
+        (self.amount + card * progress).min(len(HISTORY_PULL_NEXT_MAX_HEIGHT))
+    }
+
+    fn is_animating(&self) -> bool {
+        self.expand.animating() || self.retract.animating()
     }
 
     /// Takes a scroll `delta` (up is positive); false when it ends the pull.
     fn apply(&mut self, delta: f32) -> bool {
-        self.amount = (self.amount - delta).clamp(0.0, len(HISTORY_PULL_NEXT_MAX_HEIGHT));
+        let amount = self.amount - delta * RESISTANCE;
+        self.amount = amount.clamp(0.0, len(HISTORY_PULL_NEXT_MAX_HEIGHT));
         self.amount > 0.0
     }
 }
@@ -141,8 +167,10 @@ impl HistoryView {
     pub(super) fn on_pull_scroll(&mut self, event: &ScrollEvent, cx: &mut Context<Self>) {
         let delta = f32::from(event.delta.pixel_delta(px(LINE_HEIGHT)).y);
         self.pull.events += 1;
+        let now = Instant::now();
+        let is_new = is_new_gesture(self.pull.last_scroll.replace(now), now);
         let is_idle = !self.pull.is_settling && self.pull.amount <= 0.0;
-        if is_idle && (delta >= 0.0 || !self.can_pull(cx)) {
+        if is_idle && (delta >= 0.0 || !is_new || !self.can_pull(cx)) {
             return;
         }
         self.release_later(cx);
@@ -155,9 +183,19 @@ impl HistoryView {
             // The list moved up with this scroll; the pull takes it instead.
             self.list.scroll_to_end();
         }
-        if !self.pull.apply(delta) {
+        let was_ready = self.pull.is_ready();
+        let progress = self.pull.expand.value(if was_ready { 1.0 } else { 0.0 });
+        let applied = self.pull.apply(delta);
+        if self.pull.is_ready() != was_ready {
+            let to = if was_ready { 0.0 } else { 1.0 };
+            self.pull
+                .expand
+                .start(progress, to, EXPAND_MS, Easing::EaseOutCirc);
+        }
+        if !applied {
             self.pull = Pull {
                 events: self.pull.events,
+                last_scroll: self.pull.last_scroll,
                 ..Pull::default()
             };
         } else if event.touch_phase == TouchPhase::Ended {
@@ -186,9 +224,13 @@ impl HistoryView {
     /// Letting go: opens the next channel when the pull reached it.
     fn release_pull(&mut self, cx: &mut Context<Self>) {
         let next = self.pull.next.filter(|_| self.pull.is_ready());
+        let mut retract = Simple::default();
+        retract.start(self.pull.shown(), 0.0, RETRACT_MS, Easing::EaseOutCirc);
         self.pull = Pull {
+            retract,
             is_settling: true,
             events: self.pull.events,
+            last_scroll: self.pull.last_scroll,
             ..Pull::default()
         };
         if let Some(next) = next {
@@ -204,7 +246,14 @@ impl HistoryView {
 
     /// The capsule, or the next channel's userpic and name, under the list.
     // shortcut: no "Pull up" / "Release" hint over the compose area, which comes with the compose bar (M4).
-    pub(super) fn pull_indicator(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
+    pub(super) fn pull_indicator(
+        &mut self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        if self.pull.is_animating() {
+            window.request_animation_frame();
+        }
         let offset = self.pull.shown();
         if offset <= 0.0 {
             return None;
@@ -443,11 +492,17 @@ mod tests {
     #[test]
     fn the_pull_is_ready_past_the_threshold_and_grows_to_the_card() {
         let mut pull = Pull::default();
-        assert!(pull.apply(-50.0));
+        assert!(pull.apply(-100.0));
         assert!(!pull.is_ready());
-        assert!((pull.shown() - 50.0).abs() < f32::EPSILON);
-        assert!(pull.apply(-50.0));
-        assert!(pull.is_ready(), "100 px is past the 96 px threshold");
+        assert!(
+            (pull.shown() - 50.0).abs() < f32::EPSILON,
+            "the pull resists by half"
+        );
+        assert!(pull.apply(-100.0));
+        assert!(
+            pull.is_ready(),
+            "200 px of scroll pulls 100 px, past the 96 px threshold"
+        );
         let card = len(HISTORY_PULL_NEXT_EXPAND);
         assert!((pull.shown() - (100.0 + card - threshold())).abs() < f32::EPSILON);
     }
@@ -459,5 +514,13 @@ mod tests {
         let max = len(HISTORY_PULL_NEXT_MAX_HEIGHT);
         assert!((pull.amount - max).abs() < f32::EPSILON);
         assert!(!pull.apply(1000.0), "scrolling back past the start ends it");
+    }
+
+    #[test]
+    fn only_a_scroll_after_a_pause_begins_a_gesture() {
+        let now = Instant::now();
+        assert!(is_new_gesture(None, now));
+        assert!(!is_new_gesture(Some(now), now + Duration::from_millis(16)));
+        assert!(is_new_gesture(Some(now), now + GESTURE_GAP));
     }
 }

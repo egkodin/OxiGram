@@ -204,7 +204,7 @@ impl HistoryView {
     /// The field over the history, after a back arrow, and the tags under
     /// it in Saved Messages.
     // shortcut: no "from" filter; with the member list (M6).
-    pub(super) fn search_bar(&self, cx: &Context<Self>) -> Option<AnyElement> {
+    pub(super) fn search_bar(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let search = self.search.as_ref()?;
         let weak = cx.weak_entity();
         let st = &SEARCH_IN_CHAT_MULTI_SELECT;

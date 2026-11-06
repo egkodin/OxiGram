@@ -1,7 +1,6 @@
 //! The contacts box from the main menu (`PrepareContactsBox`): contacts
 //! sorted by when they were last online, filtered by name.
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use chrono::Local;
@@ -56,7 +55,6 @@ pub(crate) struct ContactsBox {
     search: Entity<InputField>,
     query: Vec<String>,
     hovered: Option<usize>,
-    requested_files: HashSet<FileId>,
     on_chosen: OnChosen,
     many: Option<(Many, Vec<UserId>)>,
     /// A title of its own, with "Cancel", over the layer below.
@@ -160,7 +158,6 @@ fn open(
             search,
             query: Vec::new(),
             hovered: None,
-            requested_files: HashSet::new(),
             on_chosen,
             many: many.map(|many| {
                 let picked = many.picked.clone();
@@ -248,22 +245,9 @@ impl ContactsBox {
     }
 
     fn download(&mut self, file: FileId, cx: &mut Context<Self>) {
-        if !self.requested_files.insert(file) {
-            return;
-        }
-        let task = crate::store::spawn(
-            self.store
-                .read(cx)
-                .session()
-                .download_file(file, USERPIC_PRIORITY),
-            cx,
-        );
-        cx.spawn(async move |_, _| {
-            if let Err(error) = task.await {
-                tracing::warn!(%error, "userpic download failed");
-            }
-        })
-        .detach();
+        self.store.update(cx, |store, cx| {
+            store.load_userpic(file, USERPIC_PRIORITY, cx)
+        });
     }
 
     fn row(&mut self, user: &User, index: usize, cx: &mut Context<Self>) -> gpui::AnyElement {

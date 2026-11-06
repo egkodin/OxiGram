@@ -1,8 +1,12 @@
 //! Reactions under a message's text (`Reactions::InlineList` in a bubble):
 //! each emoji with its count, or with who chose it when that is few.
 
+use std::path::PathBuf;
+use std::rc::Rc;
+
 use gpui::{
-    AnyElement, App, Context, Div, IntoElement as _, ParentElement as _, Styled as _, div,
+    AnyElement, App, Context, Div, ElementId, Entity, InteractiveElement as _, IntoElement as _,
+    ParentElement as _, StatefulInteractiveElement as _, Styled as _, Window, div, img,
     prelude::FluentBuilder as _, px,
 };
 use model::chat::ChatKind;
@@ -21,6 +25,7 @@ use ui::{UserpicSource, color, font, font_height};
 use super::userpics_row::userpics_row;
 use super::{HistoryView, layout, sender_face};
 use crate::px_of;
+use crate::store::{EmojiKey, Store};
 
 /// Unchosen reactions fill their pill this faintly.
 const IN_NON_CHOSEN_OPACITY: f32 = 0.12;
@@ -31,11 +36,18 @@ const MAX_RECENT_USERPICS: i32 = 3;
 /// The emoji glyph's size inside its square.
 const EMOJI_FONT_SIZE: f32 = 15.0;
 
+/// Toggles the user's reaction from its chip.
+type OnToggle = Rc<dyn Fn(&mut Window, &mut App)>;
+
 /// One reaction, ready to draw.
 pub(super) struct Button {
+    id: ElementId,
     kind: ReactionKind,
     label: Label,
     is_chosen: bool,
+    /// A custom emoji's picture once on disk.
+    picture: Option<String>,
+    on_toggle: OnToggle,
 }
 
 enum Label {
@@ -64,9 +76,12 @@ impl HistoryView {
         let me = state.me;
         let has_userpics = private_user.is_some() || shows_userpics(reactions);
         let mut files = Vec::new();
-        let buttons = sorted(reactions)
+        let weak = cx.weak_entity();
+        let message_id = message.id;
+        let buttons: Vec<Button> = sorted(reactions)
             .into_iter()
-            .map(|reaction| {
+            .enumerate()
+            .map(|(index, reaction)| {
                 let label = if reactions.are_tags {
                     Label::Count(String::new())
                 } else if has_userpics {
@@ -85,10 +100,19 @@ impl HistoryView {
                 } else {
                     Label::Count(layout::short_count(reaction.count))
                 };
+                let (weak, kind, is_chosen) =
+                    (weak.clone(), reaction.kind.clone(), reaction.is_chosen);
                 Button {
+                    id: ElementId::Name(format!("reaction-{}-{index}", message_id.0).into()),
                     kind: reaction.kind.clone(),
                     label,
                     is_chosen: reaction.is_chosen,
+                    picture: None,
+                    on_toggle: Rc::new(move |_, cx| {
+                        let _ = weak.update(cx, |this, cx| {
+                            this.toggle_reaction(message_id, &kind, is_chosen, cx);
+                        });
+                    }),
                 }
             })
             .collect();
@@ -96,6 +120,12 @@ impl HistoryView {
             self.request_file(file, cx);
         }
         buttons
+            .into_iter()
+            .map(|button| Button {
+                picture: picture(&self.store, &button.kind, cx),
+                ..button
+            })
+            .collect()
     }
 }
 
@@ -137,7 +167,7 @@ fn private_senders(reaction: &Reaction, user: model::UserId, me: model::UserId) 
 
 /// The reactions under the text; `room`, an unseen copy of the time,
 /// keeps its place on the last row (`skipBlock`).
-// shortcut: custom emoji and paid reactions show a placeholder; with stickers and custom emoji (M5) and Stars (M13).
+// shortcut: the paid reaction shows a plain star and never sends; Stars come with M13.
 pub(super) fn row(buttons: Vec<Button>, out: bool, is_selected: bool, room: Div, cx: &App) -> Div {
     div()
         .flex()
@@ -190,7 +220,9 @@ fn element(button: Button, out: bool, is_selected: bool, cx: &App) -> AnyElement
     } else {
         bubble_bg(out, is_selected)
     });
+    let on_toggle = button.on_toggle;
     div()
+        .id(button.id)
         .flex_none()
         .flex()
         .items_center()
@@ -198,8 +230,12 @@ fn element(button: Button, out: bool, is_selected: bool, cx: &App) -> AnyElement
         .pl(px_of(pad.left))
         .pr(right)
         .rounded_full()
+        .cursor_pointer()
         .bg(palette(bg).opacity(opacity))
-        .child(emoji(&button.kind))
+        // The row under it starts a selection on press.
+        .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
+        .on_click(move |_, window, cx| on_toggle(window, cx))
+        .child(emoji(&button.kind, button.picture.as_deref()))
         .map(|this| match button.label {
             Label::Count(count) if count.is_empty() => this,
             Label::Count(count) => this.child(
@@ -257,18 +293,33 @@ fn bubble_bg(out: bool, is_selected: bool) -> ColorId {
     }
 }
 
-pub(super) fn emoji(kind: &ReactionKind) -> Div {
-    let glyph = match kind {
-        ReactionKind::Emoji(emoji) => emoji_presentation(emoji),
-        ReactionKind::CustomEmoji(_) => "\u{2B50}".to_owned(),
-        ReactionKind::Paid => "\u{2B50}".to_owned(),
-    };
-    div()
+/// A custom emoji reaction's picture once on disk; the first ask fetches it.
+pub(super) fn picture(store: &Entity<Store>, kind: &ReactionKind, cx: &mut App) -> Option<String> {
+    match kind {
+        ReactionKind::CustomEmoji(id) => store.update(cx, |store, cx| {
+            store.emoji_picture(&EmojiKey::Custom(*id), cx)
+        }),
+        ReactionKind::Emoji(_) | ReactionKind::Paid => None,
+    }
+}
+
+/// The reaction's emoji in its square: a custom one's picture, else the
+/// glyph; a star until a custom one's picture lands.
+pub(super) fn emoji(kind: &ReactionKind, picture: Option<&str>) -> Div {
+    let square = div()
         .flex_none()
         .size(px_of(REACTION_INLINE_SIZE))
         .flex()
         .items_center()
-        .justify_center()
+        .justify_center();
+    if let Some(path) = picture {
+        return square.child(img(PathBuf::from(path)).size_full());
+    }
+    let glyph = match kind {
+        ReactionKind::Emoji(emoji) => emoji_presentation(emoji),
+        ReactionKind::CustomEmoji(_) | ReactionKind::Paid => "\u{2B50}".to_owned(),
+    };
+    square
         .text_size(px(EMOJI_FONT_SIZE))
         .line_height(px_of(REACTION_INLINE_SIZE))
         .child(glyph)

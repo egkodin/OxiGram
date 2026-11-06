@@ -6,8 +6,8 @@ set -eu
 
 out="${1:-target/history-perf}"
 mkdir -p "$out"
-cargo build --release -p rgram --example history-perf
-ZED_MEASUREMENTS=1 cargo run --release -p rgram --example history-perf -- "$out" \
+cargo build --release -p oxigram --example history-perf
+ZED_MEASUREMENTS=1 cargo run --release -p oxigram --example history-perf -- "$out" \
     2>"$out/stderr.log"
 awk '
     /^scroll: start/ { on = 1; next }

@@ -7,8 +7,8 @@ use chrono::Local;
 
 use gpui::{
     Anchor, AnyElement, App, AppContext as _, ClipboardItem, Context, DismissEvent, Entity,
-    Focusable as _, IntoElement, ParentElement, Pixels, Point, SharedString, Subscription, Task,
-    Window, anchored, deferred, div, point, px,
+    Focusable as _, IntoElement, ParentElement, Pixels, Point, SharedString, Styled as _,
+    Subscription, Task, Window, anchored, deferred, div, point, px,
 };
 use i18n::key;
 use model::MessageId;
@@ -16,7 +16,7 @@ use model::RequestError;
 use model::chat::ChatKind;
 use model::message::{Content, Message};
 use model::message_actions::Abilities;
-use model::reaction::AddedReactions;
+use model::reaction::{AddedReactions, ReactionKind};
 use style::chat::WHO_READ_CHECKS;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
@@ -25,8 +25,10 @@ use style::menu_icons::{
     MENU_ICON_RETRACT_VOTE, MENU_ICON_SELECT, MENU_ICON_SEND, MENU_ICON_SHOW_IN_FOLDER,
 };
 use style::widgets::{DEFAULT_TOAST, POPUP_MENU_WITH_ICONS};
+use ui::anim::{Easing, Simple};
 use ui::{MenuTone, PopupMenu};
 
+use super::reacting::Strip;
 use super::read_date::WhoRead;
 use super::selection::Selection;
 use super::who_reacted::WhoLine;
@@ -46,6 +48,8 @@ pub(super) struct Facts<'a> {
     abilities: &'a [Abilities],
     /// Who saw or reacted to a lone message.
     who_read: Option<WhoLine>,
+    /// What a lone message takes, for the strip over the menu.
+    reactions: Vec<ReactionKind>,
 }
 
 /// A who-read answer, or none when TDLib could not tell.
@@ -60,8 +64,16 @@ pub(super) struct OpenMenu {
     position: Point<Pixels>,
     corner: Anchor,
     menu: Entity<PopupMenu>,
+    strip: Option<Strip>,
+    /// The menu fading in and sliding down into place.
+    appear: Simple,
     _subscription: Subscription,
 }
+
+/// How long a menu takes to fade in (lib_ui's panel animation).
+const APPEAR_MS: i32 = 150;
+/// How far above its place a menu starts.
+const APPEAR_LIFT: f32 = 6.0;
 
 /// Where the menu opened, against the selection (`isUponSelected`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -233,6 +245,17 @@ pub fn preset_message_abilities(abilities: Option<Abilities>, cx: &mut App) {
     cx.set_global(PresetAbilities(abilities));
 }
 
+/// With preset abilities every message takes these reactions too.
+pub(super) fn preset_reactions(cx: &App) -> Option<Vec<ReactionKind>> {
+    cx.try_global::<PresetAbilities>()
+        .and_then(|preset| preset.0)
+        .map(|_| {
+            ["👍", "❤", "🔥", "🥰", "👏", "😁", "🤔"]
+                .map(|emoji| ReactionKind::Emoji(emoji.to_owned()))
+                .to_vec()
+        })
+}
+
 impl HistoryView {
     /// What the user may do with each of `ids`, from TDLib; empty when it
     /// did not tell for any of them.
@@ -288,6 +311,8 @@ impl HistoryView {
         let reactors_task = (is_single && !self.is_private(cx))
             .then(|| self.reactors(&message, cx))
             .flatten();
+        let strip_task = (is_single && message.schedule.is_none())
+            .then(|| self.available_reactions(message.id, cx));
         let position = window.mouse_position();
         let generation = self.generation;
         cx.spawn_in(window, async move |this, cx| {
@@ -300,6 +325,10 @@ impl HistoryView {
                 Some(task) => task.await,
                 None => None,
             };
+            let reactions = match strip_task {
+                Some(task) => task.await,
+                None => Vec::new(),
+            };
             this.update_in(cx, |this, window, cx| {
                 if this.generation == generation {
                     let facts = Facts {
@@ -311,6 +340,7 @@ impl HistoryView {
                             abilities.first(),
                             cx,
                         ),
+                        reactions,
                     };
                     this.show_menu(hit, upon, facts, position, window, cx);
                 }
@@ -435,6 +465,10 @@ impl HistoryView {
             menu
         });
         self.present_menu(menu, position, Anchor::TopLeft, window, cx);
+        let strip = self.strip(message.id, facts.reactions);
+        if let Some(open) = &mut self.menu {
+            open.strip = strip;
+        }
     }
 
     /// The top bar's chat menu (`TopBarWidget::showPeerMenu`), under the
@@ -488,6 +522,12 @@ impl HistoryView {
             position,
             corner,
             menu,
+            strip: None,
+            appear: {
+                let mut appear = Simple::default();
+                appear.start(0.0, 1.0, APPEAR_MS, Easing::EaseOutCirc);
+                appear
+            },
             _subscription: subscription,
         });
         cx.notify();
@@ -672,15 +712,40 @@ impl HistoryView {
         );
     }
 
-    pub(super) fn menu_overlay(&self) -> Option<AnyElement> {
+    pub(super) fn menu_overlay(
+        &self,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
         let open = self.menu.as_ref()?;
+        let shown = open.appear.value_in(window, 1.0);
+        let strip = open
+            .strip
+            .as_ref()
+            .map(|strip| self.strip_element(strip, cx));
         Some(
             deferred(
                 anchored()
                     .anchor(open.corner)
                     .position(open.position)
                     .snap_to_window_with_margin(px(EDGE_MARGIN))
-                    .child(div().child(open.menu.clone())),
+                    // The strip floats over the menu, which keeps its place.
+                    // shortcut: a menu at the window's top puts the strip off screen; flip it under the menu when that shows up.
+                    .child(
+                        div()
+                            .relative()
+                            .opacity(shown)
+                            .top(px((shown - 1.0) * APPEAR_LIFT))
+                            .child(open.menu.clone())
+                            .children(strip.map(|strip| {
+                                div()
+                                    .absolute()
+                                    // It grows leftwards: menus snap off the right edge.
+                                    .right_0()
+                                    .bottom(gpui::relative(1.0))
+                                    .child(strip)
+                            })),
+                    ),
             )
             .with_priority(1)
             .into_any_element(),
@@ -729,100 +794,5 @@ fn look(item: &Item, is_megagroup: bool, cx: &App) -> (SharedString, style::Icon
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const ALL: Abilities = Abilities {
-        can_be_copied: true,
-        can_be_deleted_only_for_self: true,
-        can_be_deleted_for_all_users: true,
-        can_get_link: true,
-        can_be_pinned: true,
-        can_be_replied: true,
-        can_be_edited: true,
-        can_be_forwarded: true,
-        can_get_read_date: false,
-        can_get_viewers: false,
-    };
-
-    #[test]
-    fn a_plain_message_offers_copy_link_delete_and_select() {
-        assert_eq!(
-            items(Upon::Nothing, true, None, &[ALL]),
-            [
-                Item::Reply,
-                Item::Edit,
-                Item::CopyText,
-                Item::CopyMessageLink,
-                Item::Forward,
-                Item::Delete,
-                Item::Select
-            ]
-        );
-    }
-
-    #[test]
-    fn a_link_under_the_pointer_replaces_the_message_link() {
-        let link = LinkCopy::Hashtag("#trail".to_owned());
-        assert_eq!(
-            items(Upon::Nothing, true, Some(link.clone()), &[ALL]),
-            [
-                Item::Reply,
-                Item::Edit,
-                Item::CopyText,
-                Item::CopyLink(link),
-                Item::Forward,
-                Item::Delete,
-                Item::Select
-            ]
-        );
-    }
-
-    #[test]
-    fn unknown_abilities_offer_only_what_needs_no_permission() {
-        assert_eq!(
-            items(Upon::Nothing, true, None, &[]),
-            [Item::CopyText, Item::Select]
-        );
-    }
-
-    #[test]
-    fn protected_content_is_not_copied() {
-        let protected = Abilities {
-            can_be_copied: false,
-            ..ALL
-        };
-        assert_eq!(
-            items(Upon::SelectedText, true, None, &[protected]),
-            [
-                Item::Reply,
-                Item::Edit,
-                Item::CopyMessageLink,
-                Item::Forward,
-                Item::Delete,
-                Item::Select
-            ]
-        );
-    }
-
-    #[test]
-    fn selected_messages_delete_only_when_all_can() {
-        let kept = Abilities {
-            can_be_deleted_only_for_self: false,
-            can_be_deleted_for_all_users: false,
-            ..ALL
-        };
-        assert_eq!(
-            items(Upon::SelectedMessage, true, None, &[ALL, kept]),
-            [
-                Item::CopySelectedMessages,
-                Item::ForwardSelected,
-                Item::ClearSelection
-            ]
-        );
-        assert_eq!(
-            items(Upon::OtherMessages, true, None, &[ALL]),
-            [Item::Select, Item::SelectUpTo]
-        );
-    }
-}
+#[path = "menu_tests.rs"]
+mod tests;

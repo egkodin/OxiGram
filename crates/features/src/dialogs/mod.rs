@@ -24,7 +24,6 @@ pub(crate) use self::preview::unsupported_text;
 pub(crate) use self::row::{Lit, unread_badge};
 pub(crate) use self::sidebar::{OnMainMenu, is_sidebar_shown};
 
-use std::collections::HashSet;
 use std::ops::Range;
 
 use chrono::{DateTime, Local};
@@ -148,7 +147,6 @@ pub(crate) struct Dialogs {
     suggestions: Option<Suggestions>,
     hovered: Option<RowKey>,
     active: Option<ChatId>,
-    requested_files: HashSet<FileId>,
     /// Userpics only, as the list is too narrow for names.
     narrow: bool,
     /// The open context menu, where it was asked for.
@@ -182,7 +180,6 @@ impl Dialogs {
             suggestions: None,
             hovered: None,
             active: None,
-            requested_files: HashSet::new(),
             narrow: false,
             menu: None,
             _subscription: subscription,
@@ -293,22 +290,9 @@ impl Dialogs {
     }
 
     fn download(&mut self, file: FileId, cx: &mut Context<Self>) {
-        if !self.requested_files.insert(file) {
-            return;
-        }
-        let task = crate::store::spawn(
-            self.store
-                .read(cx)
-                .session()
-                .download_file(file, USERPIC_PRIORITY),
-            cx,
-        );
-        cx.spawn(async move |_, _| {
-            if let Err(error) = task.await {
-                tracing::warn!(%error, "downloading a userpic failed");
-            }
-        })
-        .detach();
+        self.store.update(cx, |store, cx| {
+            store.load_userpic(file, USERPIC_PRIORITY, cx)
+        });
     }
 
     fn rows(&mut self, range: Range<usize>, cx: &mut Context<Self>) -> Vec<gpui::AnyElement> {

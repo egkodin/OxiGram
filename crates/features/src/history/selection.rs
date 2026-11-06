@@ -64,6 +64,8 @@ pub(super) enum Pointer {
     PressText(usize),
     /// Pressed elsewhere on the message's row.
     PressRow,
+    /// Pressed twice in a row on the message's row, off its text.
+    DoubleClick,
     /// Moved with the left button down, over the text at an offset or
     /// elsewhere on the row.
     Drag(Option<usize>),
@@ -226,6 +228,10 @@ impl HistoryView {
             Pointer::Menu(offset) => self.open_menu(Hit { index, offset }, window, cx),
             Pointer::PressText(offset) => self.press(index, Some(offset)),
             Pointer::PressRow => self.press(index, None),
+            Pointer::DoubleClick if matches!(self.selection, Selection::None) => {
+                self.quick_react(index, cx);
+            }
+            Pointer::DoubleClick => {}
             Pointer::Drag(offset) => self.drag_to(index, offset),
             Pointer::Hover => self.drag = None,
             Pointer::Release { is_toggle } => self.release(is_toggle),

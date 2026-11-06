@@ -2,7 +2,7 @@
 //! Desktop, without signing in: each window gets preset model events, and
 //! TDLib never receives parameters, so nothing goes online.
 //!
-//! cargo run -p rgram --example snapshots -- [output directory]
+//! cargo run -p oxigram --example snapshots -- [output directory]
 
 mod accounts;
 mod chats;

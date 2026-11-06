@@ -1,4 +1,4 @@
-//! Where rgram keeps its data, and the system language TDLib is told.
+//! Where OxiGram keeps its data, and the system language TDLib is told.
 
 use std::env;
 use std::path::{Path, PathBuf};
@@ -7,7 +7,9 @@ use model::Environment;
 
 /// Overrides the data directory, for test profiles.
 const DATA_DIR_VAR: &str = "RGRAM_DATA_DIR";
-const APP_DIR: &str = "rgram";
+const APP_DIR: &str = "OxiGram";
+/// The directory before the rename to OxiGram, moved on first start.
+const LEGACY_APP_DIR: &str = "rgram";
 /// Test servers keep separate accounts, so they get their own database.
 const TEST_DIR: &str = "test-dc";
 /// An account's TDLib database, files and language packs, in its directory.
@@ -20,12 +22,33 @@ pub(crate) const LANGUAGE_PACKS: &str = "langpack.sqlite";
 pub(crate) fn data_dir(environment: Environment) -> anyhow::Result<PathBuf> {
     let base = match env::var_os(DATA_DIR_VAR).filter(|dir| !dir.is_empty()) {
         Some(dir) => PathBuf::from(dir),
-        None => platform_dir()?.join(APP_DIR),
+        None => {
+            let platform = platform_dir()?;
+            adopt_legacy_dir(&platform.join(LEGACY_APP_DIR), &platform.join(APP_DIR))?;
+            platform.join(APP_DIR)
+        }
     };
     Ok(match environment {
         Environment::Production => base,
         Environment::Test => base.join(TEST_DIR),
     })
+}
+
+/// Moves the data the app kept as rgram to `current`, once; an existing
+/// `current` is left alone, so nothing is ever overwritten.
+fn adopt_legacy_dir(legacy: &Path, current: &Path) -> anyhow::Result<()> {
+    if current.exists() || !legacy.is_dir() {
+        return Ok(());
+    }
+    std::fs::rename(legacy, current).map_err(|error| {
+        anyhow::anyhow!(
+            "moving {} to {}: {error}",
+            legacy.display(),
+            current.display()
+        )
+    })?;
+    tracing::info!("moved the data directory to the OxiGram name");
+    Ok(())
 }
 
 /// Account `id`'s directory: the data directory itself for the first one,
@@ -91,6 +114,19 @@ mod tests {
         let data = Path::new("/data");
         assert_eq!(account_dir(data, 0), PathBuf::from("/data"));
         assert_eq!(account_dir(data, 2), PathBuf::from("/data/account-2"));
+    }
+
+    #[test]
+    fn the_legacy_directory_moves_once_and_never_over_data() {
+        let root = std::env::temp_dir().join(format!("oxigram-paths-{}", std::process::id()));
+        let (legacy, current) = (root.join("rgram"), root.join("OxiGram"));
+        std::fs::create_dir_all(legacy.join("tdata")).expect("temp dir is writable");
+        adopt_legacy_dir(&legacy, &current).expect("moving within one temp dir works");
+        assert!(current.join("tdata").is_dir() && !legacy.exists());
+        std::fs::create_dir_all(&legacy).expect("temp dir is writable");
+        adopt_legacy_dir(&legacy, &current).expect("an existing directory is kept");
+        assert!(legacy.is_dir() && current.join("tdata").is_dir());
+        std::fs::remove_dir_all(&root).expect("temp dir is removable");
     }
 
     #[test]

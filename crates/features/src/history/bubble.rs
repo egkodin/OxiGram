@@ -44,12 +44,13 @@ pub(super) struct Run {
     pub is_attached_to_next: bool,
 }
 
-/// Who wrote an incoming group message, shown on its run.
+/// Who wrote an incoming group message or a channel post, shown on its run.
 #[derive(Debug, Clone)]
 pub(super) struct Author {
     pub name: SharedString,
     pub color_index: i32,
-    pub userpic: UserpicSource,
+    /// None in channels, which show the name only (`displayFromPhoto`).
+    pub userpic: Option<UserpicSource>,
 }
 
 /// A history item's content, ready to draw.
@@ -57,7 +58,7 @@ pub(super) struct Item<'a> {
     pub message: &'a Message,
     pub date_badge: Option<DateBadge>,
     pub run: Run,
-    /// Set in groups for incoming messages.
+    /// Set in groups for incoming messages, and on channel posts.
     pub author: Option<Author>,
     pub is_read: bool,
     pub time: String,
@@ -138,8 +139,13 @@ fn with_pointer(row: Div, on_pointer: &OnPointer) -> Div {
         on_pointer.clone(),
         on_pointer.clone(),
     );
-    row.on_mouse_down(MouseButton::Left, move |_, window, cx| {
-        on_press(Pointer::PressRow, window, cx);
+    row.on_mouse_down(MouseButton::Left, move |event, window, cx| {
+        let pointer = if event.click_count == 2 {
+            Pointer::DoubleClick
+        } else {
+            Pointer::PressRow
+        };
+        on_press(pointer, window, cx);
     })
     .on_mouse_down(MouseButton::Right, move |_, window, cx| {
         on_menu(Pointer::Menu(None), window, cx);
@@ -256,7 +262,11 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
     } else {
         MSG_MARGIN.top
     };
-    let photo_skip = if item.author.is_some() {
+    let photo_skip = if item
+        .author
+        .as_ref()
+        .is_some_and(|author| author.userpic.is_some())
+    {
         px_of(MSG_PHOTO_SKIP)
     } else {
         px(0.0)
@@ -270,12 +280,13 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
         .author
         .as_ref()
         .filter(|_| !item.run.is_attached_to_next)
-        .map(|author| {
+        .and_then(|author| author.userpic.clone())
+        .map(|userpic| {
             div()
                 .absolute()
                 .left(px_of(HISTORY_PHOTO_LEFT))
                 .bottom(px_of(MSG_MARGIN.bottom))
-                .child(Userpic::new(px_of(MSG_PHOTO_SIZE), author.userpic.clone()))
+                .child(Userpic::new(px_of(MSG_PHOTO_SIZE), userpic))
         });
     let overlay = (item.is_selected || item.is_highlighted).then(|| {
         div()

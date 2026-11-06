@@ -1,7 +1,6 @@
 //! Who reacted to a message, a tab per reaction (`Info::ReactionsList`).
 // shortcut: a layer box, as tdesktop shows the section in a narrow window; moves to the info column with the profile panel (M6).
 
-use std::collections::HashSet;
 use std::rc::Rc;
 
 use chrono::Local;
@@ -23,7 +22,7 @@ use style::layers::{BOX_MAX_LIST_HEIGHT, DEFAULT_BOX};
 use style::widgets::DEFAULT_PEER_LIST;
 use ui::{BoxFrame, RoundButton, Userpic, color, font, font_height};
 
-use super::reactions::emoji;
+use super::reactions::{emoji, picture};
 use super::sender_face;
 use crate::Store;
 use crate::lang::{group_digits, strings, tr};
@@ -62,7 +61,6 @@ pub(super) struct ReactionsBox {
     is_loading: bool,
     /// Drops pages asked for before the tab changed.
     generation: u64,
-    requested_files: HashSet<FileId>,
     _store_changed: Subscription,
 }
 
@@ -98,7 +96,6 @@ pub(super) fn show(
             next: Some(String::new()),
             is_loading: false,
             generation: 0,
-            requested_files: HashSet::new(),
             _store_changed: store_changed,
         };
         view.load(cx);
@@ -194,22 +191,9 @@ impl ReactionsBox {
     }
 
     fn download(&mut self, file: FileId, cx: &mut Context<Self>) {
-        if !self.requested_files.insert(file) {
-            return;
-        }
-        let task = spawn(
-            self.store
-                .read(cx)
-                .session()
-                .download_file(file, USERPIC_PRIORITY),
-            cx,
-        );
-        cx.spawn(async move |_, _| {
-            if let Err(error) = task.await {
-                tracing::warn!(%error, "userpic download failed");
-            }
-        })
-        .detach();
+        self.store.update(cx, |store, cx| {
+            store.load_userpic(file, USERPIC_PRIORITY, cx)
+        });
     }
 
     fn tab(&self, index: usize, tab: &Tab, cx: &mut Context<Self>) -> AnyElement {
@@ -221,7 +205,7 @@ impl ReactionsBox {
             (st.text_bg, st.text_fg)
         };
         let icon = match &tab.kind {
-            Some(kind) => emoji(kind),
+            Some(kind) => emoji(kind, picture(&self.store, kind, cx).as_deref()),
             None if is_selected => div().child(ui::icon(REACTIONS_TAB_ALL_SELECTED)),
             None => div().child(ui::icon(REACTIONS_TAB_ALL)),
         };
@@ -259,6 +243,7 @@ impl ReactionsBox {
     // shortcut: rows open nothing; tdesktop opens the person's profile, which comes with M6.
     fn row(&mut self, added: &AddedReaction, index: usize, cx: &mut Context<Self>) -> AnyElement {
         let st = &DEFAULT_PEER_LIST.item;
+        let shown = picture(&self.store, &added.kind, cx);
         let state = self.store.read(cx).state();
         let face = sender_face(&state.chats, added.sender);
         let line = match added.sender {
@@ -333,7 +318,7 @@ impl ReactionsBox {
                     .absolute()
                     .top(emoji_top)
                     .right(px_of(EMOJI_SIZE) * 1.5)
-                    .child(emoji(&added.kind)),
+                    .child(emoji(&added.kind, shown.as_deref())),
             )
             .into_any_element()
     }

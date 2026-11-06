@@ -208,7 +208,7 @@ fn head(pre_skip: u16) -> Vec<u8> {
 }
 
 fn tags() -> Vec<u8> {
-    const VENDOR: &[u8] = b"rgram";
+    const VENDOR: &[u8] = b"OxiGram";
     let mut tags = b"OpusTags".to_vec();
     tags.extend_from_slice(&u32::try_from(VENDOR.len()).unwrap_or(0).to_le_bytes());
     tags.extend_from_slice(VENDOR);

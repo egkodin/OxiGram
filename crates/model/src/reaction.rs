@@ -5,7 +5,10 @@ use std::future::Future;
 
 use futures::FutureExt as _;
 use td_api::enums::ReactionType;
-use td_api::functions::GetMessageAddedReactions;
+use td_api::functions::{
+    AddMessageReaction, GetMessageAddedReactions, GetMessageAvailableReactions,
+    RemoveMessageReaction,
+};
 use td_api::types::{ReactionTypeCustomEmoji, ReactionTypeEmoji, ReactionTypePaid};
 
 use crate::ids::{ChatId, CustomEmojiId, MessageId};
@@ -117,6 +120,84 @@ impl Session {
     }
 }
 
+/// How many reactions TDLib lays out per row of the picker.
+const PICKER_ROW: i32 = 8;
+
+impl Session {
+    /// Adds the user's reaction (`addMessageReaction`); never the paid one,
+    /// which costs Stars.
+    pub fn add_reaction(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+        kind: &ReactionKind,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&AddMessageReaction {
+                chat_id: chat.0,
+                message_id: message.0,
+                reaction_type: Box::new(kind.to_td()),
+                is_big: false,
+                update_recent_reactions: true,
+            })
+            .map(|result| result.map(drop).map_err(RequestError::from))
+    }
+
+    pub fn remove_reaction(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+        kind: &ReactionKind,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client()
+            .request(&RemoveMessageReaction {
+                chat_id: chat.0,
+                message_id: message.0,
+                reaction_type: Box::new(kind.to_td()),
+            })
+            .map(|result| result.map(drop).map_err(RequestError::from))
+    }
+
+    /// The reactions the user may add to a message, top ones first, without
+    /// the paid one and those that need Premium.
+    pub fn available_reactions(
+        &self,
+        chat: ChatId,
+        message: MessageId,
+    ) -> impl Future<Output = Result<Vec<ReactionKind>, RequestError>> + Send + use<> {
+        self.client()
+            .request(&GetMessageAvailableReactions {
+                chat_id: chat.0,
+                message_id: message.0,
+                row_size: PICKER_ROW,
+            })
+            .map(|result| {
+                result.map_err(RequestError::from).map(|available| {
+                    let all = available
+                        .top_reactions
+                        .into_iter()
+                        .chain(available.recent_reactions)
+                        .chain(available.popular_reactions);
+                    pickable(
+                        all.filter(|reaction| !reaction.needs_premium)
+                            .map(|reaction| ReactionKind::from(*reaction.r#type)),
+                    )
+                })
+            })
+    }
+}
+
+/// Each reaction once, in order, without the paid one.
+fn pickable(all: impl Iterator<Item = ReactionKind>) -> Vec<ReactionKind> {
+    let mut list: Vec<ReactionKind> = Vec::new();
+    for kind in all {
+        if kind != ReactionKind::Paid && !list.contains(&kind) {
+            list.push(kind);
+        }
+    }
+    list
+}
+
 impl ReactionKind {
     pub(crate) fn to_td(&self) -> ReactionType {
         match self {
@@ -156,5 +237,18 @@ mod tests {
         ] {
             assert_eq!(ReactionKind::from(kind.to_td()), kind);
         }
+    }
+
+    #[test]
+    fn the_picker_keeps_each_reaction_once_and_drops_the_paid_one() {
+        let heart = ReactionKind::Emoji("❤".to_owned());
+        let fire = ReactionKind::Emoji("🔥".to_owned());
+        let all = [
+            heart.clone(),
+            ReactionKind::Paid,
+            fire.clone(),
+            heart.clone(),
+        ];
+        assert_eq!(pickable(all.into_iter()), [heart, fire]);
     }
 }

@@ -20,8 +20,8 @@ terms are hard requirements, not guidelines.
 | §1.5 | Telegram data must not be used to train or run AI/ML models | No such feature; no telemetry |
 | §2.1 | Each app has its own `api_id` | `api_id`/`api_hash` come from `RGRAM_API_ID`/`RGRAM_API_HASH` or the user's config; never committed; startup fails with a clear error when missing |
 | §2.2 | Users are told the app uses the Telegram API, prominently, in store listings and the in-app intro | The intro screen states "rgram is an unofficial client that uses the Telegram API"; the same line opens the README and every package description |
-| §2.3 | "Telegram" may appear in the title only as "Unofficial …" | The product name is **rgram** |
-| §2.4 | The official Telegram logo must not be used | rgram ships its own icon; tdesktop's `Resources/art/` and app icons are excluded (ADR 0001) |
+| §2.3 | "Telegram" may appear in the title only as "Unofficial …" | The product name is **OxiGram** (rgram until 2026-11-06) |
+| §2.4 | The official Telegram logo must not be used | tdesktop's `Resources/art/` and app icons are excluded (ADR 0001). The owner's local `resources/OxiGram.icns` (a recolored Telegram plane) is git-ignored and only goes into local builds; a build for anyone else needs an icon of OxiGram's own |
 | §3.2 | Monetization is disclosed in store descriptions | rgram has no monetization |
 | §3.3 | Clients that show channel content must support sponsored messages and not interfere with them | Channel histories request and render sponsored messages (`getChatSponsoredMessages`; views reported through `viewMessages` with the sponsored message id; `clickChatSponsoredMessage`; `reportChatSponsoredMessage`); tracked as an M3 acceptance item |
 | closing | Terms may change; developers are notified in-app on the connected account | Re-read the terms before each release; the release checklist links this ADR |

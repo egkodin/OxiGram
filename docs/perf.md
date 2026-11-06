@@ -29,7 +29,7 @@ justification recorded here.
 ## M0: empty window
 
 Mac mini, Apple M4, 24 GB, macOS 27.0.1, external 4K display at 160 Hz with 2×
-scaling. `target/release/rgram` (`lto = "fat"`, `codegen-units = 1`,
+scaling. `target/release/oxigram` (`lto = "fat"`, `codegen-units = 1`,
 `panic = "abort"`, `strip = true`, precompiled Metal shaders), started without
 API credentials so it shows the startup notice; TDLib is loaded and answers
 `getOption("version")`. Three runs; measured 5 s after start for 10 s.
@@ -67,7 +67,7 @@ compiles it in `MetalRenderer::new` when the first window opens.
 | Runtime compile, cached by macOS | 0.1 ms |
 | Precompiled metallib | below what `open_window` resolves (same 60–71 ms as the cached case) |
 
-`cargo run -p rgram --example cold-start` (both modes, 6 runs each, dev
+`cargo run -p oxigram --example cold-start` (both modes, 6 runs each, dev
 build): `open_window` 60–71 ms and first frame 149–158 ms in both modes
 once warm, because macOS caches the compiled source by its hash; the first
 run of each new binary took about 200 ms in `open_window` either way.
@@ -210,7 +210,7 @@ check on the live run: frame times while scrolling the panel quickly.
   failed decode waits 2 s, doubling to 60 s, or until the file's time or
   length changes.
 - Soak, 2026-10-28, macOS arm64, dev-profile example build:
-  `SNAPSHOTS_SOAK=300 cargo run -q -p rgram --example snapshots` scrolls a
+  `SNAPSHOTS_SOAK=300 cargo run -q -p oxigram --example snapshots` scrolls a
   list of 2000 chats with 2000 distinct 160 px userpics (four times the
   capacity) at about 33 rows a second, up and down, for 5 minutes. RSS in
   MB every 15 s: 133, 189, 185, 196, 238, 236, 236, 223, 223, 223, 224,
