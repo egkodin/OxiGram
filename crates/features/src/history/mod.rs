@@ -398,15 +398,18 @@ impl HistoryView {
         let count = self.list.item_count();
         // The last row, not one past it, when fewer than PRELOAD are loaded.
         let top_probe = PRELOAD.min(count.saturating_sub(1));
-        let near_top = self.list.item_is_above_viewport(top_probe) == Some(false);
+        // Rows that fit the view need older ones; `scroll_to_end` anchors
+        // past the last row, so the probe alone calls them all above.
+        let fits = self.list.max_offset_for_scrollbar().y <= px(0.0);
+        let near_top = fits || self.list.item_is_above_viewport(top_probe) == Some(false);
         let near_bottom = count
             .checked_sub(PRELOAD + 1)
             .is_none_or(|index| self.list.item_is_below_viewport(index) == Some(false));
-        let page = match (near_top, near_bottom) {
-            (true, _) => history.older_page(),
-            (_, true) => history.newer_page(),
-            _ => None,
-        };
+        let page = near_top
+            .then(|| history.older_page())
+            .flatten()
+            .or_else(|| near_bottom.then(|| history.newer_page()).flatten());
+        tracing::debug!(count, near_top, near_bottom, ?page, "history preload");
         if let Some(page) = page {
             self.load(page, cx);
         }
@@ -429,6 +432,7 @@ impl HistoryView {
                 this.loading = None;
                 match result {
                     Ok(messages) => this.store.update(cx, |store, cx| {
+                        tracing::debug!(?page, count = messages.len(), "history page loaded");
                         store.add_history_page(key, page, messages, cx);
                     }),
                     Err(error) => tracing::warn!(%error, "loading history failed"),

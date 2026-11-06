@@ -91,8 +91,20 @@ reading only):
   back.
 - 60: with a chat of looping video stickers open, CPU was 54 % (VP9
   decoder threads); with Saved Messages open, 1 %; minimized, 0 %.
-- Not run: 53–59. The full-screen approval timed out, and the owner was
-  using the window.
+- Found and fixed (second run): a chat whose rows all fit the view still
+  never loaded older ones. `scroll_to_end` anchors gpui's list past the
+  last row, so every row read as above the viewport. The preload now
+  loads older pages while the rows fit, and falls back to newer pages
+  when the oldest is in. `RGRAM_LOG=features::history=debug` logs each
+  preload and page. Три ебалая now fills on open.
+- Found: the cached FFmpeg (`~/.cache/rgram/ffmpeg-9.0.2`) was built
+  before `build-ffmpeg.sh` added libvpx. It has no `libvpx.a`, so WebM
+  stickers lose their alpha ("no libvpx" in the log) and decode on
+  FFmpeg's own VP9. Rebuild that cache with `scripts/build-ffmpeg.sh`.
+- 54 (partly): channel posts show their reactions under the text.
+- Not run: 53, 55–59. Right-clicks, the message menu and precise scroll
+  gestures need full-screen control, and its approval timed out three
+  times. There's no sticker panel yet to find TGS stickers quickly.
 
 ## Settings section (M6/M7 request, in progress)
 
