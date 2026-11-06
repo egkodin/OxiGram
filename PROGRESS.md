@@ -79,6 +79,21 @@ Live tests (read-only unless they say Saved Messages):
 60. Hide the window (minimize) while stickers play and back: they pause
     and go on; idle CPU with the chat open (`ps -o time=` over 10 s).
 
+Live run 2026-11-06 (release OxiGram.app, `RGRAM_WITHHOLD_VIEWS=1`,
+reading only):
+- 51: passed for the Dock, menu bar and window title (OxiGram), the old
+  chats and the dark title bar. Dragging and double-clicking the title
+  bar weren't tried.
+- 52: userpics sharp on both starts.
+- Found and fixed: a chat whose first page had fewer than 20 rows never
+  loaded older messages. The near-top probe asked for the row one past
+  the end, and gpui answered `None`. Chats now fill on open and scroll
+  back.
+- 60: with a chat of looping video stickers open, CPU was 54 % (VP9
+  decoder threads); with Saved Messages open, 1 %; minimized, 0 %.
+- Not run: 53–59. The full-screen approval timed out, and the owner was
+  using the window.
+
 ## Settings section (M6/M7 request, in progress)
 
 The owner asked for tdesktop's whole Settings section, sections in order,

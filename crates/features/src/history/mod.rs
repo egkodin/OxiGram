@@ -396,7 +396,9 @@ impl HistoryView {
             return;
         }
         let count = self.list.item_count();
-        let near_top = self.list.item_is_above_viewport(PRELOAD.min(count)) == Some(false);
+        // The last row, not one past it, when fewer than PRELOAD are loaded.
+        let top_probe = PRELOAD.min(count.saturating_sub(1));
+        let near_top = self.list.item_is_above_viewport(top_probe) == Some(false);
         let near_bottom = count
             .checked_sub(PRELOAD + 1)
             .is_none_or(|index| self.list.item_is_below_viewport(index) == Some(false));
