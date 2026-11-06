@@ -682,8 +682,10 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Fact checks on channel posts (view and edit) (M13)
 
 </details>
-</details>
+
 <!-- todo:end -->
+
+</details>
 
 ## Telegram API credentials
 
