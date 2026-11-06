@@ -257,13 +257,13 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Media in messages</b>: 0 of 32 done, 19 in progress</summary>
+<summary><b>Media in messages</b>: 0 of 32 done, 20 in progress</summary>
 
 - [ ] Photos with blurred placeholder and progressive load (M5) *(in progress)*
 - [ ] Albums in mosaic layout (M5) *(in progress)*
 - [ ] Videos: thumbnail, duration, inline autoplay without sound (M5) *(in progress)*
 - [ ] Video covers and video timestamps (M5) *(in progress)*
-- [ ] Streaming playback while downloading (M5)
+- [ ] Streaming playback while downloading (M5) *(in progress)*
 - [ ] Files: icon, size, progress, download, open, show in folder (M5) *(in progress)*
 - [ ] Music files with the player (M5) *(in progress)*
 - [ ] Voice messages: waveform, play, seek, speed (M5) *(in progress)*

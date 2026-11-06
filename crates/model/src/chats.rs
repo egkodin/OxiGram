@@ -682,6 +682,7 @@ mod tests {
             size: 0,
             uploaded: 0,
             is_uploading: false,
+            prefix: crate::file::Prefix::default(),
         }
     }
 

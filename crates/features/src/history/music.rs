@@ -2,7 +2,6 @@
 //! circle downloads, then plays and pauses; "Performer – Title" above the
 //! length, the transfer, or the time played.
 
-use std::path::PathBuf;
 use std::rc::Rc;
 
 use gpui::Context;
@@ -17,6 +16,7 @@ use super::video::duration_text;
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
 use crate::player::{Playlist, Song, Sound, Track};
+use crate::streaming::Playable;
 
 fn seconds(duration: std::time::Duration) -> i32 {
     i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
@@ -32,8 +32,9 @@ impl HistoryView {
         let file = current(self, &music.file, cx);
         let playing = self.player.read(cx).sound_of(self.chat, message.id);
         let length = duration_text(music.duration);
+        let can_stream = Playable::of(self.store.read(cx).session(), file).is_some();
         let (thumb, status) = match (&file.path, file.is_downloading, playing) {
-            (Some(_), _, Some(player)) => (
+            (_, _, Some(player)) => (
                 if player.is_paused() {
                     Thumb::Play
                 } else {
@@ -54,8 +55,12 @@ impl HistoryView {
                 },
                 progress_text(strings(cx), file.downloaded, file.size),
             ),
-            (None, false, _) => (
-                Thumb::Download,
+            (None, false, None) => (
+                if can_stream {
+                    Thumb::Play
+                } else {
+                    Thumb::Download
+                },
                 i18n::fill(
                     &tr(cx, key::lng_duration_and_size),
                     &[("duration", &length), ("size", &size_text(file.size))],
@@ -64,7 +69,7 @@ impl HistoryView {
         };
         let weak = cx.weak_entity();
         let (chat, id, file_id) = (message.chat, message.id, file.id);
-        let path = file.path.clone().map(PathBuf::from);
+        let playable = Playable::of(self.store.read(cx).session(), file);
         let (performer, title) = music.parts(name);
         let track = Track::Song { performer, title };
         Some(FileRow {
@@ -77,8 +82,8 @@ impl HistoryView {
                     Thumb::Download => this.add_to_downloads(file_id, (chat, id), cx),
                     Thumb::Cancel { .. } => this.cancel_download(file_id, cx),
                     Thumb::Play | Thumb::Pause | Thumb::Document => {
-                        if let Some(path) = &path {
-                            this.toggle_music(id, path, track.clone(), window, cx);
+                        if let Some(file) = &playable {
+                            this.toggle_music(id, file, track.clone(), window, cx);
                         }
                     }
                 });
@@ -107,12 +112,13 @@ impl HistoryView {
         })
     }
 
-    /// Pauses or resumes the song playing, or starts `message`'s; a file
-    /// FFmpeg cannot play opens in the system player.
+    /// Pauses or resumes the song playing, or starts `message`'s, streamed
+    /// while it downloads; a file on disk FFmpeg cannot play opens in the
+    /// system player.
     fn toggle_music(
         &mut self,
         message: MessageId,
-        path: &std::path::Path,
+        file: &Playable,
         track: Track,
         window: &mut gpui::Window,
         cx: &mut Context<Self>,
@@ -121,12 +127,13 @@ impl HistoryView {
             return;
         }
         self.player.update(cx, |player, cx| player.stop(cx));
-        match self.stream(path) {
-            Some(player) => {
+        match (self.stream(file), file.path()) {
+            (Some(player), _) => {
                 let playlist = self.playlist(cx);
                 self.play(message, (track, Some(playlist)), Sound::Music(player), cx);
             }
-            None => self.open_file(path, window, cx),
+            (None, Some(path)) => self.open_file(path, window, cx),
+            (None, None) => {}
         }
     }
 }

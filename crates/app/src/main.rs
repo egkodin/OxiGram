@@ -34,6 +34,8 @@ const TEST_DC_VAR: &str = "RGRAM_TEST_DC";
 /// `RGRAM_WITHHOLD_VIEWS=1` browses without reading messages, for checks on
 /// a real account.
 const WITHHOLD_VIEWS_VAR: &str = "RGRAM_WITHHOLD_VIEWS";
+/// `RGRAM_SILENT=1` plays nothing aloud, for live checks of the players.
+const SILENT_VAR: &str = "RGRAM_SILENT";
 const SETTINGS_FILE: &str = "settings.json";
 
 fn main() -> anyhow::Result<()> {
@@ -46,6 +48,9 @@ fn main() -> anyhow::Result<()> {
         return print_version();
     }
 
+    if matches!(std::env::var(SILENT_VAR).as_deref(), Ok("1" | "true")) {
+        media::silence_output();
+    }
     let environment = environment();
     let parameters = credentials::from_env()
         .map_err(|error| SharedString::from(error.to_string()))

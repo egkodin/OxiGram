@@ -62,6 +62,7 @@ fn events(paths: &[PathBuf]) -> Vec<Event> {
             size: 4000,
             uploaded: 4000,
             is_uploading: false,
+            prefix: model::file::Prefix::default(),
         };
         events.push(Event::Chats(Change::File(small.clone())));
         let mut chat = chats::chat(

@@ -162,13 +162,18 @@ fn circle(file: &FileRow, place: &Place, bg: ColorId, radial: ColorId, cx: &App)
 /// The transfer's arc over a round button, `progress` of a turn from twelve
 /// o'clock.
 pub(super) fn arc(progress: f32, fg: Hsla) -> AnyElement {
-    let line_width = px_of(MSG_FILE_RADIAL_LINE);
     #[expect(clippy::cast_possible_truncation, reason = "within a full turn")]
     let state = RadialState {
         shown: 1.0,
         arc_from: QUARTER_ARC,
         arc_length: -(FULL_ARC * progress).round() as i64,
     };
+    radial_arc(state, fg)
+}
+
+/// `state`'s arc inside a thumb circle.
+pub(super) fn radial_arc(state: RadialState, fg: Hsla) -> AnyElement {
+    let line_width = px_of(MSG_FILE_RADIAL_LINE);
     canvas(
         |_, _, _| (),
         move |bounds, (), window, _| {

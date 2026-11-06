@@ -17,6 +17,19 @@
 - TDLib and FFmpeg builds live in ~/.cache/rgram, one version each.
 - Every milestone report gives the sizes of target/ and .git.
 
+## Video streaming (2026-11-06, committed)
+
+- `media::stream` + `media/src/input.rs` (FFmpeg custom I/O over a
+  downloading file), `features/src/streaming.rs` (`Playable`, TDLib
+  ranges at priority 32); every player streams. Live numbers in
+  docs/perf.md "M5: video streaming"; parity row "Streaming playback
+  while downloading".
+- `RGRAM_SILENT=1` silences the players for live runs.
+- Open: tdesktop's time on the same video, the buffering spinner live
+  (the data never ran late), a song in the player bar, Save As after a
+  full load. The account in the app is `account-1`; the root data dir is
+  the other account.
+
 ## OxiGram request (2026-11-06, in progress)
 
 The owner asked for ten things at once; state of each:

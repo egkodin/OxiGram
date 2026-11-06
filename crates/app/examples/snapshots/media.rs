@@ -1236,6 +1236,7 @@ fn file(id: i32, path: Option<&Path>) -> File {
         size: 120_000,
         uploaded: 120_000,
         is_uploading: false,
+        prefix: model::file::Prefix::default(),
     }
 }
 

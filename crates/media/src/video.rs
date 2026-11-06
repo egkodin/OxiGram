@@ -15,6 +15,8 @@ use ffmpeg::{Packet, codec, decoder, frame, media};
 use ffmpeg_next as ffmpeg;
 
 use crate::hw;
+use crate::input::Origin;
+use crate::stream::{Signal, Stream};
 
 /// Frames decoded ahead of the one on screen (tdesktop keeps a few too).
 const QUEUE: usize = 2;
@@ -95,33 +97,63 @@ enum Command {
     Resize { width: u32, height: u32 },
 }
 
-/// A video decoding on its thread; dropping it stops the thread.
+/// A video decoding on its thread; dropping it stops the thread, and
+/// wakes it if it waits for a streamed file's bytes.
 #[derive(Debug)]
 pub struct VideoDecoder {
     commands: Sender<Command>,
     output: Receiver<Sent>,
     generation: u32,
+    signal: Option<Signal>,
 }
 
 impl VideoDecoder {
-    /// Starts decoding `path` into frames that fit `(width, height)`.
+    /// Starts decoding the complete file at `path` into frames that fit
+    /// `(width, height)`.
     ///
     /// # Errors
     /// When the thread cannot start; the file's own errors arrive as
     /// [`Output::Failed`].
-    pub fn open(path: &Path, (width, height): (u32, u32)) -> Result<Self, VideoError> {
+    pub fn open(path: &Path, size: (u32, u32)) -> Result<Self, VideoError> {
+        Self::start(Origin::Path(path.to_owned()), size)
+    }
+
+    /// Starts decoding a file while it downloads; reads that reach missing
+    /// bytes wait on the decoder's thread.
+    ///
+    /// # Errors
+    /// As [`VideoDecoder::open`].
+    pub fn open_stream(stream: Stream, size: (u32, u32)) -> Result<Self, VideoError> {
+        Self::start(Origin::Stream(stream), size)
+    }
+
+    fn start(origin: Origin, size: (u32, u32)) -> Result<Self, VideoError> {
         let (commands, received) = mpsc::channel();
         let (sender, output) = mpsc::sync_channel(QUEUE);
-        let path = path.to_owned();
+        let signal = origin.signal();
         thread::Builder::new()
             .name("video decoder".to_owned())
-            .spawn(move || run(&path, (width, height), &received, &sender))
+            .spawn(move || run(origin, size, &received, &sender))
             .map_err(VideoError::Thread)?;
         Ok(Self {
             commands,
             output,
             generation: 0,
+            signal,
         })
+    }
+
+    /// How far the file is on disk past what the decoder read, 0 to 1; all
+    /// of a complete file.
+    #[must_use]
+    pub fn received(&self) -> f32 {
+        self.signal.as_ref().map_or(1.0, Signal::received)
+    }
+
+    /// Whether the decoder waits for bytes still downloading.
+    #[must_use]
+    pub fn is_buffering(&self) -> bool {
+        self.signal.as_ref().is_some_and(Signal::is_waiting)
     }
 
     /// The next output, if one is ready; what came before the last seek is
@@ -150,7 +182,15 @@ impl VideoDecoder {
     }
 }
 
-fn run(path: &Path, size: (u32, u32), commands: &Receiver<Command>, output: &SyncSender<Sent>) {
+impl Drop for VideoDecoder {
+    fn drop(&mut self) {
+        if let Some(signal) = &self.signal {
+            signal.close();
+        }
+    }
+}
+
+fn run(origin: Origin, size: (u32, u32), commands: &Receiver<Command>, output: &SyncSender<Sent>) {
     let mut playback = Playback {
         generation: 0,
         target: size,
@@ -159,7 +199,7 @@ fn run(path: &Path, size: (u32, u32), commands: &Receiver<Command>, output: &Syn
         output,
         is_logged: false,
     };
-    if let Err(error) = playback.play(path, commands) {
+    if let Err(error) = playback.play(origin, commands) {
         tracing::warn!(%error, "video decoding failed");
         playback.send(Output::Failed(error));
     }
@@ -176,12 +216,12 @@ struct Source {
 }
 
 impl Source {
-    fn open(path: &Path) -> Result<Self, VideoError> {
+    fn open(origin: Origin) -> Result<Self, VideoError> {
         ffmpeg::init().map_err(VideoError::Open)?;
         // FFmpeg's own log goes to stderr; rgram logs through `tracing`,
         // and a hardware decoder that declines a stream is not an error.
         ffmpeg::log::set_level(ffmpeg::log::Level::Fatal);
-        let input = ffmpeg::format::input(path).map_err(VideoError::Open)?;
+        let input = origin.open().map_err(VideoError::Open)?;
         let stream = input
             .streams()
             .best(media::Type::Video)
@@ -273,8 +313,8 @@ impl Playback<'_> {
         self.output.send(Sent { generation, output }).is_ok()
     }
 
-    fn play(&mut self, path: &Path, commands: &Receiver<Command>) -> Result<(), VideoError> {
-        let mut source = Source::open(path)?;
+    fn play(&mut self, origin: Origin, commands: &Receiver<Command>) -> Result<(), VideoError> {
+        let mut source = Source::open(origin)?;
         if !self.send(Output::Info(source.info)) {
             return Ok(());
         }
@@ -456,11 +496,14 @@ fn fit((width, height): (u32, u32), (max_width, max_height): (u32, u32)) -> (u32
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
     use std::time::Instant;
 
     const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/clip.mp4");
     /// 64x64 VP9 with alpha: clear but for an opaque red square in the middle.
     const ALPHA: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/alpha.webm");
+    /// `clip.mp4` with its index (`moov`) after the frames.
+    const MOOV_LAST: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/clip-moov-last.mp4");
     const WAIT: Duration = Duration::from_secs(10);
 
     /// The next output, waiting for the thread.
@@ -530,6 +573,111 @@ mod tests {
         let after = frame(next(&decoder));
         assert_eq!(after.position, Duration::from_millis(500));
         assert_eq!((after.width, after.height), (64, 36));
+    }
+
+    /// A file whose bytes land in small chunks after each request, as a
+    /// download does.
+    struct Trickle {
+        bytes: Arc<Vec<u8>>,
+        present: Arc<std::sync::Mutex<Vec<bool>>>,
+        signal: crate::stream::Signal,
+    }
+
+    impl crate::stream::FileSource for Trickle {
+        fn size(&self) -> u64 {
+            self.bytes.len() as u64
+        }
+
+        fn ready(&mut self, offset: u64) -> std::io::Result<u64> {
+            let present = self.present.lock().expect("test lock");
+            let start = usize::try_from(offset).expect("small").min(present.len());
+            Ok(present[start..].iter().take_while(|byte| **byte).count() as u64)
+        }
+
+        fn read_at(&mut self, offset: u64, buf: &mut [u8]) -> std::io::Result<usize> {
+            let start = usize::try_from(offset).expect("small");
+            buf.copy_from_slice(&self.bytes[start..start + buf.len()]);
+            Ok(buf.len())
+        }
+
+        fn request(&mut self, offset: u64, limit: u64) -> std::io::Result<()> {
+            let (present, signal) = (Arc::clone(&self.present), self.signal.clone());
+            let start = usize::try_from(offset).expect("small");
+            let end = start + usize::try_from(limit).expect("small");
+            thread::spawn(move || {
+                for chunk in (start..end).step_by(512) {
+                    thread::sleep(Duration::from_millis(1));
+                    let mut present = present.lock().expect("test lock");
+                    let till = (chunk + 512).min(end).min(present.len());
+                    present[chunk..till].fill(true);
+                    drop(present);
+                    signal.wake();
+                }
+            });
+            Ok(())
+        }
+
+        fn is_loading(&mut self) -> std::io::Result<bool> {
+            Ok(true)
+        }
+    }
+
+    #[test]
+    fn a_streamed_file_with_its_index_last_plays_as_it_lands() {
+        let bytes = Arc::new(std::fs::read(MOOV_LAST).expect("the fixture is there"));
+        let signal = crate::stream::Signal::new();
+        let source = Trickle {
+            present: Arc::new(std::sync::Mutex::new(vec![false; bytes.len()])),
+            bytes,
+            signal: signal.clone(),
+        };
+        let stream = Stream::new(source, signal);
+        let decoder = VideoDecoder::open_stream(stream, (32, 32)).expect("the thread starts");
+        let Output::Info(info) = next(&decoder) else {
+            panic!("the info comes first");
+        };
+        assert_eq!(info.duration, Duration::from_secs(1));
+        let mut frames = 0;
+        loop {
+            match next(&decoder) {
+                Output::Frame(_) => frames += 1,
+                Output::End => break,
+                other => panic!("unexpected {other:?}"),
+            }
+        }
+        assert_eq!(frames, 10);
+    }
+
+    #[test]
+    fn dropping_a_waiting_stream_ends_its_thread() {
+        struct Never;
+        impl crate::stream::FileSource for Never {
+            fn size(&self) -> u64 {
+                1 << 20
+            }
+            fn ready(&mut self, _: u64) -> std::io::Result<u64> {
+                Ok(0)
+            }
+            fn read_at(&mut self, _: u64, _: &mut [u8]) -> std::io::Result<usize> {
+                Ok(0)
+            }
+            fn request(&mut self, _: u64, _: u64) -> std::io::Result<()> {
+                Ok(())
+            }
+            fn is_loading(&mut self) -> std::io::Result<bool> {
+                Ok(true)
+            }
+        }
+        let signal = crate::stream::Signal::new();
+        let decoder =
+            VideoDecoder::open_stream(Stream::new(Never, signal.clone()), (8, 8)).expect("starts");
+        let start = Instant::now();
+        while !decoder.is_buffering() {
+            assert!(start.elapsed() < WAIT, "the read waits for bytes");
+            thread::sleep(Duration::from_millis(5));
+        }
+        drop(decoder);
+        assert!(signal.is_closed(), "the waiting read wakes and fails");
     }
 
     #[test]

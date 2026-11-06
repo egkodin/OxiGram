@@ -132,6 +132,7 @@ mod tests {
             size: 0,
             uploaded: 0,
             is_uploading: false,
+            prefix: model::file::Prefix::default(),
         };
         size(&StickerPicture {
             kind: StickerKind::Still,

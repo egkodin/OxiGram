@@ -3,8 +3,8 @@ use std::future::Future;
 use futures::FutureExt as _;
 use td_api::enums::OptionValue;
 use td_api::functions::{
-    CancelDownloadFile, DownloadFile, GetCountries, GetCountryCode, LoadChats, SetOption,
-    SetProfilePhoto, SetTdlibParameters,
+    CancelDownloadFile, DownloadFile, GetCountries, GetCountryCode, GetFile,
+    GetFileDownloadedPrefixSize, LoadChats, SetOption, SetProfilePhoto, SetTdlibParameters,
 };
 use td_api::types::{InputChatPhotoStatic, InputFileLocal, OptionValueBoolean, OptionValueString};
 use tg::TdError;
@@ -16,6 +16,19 @@ use crate::phone::Country;
 use crate::secret::Secret;
 
 /// Sends the user's actions to TDLib. Cheap to clone.
+/// `downloadFile`'s priority for a file a player streams, the highest, as
+/// tdesktop's streaming loader asks.
+const STREAMING_PRIORITY: i32 = 32;
+
+/// A file's downloaded part on disk.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PartialFile {
+    /// Empty until the download wrote something.
+    pub path: Option<String>,
+    pub is_loading: bool,
+    pub is_complete: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct Session {
     client: tg::Client,
@@ -272,6 +285,69 @@ impl Session {
                 synchronous: true,
             })
             .map(|result| result.map(crate::file::File::from).map_err(RequestError))
+    }
+
+    /// Downloads `limit` bytes of `file` from `offset` at the top priority,
+    /// as a player streaming it does; a range already on disk is skipped,
+    /// and a download running elsewhere in the file moves here.
+    pub fn download_range(
+        &self,
+        file: FileId,
+        offset: i64,
+        limit: i64,
+    ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        self.client
+            .request(&DownloadFile {
+                file_id: file.0,
+                priority: STREAMING_PRIORITY,
+                offset,
+                limit,
+                synchronous: false,
+            })
+            .map(|result| result.map(drop).map_err(RequestError))
+    }
+
+    /// How many bytes of `file` are on disk from `offset` on.
+    pub fn downloaded_prefix(
+        &self,
+        file: FileId,
+        offset: i64,
+    ) -> impl Future<Output = Result<i64, RequestError>> + Send + use<> {
+        self.client
+            .request(&GetFileDownloadedPrefixSize {
+                file_id: file.0,
+                offset,
+            })
+            .map(|result| result.map(|prefix| prefix.size).map_err(RequestError))
+    }
+
+    /// Where `file`'s downloaded part is on disk, even before it is
+    /// complete.
+    /// `file` as TDLib has it now.
+    pub fn file(
+        &self,
+        file: FileId,
+    ) -> impl Future<Output = Result<crate::file::File, RequestError>> + Send + use<> {
+        self.client
+            .request(&GetFile { file_id: file.0 })
+            .map(|result| result.map(crate::file::File::from).map_err(RequestError))
+    }
+
+    pub fn partial_file(
+        &self,
+        file: FileId,
+    ) -> impl Future<Output = Result<PartialFile, RequestError>> + Send + use<> {
+        self.client
+            .request(&GetFile { file_id: file.0 })
+            .map(|result| {
+                result
+                    .map(|file| PartialFile {
+                        path: Some(file.local.path).filter(|path| !path.is_empty()),
+                        is_loading: file.local.is_downloading_active,
+                        is_complete: file.local.is_downloading_completed,
+                    })
+                    .map_err(RequestError)
+            })
     }
 
     /// Stops a download; the part already loaded stays for a later one.

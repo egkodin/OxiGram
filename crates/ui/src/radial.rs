@@ -61,7 +61,9 @@ impl InfiniteRadial {
         Some(state)
     }
 
-    fn state(&self, now: Instant) -> Option<RadialState> {
+    /// The arc at `now`, for a painter that asks for frames itself.
+    #[must_use]
+    pub fn state(&self, now: Instant) -> Option<RadialState> {
         let st = self.style;
         let work_started = self.work_started?;
         let zero = work_started.checked_sub(millis(st.sine_duration))?;

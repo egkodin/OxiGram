@@ -19,6 +19,16 @@ pub struct File {
     /// The bytes on the server while it uploads.
     pub uploaded: i64,
     pub is_uploading: bool,
+    /// The run of bytes on disk where the download stands.
+    pub prefix: Prefix,
+}
+
+/// Bytes ready to read: `size` of them from `offset` (TDLib's
+/// `download_offset` and `downloaded_prefix_size`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Prefix {
+    pub offset: i64,
+    pub size: i64,
 }
 
 /// A photo's or video's size in pixels, which lays it out before it loads.
@@ -62,6 +72,10 @@ impl From<td_api::types::File> for File {
             },
             uploaded: file.remote.uploaded_size,
             is_uploading: file.remote.is_uploading_active,
+            prefix: Prefix {
+                offset: local.download_offset,
+                size: local.downloaded_prefix_size,
+            },
         }
     }
 }

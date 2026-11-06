@@ -2,7 +2,7 @@
 //! still TDLib sends, a round button in the middle with what a click does,
 //! and the length or the transfer on a pill in the top-left corner.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -26,7 +26,7 @@ use style::chat_style::{
     HISTORY_FILE_THUMB_PLAY_SELECTED,
 };
 use style::{ColorId, ColorRef, Icon};
-use ui::{color, font, font_height};
+use ui::{RadialState, color, font, font_height};
 
 use super::HistoryView;
 use super::bubble::OnClick;
@@ -38,6 +38,7 @@ use super::photo::Photo;
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
 use crate::px_of;
+use crate::streaming::Playable;
 
 /// What the middle button shows, and so what a click on the video does.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,10 +47,12 @@ pub(super) enum Center {
     Download,
     /// Moving, `progress` of it done: a click cancels.
     Cancel { progress: f32 },
-    /// On disk: a click plays it.
+    /// On disk, or streamable while it downloads: a click plays it.
     Play,
     /// Playing in the bubble: no button, a click pauses.
     Pause,
+    /// Playing in the bubble, waiting for data: the spinning arc.
+    Waiting(RadialState),
 }
 
 /// Where the status goes and how it looks.
@@ -102,7 +105,7 @@ fn icon(center: Center, is_selected: bool) -> Option<Icon> {
         (Center::Cancel { .. }, true) => HISTORY_FILE_THUMB_CANCEL_SELECTED,
         (Center::Play, false) => HISTORY_FILE_THUMB_PLAY,
         (Center::Play, true) => HISTORY_FILE_THUMB_PLAY_SELECTED,
-        (Center::Pause, _) => return None,
+        (Center::Pause | Center::Waiting(_), _) => return None,
     })
 }
 
@@ -142,14 +145,18 @@ impl HistoryView {
         } else {
             duration_text(media.duration)
         };
-        let (center, status) = state(&file, frame.as_ref(), length.clone(), cx);
+        let can_stream = Playable::of(self.store.read(cx).session(), &file).is_some();
+        let (center, status) = state(&file, frame.as_ref(), length.clone(), can_stream, cx);
         // A GIF has no time to count down.
         let status = if is_gif && frame.is_some() {
             length
         } else {
             status
         };
-        let on_click = self.on_video_click(message, center, shape, &file, media.duration, cx);
+        #[expect(clippy::cast_precision_loss, reason = "a size in points")]
+        let size = (still.width as f32, still.height as f32);
+        let on_click =
+            self.on_video_click(message, center, (shape, size), &file, media.duration, cx);
         Some(Photo {
             video: Some(Video {
                 center,
@@ -174,14 +181,14 @@ impl HistoryView {
         &self,
         message: &Message,
         center: Center,
-        shape: Shape,
+        (shape, size): (Shape, (f32, f32)),
         file: &File,
         seconds: i32,
         cx: &Context<Self>,
     ) -> OnClick {
         let weak = cx.weak_entity();
         let (chat, id, file_id) = (message.chat, message.id, file.id);
-        let path = file.path.clone().map(PathBuf::from);
+        let playable = Playable::of(self.store.read(cx).session(), file);
         let is_video = matches!(message.content, Content::Video(_));
         let length = Duration::from_secs(u64::try_from(seconds).unwrap_or(0));
         Rc::new(move |_, window, cx| {
@@ -190,20 +197,25 @@ impl HistoryView {
                 Center::Cancel { .. } => this.cancel_download(file_id, cx),
                 // Videos play in the viewer.
                 Center::Play if is_video => this.open_media(id, window, cx),
-                Center::Pause | Center::Play if this.toggle_inline(id, cx) => {}
-                Center::Pause => {}
+                Center::Pause | Center::Waiting(_) | Center::Play if this.toggle_inline(id, cx) => {
+                }
+                Center::Pause | Center::Waiting(_) => {}
                 Center::Play => {
-                    let Some(path) = &path else { return };
-                    match shape {
-                        Shape::Round { is_unviewed } => {
+                    let Some(file) = &playable else { return };
+                    match (shape, file.path()) {
+                        (Shape::Round { is_unviewed }, _) => {
                             if is_unviewed {
                                 this.mark_listened(id, cx);
                             }
                             let side = px_of(MAX_VIDEO_MESSAGE_SIZE).into();
-                            this.play_inline(id, path, ((side, side), length), Ending::Pause, cx);
+                            this.play_inline(id, file, ((side, side), length), Ending::Pause, cx);
                         }
-                        // A GIF that cannot autoplay.
-                        Shape::Frame => this.open_file(path, window, cx),
+                        // A GIF on disk that cannot autoplay.
+                        (Shape::Frame, Some(path)) => this.open_file(path, window, cx),
+                        // A GIF still downloading streams in its bubble.
+                        (Shape::Frame, None) => {
+                            this.play_inline(id, file, (size, Duration::ZERO), Ending::Loop, cx);
+                        }
                     }
                 }
             });
@@ -212,14 +224,21 @@ impl HistoryView {
 }
 
 /// The button and the status for `file`; `frame` while it plays in the
-/// bubble.
-fn state(file: &File, frame: Option<&Frame>, length: String, cx: &App) -> (Center, String) {
+/// bubble, streamed or not. A file that `can_stream` plays before it is on
+/// disk.
+fn state(
+    file: &File,
+    frame: Option<&Frame>,
+    length: String,
+    can_stream: bool,
+    cx: &App,
+) -> (Center, String) {
     match (&file.path, file.is_downloading, frame) {
-        (Some(_), _, Some(frame)) => (
-            if frame.is_playing {
-                Center::Pause
-            } else {
-                Center::Play
+        (_, _, Some(frame)) => (
+            match (frame.waiting, frame.is_playing) {
+                (Some(arc), _) => Center::Waiting(arc),
+                (None, true) => Center::Pause,
+                (None, false) => Center::Play,
             },
             duration_text(seconds(frame.remaining)),
         ),
@@ -230,8 +249,12 @@ fn state(file: &File, frame: Option<&Frame>, length: String, cx: &App) -> (Cente
             },
             progress_text(strings(cx), file.downloaded, file.size),
         ),
-        (None, false, _) => (
-            Center::Download,
+        (None, false, None) => (
+            if can_stream {
+                Center::Play
+            } else {
+                Center::Download
+            },
             i18n::fill(
                 &tr(cx, key::lng_duration_and_size),
                 &[("duration", &length), ("size", &size_text(file.size))],
@@ -267,6 +290,7 @@ pub(super) fn overlays(
     );
     let arc = match video.center {
         Center::Cancel { progress } => Some(super::file_row::arc(progress, radial)),
+        Center::Waiting(state) => Some(super::file_row::radial_arc(state, radial)),
         Center::Download | Center::Play | Center::Pause => None,
     };
     // `VideoMessageSeek` without the seek: the played part around the edge.

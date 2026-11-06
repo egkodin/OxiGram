@@ -367,6 +367,7 @@ pub(crate) fn uploads() -> Vec<(ChatId, Vec<Message>)> {
         size: 3_565_158,
         uploaded: 1_258_291,
         is_uploading: true,
+        prefix: model::file::Prefix::default(),
         path: None,
         is_downloading: false,
         downloaded: 0,

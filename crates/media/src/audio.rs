@@ -17,7 +17,9 @@ use ffmpeg::software::resampling;
 use ffmpeg::{ChannelLayout, Packet, codec, frame, media};
 use ffmpeg_next as ffmpeg;
 
+use crate::input::Origin;
 use crate::player::output_stream;
+use crate::stream::{Signal, Stream};
 
 /// Decoded sound kept ahead of the output.
 const AHEAD: Duration = Duration::from_millis(500);
@@ -64,6 +66,8 @@ struct Shared {
     /// The decoder reached the end of the file.
     is_drained: AtomicBool,
     is_closed: AtomicBool,
+    /// The file's length in microseconds, once it opened.
+    duration: AtomicU64,
 }
 
 impl Shared {
@@ -122,7 +126,8 @@ enum Sink {
 
 pub struct AudioPlayer {
     shared: Arc<Shared>,
-    duration: Duration,
+    /// Wakes a decoder that waits for a streamed file's bytes.
+    signal: Option<Signal>,
     _sink: Sink,
 }
 
@@ -143,6 +148,26 @@ impl AudioPlayer {
     ///
     /// When the file cannot be opened or has no sound.
     pub fn open(path: &Path, start: Duration) -> Result<Self, AudioError> {
+        Self::start(Origin::Path(path.to_owned()), start, Wait::Opened)
+    }
+
+    /// Starts playing a file while it downloads, from `start`. It returns
+    /// at once: the duration is zero until the file's header arrives, and a
+    /// file without sound plays nothing.
+    ///
+    /// # Errors
+    ///
+    /// When the decoder thread or the output cannot start.
+    pub fn open_stream(stream: Stream, start: Duration) -> Result<Self, AudioError> {
+        Self::start(Origin::Stream(stream), start, Wait::No)
+    }
+
+    /// Whether the decoder waits for bytes still downloading.
+    pub fn is_buffering(&self) -> bool {
+        self.signal.as_ref().is_some_and(Signal::is_waiting)
+    }
+
+    fn start(origin: Origin, start: Duration, wait: Wait) -> Result<Self, AudioError> {
         let output = Output::open();
         let (rate, channels) = output.format();
         let shared = Arc::new(Shared {
@@ -156,29 +181,41 @@ impl AudioPlayer {
             is_paused: AtomicBool::new(false),
             is_drained: AtomicBool::new(false),
             is_closed: AtomicBool::new(false),
+            duration: AtomicU64::new(0),
         });
-        let (opened, duration) = mpsc::sync_channel(1);
+        let (opened, is_open) = mpsc::sync_channel(1);
         let decoding = Arc::clone(&shared);
-        let path = path.to_owned();
+        let signal = origin.signal();
         thread::Builder::new()
             .name("audio decoder".to_owned())
-            .spawn(move || decode(&path, &decoding, &opened))
+            .spawn(move || decode(origin, &decoding, &opened))
             .map_err(AudioError::Thread)?;
-        let duration = duration.recv().map_err(|_| AudioError::Stopped)??;
-        let sink = output.start(&shared)?;
-        Ok(Self {
-            shared,
-            duration,
-            _sink: sink,
-        })
+        // Dropped on an error below, it stops the decoder.
+        let mut player = Self {
+            shared: Arc::clone(&shared),
+            signal,
+            _sink: Sink::Clock,
+        };
+        if wait == Wait::Opened {
+            is_open.recv().map_err(|_| AudioError::Stopped)??;
+        }
+        player._sink = output.start(&shared)?;
+        Ok(player)
     }
 
+    /// Zero until a streamed file's header arrives.
     pub fn duration(&self) -> Duration {
-        self.duration
+        Duration::from_micros(self.shared.duration.load(Ordering::Relaxed))
     }
 
     pub fn position(&self) -> Duration {
-        self.shared.position().min(self.duration)
+        let duration = self.duration();
+        let position = self.shared.position();
+        if duration.is_zero() {
+            position
+        } else {
+            position.min(duration)
+        }
     }
 
     /// Played to the end of the file.
@@ -209,7 +246,17 @@ impl Drop for AudioPlayer {
     fn drop(&mut self) {
         self.shared.is_closed.store(true, Ordering::Relaxed);
         self.shared.space.notify_all();
+        if let Some(signal) = &self.signal {
+            signal.close();
+        }
     }
+}
+
+/// Whether opening waits for the decoder to read the file's header.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Wait {
+    Opened,
+    No,
 }
 
 /// The output, picked before the decoder starts so it resamples to it.
@@ -278,19 +325,24 @@ fn keep_time(shared: &Shared) {
     }
 }
 
-/// The decoder thread: opens `path`, says how long it is, then decodes
+/// The decoder thread: opens the file, says how long it is, then decodes
 /// until the player closes.
-fn decode(path: &Path, shared: &Shared, opened: &SyncSender<Result<Duration, AudioError>>) {
-    let mut source = match Source::open(path, shared) {
+fn decode(origin: Origin, shared: &Shared, opened: &SyncSender<Result<(), AudioError>>) {
+    let mut source = match Source::open(origin, shared) {
         Ok(source) => source,
         Err(error) => {
+            if !matches!(error, AudioError::NoAudio) {
+                tracing::warn!(%error, "the sound cannot open");
+            }
+            shared.is_drained.store(true, Ordering::Relaxed);
+            // Nobody waits for a stream; it ends silent.
             let _ = opened.send(Err(error));
             return;
         }
     };
-    if opened.send(Ok(source.duration)).is_err() {
-        return;
-    }
+    let micros = u64::try_from(source.duration.as_micros()).unwrap_or(u64::MAX);
+    shared.duration.store(micros, Ordering::Relaxed);
+    let _ = opened.send(Ok(()));
     if let Err(error) = source.play(shared) {
         tracing::warn!(%error, "the sound stopped");
     }
@@ -307,10 +359,10 @@ struct Source {
 }
 
 impl Source {
-    fn open(path: &Path, shared: &Shared) -> Result<Self, AudioError> {
+    fn open(origin: Origin, shared: &Shared) -> Result<Self, AudioError> {
         ffmpeg::init().map_err(AudioError::Open)?;
         ffmpeg::log::set_level(ffmpeg::log::Level::Fatal);
-        let input = ffmpeg::format::input(path).map_err(AudioError::Open)?;
+        let input = origin.open().map_err(AudioError::Open)?;
         let stream = input
             .streams()
             .best(media::Type::Audio)

@@ -336,6 +336,7 @@ pub(crate) fn events() -> Vec<Event> {
                         size: 12_000,
                         uploaded: 12_000,
                         is_uploading: false,
+                        prefix: model::file::Prefix::default(),
                     },
                     is_listened: true,
                 }),
@@ -485,6 +486,7 @@ pub(super) fn remote_file(id: FileId) -> File {
         size: 0,
         uploaded: 0,
         is_uploading: false,
+        prefix: model::file::Prefix::default(),
     }
 }
 
@@ -527,5 +529,6 @@ fn ann_photo() -> Option<File> {
         size: 12_000,
         uploaded: 12_000,
         is_uploading: false,
+        prefix: model::file::Prefix::default(),
     })
 }

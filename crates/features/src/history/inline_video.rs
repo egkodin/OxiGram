@@ -9,9 +9,11 @@ use std::time::Duration;
 
 use gpui::{AppContext as _, Context, Entity, RenderImage, Subscription, Window};
 use model::MessageId;
+use ui::RadialState;
 
 use super::HistoryView;
 use super::media_video::{self, Ending, VideoPlayback};
+use crate::streaming::Playable;
 
 /// The videos playing in a history.
 // shortcut: a round stops when it scrolls away; tdesktop moves it to a corner (row "Round video PiP"), with the audio step.
@@ -32,6 +34,8 @@ pub(super) struct Frame {
     pub progress: f32,
     pub remaining: Duration,
     pub is_playing: bool,
+    /// The buffering arc while the data is late.
+    pub waiting: Option<RadialState>,
 }
 
 impl HistoryView {
@@ -78,15 +82,17 @@ impl HistoryView {
                 progress: playback.progress(),
                 remaining: playback.remaining(),
                 is_playing: playback.is_playing(),
+                waiting: playback.spinner().map(|(_, state)| state),
             }
         }))
     }
 
-    /// Starts `path` in `message`'s bubble, `size` points large.
+    /// Starts `file` in `message`'s bubble, `size` points large; streamed
+    /// while it downloads.
     pub(super) fn play_inline(
         &mut self,
         message: MessageId,
-        path: &Path,
+        file: &Playable,
         (size, duration): ((f32, f32), Duration),
         ending: Ending,
         cx: &mut Context<Self>,
@@ -99,7 +105,7 @@ impl HistoryView {
         let pixels = |side: f32| (side * self.inline.scale.max(1.0)).ceil().max(1.0) as u32;
         let frames = (pixels(size.0), pixels(size.1));
         let playback =
-            cx.new(|cx| VideoPlayback::new(path, Duration::ZERO, frames, duration, ending, cx));
+            cx.new(|cx| VideoPlayback::new(file, Duration::ZERO, frames, duration, ending, cx));
         let subscription = cx.observe(&playback, |_, _, cx| cx.notify());
         self.inline.seen.insert(message);
         self.inline
@@ -120,7 +126,8 @@ impl HistoryView {
         if self.inline.playing.contains_key(&message) || self.inline.failed.contains(&message) {
             return;
         }
-        self.play_inline(message, path, (size, Duration::ZERO), Ending::Loop, cx);
+        let file = Playable::Complete(path.to_path_buf());
+        self.play_inline(message, &file, (size, Duration::ZERO), Ending::Loop, cx);
     }
 
     /// Pauses or resumes `message`'s video; false when it does not play here.

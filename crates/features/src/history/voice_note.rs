@@ -3,7 +3,7 @@
 //! click on it seeks; below, the length or the time played, with a dot
 //! until someone listened.
 
-use std::path::PathBuf;
+use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -21,6 +21,7 @@ use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
 use crate::player::{Playlist, Sound, Track};
 use crate::store::spawn;
+use crate::streaming::Playable;
 
 fn seconds(duration: Duration) -> i32 {
     i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
@@ -35,8 +36,9 @@ impl HistoryView {
         let file = current(self, &note.file, cx);
         let playing = self.player.read(cx).sound_of(self.chat, message.id);
         let length = duration_text(note.duration);
+        let can_stream = Playable::of(self.store.read(cx).session(), file).is_some();
         let (thumb, status) = match (&file.path, file.is_downloading, playing) {
-            (Some(_), _, Some(player)) => (
+            (_, _, Some(player)) => (
                 if player.is_paused() {
                     Thumb::Play
                 } else {
@@ -57,8 +59,12 @@ impl HistoryView {
                 },
                 progress_text(strings(cx), file.downloaded, file.size),
             ),
-            (None, false, _) => (
-                Thumb::Download,
+            (None, false, None) => (
+                if can_stream {
+                    Thumb::Play
+                } else {
+                    Thumb::Download
+                },
                 i18n::fill(
                     &tr(cx, key::lng_duration_and_size),
                     &[("duration", &length), ("size", &size_text(file.size))],
@@ -85,7 +91,7 @@ impl HistoryView {
             })
         });
         let (id, file_id) = (message.id, file.id);
-        let path = file.path.clone().map(PathBuf::from);
+        let playable = Playable::of(self.store.read(cx).session(), file);
         Some(FileRow {
             title: Title::Waveform(Waveform {
                 values: note.waveform.clone(),
@@ -100,11 +106,11 @@ impl HistoryView {
                     Thumb::Download => this.start_download(file_id, CLICKED_PRIORITY, cx),
                     Thumb::Cancel { .. } => this.cancel_download(file_id, cx),
                     Thumb::Play | Thumb::Pause | Thumb::Document => {
-                        if let Some(path) = &path {
+                        if let Some(file) = &playable {
                             if is_unheard {
                                 this.mark_listened(id, cx);
                             }
-                            this.toggle_voice(id, path.clone(), window, cx);
+                            this.toggle_voice(id, file.clone(), window, cx);
                         }
                     }
                 });
@@ -127,11 +133,13 @@ impl HistoryView {
         .detach();
     }
 
-    /// Pauses or resumes the voice playing, or starts `message`'s.
+    /// Pauses or resumes the voice playing, or starts `message`'s; one
+    /// still downloading streams.
+    // shortcut: a streamed voice plays as music, without the speed control, until a later play finds it on disk; decode Opus from the stream if speed matters there.
     fn toggle_voice(
         &mut self,
         message: MessageId,
-        path: PathBuf,
+        file: Playable,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -139,6 +147,12 @@ impl HistoryView {
             return;
         }
         self.player.update(cx, |player, cx| player.stop(cx));
+        let Some(path) = file.path().map(Path::to_path_buf) else {
+            if let Some(player) = self.stream(&file) {
+                self.play(message, (Track::Voice, None), Sound::Music(player), cx);
+            }
+            return;
+        };
         let decoding = cx.background_executor().spawn({
             let path = path.clone();
             async move { media::decode(&path) }
@@ -156,7 +170,7 @@ impl HistoryView {
                     })
                     .map(Sound::Voice)
                     // MP3 and M4A voices stream as music do.
-                    .or_else(|| this.stream(&path).map(Sound::Music));
+                    .or_else(|| this.stream(&file).map(Sound::Music));
                 match player {
                     Some(player) => this.play(message, (Track::Voice, None), player, cx),
                     None => this.open_file(&path, window, cx),
@@ -173,9 +187,9 @@ impl HistoryView {
             .update(cx, |player, cx| player.toggle(chat, message, cx))
     }
 
-    /// `path`'s sound, streamed from its start.
-    pub(super) fn stream(&self, path: &std::path::Path) -> Option<media::AudioPlayer> {
-        media::AudioPlayer::open(path, Duration::ZERO)
+    /// `file`'s sound from its start.
+    pub(super) fn stream(&self, file: &Playable) -> Option<media::AudioPlayer> {
+        file.audio(Duration::ZERO)
             .inspect_err(|error| tracing::warn!(%error, "cannot play the file"))
             .ok()
     }

@@ -3,7 +3,6 @@
 //! with the controller (`Media::View::PlaybackControls`): the play button,
 //! the times and the seek bar; a history paints its frames in the bubble.
 
-use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -13,17 +12,20 @@ use gpui::{
     Window, canvas, div, px,
 };
 use media::{AudioError, AudioPlayer, Output, VideoDecoder, VideoFrame};
+use style::basic::{RADIAL_LINE, RADIAL_SIZE};
 use style::media_view::{
     MEDIAVIEW_CONTROLLER_RADIUS, MEDIAVIEW_CONTROLLER_SIZE, MEDIAVIEW_PAUSE_ICON,
     MEDIAVIEW_PAUSE_ICON_OVER, MEDIAVIEW_PLAY_BUTTON, MEDIAVIEW_PLAY_BUTTON_TOP,
     MEDIAVIEW_PLAY_PROGRESS_LABEL, MEDIAVIEW_PLAY_PROGRESS_LEFT, MEDIAVIEW_PLAY_PROGRESS_SKIP,
     MEDIAVIEW_PLAY_PROGRESS_TOP, MEDIAVIEW_PLAYBACK, MEDIAVIEW_PLAYBACK_TOP,
 };
+use style::widgets::DEFAULT_INFINITE_RADIAL_ANIMATION;
 use style::{ColorId, ColorRef};
-use ui::{IconButton, color, font, font_height};
+use ui::{IconButton, InfiniteRadial, RadialState, color, font, font_height, paint_arc};
 
 use super::video::duration_text;
 use crate::px_of;
+use crate::streaming::Playable;
 
 static MEDIAVIEW_PAUSE_BUTTON: style::widgets::IconButton = style::widgets::IconButton {
     icon: MEDIAVIEW_PAUSE_ICON,
@@ -33,6 +35,17 @@ static MEDIAVIEW_PAUSE_BUTTON: style::widgets::IconButton = style::widgets::Icon
 
 /// Room the time labels take beside the seek bar ("-10:00" in 12px bold).
 const LABEL_WIDTH: f32 = 40.0;
+/// `kWaitingShowDelay`, `kWaitingShowDuration`: the buffering spinner shows
+/// only when the data is late for a while, then fades in.
+const WAITING_SHOW_DELAY: Duration = Duration::from_millis(500);
+const WAITING_SHOW_DURATION: Duration = Duration::from_millis(500);
+
+/// The video waiting for data: since when, and where the clock holds.
+#[derive(Debug, Clone, Copy)]
+struct Stall {
+    since: Instant,
+    at: Duration,
+}
 
 /// The playback clock: where the video is, moving or not.
 #[derive(Debug, Clone, Copy)]
@@ -89,14 +102,21 @@ pub(super) struct VideoPlayback {
     is_ended: bool,
     has_failed: bool,
     is_dragging: bool,
+    /// The downloaded share past the playhead (`receivedTill`), 0 to 1.
+    received: f32,
+    stall: Option<Stall>,
+    waiting: InfiniteRadial,
+    /// When it opened, until the first frame shows (`docs/perf.md`).
+    opened: Option<Instant>,
 }
 
 impl VideoPlayback {
-    /// Starts `path` at `start`, playing, in frames no bigger than `size`;
-    /// with its sound unless it loops, as muted GIFs and stickers do.
+    /// Starts `file` at `start`, playing, in frames no bigger than `size`;
+    /// with its sound unless it loops, as muted GIFs and stickers do. A file
+    /// still downloading streams: its clock holds while the data is late.
     // shortcut: sound and frames keep separate clocks, started together; tdesktop syncs video to the audio clock. Upgrade if long videos drift.
     pub(super) fn new(
-        path: &Path,
+        file: &Playable,
         start: Duration,
         size: (u32, u32),
         duration: Duration,
@@ -104,7 +124,7 @@ impl VideoPlayback {
         cx: &mut Context<Self>,
     ) -> Self {
         let mut has_failed = false;
-        let decoder = match VideoDecoder::open(path, size) {
+        let decoder = match file.video(size) {
             Ok(mut decoder) => {
                 if start > Duration::ZERO {
                     decoder.seek(start);
@@ -118,7 +138,7 @@ impl VideoPlayback {
             }
         };
         let sound = (ending == Ending::Pause && !has_failed)
-            .then(|| sound(path, start))
+            .then(|| sound(file, start))
             .flatten();
         cx.on_release(|this: &mut Self, cx| {
             if let Some(image) = this.shown.take() {
@@ -145,7 +165,55 @@ impl VideoPlayback {
             is_ended: has_failed,
             has_failed,
             is_dragging: false,
+            received: 0.0,
+            stall: None,
+            waiting: InfiniteRadial::new(&DEFAULT_INFINITE_RADIAL_ANIMATION),
+            opened: Some(Instant::now()),
         }
+    }
+
+    /// Holds the clock and the sound while the next frame waits for data,
+    /// as tdesktop's player does in its waiting state.
+    fn hold_while_waiting(&mut self) {
+        let is_waiting = self.is_playing()
+            && self.pending.is_none()
+            && !self.is_ended
+            && (self.needs_frame
+                || self
+                    .decoder
+                    .as_ref()
+                    .is_some_and(VideoDecoder::is_buffering));
+        if !is_waiting {
+            if self.stall.take().is_some() {
+                self.waiting.stop();
+                self.sync_sound();
+            }
+            return;
+        }
+        let now = self.clock.now();
+        let stall = *self.stall.get_or_insert_with(|| Stall {
+            since: Instant::now(),
+            at: now,
+        });
+        if stall.since.elapsed() >= WAITING_SHOW_DELAY {
+            self.waiting.start();
+        }
+        if let Some(sound) = &self.sound {
+            sound.pause();
+        }
+        self.clock = Clock::Playing {
+            since: Instant::now(),
+            from: stall.at,
+        };
+    }
+
+    /// The buffering spinner now: its fade and arc; `None` while hidden.
+    /// It moves while the clock holds, which asks for frames.
+    pub(super) fn spinner(&self) -> Option<(f32, RadialState)> {
+        let stall = self.stall?;
+        let shown = stall.since.elapsed().checked_sub(WAITING_SHOW_DELAY)?;
+        let opacity = (shown.as_secs_f32() / WAITING_SHOW_DURATION.as_secs_f32()).min(1.0);
+        Some((opacity, self.waiting.state(Instant::now())?))
     }
 
     pub(super) fn is_playing(&self) -> bool {
@@ -240,6 +308,7 @@ impl VideoPlayback {
         let Some(decoder) = &self.decoder else {
             return;
         };
+        self.received = decoder.received();
         let now = self.clock.now();
         let mut due = None;
         loop {
@@ -272,6 +341,7 @@ impl VideoPlayback {
         if let Some(frame) = due {
             self.show(frame, cx);
         }
+        self.hold_while_waiting();
         if self.is_ended && self.pending.is_none() && self.is_playing() {
             if self.ending.restarts(self.has_failed) {
                 self.seek(Duration::ZERO);
@@ -288,6 +358,9 @@ impl VideoPlayback {
         else {
             return;
         };
+        if let Some(opened) = self.opened.take() {
+            tracing::info!(elapsed = ?opened.elapsed(), "first video frame");
+        }
         let image = Arc::new(RenderImage::new([image::Frame::new(buffer)]));
         if let Some(old) = self.shown.replace(image) {
             cx.default_global::<Retired>().0.push(old);
@@ -323,7 +396,7 @@ impl VideoPlayback {
             &MEDIAVIEW_PLAY_BUTTON
         };
         let weak = cx.weak_entity();
-        let share = self.progress();
+        let share = (self.progress(), self.received);
         div()
             .relative()
             .w(px_of(MEDIAVIEW_CONTROLLER_SIZE.width))
@@ -352,11 +425,13 @@ impl VideoPlayback {
             .into_any_element()
     }
 
-    /// The seek bar (`mediaviewPlayback`): the played part, the rest, and
-    /// a click or a drag that seeks.
-    fn bar(&self, share: f32, side: Pixels, cx: &mut Context<Self>) -> impl IntoElement {
+    /// The seek bar (`mediaviewPlayback`): the played part, the part on
+    /// disk past it, the rest, and a click or a drag that seeks.
+    fn bar(&self, share: (f32, f32), side: Pixels, cx: &mut Context<Self>) -> impl IntoElement {
+        let (share, received) = share;
         let slider = &MEDIAVIEW_PLAYBACK;
         let (active, inactive) = (color(cx, slider.active_fg), color(cx, slider.inactive_fg));
+        let received_fg = color(cx, slider.received_till_fg);
         let line = px_of(slider.width);
         let height = px_of(slider.seek_size.height);
         let entity = cx.entity();
@@ -376,6 +451,7 @@ impl VideoPlayback {
                     move |bar, (), window, _| {
                         let top = bar.top() + (bar.size.height - line) / 2.0;
                         let played = bar.size.width * share;
+                        let loaded = bar.size.width * received.max(share);
                         let fill = |left, width, fg| {
                             gpui::fill(
                                 Bounds::new(gpui::point(left, top), gpui::size(width, line)),
@@ -384,6 +460,7 @@ impl VideoPlayback {
                             .corner_radii(line / 2.0)
                         };
                         window.paint_quad(fill(bar.left(), bar.size.width, inactive));
+                        window.paint_quad(fill(bar.left(), loaded, received_fg));
                         window.paint_quad(fill(bar.left(), played, active));
                     },
                 )
@@ -412,9 +489,9 @@ impl VideoPlayback {
     }
 }
 
-/// `path`'s sound from `start`; none for a silent video.
-fn sound(path: &Path, start: Duration) -> Option<AudioPlayer> {
-    match AudioPlayer::open(path, start) {
+/// `file`'s sound from `start`; none for a silent video.
+fn sound(file: &Playable, start: Duration) -> Option<AudioPlayer> {
+    match file.audio(start) {
         Ok(sound) => Some(sound),
         Err(AudioError::NoAudio) => None,
         Err(error) => {
@@ -433,6 +510,26 @@ pub(super) fn drop_retired(window: &mut Window, cx: &mut App) {
     }
 }
 
+/// tdesktop's streaming wait (`paintRadialLoadingContent`): a `radialBg`
+/// circle in the middle with the infinite arc inside it.
+fn paint_spinner(
+    window: &mut Window,
+    bounds: Bounds<Pixels>,
+    opacity: f32,
+    state: RadialState,
+    (bg, fg): (gpui::Hsla, gpui::Hsla),
+) {
+    let size = gpui::size(px_of(RADIAL_SIZE.width), px_of(RADIAL_SIZE.height));
+    let inner = Bounds::centered_at(bounds.center(), size);
+    let line = px_of(RADIAL_LINE);
+    let bg = gpui::Hsla {
+        a: bg.a * opacity,
+        ..bg
+    };
+    window.paint_quad(gpui::fill(inner, bg).corner_radii(size.width / 2.0));
+    paint_arc(window, inner.dilate(-line), state, line, fg);
+}
+
 fn seconds(whole: u64) -> i32 {
     i32::try_from(whole).unwrap_or(i32::MAX)
 }
@@ -445,6 +542,11 @@ impl Render for VideoPlayback {
             window.request_animation_frame();
         }
         let frame = self.shown.clone();
+        let spinner = self.spinner();
+        let (bg, fg) = (
+            color(cx, ColorRef::Palette(ColorId::RadialBg)),
+            color(cx, ColorRef::Palette(ColorId::RadialFg)),
+        );
         div().size_full().flex().flex_col().child(
             canvas(
                 |_, _, _| (),
@@ -454,6 +556,9 @@ impl Render for VideoPlayback {
                             window.paint_image(bounds, bounds, Corners::default(), image, 0, false)
                     {
                         tracing::warn!(%error, "cannot paint a video frame");
+                    }
+                    if let Some((opacity, state)) = spinner {
+                        paint_spinner(window, bounds, opacity, state, (bg, fg));
                     }
                 },
             )

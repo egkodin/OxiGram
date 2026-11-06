@@ -40,6 +40,7 @@ use crate::lang::{strings, tr_with};
 use crate::peer_menu::send;
 use crate::px_of;
 use crate::store::Store;
+use crate::streaming::Playable;
 
 actions!(
     media_view,
@@ -264,9 +265,11 @@ impl MediaView {
         self.zoom = Zoom::Default;
         self.offset = Point::default();
         self.playback = None;
+        // A video streams the parts it plays instead (`streaming`).
         if let Some(file) = entry
             .file
             .as_ref()
+            .filter(|_| entry.kind == Kind::Photo)
             .filter(|file| self.requested.insert(file.id))
         {
             let task = self
@@ -307,17 +310,21 @@ impl MediaView {
     }
 
     fn path(&self, file: &File, cx: &App) -> Option<PathBuf> {
-        let chats = &self.store.read(cx).state().chats;
-        chats
-            .file(file.id)
-            .unwrap_or(file)
-            .path
-            .clone()
-            .map(PathBuf::from)
+        self.latest(file, cx).path.clone().map(PathBuf::from)
     }
 
-    /// The video's playback, started once its file is on disk, decoding
-    /// frames no bigger than `size` in window pixels.
+    /// `file` as the store last saw it.
+    fn latest<'file>(&'file self, file: &'file File, cx: &'file App) -> &'file File {
+        self.store
+            .read(cx)
+            .state()
+            .chats
+            .file(file.id)
+            .unwrap_or(file)
+    }
+
+    /// The video's playback, started at once (streaming while the file
+    /// downloads), decoding frames no bigger than `size` in window pixels.
     fn playback(
         &mut self,
         size: (f32, f32),
@@ -329,7 +336,8 @@ impl MediaView {
             let Kind::Video { start, duration } = entry.kind else {
                 return None;
             };
-            let path = self.path(entry.file.as_ref()?, cx)?;
+            let file = self.latest(entry.file.as_ref()?, cx);
+            let playable = Playable::of(self.store.read(cx).session(), file)?;
             let scale = window.scale_factor();
             #[expect(
                 clippy::cast_possible_truncation,
@@ -338,10 +346,9 @@ impl MediaView {
             )]
             let pixels = |side: f32| (side * scale).ceil().max(1.0) as u32;
             let frames = (pixels(size.0), pixels(size.1));
-            self.playback =
-                Some(cx.new(|cx| {
-                    VideoPlayback::new(&path, start, frames, duration, Ending::Pause, cx)
-                }));
+            self.playback = Some(cx.new(|cx| {
+                VideoPlayback::new(&playable, start, frames, duration, Ending::Pause, cx)
+            }));
         }
         self.playback.clone()
     }

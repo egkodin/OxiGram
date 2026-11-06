@@ -7,7 +7,6 @@ mod panel;
 mod playlist;
 mod sound;
 
-use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -18,9 +17,7 @@ use model::{ChatId, MessageId};
 pub(crate) use self::bar::bar;
 pub(crate) use self::playlist::{Playlist, Song, Step};
 pub(crate) use self::sound::Sound;
-
-/// The download priority of the song moved to, as a click's.
-const SKIP_PRIORITY: i32 = 32;
+use crate::streaming::Playable;
 
 /// How many songs around the one playing the playlist asks for
 /// (`kPlaylistIdsLimit`).
@@ -151,19 +148,23 @@ impl Player {
         Some((playlist, song))
     }
 
-    // shortcut: the bar keeps the old song (or hides after the last one ended) until the next is on disk; tdesktop streams it at once (row 259).
+    /// Moves to `song`, streamed while it downloads, as tdesktop does.
     fn fetch(&mut self, playlist: Rc<Playlist>, song: Song, cx: &mut Context<Self>) {
-        let fetch = playlist.session.fetch_file(song.file, SKIP_PRIORITY);
+        let session = playlist.session.clone();
+        let fetch = session.file(song.file);
         self.skipping = Some(cx.spawn(async move |this, cx| {
-            let path = match fetch.await {
-                Ok(Some(path)) => path,
-                Ok(None) => return,
+            let file = match fetch.await {
+                Ok(file) => file,
                 Err(error) => {
-                    tracing::warn!(%error, "downloading the next song failed");
+                    tracing::warn!(%error, "looking up the next song failed");
                     return;
                 }
             };
-            let sound = match media::AudioPlayer::open(Path::new(&path), Duration::ZERO) {
+            let Some(file) = Playable::of(&session, &file) else {
+                tracing::warn!("the next song has no size yet");
+                return;
+            };
+            let sound = match file.audio(Duration::ZERO) {
                 Ok(sound) => sound,
                 Err(error) => {
                     tracing::warn!(%error, "cannot play the next song");

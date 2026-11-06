@@ -297,3 +297,29 @@ over the others so the display link draws it as in the app. One run each;
   the playing row), as the history's own ticker did before; paused or
   stopped, it notifies nothing. Not measured yet: CPU while a song plays
   in the background of an idle window (live test 23).
+
+## M5: video streaming
+
+Click to first frame on a video not in the cache, measured from the
+viewer's player opening to the "first video frame" info log
+(`history/media_video.rs`), with `RGRAM_SILENT=1` on the production DC,
+2026-11-06, release app bundle on this Mac. The click itself goes through
+computer use, about 0.2 s before the viewer opens (not counted).
+
+| Video | Cache | First frame |
+|---|---|---|
+| 113.8 MB, 1:04, H.264 MP4 in a channel | none | 0.64 s |
+| the same, after `deleteFile` (local copy only) | none | 1.76 s |
+| the same, reopened | first half and the tail | 0.11 s |
+| round video, 5.4 MB, 0:42 | none | 0.65 s |
+| GIF, 2.4 MB | none | 0.30 s |
+
+tdesktop's time on the same video: not measured.
+
+Memory: FFmpeg reads through a 64 KB buffer and TDLib writes to its own
+cache file (`files/temp`, sparse, 94 MB of 119 MB on disk after the seeks
+above); nothing holds the file in RAM. The app's RSS while the video
+played: 352 MB, the whole app with two accounts loaded. Seeking to 1:02
+of 1:04 asked TDLib for that range only; the file was not downloaded in
+full.
+

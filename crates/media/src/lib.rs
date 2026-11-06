@@ -11,9 +11,11 @@ mod decode;
 pub mod devices;
 mod encode;
 mod hw;
+mod input;
 pub mod lottie;
 mod player;
 mod resample;
+pub mod stream;
 mod video;
 mod waveform;
 

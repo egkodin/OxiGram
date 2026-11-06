@@ -44,6 +44,7 @@ fn tgs(id: i32, variant: usize) -> File {
         size: 2_000,
         uploaded: 2_000,
         is_uploading: false,
+        prefix: model::file::Prefix::default(),
     }
 }
 

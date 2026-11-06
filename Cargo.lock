@@ -1625,6 +1625,7 @@ name = "features"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "futures",
  "gpui",
  "i18n",
  "image",
