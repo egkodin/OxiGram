@@ -59,6 +59,9 @@ pub(super) struct Compose {
     pub(super) field: Entity<TextArea>,
     pub(super) bar: Option<FieldBar>,
     pub(super) draft: Draft,
+    /// Custom emoji picked from the panel: each glyph typed into the
+    /// field and the emoji it stands for.
+    pub(super) custom_emoji: Vec<(String, model::CustomEmojiId)>,
     _subscriptions: [Subscription; 2],
 }
 
@@ -101,6 +104,7 @@ impl Compose {
             field,
             bar: None,
             draft,
+            custom_emoji: Vec::new(),
             _subscriptions: [subscription, send_by],
         }
     }

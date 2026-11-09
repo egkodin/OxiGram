@@ -6,7 +6,7 @@ use std::future::Future;
 
 use td_api::enums::{
     DraftMessageContent, InputMessageContent, InputMessageReplyTo, MessageSchedulingState,
-    MessageTopic,
+    MessageTopic, TextEntityType,
 };
 use td_api::functions::{
     EditMessageText, ForwardMessages, SendBotStartMessage, SendMessage, SetChatDraftMessage,
@@ -14,10 +14,11 @@ use td_api::functions::{
 use td_api::types::{
     DraftMessage, DraftMessageContentText, FormattedText, InputMessageReplyToMessage,
     InputMessageText, MessageSchedulingStateSendAtDate, MessageSchedulingStateSendWhenOnline,
-    MessageSendOptions, MessageTopicSavedMessages, MessageTopicThread,
+    MessageSendOptions, MessageTopicSavedMessages, MessageTopicThread, TextEntity,
+    TextEntityTypeCustomEmoji,
 };
 
-use crate::ids::{ChatId, MessageId, UserId};
+use crate::ids::{ChatId, CustomEmojiId, MessageId, UserId};
 use crate::message::{Schedule, Topic};
 use crate::session::{RequestError, Session};
 
@@ -177,7 +178,13 @@ impl Session {
             chat_id: chat.0,
             message_id: message.0,
             reply_markup: None,
-            input_message_content: Box::new(input_text(text.trim().to_owned(), false)),
+            input_message_content: Box::new(input_text(
+                FormattedText {
+                    text: text.trim().to_owned(),
+                    entities: Vec::new(),
+                },
+                false,
+            )),
         });
         async move { request.await.map(drop).map_err(RequestError::from) }
     }
@@ -190,9 +197,10 @@ impl Session {
         chat: ChatId,
         topic: Option<Topic>,
         reply_to: Option<MessageId>,
-        text: &str,
+        (text, emoji): (&str, &[(String, CustomEmojiId)]),
         options: SendOptions,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
+        let mut unused = emoji.to_vec();
         let requests: Vec<_> = split_for_sending(text, MAX_MESSAGE_LENGTH)
             .into_iter()
             .enumerate()
@@ -204,7 +212,10 @@ impl Session {
                     options: options.to_td(),
                     reply_markup: None,
                     // The draft goes with the first part.
-                    input_message_content: Box::new(input_text(part, index == 0)),
+                    input_message_content: Box::new(input_text(
+                        custom_emoji(part, &mut unused),
+                        index == 0,
+                    )),
                 })
             })
             .collect();
@@ -230,12 +241,39 @@ pub(crate) fn reply(message: Option<MessageId>) -> Option<Box<InputMessageReplyT
     })
 }
 
-fn input_text(text: String, clear_draft: bool) -> InputMessageContent {
+/// `text` with the custom emoji the field holds: each occurrence of a
+/// picked emoji's glyph, in text order, takes the first unused pick with
+/// that glyph.
+// shortcut: glyphs typed by hand that match a pick become that emoji; tdesktop tags the picks in the field, which comes with entities in the field.
+fn custom_emoji(text: String, unused: &mut Vec<(String, CustomEmojiId)>) -> FormattedText {
+    let mut entities = Vec::new();
+    let mut at = 0;
+    while at < text.len() {
+        let rest = &text[at..];
+        let found = unused
+            .iter()
+            .position(|(glyph, _)| !glyph.is_empty() && rest.starts_with(glyph.as_str()));
+        let Some(index) = found else {
+            at += rest.chars().next().map_or(1, char::len_utf8);
+            continue;
+        };
+        let (glyph, id) = unused.remove(index);
+        let offset = text[..at].encode_utf16().count();
+        entities.push(TextEntity {
+            offset: i32::try_from(offset).unwrap_or(i32::MAX),
+            length: i32::try_from(glyph.encode_utf16().count()).unwrap_or(i32::MAX),
+            r#type: Box::new(TextEntityType::CustomEmoji(TextEntityTypeCustomEmoji {
+                custom_emoji_id: id.0,
+            })),
+        });
+        at += glyph.len();
+    }
+    FormattedText { text, entities }
+}
+
+fn input_text(text: FormattedText, clear_draft: bool) -> InputMessageContent {
     InputMessageContent::InputMessageText(InputMessageText {
-        text: Box::new(FormattedText {
-            text,
-            entities: Vec::new(),
-        }),
+        text: Box::new(text),
         link_preview_options: None,
         clear_draft,
     })
@@ -282,6 +320,18 @@ fn utf16_prefix(text: &str, max: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn picked_emoji_become_entities_in_text_order() {
+        let mut unused = vec![
+            ("😀".to_owned(), CustomEmojiId(2)),
+            ("😀".to_owned(), CustomEmojiId(1)),
+        ];
+        let text = custom_emoji("a😀b😀c😀".to_owned(), &mut unused);
+        let found: Vec<(i32, i32)> = text.entities.iter().map(|e| (e.offset, e.length)).collect();
+        assert_eq!(found, [(1, 2), (4, 2)]);
+        assert!(unused.is_empty());
+    }
 
     #[test]
     fn default_options_send_none_and_others_map_to_tdlib() {

@@ -20,6 +20,7 @@ use style::chat::{
 use style::{ColorId, ColorRef};
 use ui::{color, font};
 
+use super::inline_emoji;
 use super::selection::{OnPointer, Pointer};
 use super::text::{self, BlockKind, Colors, Link, Look};
 use crate::lang::tr;
@@ -61,6 +62,7 @@ pub(super) struct Body<'a> {
     pub room: String,
     pub on_link: OnLink,
     pub on_pointer: OnPointer,
+    pub emoji: inline_emoji::Pictures,
 }
 
 /// The text palette and the plain text color for the message's side and
@@ -110,7 +112,9 @@ fn paragraph(
     room: Option<&str>,
     look: &Look<'_>,
 ) -> AnyElement {
-    let mut runs = text::runs(body.text, range.clone(), look);
+    let places = inline_emoji::places(body.text, &range, &body.emoji);
+    let hidden: Vec<Range<usize>> = places.iter().map(|(range, _)| range.clone()).collect();
+    let mut runs = inline_emoji::hide(text::runs(body.text, range.clone(), look), &hidden);
     let mut shown = body.text.text[range.clone()].to_owned();
     if let Some(room) = room {
         shown.push_str(room);
@@ -118,6 +122,7 @@ fn paragraph(
     }
     let styled = StyledText::new(shown).with_runs(runs);
     let layout = styled.layout().clone();
+    let emoji_layout = layout.clone();
     let links = text::links(body.text, range.clone(), body.is_spoiler_revealed);
     let content = if links.is_empty() {
         styled.into_any_element()
@@ -145,7 +150,9 @@ fn paragraph(
         body.on_pointer.clone(),
     );
     let (drag_offset, menu_offset) = (offset_at.clone(), offset_at.clone());
+    let overlay = (!places.is_empty()).then(|| inline_emoji::overlay(emoji_layout, places));
     div()
+        .relative()
         .on_mouse_down(MouseButton::Left, move |event, window, cx| {
             on_press(Pointer::PressText(offset_at(event.position)), window, cx);
             cx.stop_propagation();
@@ -161,6 +168,7 @@ fn paragraph(
             }
         })
         .child(content)
+        .children(overlay)
         .into_any_element()
 }
 

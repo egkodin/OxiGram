@@ -110,11 +110,14 @@ pub(super) struct EmojiPanel {
     over_button: bool,
     over_panel: bool,
     /// The emoji under the pointer, as its row and column.
-    hovered: Option<(usize, usize)>,
+    pub(super) hovered: Option<(usize, usize)>,
     /// The section the list's top is in, lit in the footer.
     active: usize,
     bottom_height: Pixels,
     hiding: Option<Task<()>>,
+    /// The user's custom emoji packs, after the categories.
+    pub(super) packs: super::emoji_packs::Packs,
+    pub(super) has_asked_packs: bool,
 }
 
 impl EmojiPanel {
@@ -130,6 +133,8 @@ impl EmojiPanel {
             active: 0,
             bottom_height: px(0.0),
             hiding: None,
+            packs: Rc::default(),
+            has_asked_packs: false,
         }
     }
 }
@@ -168,14 +173,15 @@ fn recent(stored: &crate::ranked::Ranked) -> Vec<SharedString> {
     shown
 }
 
-fn rows(sections: &[Vec<SharedString>], columns: usize) -> Vec<Row> {
+/// The rows for sections of `lengths` emoji each.
+fn rows(lengths: &[usize], columns: usize) -> Vec<Row> {
     let mut rows = Vec::new();
-    for (section, emoji) in sections.iter().enumerate() {
+    for (section, length) in lengths.iter().copied().enumerate() {
         if section > 0 {
             rows.push(Row::Header(section));
         }
         rows.extend(
-            (0..emoji.len())
+            (0..length)
                 .step_by(columns)
                 .map(|start| Row::Emoji { section, start }),
         );
@@ -184,10 +190,10 @@ fn rows(sections: &[Vec<SharedString>], columns: usize) -> Vec<Row> {
     rows
 }
 
-fn section_of(row: Row) -> usize {
+fn section_of(row: Row, last: usize) -> usize {
     match row {
         Row::Header(section) | Row::Emoji { section, .. } => section,
-        Row::Bottom => SECTION_COUNT - 1,
+        Row::Bottom => last,
     }
 }
 
@@ -229,11 +235,30 @@ impl HistoryView {
                 .map(|emoji| SharedString::from(*emoji))
                 .collect()
         }));
-        let rows = rows(&sections, grid().0);
+        panel.sections = Rc::new(sections);
+        panel.active = 0;
+        panel.hovered = None;
+        panel.is_shown = true;
+        self.relayout_emoji_panel(cx);
+        self.load_emoji_packs(cx);
+    }
+
+    /// Lays the rows out again for the sections and packs there are.
+    pub(super) fn relayout_emoji_panel(&mut self, cx: &mut Context<Self>) {
+        let panel = &mut self.emoji;
+        let lengths: Vec<usize> = panel
+            .sections
+            .iter()
+            .map(Vec::len)
+            .chain(panel.packs.iter().map(|pack| pack.stickers.len()))
+            .collect();
+        let last = lengths.len().saturating_sub(1);
+        let rows = rows(&lengths, grid().0);
+        // shortcut: packs that land while the panel is open send its list to the top; keep the offset when that shows.
         panel.list.reset(rows.len());
         let weak = cx.weak_entity();
         let sections_of: Rc<Vec<usize>> =
-            Rc::new(rows.iter().map(|row| section_of(*row)).collect());
+            Rc::new(rows.iter().map(|row| section_of(*row, last)).collect());
         panel.list.set_scroll_handler(move |event, _, cx| {
             let active = sections_of
                 .get(event.visible_range.start)
@@ -247,11 +272,7 @@ impl HistoryView {
                 }
             });
         });
-        panel.sections = Rc::new(sections);
         panel.rows = Rc::new(rows);
-        panel.active = 0;
-        panel.hovered = None;
-        panel.is_shown = true;
         cx.notify();
     }
 
@@ -304,11 +325,12 @@ impl HistoryView {
     }
 
     fn scroll_emoji_to(&mut self, section: usize, cx: &mut Context<Self>) {
+        let last = SECTION_COUNT + self.emoji.packs.len() - 1;
         let Some(row) = self
             .emoji
             .rows
             .iter()
-            .position(|row| section_of(*row) == section)
+            .position(|row| section_of(*row, last) == section)
         else {
             return;
         };
@@ -340,10 +362,18 @@ impl HistoryView {
 
     fn emoji_header(&self, section: usize, cx: &App) -> AnyElement {
         let st = &DEFAULT_EMOJI_PAN;
-        let title = SECTION_TITLES
-            .get(section.wrapping_sub(1))
-            .map(|title| tr(cx, *title))
-            .unwrap_or_default();
+        let title = match section.checked_sub(SECTION_COUNT) {
+            Some(pack) => self
+                .emoji
+                .packs
+                .get(pack)
+                .map(|pack| SharedString::from(pack.title.clone()))
+                .unwrap_or_default(),
+            None => SECTION_TITLES
+                .get(section.wrapping_sub(1))
+                .map(|title| tr(cx, *title))
+                .unwrap_or_default(),
+        };
         div()
             .h(px_of(st.header))
             .pt(px_of(st.header_top))
@@ -377,15 +407,7 @@ impl HistoryView {
             .w(cell_width)
             .h(cell_height)
             .on_hover(cx.listener(move |this, is_over: &bool, _, cx| {
-                let next = if *is_over {
-                    Some((index, column))
-                } else {
-                    this.emoji.hovered.filter(|was| *was != (index, column))
-                };
-                if this.emoji.hovered != next {
-                    this.emoji.hovered = next;
-                    cx.notify();
-                }
+                this.hover_emoji((index, column), *is_over, cx);
             }))
             .on_click(
                 cx.listener(move |this, _, window, cx| {
@@ -413,10 +435,47 @@ impl HistoryView {
             .into_any_element()
     }
 
+    /// Lights the cell under the pointer, and only it.
+    pub(super) fn hover_emoji(
+        &mut self,
+        cell: (usize, usize),
+        is_over: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let next = if is_over {
+            Some(cell)
+        } else {
+            self.emoji.hovered.filter(|was| *was != cell)
+        };
+        if self.emoji.hovered != next {
+            self.emoji.hovered = next;
+            cx.notify();
+        }
+    }
+
     fn emoji_row(&mut self, index: usize, cx: &mut Context<Self>) -> AnyElement {
-        let (columns, _, cell_height, left) = grid();
+        let (columns, cell_width, cell_height, left) = grid();
         match self.emoji.rows.get(index).copied() {
             Some(Row::Header(section)) => self.emoji_header(section, cx),
+            Some(Row::Emoji { section, start }) if section >= SECTION_COUNT => {
+                let packs = self.emoji.packs.clone();
+                let stickers = packs.get(section - SECTION_COUNT).map_or(&[][..], |pack| {
+                    &pack.stickers[start..(start + columns).min(pack.stickers.len())]
+                });
+                div()
+                    .h(cell_height)
+                    .pl(left)
+                    .flex()
+                    .children(stickers.iter().enumerate().map(|(column, sticker)| {
+                        self.custom_emoji_cell(
+                            (index, column),
+                            sticker.clone(),
+                            (cell_width, cell_height),
+                            cx,
+                        )
+                    }))
+                    .into_any_element()
+            }
             Some(Row::Emoji { section, start }) => {
                 let sections = self.emoji.sections.clone();
                 let emoji = sections.get(section).map_or(&[][..], |emoji| {
@@ -443,13 +502,12 @@ impl HistoryView {
     fn sync_emoji_bottom(&mut self, list_height: Pixels) {
         let st = &DEFAULT_EMOJI_PAN;
         let (_, _, cell_height, _) = grid();
+        let last = SECTION_COUNT + self.emoji.packs.len() - 1;
         let last_rows = self
             .emoji
             .rows
             .iter()
-            .filter(
-                |row| matches!(row, Row::Emoji { section, .. } if *section == SECTION_COUNT - 1),
-            )
+            .filter(|row| matches!(row, Row::Emoji { section, .. } if *section == last))
             .count();
         let last_height = px_of(st.header) + cell_height * last_rows as f32;
         let padding = px_of(st.padding.bottom);
@@ -590,8 +648,7 @@ mod tests {
 
     #[test]
     fn rows_give_categories_headers_and_wrap_at_the_columns() {
-        let sections = vec![vec!["a".into(); 3], vec!["b".into(); 10]];
-        let rows = rows(&sections, 9);
+        let rows = rows(&[3, 10], 9);
         assert_eq!(
             rows,
             [

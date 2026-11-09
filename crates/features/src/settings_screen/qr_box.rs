@@ -122,7 +122,7 @@ impl QrBox {
         let store = self.env.targets.store.clone();
         let session = store.read(cx).session().clone();
         let on_chosen: crate::recipients_box::OnChosen = Rc::new(move |chat, _, cx| {
-            let task = session.send_text(chat, None, None, &link, Default::default());
+            let task = session.send_text(chat, None, None, (&link, &[]), Default::default());
             crate::peer_menu::send(task, "share profile link", cx);
         });
         crate::recipients_box::show(&store, &self.env.targets.layers, on_chosen, window, cx);

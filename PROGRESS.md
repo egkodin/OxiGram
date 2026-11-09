@@ -30,8 +30,11 @@
 - Viewer caption below the media.
 - Sticker set box (`history/sticker_set_box.rs`, `model::sticker_set`)
   from a sticker or a custom emoji in text.
-- Open: custom emoji drawn inline in text, the Premium emoji panel, live
-  look at all of the above.
+- 2026-11-10: custom emoji drawn inline in text (`history/inline_emoji.rs`),
+  the user's emoji packs in the panel (`history/emoji_packs.rs`), picked
+  ones sent as entities.
+- Open: animated custom emoji, pack icons in the panel footer, a live
+  look at the sticker box and the chip right click.
 
 ## Video streaming (2026-11-06, committed)
 

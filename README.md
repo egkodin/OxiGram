@@ -315,10 +315,10 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Stickers, emoji and GIFs</b>: 0 of 10 done, 2 in progress</summary>
+<summary><b>Stickers, emoji and GIFs</b>: 0 of 10 done, 3 in progress</summary>
 
 - [ ] Emoji panel: categories, recent, skin tones, search (M5) *(in progress)*
-- [ ] Custom emoji packs in the emoji panel (Premium) (M5)
+- [ ] Custom emoji packs in the emoji panel (Premium) (M5) *(in progress)*
 - [ ] Sticker panel: recent, favorites, installed sets, search, trending (M5)
 - [ ] GIF panel: saved GIFs and search (M5)
 - [ ] Sticker set box: preview, add, remove, share link (M5) *(in progress)*

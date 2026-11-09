@@ -136,13 +136,14 @@ impl HistoryView {
             Some(FieldBar::Edit { .. }) | None => (None, None),
         };
         let field = self.compose.field.clone();
+        let emoji = std::mem::take(&mut self.compose.custom_emoji);
         if has_text {
             self.compose.draft.sent();
             field.update(cx, |field, cx| field.set_text("", cx));
         }
         let session = self.store.read(cx).session();
-        let text_part =
-            has_text.then(|| session.send_text(self.chat, self.topic, reply, &text, options));
+        let text_part = has_text
+            .then(|| session.send_text(self.chat, self.topic, reply, (&text, &emoji), options));
         let forward_part = forwarding.map(|forwarding| {
             let messages = &forwarding.messages;
             session.forward_messages(self.chat, self.topic, forwarding.from, messages, options)

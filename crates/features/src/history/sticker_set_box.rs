@@ -2,15 +2,12 @@
 //! stickers in rows of five (emoji in rows of eight), and the button that
 //! adds or removes it.
 
-use std::path::PathBuf;
-
 use gpui::{
     AnyElement, App, AppContext as _, Context, Entity, FocusHandle, Focusable, ImageSource,
     IntoElement, ParentElement, Render, Styled, WeakEntity, Window, div, img, prelude::*,
 };
 use i18n::key;
 use model::StickerSetId;
-use model::sticker::{StickerKind, StickerPicture};
 use model::sticker_set::{SetChange, SetKind, StickerSet};
 use style::chat_helpers::{
     EMOJI_SET_MAX_HEIGHT, EMOJI_SET_PADDING, EMOJI_SET_SIZE, STICKER_SET_BOX,
@@ -25,8 +22,6 @@ use crate::layers::{Dismiss, Layers};
 use crate::px_of;
 use crate::store::spawn;
 
-/// Pictures wait behind what the user opened, as userpics do.
-const PICTURE_PRIORITY: i32 = 8;
 /// `kStickersPerRow`, `kEmojiPerRow`.
 const STICKERS_PER_ROW: usize = 5;
 const EMOJI_PER_ROW: usize = 8;
@@ -172,27 +167,6 @@ impl StickerSetBox {
         self.close(window, cx);
     }
 
-    /// A sticker's still: its own file when a picture, else the thumbnail.
-    // shortcut: animated and video stickers show their still; tdesktop plays them in the box, which comes with the sticker panel's players.
-    fn picture(&mut self, sticker: &StickerPicture, cx: &mut Context<Self>) -> Option<PathBuf> {
-        let own = (sticker.kind == StickerKind::Still).then_some(&sticker.file);
-        let file = own.or(sticker.still.as_ref())?;
-        let known = self
-            .store
-            .read(cx)
-            .state()
-            .chats
-            .file(file.id)
-            .unwrap_or(file);
-        if let Some(path) = &known.path {
-            return Some(PathBuf::from(path));
-        }
-        let id = file.id;
-        self.store
-            .update(cx, |store, cx| store.load_userpic(id, PICTURE_PRIORITY, cx));
-        None
-    }
-
     fn grid(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let Some(set) = self.set.clone() else {
             return div().h(px_of(STICKERS_MAX_HEIGHT)).into_any_element();
@@ -220,7 +194,7 @@ impl StickerSetBox {
             .stickers
             .iter()
             .map(|sticker| {
-                let picture = self.picture(sticker, cx);
+                let picture = super::emoji_packs::still(&self.store, &sticker.picture, cx);
                 div()
                     .w(px_of(cell.width))
                     .h(px_of(cell.height))

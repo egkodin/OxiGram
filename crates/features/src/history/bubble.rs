@@ -66,6 +66,8 @@ pub(super) struct Item<'a> {
     pub color_index: i32,
     pub is_spoiler_revealed: bool,
     pub on_link: OnLink,
+    /// The pictures of the text's custom emoji.
+    pub emoji: super::inline_emoji::Pictures,
     pub reply: Option<Reply>,
     pub on_reply: Option<OnClick>,
     /// "Forwarded from ..." for forwarded messages.
@@ -711,6 +713,7 @@ pub(super) fn text(item: &Item<'_>, out: bool, cx: &App) -> AnyElement {
             room,
             on_link: item.on_link.clone(),
             on_pointer: item.on_pointer.clone(),
+            emoji: item.emoji.clone(),
         },
         cx,
     )

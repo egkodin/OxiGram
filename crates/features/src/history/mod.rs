@@ -20,12 +20,14 @@ mod delete;
 mod documents;
 mod drafts;
 mod drop_area;
+mod emoji_packs;
 mod emoji_panel;
 mod field_bar;
 mod file_row;
 mod forwarding;
 mod grouped_layout;
 mod headers;
+mod inline_emoji;
 mod inline_video;
 mod jump;
 mod large_emoji;
@@ -515,6 +517,11 @@ impl HistoryView {
             .and_then(|rows| self.shown.get(rows.start).cloned())
             .unwrap_or_else(|| message.clone());
         let reactions = self.reaction_buttons(&reacted, cx);
+        let text = match &message.content {
+            Content::Text { text, .. } => Some(text),
+            _ => bubble::caption(&message),
+        };
+        let emoji = self.emoji_pictures(text, cx);
         let (file, photo) = self.media(album, &message, cx);
         if let Some((_, Some(file))) = &author {
             let file = *file;
@@ -531,6 +538,7 @@ impl HistoryView {
                 color_index,
                 is_spoiler_revealed: self.revealed_spoilers.contains(&message.id),
                 on_link: self.on_link(message.id, cx),
+                emoji,
                 reply,
                 on_reply: self.on_reply(&message, cx),
                 forward,
