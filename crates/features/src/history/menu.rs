@@ -3,21 +3,17 @@
 
 use std::time::Duration;
 
-use chrono::Local;
-
 use gpui::{
     Anchor, AnyElement, App, AppContext as _, ClipboardItem, Context, DismissEvent, Entity,
     Focusable as _, IntoElement, ParentElement, Pixels, Point, SharedString, Styled as _,
-    Subscription, Task, Window, anchored, deferred, div, point, px,
+    Subscription, Window, anchored, deferred, div, point, px,
 };
 use i18n::key;
 use model::MessageId;
-use model::RequestError;
 use model::chat::ChatKind;
 use model::message::{Content, Message};
 use model::message_actions::Abilities;
-use model::reaction::{AddedReactions, ReactionKind};
-use style::chat::WHO_READ_CHECKS;
+use model::reaction::ReactionKind;
 use style::info::TOP_BAR_MENU_POSITION;
 use style::menu_icons::{
     MENU_ICON_COPY, MENU_ICON_DELETE_ATTENTION, MENU_ICON_DOWNLOAD, MENU_ICON_EDIT,
@@ -29,11 +25,10 @@ use ui::anim::{Easing, Simple};
 use ui::{MenuTone, PopupMenu};
 
 use super::reacting::Strip;
-use super::read_date::WhoRead;
 use super::selection::Selection;
 use super::who_reacted::WhoLine;
-use super::{HistoryView, Link, delete, field_bar, read_date, text};
-use crate::lang::{strings, tr};
+use super::{HistoryView, Link, delete, field_bar, text};
+use crate::lang::tr;
 use crate::peer_menu::PeerMenu;
 use crate::px_of;
 use crate::store::spawn;
@@ -52,19 +47,14 @@ pub(super) struct Facts<'a> {
     reactions: Vec<ReactionKind>,
 }
 
-/// A who-read answer, or none when TDLib could not tell.
-pub(super) fn known<T>(result: Result<T, RequestError>) -> Option<T> {
-    result
-        .inspect_err(|error| tracing::warn!(%error, "who read the message unknown"))
-        .ok()
-}
-
 /// A menu over the history, at the window point its `corner` sits on.
 pub(super) struct OpenMenu {
     position: Point<Pixels>,
     corner: Anchor,
     menu: Entity<PopupMenu>,
     strip: Option<Strip>,
+    /// The message a message menu is for.
+    message: Option<MessageId>,
     /// The menu fading in and sliding down into place.
     appear: Simple,
     _subscription: Subscription,
@@ -108,7 +98,8 @@ impl LinkCopy {
             | Link::BankCard(_)
             | Link::Date(_)
             | Link::Code(_)
-            | Link::Spoiler => {
+            | Link::Spoiler
+            | Link::CustomEmoji(_) => {
                 return None;
             }
         })
@@ -315,8 +306,30 @@ impl HistoryView {
             .then(|| self.available_reactions(message.id, cx));
         let position = window.mouse_position();
         let generation = self.generation;
+        let id = message.id;
         cx.spawn_in(window, async move |this, cx| {
+            // TDLib answers these from its database: the menu opens on them,
+            // as tdesktop's does, and the network's "who read" line follows.
             let abilities = abilities_task.await;
+            let reactions = match strip_task {
+                Some(task) => task.await,
+                None => Vec::new(),
+            };
+            let opened = this.update_in(cx, |this, window, cx| {
+                if this.generation != generation {
+                    return false;
+                }
+                let facts = Facts {
+                    abilities: &abilities,
+                    who_read: None,
+                    reactions: reactions.clone(),
+                };
+                this.show_menu(hit, upon, facts, position, window, cx);
+                true
+            });
+            if !opened.unwrap_or(false) || (who_read_task.is_none() && reactors_task.is_none()) {
+                return;
+            }
             let who_read = match who_read_task {
                 Some(task) => task.await,
                 None => None,
@@ -325,65 +338,27 @@ impl HistoryView {
                 Some(task) => task.await,
                 None => None,
             };
-            let reactions = match strip_task {
-                Some(task) => task.await,
-                None => Vec::new(),
-            };
-            this.update_in(cx, |this, window, cx| {
-                if this.generation == generation {
-                    let facts = Facts {
-                        abilities: &abilities,
-                        who_read: this.who_read_line(
-                            &message,
-                            who_read,
-                            reactors,
-                            abilities.first(),
-                            cx,
-                        ),
-                        reactions,
-                    };
-                    this.show_menu(hit, upon, facts, position, window, cx);
+            let _ = this.update_in(cx, |this, window, cx| {
+                let is_open = this
+                    .menu
+                    .as_ref()
+                    .is_some_and(|open| open.message == Some(id));
+                if this.generation != generation || !is_open {
+                    return;
                 }
-            })
+                let line = this.who_read_line(&message, who_read, reactors, abilities.first(), cx);
+                if line.is_none() {
+                    return;
+                }
+                let facts = Facts {
+                    abilities: &abilities,
+                    who_read: line,
+                    reactions,
+                };
+                this.show_menu(hit, upon, facts, position, window, cx);
+            });
         })
         .detach();
-    }
-
-    /// Asks who saw an outgoing message alongside its abilities: the read
-    /// date in private chats, the viewers in groups.
-    fn who_read(&self, message: &Message, cx: &App) -> Task<Option<WhoRead>> {
-        let session = self.store.read(cx).session();
-        if self.is_private(cx) {
-            let task = session.message_read_date(self.chat, message.id);
-            spawn(async move { known(task.await).map(WhoRead::Date) }, cx)
-        } else {
-            let task = session.message_viewers(self.chat, message.id);
-            spawn(async move { known(task.await).map(WhoRead::Viewers) }, cx)
-        }
-    }
-
-    /// The menu's first line, when the abilities allow asking.
-    fn who_read_line(
-        &self,
-        message: &Message,
-        who_read: Option<WhoRead>,
-        reactors: Option<AddedReactions>,
-        abilities: Option<&Abilities>,
-        cx: &App,
-    ) -> Option<WhoLine> {
-        let abilities = abilities?;
-        let viewers = match who_read {
-            Some(WhoRead::Date(date)) if abilities.can_get_read_date => {
-                return read_date::text(strings(cx), date, &Local::now()).map(|text| WhoLine {
-                    text,
-                    icon: WHO_READ_CHECKS,
-                    on_click: None,
-                });
-            }
-            Some(WhoRead::Viewers(viewers)) if abilities.can_get_viewers => Some(viewers),
-            _ => None,
-        };
-        self.who_reacted_line(message, viewers, reactors, cx)
     }
 
     fn upon(&self, message: MessageId, offset: Option<usize>) -> Upon {
@@ -464,9 +439,23 @@ impl HistoryView {
             }
             menu
         });
+        // The "who read" line arriving rebuilds the menu: the strip and
+        // the fade go on as they were.
+        let kept = self
+            .menu
+            .take()
+            .filter(|open| open.message == Some(message.id))
+            .map(|open| (open.strip, open.appear));
         self.present_menu(menu, position, Anchor::TopLeft, window, cx);
-        let strip = self.strip(message.id, facts.reactions);
+        let (strip, appear) = match kept {
+            Some((strip, appear)) => (strip, Some(appear)),
+            None => (self.strip(message.id, facts.reactions), None),
+        };
         if let Some(open) = &mut self.menu {
+            open.message = Some(message.id);
+            if let Some(appear) = appear {
+                open.appear = appear;
+            }
             open.strip = strip;
         }
     }
@@ -523,6 +512,7 @@ impl HistoryView {
             corner,
             menu,
             strip: None,
+            message: None,
             appear: {
                 let mut appear = Simple::default();
                 appear.start(0.0, 1.0, APPEAR_MS, Easing::EaseOutCirc);
@@ -547,7 +537,7 @@ impl HistoryView {
     }
 
     /// A one-to-one chat, where read dates exist.
-    fn is_private(&self, cx: &App) -> bool {
+    pub(super) fn is_private(&self, cx: &App) -> bool {
         let state = self.store.read(cx).state();
         state
             .chats
@@ -710,6 +700,13 @@ impl HistoryView {
             window,
             cx,
         );
+    }
+
+    /// The strip over the menu shows every reaction.
+    pub(super) fn expand_strip(&mut self) {
+        if let Some(strip) = self.menu.as_mut().and_then(|open| open.strip.as_mut()) {
+            strip.expand();
+        }
     }
 
     pub(super) fn menu_overlay(

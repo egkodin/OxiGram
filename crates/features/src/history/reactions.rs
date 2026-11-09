@@ -50,6 +50,8 @@ pub(super) struct Button {
     picture: Option<String>,
     motion: Motion,
     on_toggle: OnToggle,
+    /// A right click: who chose this reaction, in groups that tell.
+    on_menu: Option<OnToggle>,
 }
 
 enum Label {
@@ -76,6 +78,7 @@ impl HistoryView {
                 ChatKind::Group { .. } | ChatKind::Supergroup { .. } => None,
             });
         let me = state.me;
+        let can_list = private_user.is_none() && reactions.can_get_added && !reactions.are_tags;
         let has_userpics = private_user.is_some() || shows_userpics(reactions);
         let mut files = Vec::new();
         let weak = cx.weak_entity();
@@ -102,6 +105,8 @@ impl HistoryView {
                 } else {
                     Label::Count(layout::short_count(reaction.count))
                 };
+                let on_menu = (can_list && reaction.kind != ReactionKind::Paid)
+                    .then(|| self.list_reactors(message, &reaction.kind));
                 let (weak, kind, is_chosen) =
                     (weak.clone(), reaction.kind.clone(), reaction.is_chosen);
                 Button {
@@ -116,6 +121,7 @@ impl HistoryView {
                             this.toggle_reaction(message_id, &kind, is_chosen, cx);
                         });
                     }),
+                    on_menu,
                 }
             })
             .collect();
@@ -130,6 +136,24 @@ impl HistoryView {
                 ..button
             })
             .collect()
+    }
+
+    /// Opens who reacted on `kind`'s tab (`ShowWhoReactedMenu`).
+    // shortcut: the reactions box on that tab; tdesktop drops a menu of the reactors with "show all" first, which comes with menu sections.
+    fn list_reactors(&self, message: &Message, kind: &ReactionKind) -> OnToggle {
+        let (store, layers, chat) = (self.store.clone(), self.layers.clone(), self.chat);
+        let (id, reactions) = (message.id, message.reactions.clone().unwrap_or_default());
+        let kind = kind.clone();
+        Rc::new(move |window, cx| {
+            super::reactions_box::show(
+                &store,
+                &layers,
+                (chat, id),
+                (&reactions, Some(&kind)),
+                window,
+                cx,
+            );
+        })
     }
 }
 
@@ -224,7 +248,7 @@ fn element(button: Button, out: bool, is_selected: bool, cx: &App) -> AnyElement
     } else {
         bubble_bg(out, is_selected)
     });
-    let on_toggle = button.on_toggle;
+    let (on_toggle, on_menu) = (button.on_toggle, button.on_menu);
     div()
         .id(button.id)
         .flex_none()
@@ -239,6 +263,12 @@ fn element(button: Button, out: bool, is_selected: bool, cx: &App) -> AnyElement
         // The row under it starts a selection on press.
         .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
         .on_click(move |_, window, cx| on_toggle(window, cx))
+        .when_some(on_menu, |this, on_menu| {
+            this.on_mouse_down(gpui::MouseButton::Right, move |_, window, cx| {
+                cx.stop_propagation();
+                on_menu(window, cx);
+            })
+        })
         .child(chip_face(
             button.motion,
             emoji(&button.kind, button.picture.as_deref()).into_any_element(),

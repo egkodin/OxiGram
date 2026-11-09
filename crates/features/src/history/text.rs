@@ -42,6 +42,8 @@ pub(crate) enum Link {
     /// A code block's header, which copies the code.
     Code(String),
     Spoiler,
+    /// A custom emoji, which opens its pack.
+    CustomEmoji(model::CustomEmojiId),
 }
 
 /// The colors text runs take.
@@ -246,6 +248,7 @@ pub(super) fn links(
                 EntityKind::PhoneNumber => Link::Phone(shown.to_owned()),
                 EntityKind::BankCardNumber => Link::BankCard(shown.to_owned()),
                 EntityKind::DateTime { unix_time, .. } => Link::Date(*unix_time),
+                EntityKind::CustomEmoji { id } => Link::CustomEmoji(*id),
                 _ => return None,
             };
             let shifted = entity.range.start - range.start..entity.range.end - range.start;

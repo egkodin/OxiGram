@@ -58,6 +58,7 @@ fn messages() -> Vec<Message> {
                 file,
                 still: None,
                 premium_effect: None,
+                set: None,
                 skin_tone: None,
             };
             let file_id = i32::try_from(50_000 + variant).unwrap_or(50_000);

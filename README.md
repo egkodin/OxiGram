@@ -295,7 +295,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Media viewer and player</b>: 0 of 14 done, 5 in progress</summary>
+<summary><b>Media viewer and player</b>: 0 of 14 done, 6 in progress</summary>
 
 - [ ] Full-window viewer for photos and videos with paging (M5) *(in progress)*
 - [ ] Zoom, fit, rotate, fullscreen (M5) *(in progress)*
@@ -308,20 +308,20 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Sponsored messages in long videos (M5)
 - [ ] Audio player bar with playlist panel (M5) *(in progress)*
 - [ ] Repeat, shuffle, reverse order, speed, volume (M5)
-- [ ] Floating round-video player (M5)
+- [ ] Floating round-video player (M5) *(in progress)*
 - [ ] Voice messages queue and listened marks (M5)
 - [ ] OS media controls (macOS Now Playing, Windows SMTC, MPRIS) (M7)
 
 </details>
 
 <details>
-<summary><b>Stickers, emoji and GIFs</b>: 0 of 10 done, 1 in progress</summary>
+<summary><b>Stickers, emoji and GIFs</b>: 0 of 10 done, 2 in progress</summary>
 
 - [ ] Emoji panel: categories, recent, skin tones, search (M5) *(in progress)*
 - [ ] Custom emoji packs in the emoji panel (Premium) (M5)
 - [ ] Sticker panel: recent, favorites, installed sets, search, trending (M5)
 - [ ] GIF panel: saved GIFs and search (M5)
-- [ ] Sticker set box: preview, add, remove, share link (M5)
+- [ ] Sticker set box: preview, add, remove, share link (M5) *(in progress)*
 - [ ] Installed, archived and featured sets manager with reorder (M6)
 - [ ] Emoji picker overlay on hold (variants) (M5)
 - [ ] Emoji style sets (download and switch) (M6)

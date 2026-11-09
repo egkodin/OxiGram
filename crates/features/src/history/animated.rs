@@ -162,7 +162,21 @@ impl HistoryView {
             Side::Incoming
         };
         let effect = self.premium_effect(message.id, picture, box_size(&sticker), side, cx);
-        Photo { effect, ..sticker }
+        let open = picture.set.map(|set| self.on_open_set(set));
+        Photo {
+            effect,
+            open,
+            ..sticker
+        }
+    }
+
+    /// A click on a sticker opens its set (`StickerSetLink`).
+    // shortcut: a Premium sticker opens its set too; tdesktop replays its effect first, which comes with the effect replay.
+    fn on_open_set(&self, set: model::StickerSetId) -> super::bubble::OnClick {
+        let (store, layers) = (self.store.clone(), self.layers.clone());
+        std::rc::Rc::new(move |_, window, cx| {
+            super::sticker_set_box::show(&store, &layers, set, window, cx);
+        })
     }
 
     /// A Premium sticker's effect, once per message while it shows, reaching

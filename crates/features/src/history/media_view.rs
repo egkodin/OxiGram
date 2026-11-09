@@ -50,6 +50,8 @@ actions!(
 const CONTEXT: &str = "MediaView";
 /// `kMaxZoomLevel`: eight times either way.
 const MAX_ZOOM: i32 = 7;
+/// The caption's share of the window's width.
+const CAPTION_SHARE: f32 = 0.6;
 /// Download priority of the photo on screen, above the history's.
 const PRIORITY: i32 = 32;
 
@@ -346,8 +348,12 @@ impl MediaView {
             )]
             let pixels = |side: f32| (side * scale).ceil().max(1.0) as u32;
             let frames = (pixels(size.0), pixels(size.1));
+            let speed = crate::speed::current(crate::speed::Kind::Video, cx);
             self.playback = Some(cx.new(|cx| {
-                VideoPlayback::new(&playable, start, frames, duration, Ending::Pause, cx)
+                let mut playback =
+                    VideoPlayback::new(&playable, start, frames, duration, Ending::Pause, cx);
+                playback.set_speed(speed);
+                playback
             }));
         }
         self.playback.clone()
@@ -366,8 +372,36 @@ impl MediaView {
         #[expect(clippy::cast_precision_loss, reason = "photo sides")]
         let size = (dimensions.width as f32, dimensions.height as f32);
         let viewport = window.viewport_size();
-        let room = (f32::from(viewport.width), f32::from(viewport.height));
+        let room = (
+            f32::from(viewport.width),
+            f32::from(viewport.height - self.bottom_skip(window)),
+        );
         Some((size, fit_level(size, room)))
+    }
+
+    /// What the controller and the caption take at the bottom, so the
+    /// media fits above them (`recountSkipTop`), not under the caption.
+    fn bottom_skip(&self, window: &Window) -> Pixels {
+        let Some(entry) = self.entries.get(self.index) else {
+            return px(0.0);
+        };
+        let controller = match entry.kind {
+            Kind::Video { .. } => {
+                px_of(MEDIAVIEW_CONTROLLER_SIZE.height)
+                    + px_of(MEDIAVIEW_CAPTION_PADDING.bottom) * 2.0
+            }
+            Kind::Photo => px(0.0),
+        };
+        if entry.caption.is_empty() {
+            return controller;
+        }
+        let padding = MEDIAVIEW_CAPTION_PADDING;
+        controller
+            + px_of(MEDIAVIEW_CAPTION_MARGIN.height)
+            + px_of(MEDIAVIEW_TEXT_TOP)
+            + caption_text_height(&entry.caption, window)
+            + px_of(padding.top)
+            + px_of(padding.bottom)
     }
 
     fn zoom(&mut self, change: fn(Zoom, f32) -> Zoom, window: &Window, cx: &mut Context<Self>) {
@@ -411,7 +445,8 @@ impl Render for MediaView {
             let scale = scale(level);
             let (width, height) = (px(size.0 * scale), px(size.1 * scale));
             let left = (viewport.width - width) / 2.0 + self.offset.x;
-            let top = (viewport.height - height) / 2.0 + self.offset.y;
+            let room = viewport.height - self.bottom_skip(window);
+            let top = (room - height) / 2.0 + self.offset.y;
             div()
                 .id("media-view-photo")
                 .absolute()
@@ -490,7 +525,7 @@ impl Render for MediaView {
             .children(
                 entry
                     .filter(|entry| !entry.caption.is_empty())
-                    .map(|entry| caption(entry.caption.clone(), caption_lift, cx)),
+                    .map(|entry| caption(entry.caption.clone(), caption_lift, window, cx)),
             )
             .children(controller)
     }
@@ -610,8 +645,51 @@ fn save_button(message: MessageId, cx: &mut Context<MediaView>) -> impl IntoElem
 
 /// The caption over the bottom, in its rounded box (`_captionRect`).
 // shortcut: plain text without links or entities, never cut to a quarter of the height; with rich text in the viewer.
-fn caption(text: String, lift: Pixels, cx: &App) -> impl IntoElement {
+/// The caption's width: 60% of the window, less its padding.
+fn caption_width(window: &Window) -> Pixels {
     let padding = MEDIAVIEW_CAPTION_PADDING;
+    window.viewport_size().width * CAPTION_SHARE - px_of(padding.left) - px_of(padding.right)
+}
+
+/// The caption's wrapped lines, at most a quarter of the window's height
+/// in whole lines (`refreshCaptionGeometry`).
+fn caption_text_height(text: &str, window: &Window) -> Pixels {
+    let line = font_height(NORMAL_FONT);
+    let run = gpui::TextRun {
+        len: text.len(),
+        font: font(NORMAL_FONT),
+        color: gpui::Hsla::default(),
+        background_color: None,
+        underline: None,
+        strikethrough: None,
+    };
+    let rows: usize = window
+        .text_system()
+        .shape_text(
+            SharedString::from(text.to_owned()),
+            px_of(NORMAL_FONT.size),
+            &[run],
+            Some(caption_width(window)),
+            None,
+        )
+        .map(|lines| {
+            lines
+                .iter()
+                .map(|line| line.wrap_boundaries().len() + 1)
+                .sum()
+        })
+        .unwrap_or(1);
+    let max_rows = (window.viewport_size().height / 4.0 / line)
+        .floor()
+        .max(1.0);
+    #[expect(clippy::cast_precision_loss, reason = "a few lines")]
+    let rows = (rows as f32).min(max_rows);
+    line * rows
+}
+
+fn caption(text: String, lift: Pixels, window: &Window, cx: &App) -> impl IntoElement {
+    let padding = MEDIAVIEW_CAPTION_PADDING;
+    let height = caption_text_height(&text, window);
     div()
         .absolute()
         .left_0()
@@ -621,7 +699,9 @@ fn caption(text: String, lift: Pixels, cx: &App) -> impl IntoElement {
         .justify_center()
         .child(
             div()
-                .max_w(gpui::relative(0.6))
+                .max_w(gpui::relative(CAPTION_SHARE))
+                .max_h(height + px_of(padding.top) + px_of(padding.bottom))
+                .overflow_hidden()
                 .px(px_of(padding.left))
                 .py(px_of(padding.top))
                 .rounded(px_of(MEDIAVIEW_CAPTION_RADIUS))

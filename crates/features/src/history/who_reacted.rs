@@ -3,21 +3,30 @@
 
 use std::rc::Rc;
 
+use chrono::Local;
 use gpui::{App, Task, Window};
-use model::UserId;
 use model::message::{Content, Message, Sender};
+use model::message_actions::Abilities;
 use model::reaction::AddedReactions;
+use model::{RequestError, UserId};
 use style::Icon;
 use style::chat::{WHO_READ_CHECKS, WHO_READ_PLAYED, WHO_READ_REACTIONS};
 
-use super::read_date::{Seen, SeenKind, seen};
+use super::read_date::{self, Seen, SeenKind, WhoRead, seen};
 use super::service::sender_name;
-use super::{HistoryView, menu, reactions_box};
+use super::{HistoryView, reactions_box};
 use crate::lang::strings;
 use crate::store::spawn;
 
 /// Who reacted, as many as the menu asks for (`kContextReactionsLimit`).
 const MENU_REACTORS_LIMIT: i32 = 50;
+
+/// A who-read answer, or none when TDLib could not tell.
+pub(super) fn known<T>(result: Result<T, RequestError>) -> Option<T> {
+    result
+        .inspect_err(|error| tracing::warn!(%error, "who read the message unknown"))
+        .ok()
+}
 
 type OnClick = Rc<dyn Fn(&mut Window, &mut App)>;
 
@@ -46,7 +55,7 @@ impl HistoryView {
             String::new(),
             MENU_REACTORS_LIMIT,
         );
-        Some(spawn(async move { menu::known(task.await) }, cx))
+        Some(spawn(async move { known(task.await) }, cx))
     }
 
     /// "3 Seen", "2/5 Reacted" and the like; `viewers` only when the user
@@ -110,13 +119,50 @@ impl HistoryView {
         })
     }
 
+    /// Asks who saw an outgoing message alongside its abilities: the read
+    /// date in private chats, the viewers in groups.
+    pub(super) fn who_read(&self, message: &Message, cx: &App) -> Task<Option<WhoRead>> {
+        let session = self.store.read(cx).session();
+        if self.is_private(cx) {
+            let task = session.message_read_date(self.chat, message.id);
+            spawn(async move { known(task.await).map(WhoRead::Date) }, cx)
+        } else {
+            let task = session.message_viewers(self.chat, message.id);
+            spawn(async move { known(task.await).map(WhoRead::Viewers) }, cx)
+        }
+    }
+
+    /// The menu's first line, when the abilities allow asking.
+    pub(super) fn who_read_line(
+        &self,
+        message: &Message,
+        who_read: Option<WhoRead>,
+        reactors: Option<AddedReactions>,
+        abilities: Option<&Abilities>,
+        cx: &App,
+    ) -> Option<WhoLine> {
+        let abilities = abilities?;
+        let viewers = match who_read {
+            Some(WhoRead::Date(date)) if abilities.can_get_read_date => {
+                return read_date::text(strings(cx), date, &Local::now()).map(|text| WhoLine {
+                    text,
+                    icon: WHO_READ_CHECKS,
+                    on_click: None,
+                });
+            }
+            Some(WhoRead::Viewers(viewers)) if abilities.can_get_viewers => Some(viewers),
+            _ => None,
+        };
+        self.who_reacted_line(message, viewers, reactors, cx)
+    }
+
     /// Opens the reactions list for the message.
     // shortcut: one reactor's line opens the list too, not their profile; profiles come with M6.
     fn show_reactions(&self, message: &Message) -> OnClick {
         let (store, layers, chat) = (self.store.clone(), self.layers.clone(), self.chat);
         let (id, reactions) = (message.id, message.reactions.clone().unwrap_or_default());
         Rc::new(move |window, cx| {
-            reactions_box::show(&store, &layers, chat, id, &reactions, window, cx);
+            reactions_box::show(&store, &layers, (chat, id), (&reactions, None), window, cx);
         })
     }
 }

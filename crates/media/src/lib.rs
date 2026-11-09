@@ -19,7 +19,7 @@ pub mod stream;
 mod video;
 mod waveform;
 
-pub use audio::{AudioError, AudioPlayer, silence_output};
+pub use audio::{AudioError, AudioPlayer, MAX_SPEED, MIN_SPEED, silence_output};
 pub use capture::{Progress, RecordError, Recorded, Recorder, Source, Stopping};
 pub use decode::{DecodeError, Decoded, decode};
 pub use player::{PlayError, Player};

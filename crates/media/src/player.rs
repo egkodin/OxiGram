@@ -156,7 +156,10 @@ impl Player {
 
     /// Plays `speed` times as fast (tdesktop offers 0.5 to 2).
     pub fn set_speed(&self, speed: f32) {
-        let step = fixed(self.base_step * f64::from(speed.clamp(0.25, 4.0)));
+        let step = fixed(
+            self.base_step
+                * f64::from(speed.clamp(crate::audio::MIN_SPEED, crate::audio::MAX_SPEED)),
+        );
         self.shared.step.store(step, Ordering::Relaxed);
     }
 }

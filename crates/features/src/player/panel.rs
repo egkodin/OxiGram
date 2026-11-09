@@ -208,7 +208,7 @@ fn row(
     let name_left = px_of(padding.left) + thumb + px_of(padding.right);
     let (performer, title) = match &song.track {
         Track::Song { performer, title } => (performer.as_str(), title.as_str()),
-        Track::Voice => ("", ""),
+        Track::Voice { name, date } => (name.as_str(), date.as_str()),
     };
     let fg = color(cx, ColorRef::Palette(ColorId::HistoryFileNameInFg));
     let name = div()
@@ -268,7 +268,10 @@ mod tests {
             .map(|id| Song {
                 message: MessageId(id),
                 file: FileId(1),
-                track: Track::Voice,
+                track: Track::Voice {
+                    name: String::new(),
+                    date: String::new(),
+                },
                 duration: 0,
             })
             .collect();

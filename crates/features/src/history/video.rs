@@ -35,6 +35,7 @@ use super::file_row::progress;
 use super::inline_video::Frame;
 use super::media_video::Ending;
 use super::photo::Photo;
+use super::round_seek::Ring;
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
 use crate::px_of;
@@ -72,8 +73,8 @@ pub(super) struct Video {
     /// How far into the video it starts, 0 to 1, when the sender set a
     /// timestamp.
     pub timestamp: Option<f32>,
-    /// A round video's played part, 0 to 1, while it plays in the bubble.
-    pub played: Option<f32>,
+    /// A round video's ring while it plays in the bubble.
+    pub ring: Option<Ring>,
 }
 
 /// Where the timestamp mark sits in the video, when it has one.
@@ -147,6 +148,23 @@ impl HistoryView {
         };
         let can_stream = Playable::of(self.store.read(cx).session(), &file).is_some();
         let (center, status) = state(&file, frame.as_ref(), length.clone(), can_stream, cx);
+        let seeking = self.round_seeking(id);
+        // While dragging, the time at the drag (`updateStatusText`).
+        #[expect(clippy::cast_precision_loss, reason = "video lengths in seconds")]
+        let status = seeking.map_or(status, |share| {
+            #[expect(clippy::cast_possible_truncation, reason = "within the length")]
+            let at = (media.duration as f32 * share) as i32;
+            duration_text(at)
+        });
+        let ring = frame
+            .as_ref()
+            .filter(|_| matches!(shape, Shape::Round { .. }))
+            .map(|frame| Ring {
+                played: seeking.unwrap_or(frame.progress),
+                is_shown: seeking.is_some() || !frame.is_playing,
+                is_grabbed: seeking.is_some(),
+                on_seek: self.on_round_seek(id, cx),
+            });
         // A GIF has no time to count down.
         let status = if is_gif && frame.is_some() {
             length
@@ -166,10 +184,7 @@ impl HistoryView {
                 timestamp: matches!(message.content, Content::Video(_))
                     .then(|| timestamp(media))
                     .flatten(),
-                played: frame
-                    .as_ref()
-                    .filter(|_| matches!(shape, Shape::Round { .. }))
-                    .map(|frame| frame.progress),
+                ring,
             }),
             frame: frame.and_then(|frame| frame.image),
             ..still
@@ -191,6 +206,7 @@ impl HistoryView {
         let playable = Playable::of(self.store.read(cx).session(), file);
         let is_video = matches!(message.content, Content::Video(_));
         let length = Duration::from_secs(u64::try_from(seconds).unwrap_or(0));
+        let origin = super::voice_note::Origin::of(message);
         Rc::new(move |_, window, cx| {
             let _ = weak.update(cx, |this, cx| match center {
                 Center::Download => this.add_to_downloads(file_id, (chat, id), cx),
@@ -208,7 +224,8 @@ impl HistoryView {
                                 this.mark_listened(id, cx);
                             }
                             let side = px_of(MAX_VIDEO_MESSAGE_SIZE).into();
-                            this.play_inline(id, file, ((side, side), length), Ending::Pause, cx);
+                            let track = origin.track(&this.store.read(cx).state().chats, cx);
+                            this.play_round(id, file, (side, length), track, cx);
                         }
                         // A GIF on disk that cannot autoplay.
                         (Shape::Frame, Some(path)) => this.open_file(path, window, cx),
@@ -293,12 +310,13 @@ pub(super) fn overlays(
         Center::Waiting(state) => Some(super::file_row::radial_arc(state, radial)),
         Center::Download | Center::Play | Center::Pause => None,
     };
-    // `VideoMessageSeek` without the seek: the played part around the edge.
-    let ring = video.played.map(|played| {
+    // `VideoMessageSeek`: the played part around the edge, a seek ring
+    // while paused.
+    let ring = video.ring.map(|ring| {
         let fg = palette(cx, ColorId::HistoryVideoMessageProgressFg);
         #[expect(clippy::cast_possible_truncation, reason = "an opacity")]
         let opacity = HISTORY_VIDEO_MESSAGE_PROGRESS_OPACITY as f32;
-        super::file_row::arc(played, fg.opacity(opacity))
+        super::round_seek::ring(ring, fg, opacity)
     });
     let circle = div()
         .relative()

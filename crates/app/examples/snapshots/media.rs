@@ -488,6 +488,7 @@ fn big_emoji() -> Vec<Message> {
         file: file(990, animation.as_deref()),
         still: Some(file(991, path.as_deref())),
         premium_effect: None,
+        set: None,
         skin_tone: None,
     };
     vec![
@@ -580,6 +581,7 @@ fn stickers() -> Vec<Message> {
             file: file(i32::try_from(960 + id).unwrap_or(960), shown),
             still,
             premium_effect: None,
+            set: None,
             skin_tone: None,
         };
         place(
@@ -1032,6 +1034,7 @@ fn inline_videos(still: &Path) -> Vec<Message> {
         file: file(1215, Some(Path::new(ALPHA_CLIP))),
         still: None,
         premium_effect: None,
+        set: None,
         skin_tone: None,
     };
     let sticker = saved(

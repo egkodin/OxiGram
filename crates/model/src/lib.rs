@@ -47,6 +47,7 @@ pub mod sponsored;
 pub mod stars;
 mod state;
 pub mod sticker;
+pub mod sticker_set;
 pub mod storage;
 pub mod text;
 pub mod text_links;
@@ -56,8 +57,8 @@ pub mod websites;
 
 pub use event::{Event, events};
 pub use ids::{
-    BasicGroupId, ChatId, CustomEmojiId, FileId, FolderId, MessageId, SavedTopicId, SupergroupId,
-    UserId,
+    BasicGroupId, ChatId, CustomEmojiId, FileId, FolderId, MessageId, SavedTopicId, StickerSetId,
+    SupergroupId, UserId,
 };
 pub use secret::Secret;
 pub use session::{Environment, ListLoad, Parameters, Presence, RequestError, Session, Views};

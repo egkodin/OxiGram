@@ -17,6 +17,22 @@
 - TDLib and FFmpeg builds live in ~/.cache/rgram, one version each.
 - Every milestone report gives the sizes of target/ and .git.
 
+## Rounds, speed, reactions and sticker sets (2026-11-09)
+
+- Rounds: no bubble or name around unwrapped media (the doubled round),
+  one global sound (`Sound::Round` with `RoundLink`), the seek ring while
+  paused (`history/round_seek.rs`), the off-screen float
+  (`history/round_float.rs`).
+- Speed (`features/src/speed.rs`): voices and rounds, songs, viewer
+  videos, each saved apart; the player bar shows voices with the button.
+- Reactions: the menu opens on local answers, the strip expands, a right
+  click on a chip lists who reacted on its tab.
+- Viewer caption below the media.
+- Sticker set box (`history/sticker_set_box.rs`, `model::sticker_set`)
+  from a sticker or a custom emoji in text.
+- Open: custom emoji drawn inline in text, the Premium emoji panel, live
+  look at all of the above.
+
 ## Video streaming (2026-11-06, committed)
 
 - `media::stream` + `media/src/input.rs` (FFmpeg custom I/O over a

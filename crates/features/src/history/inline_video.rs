@@ -4,25 +4,28 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::Duration;
 
-use gpui::{AppContext as _, Context, Entity, RenderImage, Subscription, Window};
+use gpui::{App, AppContext as _, Context, Entity, RenderImage, Subscription, Window};
 use model::MessageId;
 use ui::RadialState;
 
 use super::HistoryView;
 use super::media_video::{self, Ending, VideoPlayback};
+use crate::player::{RoundLink, Sound, Track};
 use crate::streaming::Playable;
 
 /// The videos playing in a history.
-// shortcut: a round stops when it scrolls away; tdesktop moves it to a corner (row "Round video PiP"), with the audio step.
 #[derive(Default)]
 pub(super) struct Inline {
     playing: HashMap<MessageId, (Entity<VideoPlayback>, Subscription)>,
     /// The messages whose frames the last layout asked for: the rest are
-    /// off screen and stop.
+    /// off screen and stop, except a round, which plays on in the corner.
     seen: HashSet<MessageId>,
+    /// The round playing off screen (`Media::Player::Float`).
+    floating: Option<MessageId>,
     /// GIFs and stickers that cannot be decoded, not to start again.
     failed: HashSet<MessageId>,
     scale: f32,
@@ -44,7 +47,8 @@ impl HistoryView {
         self.inline.scale
     }
 
-    /// Stops what scrolled away or ended, and keeps the rest moving.
+    /// Stops what scrolled away or ended, and keeps the rest moving; a
+    /// round off screen plays on in the corner.
     pub(super) fn tick_inline(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let inline = &mut self.inline;
         inline.scale = window.scale_factor();
@@ -54,8 +58,17 @@ impl HistoryView {
             if playback.has_failed() {
                 inline.failed.insert(*id);
             }
-            seen.contains(id) && !playback.is_finished()
+            let is_kept = seen.contains(id) || playback.plays_away();
+            is_kept && !playback.is_finished() && !playback.is_released()
         });
+        inline.floating = None;
+        for (id, (playback, _)) in &inline.playing {
+            if !seen.contains(id) && playback.read(cx).plays_away() {
+                inline.floating = Some(*id);
+                // Nothing draws it in the list: it runs the player's commands here.
+                playback.update(cx, |playback, cx| playback.advance(cx));
+            }
+        }
         media_video::drop_retired(window, cx);
         crate::lottie::drop_retired(window, cx);
         if inline
@@ -64,6 +77,42 @@ impl HistoryView {
             .any(|(playback, _)| playback.read(cx).needs_redraw())
         {
             window.request_animation_frame();
+        }
+    }
+
+    /// The round playing off screen, its frame and played part.
+    pub(super) fn floating_round(
+        &self,
+        cx: &App,
+    ) -> Option<(MessageId, Option<Arc<RenderImage>>, f32)> {
+        let id = self.inline.floating?;
+        let (playback, _) = self.inline.playing.get(&id)?;
+        let playback = playback.read(cx);
+        Some((id, playback.frame(), playback.progress()))
+    }
+
+    /// Plays a round in its bubble through the app's player, as tdesktop
+    /// plays rounds as voices: it stops what played, and the bar shows it.
+    pub(super) fn play_round(
+        &mut self,
+        message: MessageId,
+        file: &Playable,
+        (side, length): (f32, Duration),
+        track: Track,
+        cx: &mut Context<Self>,
+    ) {
+        let link = Rc::new(RoundLink::default());
+        self.play(message, (track, None), Sound::Round(Rc::clone(&link)), cx);
+        self.play_inline(message, file, ((side, side), length), Ending::Pause, cx);
+        if let Some((playback, _)) = self.inline.playing.get(&message) {
+            playback.update(cx, |playback, _| playback.link(link));
+        }
+    }
+
+    /// Jumps a round to `share` of the way in.
+    pub(super) fn seek_inline(&mut self, message: MessageId, share: f32, cx: &mut Context<Self>) {
+        if let Some((playback, _)) = self.inline.playing.get(&message) {
+            playback.update(cx, |playback, cx| playback.seek_share(share, cx));
         }
     }
 

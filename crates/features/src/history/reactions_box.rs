@@ -70,17 +70,21 @@ impl Focusable for ReactionsBox {
     }
 }
 
-/// Opens the list on the "All" tab and asks for its first page.
+/// Opens the list on `kind`'s tab, or "All", and asks for its first page.
 pub(super) fn show(
     store: &Entity<Store>,
     layers: &Entity<Layers>,
-    chat: ChatId,
-    message: MessageId,
-    reactions: &Reactions,
+    (chat, message): (ChatId, MessageId),
+    (reactions, kind): (&Reactions, Option<&ReactionKind>),
     window: &mut Window,
     cx: &mut App,
 ) {
     let weak = layers.downgrade();
+    let tabs = tabs(reactions);
+    let selected = tabs
+        .iter()
+        .position(|tab| tab.kind.as_ref() == kind)
+        .unwrap_or(0);
     let view = cx.new(|cx| {
         // Names and userpics arrive as user updates.
         let store_changed = cx.observe(store, |_, _, cx| cx.notify());
@@ -90,8 +94,8 @@ pub(super) fn show(
             focus: cx.focus_handle(),
             chat,
             message,
-            tabs: tabs(reactions),
-            selected: 0,
+            tabs,
+            selected,
             rows: Vec::new(),
             next: Some(String::new()),
             is_loading: false,

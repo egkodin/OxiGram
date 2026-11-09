@@ -74,7 +74,10 @@ mod tests {
             .map(|&id| Song {
                 message: MessageId(id),
                 file: FileId(1),
-                track: Track::Voice,
+                track: Track::Voice {
+                    name: String::new(),
+                    date: String::new(),
+                },
                 duration: 0,
             })
             .collect()

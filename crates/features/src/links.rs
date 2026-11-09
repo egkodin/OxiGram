@@ -50,7 +50,12 @@ pub(crate) fn open(link: Link, targets: &Targets, window: &mut Window, cx: &mut 
         }
         // Spoilers reveal in the message itself; phones, cards and dates
         // open their menus there, and code copies there.
-        Link::Spoiler | Link::Phone(_) | Link::BankCard(_) | Link::Date(_) | Link::Code(_) => {}
+        Link::Spoiler
+        | Link::CustomEmoji(_)
+        | Link::Phone(_)
+        | Link::BankCard(_)
+        | Link::Date(_)
+        | Link::Code(_) => {}
     }
 }
 

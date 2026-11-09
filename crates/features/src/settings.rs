@@ -164,6 +164,12 @@ struct Values {
     power_saving: u32,
     /// The interface scale in percent; 0 is the default (`kScaleAuto`).
     interface_scale: u32,
+    /// Voices and rounds (`voicePlaybackSpeed`).
+    voice_speed: crate::speed::Speed,
+    /// Songs (`audioPlaybackSpeed`).
+    audio_speed: crate::speed::Speed,
+    /// Videos in the viewer (`videoPlaybackSpeed`).
+    video_speed: crate::speed::Speed,
 }
 
 impl Default for Values {
@@ -192,6 +198,9 @@ impl Default for Values {
             capture_device: String::new(),
             power_saving: 0,
             interface_scale: 0,
+            voice_speed: crate::speed::Speed::default(),
+            audio_speed: crate::speed::Speed::default(),
+            video_speed: crate::speed::Speed::default(),
         }
     }
 }
@@ -294,6 +303,22 @@ pub(crate) fn follow_system_appearance(cx: &mut App) {
     if is_dark != is_night_mode(cx) {
         set_night_mode(is_dark, cx);
     }
+}
+
+pub(crate) fn speed(kind: crate::speed::Kind, cx: &App) -> crate::speed::Speed {
+    values(cx).map_or_else(crate::speed::Speed::default, |values| match kind {
+        crate::speed::Kind::Voice => values.voice_speed,
+        crate::speed::Kind::Audio => values.audio_speed,
+        crate::speed::Kind::Video => values.video_speed,
+    })
+}
+
+pub(crate) fn set_speed(kind: crate::speed::Kind, speed: crate::speed::Speed, cx: &mut App) {
+    change(cx, |values| match kind {
+        crate::speed::Kind::Voice => values.voice_speed = speed,
+        crate::speed::Kind::Audio => values.audio_speed = speed,
+        crate::speed::Kind::Video => values.video_speed = speed,
+    });
 }
 
 pub(crate) fn is_large_emoji(cx: &App) -> bool {
@@ -626,6 +651,9 @@ mod tests {
             capture_device: "coreaudio:mic".to_owned(),
             power_saving: 5,
             interface_scale: 150,
+            voice_speed: crate::speed::Speed::default().chosen(1.5),
+            audio_speed: crate::speed::Speed::default(),
+            video_speed: crate::speed::Speed::default().toggled(),
         };
         save(&path, &values).expect("the temp dir is writable");
         let read: Values =

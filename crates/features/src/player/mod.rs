@@ -16,7 +16,7 @@ use model::{ChatId, MessageId};
 
 pub(crate) use self::bar::bar;
 pub(crate) use self::playlist::{Playlist, Song, Step};
-pub(crate) use self::sound::Sound;
+pub(crate) use self::sound::{Command, RoundLink, Sound};
 use crate::streaming::Playable;
 
 /// How many songs around the one playing the playlist asks for
@@ -29,12 +29,20 @@ const TICK: Duration = Duration::from_millis(50);
 /// What plays, for the bar.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Track {
-    Voice,
+    /// A voice or a round: the sender and when it was sent
+    /// (`FormatVoiceName`).
+    Voice { name: String, date: String },
     /// The performer, maybe empty, and the title.
-    Song {
-        performer: String,
-        title: String,
-    },
+    Song { performer: String, title: String },
+}
+
+impl Track {
+    pub(crate) fn speed_kind(&self) -> crate::speed::Kind {
+        match self {
+            Self::Voice { .. } => crate::speed::Kind::Voice,
+            Self::Song { .. } => crate::speed::Kind::Audio,
+        }
+    }
 }
 
 pub(crate) struct Playing {
@@ -55,6 +63,12 @@ pub(crate) struct Player {
     /// The chat's shared music being fetched for the playlist.
     widening: Option<Task<()>>,
     hover: panel::Hover,
+    /// The speed presets, open at a point.
+    speed_menu: Option<(
+        gpui::Point<gpui::Pixels>,
+        Entity<ui::PopupMenu>,
+        gpui::Subscription,
+    )>,
 }
 
 struct Shared(Entity<Player>);
@@ -197,6 +211,7 @@ impl Player {
         playlist: Option<Rc<Playlist>>,
         cx: &mut Context<Self>,
     ) {
+        sound.set_speed(crate::speed::current(track.speed_kind(), cx));
         let ticker = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor().timer(TICK).await;
@@ -270,6 +285,51 @@ impl Player {
             })
             .ok();
         }));
+    }
+
+    /// What plays plays at this speed.
+    pub(crate) fn speed(&self, cx: &App) -> f32 {
+        self.playing.as_ref().map_or(1.0, |playing| {
+            crate::speed::current(playing.track.speed_kind(), cx)
+        })
+    }
+
+    /// The speed presets at the pointer (`SpeedController`'s dropdown).
+    pub(crate) fn show_speed_menu(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
+        let weak = cx.weak_entity();
+        let on_choose: crate::speed::OnChoose = std::rc::Rc::new(move |speed, _, cx| {
+            let _ = weak.update(cx, |player, cx| {
+                player.change_speed(|kept| kept.chosen(speed), cx);
+            });
+        });
+        let current = self.speed(cx);
+        let menu = cx.new(|cx| crate::speed::menu(current, &on_choose, cx));
+        let subscription = cx.subscribe(&menu, |this, _, _: &gpui::DismissEvent, cx| {
+            this.speed_menu = None;
+            cx.notify();
+        });
+        gpui::Focusable::focus_handle(menu.read(cx), cx).focus(window, cx);
+        self.speed_menu = Some((window.mouse_position(), menu, subscription));
+        cx.notify();
+    }
+
+    pub(crate) fn speed_menu_overlay(&self) -> Option<gpui::AnyElement> {
+        let (position, menu, _) = self.speed_menu.as_ref()?;
+        Some(crate::speed::overlay(*position, menu.clone()))
+    }
+
+    /// Saves `edit` of the speed for what plays and applies it.
+    pub(crate) fn change_speed(
+        &mut self,
+        edit: impl FnOnce(crate::speed::Speed) -> crate::speed::Speed,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(playing) = &self.playing else {
+            return;
+        };
+        let speed = crate::speed::change(playing.track.speed_kind(), edit, cx);
+        playing.sound.set_speed(speed);
+        cx.notify();
     }
 
     pub(crate) fn stop(&mut self, cx: &mut Context<Self>) {

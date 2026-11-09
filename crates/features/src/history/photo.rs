@@ -313,7 +313,7 @@ fn plain_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement
 
 /// A video's frame over the whole box, cut to its corners.
 // shortcut: the frame is stretched to the box, not cropped as the still is; fine for round videos, revisit with GIFs of odd sizes.
-fn playing(frame: Arc<RenderImage>, corners: Corners<Pixels>) -> gpui::Canvas<()> {
+pub(super) fn playing(frame: Arc<RenderImage>, corners: Corners<Pixels>) -> gpui::Canvas<()> {
     canvas(
         |_, _, _| (),
         move |bounds, (), window, _| {
@@ -371,7 +371,12 @@ pub(super) fn info_pill(item: &Item<'_>, out: bool, cx: &App) -> Div {
 /// reactions under it with the time.
 pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &App) -> Div {
     let width = px_of(Px(pictures.width));
-    let name = bubble::name_line(item, out, cx);
+    let is_alone = is_unwrapped(item.message);
+    // tdesktop paints the name inside a bubble only; stickers and rounds
+    // have none (`Message::paintFromName`).
+    let name = (!is_alone)
+        .then(|| bubble::name_line(item, out, cx))
+        .flatten();
     let headers = bubble::headers(item, out, cx);
     let has_header = name.is_some() || !headers.is_empty();
     let has_caption = bubble::caption(item.message).is_some_and(|caption| !caption.text.is_empty());
@@ -392,19 +397,24 @@ pub(super) fn bubble(item: &mut Item<'_>, out: bool, pictures: Pictures, cx: &Ap
         Content::VideoNote { .. } => Corners::all(px_of(Px(pictures.width)) / 2.0),
         _ => bubble::corners(out, &item.run, foot),
     };
-    let corners = Corners {
-        top_left: if has_header { px(0.0) } else { edges.top_left },
-        top_right: if has_header { px(0.0) } else { edges.top_right },
-        bottom_left: if has_below || comments.is_some() {
-            px(0.0)
-        } else {
-            edges.bottom_left
-        },
-        bottom_right: if has_below || comments.is_some() {
-            px(0.0)
-        } else {
-            edges.bottom_right
-        },
+    // shortcut: a reply or forward on a sticker or round sits above it in a bubble; tdesktop draws it beside the media (`UnwrappedMedia::drawSurrounding`).
+    let corners = if is_alone {
+        edges
+    } else {
+        Corners {
+            top_left: if has_header { px(0.0) } else { edges.top_left },
+            top_right: if has_header { px(0.0) } else { edges.top_right },
+            bottom_left: if has_below || comments.is_some() {
+                px(0.0)
+            } else {
+                edges.bottom_left
+            },
+            bottom_right: if has_below || comments.is_some() {
+                px(0.0)
+            } else {
+                edges.bottom_right
+            },
+        }
     };
     let header = has_header.then(|| {
         div()

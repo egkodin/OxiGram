@@ -33,6 +33,7 @@ mod recipients_box;
 mod root;
 pub mod settings;
 mod settings_screen;
+mod speed;
 mod status;
 pub mod store;
 mod streaming;

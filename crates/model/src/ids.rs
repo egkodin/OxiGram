@@ -9,6 +9,10 @@ pub struct UserId(pub i64);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CustomEmojiId(pub i64);
 
+/// A sticker or custom emoji set.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StickerSetId(pub i64);
+
 /// A chat: private, group, channel or secret.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ChatId(pub i64);

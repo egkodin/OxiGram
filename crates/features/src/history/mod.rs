@@ -34,6 +34,8 @@ mod link_menus;
 mod location;
 mod media_video;
 mod media_view;
+mod round_float;
+mod round_seek;
 pub(crate) use media_view::{Entry as MediaEntry, Kind as MediaKind, open as open_media};
 mod menu;
 mod music;
@@ -62,6 +64,7 @@ mod special;
 mod spoiler;
 mod sponsored;
 mod sticker;
+mod sticker_set_box;
 mod sync;
 mod text;
 mod thread_section;
@@ -163,6 +166,8 @@ pub(crate) struct HistoryView {
     poll_picks: poll::Picks,
     player: Entity<crate::player::Player>,
     inline: inline_video::Inline,
+    /// A drag on a round's seek ring.
+    round_seek: Option<round_seek::Seeking>,
     /// Messages whose spoilers the user clicked open.
     revealed_spoilers: HashSet<MessageId>,
     /// Replied and pinned messages asked for, and those that are gone.
@@ -281,6 +286,7 @@ impl HistoryView {
             poll_picks: poll::Picks::default(),
             player,
             inline: inline_video::Inline::default(),
+            round_seek: None,
             revealed_spoilers: HashSet::new(),
             requested_references: HashSet::new(),
             missing_references: HashSet::new(),
@@ -583,6 +589,7 @@ impl HistoryView {
                 Link::BankCard(number) => this.open_bank_card_menu(number, window, cx),
                 Link::Date(unix_time) => this.show_date_menu(unix_time, window, cx),
                 Link::Code(code) => this.copy_code(code, cx),
+                Link::CustomEmoji(id) => this.open_emoji_set(id, window, cx),
                 link => cx.emit(HistoryEvent::Link(link)),
             });
         })
@@ -759,6 +766,7 @@ impl Render for HistoryView {
                     )
                     .children(self.pull_indicator(window, cx))
                     .children(self.floating_date(cx))
+                    .children(self.round_float(cx))
                     // shortcut: no down button in the pinned section; it comes with the section stack (M8).
                     .children(
                         is_chat

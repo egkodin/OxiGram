@@ -5,7 +5,7 @@
 
 use std::collections::VecDeque;
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::{self, SyncSender};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, TryLockError};
 use std::thread;
@@ -20,6 +20,11 @@ use ffmpeg_next as ffmpeg;
 use crate::input::Origin;
 use crate::player::output_stream;
 use crate::stream::{Signal, Stream};
+
+/// The speeds the players take (`kSpeedMin`, `kSpeedMax` are 0.5 and 2.5;
+/// a little room on both sides).
+pub const MIN_SPEED: f32 = 0.25;
+pub const MAX_SPEED: f32 = 4.0;
 
 /// Decoded sound kept ahead of the output.
 const AHEAD: Duration = Duration::from_millis(500);
@@ -63,6 +68,10 @@ struct Shared {
     played: AtomicU64,
     seek: Mutex<Option<Duration>>,
     is_paused: AtomicBool,
+    /// How many source frames play per output frame, as `f32` bits.
+    speed: AtomicU32,
+    /// The part of a source frame the speed stepped past, as `f64` bits.
+    fraction: AtomicU64,
     /// The decoder reached the end of the file.
     is_drained: AtomicBool,
     is_closed: AtomicBool,
@@ -87,12 +96,13 @@ impl Shared {
             Err(TryLockError::WouldBlock) => return,
             Err(TryLockError::Poisoned(_)) => panic!("audio buffer lock poisoned"),
         };
-        let taken = output.len().min(buffer.len());
-        for (out, sample) in output.iter_mut().zip(buffer.drain(..taken)) {
-            *out = sample;
-        }
+        let speed = f32::from_bits(self.speed.load(Ordering::Relaxed));
+        let fraction = f64::from_bits(self.fraction.load(Ordering::Relaxed));
+        let (frames, fraction) = step(&buffer, output, self.channels, speed, fraction);
+        buffer.drain(..frames * self.channels);
+        self.fraction.store(fraction.to_bits(), Ordering::Relaxed);
         drop(buffer);
-        let frames = u64::try_from(taken / self.channels).unwrap_or(0);
+        let frames = u64::try_from(frames).unwrap_or(0);
         self.played.fetch_add(frames, Ordering::Relaxed);
         self.space.notify_one();
     }
@@ -142,7 +152,7 @@ impl std::fmt::Debug for AudioPlayer {
 
 impl AudioPlayer {
     /// Starts playing `path`'s sound from `start`.
-    // shortcut: no speed or volume; with the player bar (row "Repeat, shuffle, reverse order, speed, volume").
+    // shortcut: speed steps through the samples, so the pitch moves with it; tdesktop keeps the pitch (row 302). No volume.
     ///
     /// # Errors
     ///
@@ -179,6 +189,8 @@ impl AudioPlayer {
             played: AtomicU64::new(0),
             seek: Mutex::new((start > Duration::ZERO).then_some(start)),
             is_paused: AtomicBool::new(false),
+            speed: AtomicU32::new(1.0_f32.to_bits()),
+            fraction: AtomicU64::new(0),
             is_drained: AtomicBool::new(false),
             is_closed: AtomicBool::new(false),
             duration: AtomicU64::new(0),
@@ -233,6 +245,12 @@ impl AudioPlayer {
 
     pub fn resume(&self) {
         self.shared.is_paused.store(false, Ordering::Relaxed);
+    }
+
+    /// Plays `speed` times as fast, from the next output block.
+    pub fn set_speed(&self, speed: f32) {
+        let speed = speed.clamp(MIN_SPEED, MAX_SPEED);
+        self.shared.speed.store(speed.to_bits(), Ordering::Relaxed);
     }
 
     /// Plays on from `to`; the decoder starts over there.
@@ -446,6 +464,7 @@ impl Source {
         let mut buffer = shared.buffer();
         buffer.clear();
         shared.played.store(0, Ordering::Relaxed);
+        shared.fraction.store(0, Ordering::Relaxed);
         shared
             .base
             .store(u64::try_from(micros).unwrap_or(0), Ordering::Relaxed);
@@ -497,6 +516,42 @@ impl Source {
             .map(|bytes| f32::from_ne_bytes(*bytes))
             .collect())
     }
+}
+
+/// Fills `output` from `buffer`, `speed` source frames an output frame,
+/// each output frame the source frame it lands in; silence once the buffer
+/// runs out. Returns the whole source frames passed and the part of one
+/// left over for the next call.
+fn step(
+    buffer: &VecDeque<f32>,
+    output: &mut [f32],
+    channels: usize,
+    speed: f32,
+    mut fraction: f64,
+) -> (usize, f64) {
+    let channels = channels.max(1);
+    let available = buffer.len() / channels;
+    let mut frame = 0;
+    for out in output.chunks_exact_mut(channels) {
+        if frame >= available {
+            break;
+        }
+        for (channel, sample) in out.iter_mut().enumerate() {
+            *sample = buffer[frame * channels + channel];
+        }
+        fraction += f64::from(speed);
+        #[expect(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "a few frames, positive"
+        )]
+        let whole = fraction.floor() as usize;
+        frame += whole;
+        #[expect(clippy::cast_precision_loss, reason = "a few frames")]
+        let passed = whole as f64;
+        fraction -= passed;
+    }
+    (frame.min(available), fraction)
 }
 
 /// Adds `samples` to the buffer, waiting while it holds enough; a seek or
@@ -569,6 +624,37 @@ mod tests {
         wait_until("the seek", || {
             player.position() < Duration::from_millis(400)
         });
+    }
+
+    #[test]
+    fn speed_steps_through_the_frames() {
+        let buffer: VecDeque<f32> = (0..8).map(|n| n as f32).collect();
+        let mut output = [0.0; 4];
+        assert_eq!(step(&buffer, &mut output, 2, 1.0, 0.0), (2, 0.0));
+        assert_eq!(output, [0.0, 1.0, 2.0, 3.0]);
+        let (frames, fraction) = step(&buffer, &mut output, 1, 1.5, 0.0);
+        assert_eq!((frames, fraction), (6, 0.0));
+        assert_eq!(output, [0.0, 1.0, 3.0, 4.0]);
+        let (frames, fraction) = step(&buffer, &mut output, 1, 0.5, 0.0);
+        assert_eq!((frames, fraction), (2, 0.0));
+        assert_eq!(output, [0.0, 0.0, 1.0, 1.0]);
+        // Past the buffer's end the rest stays silent.
+        let mut long = [9.0; 6];
+        assert_eq!(step(&buffer, &mut long, 2, 2.0, 0.0).0, 4);
+        assert_eq!(long, [0.0, 1.0, 4.0, 5.0, 9.0, 9.0]);
+    }
+
+    #[test]
+    fn a_fast_player_moves_faster() {
+        let player = silent(TONE, Duration::ZERO);
+        player.set_speed(2.0);
+        let start = Instant::now();
+        wait_until("the end", || player.is_finished());
+        assert!(
+            start.elapsed() < Duration::from_millis(800),
+            "{:?}",
+            start.elapsed()
+        );
     }
 
     #[test]

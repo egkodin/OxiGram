@@ -8,7 +8,7 @@ use td_api::enums::{StickerFormat, StickerFullType, ThumbnailFormat};
 use td_api::functions::{GetAnimatedEmoji, GetCustomEmojiStickers};
 
 use crate::file::{Dimensions, File};
-use crate::ids::CustomEmojiId;
+use crate::ids::{CustomEmojiId, StickerSetId};
 use crate::session::RequestError;
 
 /// How the sticker's file draws.
@@ -33,6 +33,8 @@ pub struct StickerPicture {
     pub premium_effect: Option<File>,
     /// An animated emoji's skin tone, `fitzpatrick_type` 2 to 6.
     pub skin_tone: Option<u8>,
+    /// The set it comes from; none for stickers outside any.
+    pub set: Option<StickerSetId>,
 }
 
 impl From<td_api::types::Sticker> for StickerPicture {
@@ -57,6 +59,7 @@ impl From<td_api::types::Sticker> for StickerPicture {
         };
         Self {
             kind,
+            set: (sticker.set_id != 0).then_some(StickerSetId(sticker.set_id)),
             dimensions: Dimensions::new(sticker.width, sticker.height),
             file: File::from(*sticker.sticker),
             still,

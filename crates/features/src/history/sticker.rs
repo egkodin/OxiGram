@@ -140,6 +140,7 @@ mod tests {
             file,
             still: None,
             premium_effect: None,
+            set: None,
             skin_tone: None,
         })
     }

@@ -1,7 +1,7 @@
 //! Reacting to messages: a chip toggles the user's reaction, a double
 //! click adds the quick one, and the menu opens under a strip of the
 //! reactions the message takes (`Reactions::Selector`).
-// shortcut: no expanded selector with every emoji, no select animation on hover and no big-reaction effect; with the emoji panel's reaction tab.
+// shortcut: the expanded list has the reactions the message takes, not the emoji panel with Premium custom emoji; no select animation on hover and no big-reaction effect.
 
 use gpui::{
     AnyElement, App, Context, InteractiveElement as _, IntoElement as _, ParentElement as _,
@@ -10,7 +10,8 @@ use gpui::{
 use model::MessageId;
 use model::reaction::ReactionKind;
 use style::chat_helpers::{
-    REACT_STRIP_HEIGHT, REACT_STRIP_IMAGE, REACT_STRIP_SIZE, REACT_STRIP_SKIP,
+    DEFAULT_COMPOSE_ICONS, REACT_STRIP_HEIGHT, REACT_STRIP_IMAGE, REACT_STRIP_SIZE,
+    REACT_STRIP_SKIP,
 };
 use style::{ColorId, ColorRef};
 use ui::color;
@@ -23,8 +24,12 @@ use crate::store::spawn;
 /// The double-click reaction when the message takes it (tdesktop's
 /// default, until the account's own choice is tracked).
 const QUICK: &str = "\u{2764}";
-/// At most this many reactions show in the strip.
+/// At most this many reactions show in the strip; with more, the last
+/// place expands it (`AddedButton::Expand`).
 const STRIP_COUNT: usize = 7;
+/// The expanded list's columns and visible rows (`kDefaultColumns`).
+const EXPANDED_COLUMNS: usize = 8;
+const EXPANDED_ROWS: f32 = 6.5;
 /// The user's own reactions sit on this faint fill.
 const CHOSEN_OPACITY: f32 = 0.15;
 
@@ -35,6 +40,14 @@ pub(super) struct Strip {
     chosen: Vec<ReactionKind>,
     /// The appear animations' clock, fresh each time the menu opens.
     instance: u64,
+    /// Every reaction shows, not the first few.
+    is_expanded: bool,
+}
+
+impl Strip {
+    pub(super) fn expand(&mut self) {
+        self.is_expanded = true;
+    }
 }
 
 impl HistoryView {
@@ -117,54 +130,49 @@ impl HistoryView {
             kinds,
             chosen,
             instance: self.motions.next_instance(),
+            is_expanded: false,
         })
     }
 
-    /// The strip's row of reactions; a pick closes the menu.
+    /// The strip's row of reactions, or every one once expanded; a pick
+    /// closes the menu.
     pub(super) fn strip_element(&mut self, strip: &Strip, cx: &mut Context<Self>) -> AnyElement {
-        let weak = cx.weak_entity();
-        let over = color(cx, ColorRef::Palette(ColorId::WindowBgOver));
-        let active = color(cx, ColorRef::Palette(ColorId::WindowBgActive)).opacity(CHOSEN_OPACITY);
-        let buttons: Vec<_> = strip
+        let has_more = strip.kinds.len() > STRIP_COUNT;
+        let shown = match (strip.is_expanded, has_more) {
+            (true, _) => strip.kinds.len(),
+            (false, true) => STRIP_COUNT - 1,
+            (false, false) => STRIP_COUNT,
+        };
+        let mut buttons: Vec<AnyElement> = strip
             .kinds
             .iter()
-            .take(STRIP_COUNT)
+            .take(shown)
             .enumerate()
-            .map(|(index, kind)| {
-                let shown = picture(&self.store, kind, cx);
-                let is_chosen = strip.chosen.contains(kind);
-                let face = match self.strip_frame(kind, strip.instance, cx) {
-                    Some(frame) => img(frame).size_full().into_any_element(),
-                    None => emoji(kind, shown.as_deref()).into_any_element(),
-                };
-                let (weak, kind, message) = (weak.clone(), kind.clone(), strip.message);
-                div()
-                    .id(("reaction-strip", index))
-                    .size(px_of(REACT_STRIP_SIZE))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded_full()
-                    .cursor_pointer()
-                    .when(is_chosen, |this| this.bg(active))
-                    .hover(move |this| this.bg(over))
-                    .on_click(move |_, _, cx| {
-                        let _ = weak.update(cx, |this, cx| {
-                            this.toggle_reaction(message, &kind, is_chosen, cx);
-                            this.menu = None;
-                            cx.notify();
-                        });
-                    })
-                    .child(
-                        div()
-                            .size(px_of(REACT_STRIP_IMAGE))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .child(face),
-                    )
-            })
+            .map(|(index, kind)| self.strip_button(strip, index, kind, cx))
             .collect();
+        let bg = color(cx, ColorRef::Palette(ColorId::MenuBg));
+        if strip.is_expanded {
+            let cell = px_of(REACT_STRIP_SIZE);
+            #[expect(clippy::cast_precision_loss, reason = "a few columns")]
+            let width = cell * EXPANDED_COLUMNS as f32 + px_of(REACT_STRIP_SKIP);
+            return div()
+                .id("reaction-list")
+                .w(width)
+                .max_h(cell * EXPANDED_ROWS + px_of(REACT_STRIP_SKIP))
+                .overflow_y_scroll()
+                .p(px_of(REACT_STRIP_SKIP) / 2.0)
+                .mb(px_of(REACT_STRIP_SKIP) / 2.0)
+                .flex()
+                .flex_wrap()
+                .rounded(px_of(REACT_STRIP_SKIP) * 2.0)
+                .bg(bg)
+                .shadow_md()
+                .children(buttons)
+                .into_any_element();
+        }
+        if has_more {
+            buttons.push(self.expand_button(cx));
+        }
         div()
             .flex()
             .items_center()
@@ -172,9 +180,80 @@ impl HistoryView {
             .px(px_of(REACT_STRIP_SKIP) / 2.0)
             .mb(px_of(REACT_STRIP_SKIP) / 2.0)
             .rounded_full()
-            .bg(color(cx, ColorRef::Palette(ColorId::MenuBg)))
+            .bg(bg)
             .shadow_md()
             .children(buttons)
+            .into_any_element()
+    }
+
+    /// One reaction: its appear animation over the still, a click toggles.
+    fn strip_button(
+        &mut self,
+        strip: &Strip,
+        index: usize,
+        kind: &ReactionKind,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let over = color(cx, ColorRef::Palette(ColorId::WindowBgOver));
+        let active = color(cx, ColorRef::Palette(ColorId::WindowBgActive)).opacity(CHOSEN_OPACITY);
+        let shown = picture(&self.store, kind, cx);
+        let is_chosen = strip.chosen.contains(kind);
+        let face = match self.strip_frame(kind, strip.instance, cx) {
+            Some(frame) => img(frame).size_full().into_any_element(),
+            None => emoji(kind, shown.as_deref()).into_any_element(),
+        };
+        let (weak, kind, message) = (cx.weak_entity(), kind.clone(), strip.message);
+        div()
+            .id(("reaction-strip", index))
+            .flex_none()
+            .size(px_of(REACT_STRIP_SIZE))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_full()
+            .cursor_pointer()
+            .when(is_chosen, |this| this.bg(active))
+            .hover(move |this| this.bg(over))
+            .on_click(move |_, _, cx| {
+                let _ = weak.update(cx, |this, cx| {
+                    this.toggle_reaction(message, &kind, is_chosen, cx);
+                    this.menu = None;
+                    cx.notify();
+                });
+            })
+            .child(
+                div()
+                    .size(px_of(REACT_STRIP_IMAGE))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .child(face),
+            )
+            .into_any_element()
+    }
+
+    /// The strip's last place: the arrow that shows every reaction.
+    fn expand_button(&self, cx: &mut Context<Self>) -> AnyElement {
+        let over = color(cx, ColorRef::Palette(ColorId::WindowBgOver));
+        let weak = cx.weak_entity();
+        div()
+            .id("reaction-strip-expand")
+            .flex_none()
+            .size(px_of(REACT_STRIP_SIZE))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_full()
+            .cursor_pointer()
+            .hover(move |this| this.bg(over))
+            .on_click(move |_, _, cx| {
+                cx.stop_propagation();
+                let _ = weak.update(cx, |this, cx| {
+                    this.expand_strip();
+                    cx.notify();
+                });
+            })
+            .child(ui::icon(DEFAULT_COMPOSE_ICONS.strip_expand_panel))
             .into_any_element()
     }
 }

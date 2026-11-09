@@ -3,6 +3,7 @@
 //! with the controller (`Media::View::PlaybackControls`): the play button,
 //! the times and the seek bar; a history paints its frames in the bubble.
 
+use std::rc::Rc;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -14,17 +15,20 @@ use gpui::{
 use media::{AudioError, AudioPlayer, Output, VideoDecoder, VideoFrame};
 use style::basic::{RADIAL_LINE, RADIAL_SIZE};
 use style::media_view::{
-    MEDIAVIEW_CONTROLLER_RADIUS, MEDIAVIEW_CONTROLLER_SIZE, MEDIAVIEW_PAUSE_ICON,
-    MEDIAVIEW_PAUSE_ICON_OVER, MEDIAVIEW_PLAY_BUTTON, MEDIAVIEW_PLAY_BUTTON_TOP,
-    MEDIAVIEW_PLAY_PROGRESS_LABEL, MEDIAVIEW_PLAY_PROGRESS_LEFT, MEDIAVIEW_PLAY_PROGRESS_SKIP,
-    MEDIAVIEW_PLAY_PROGRESS_TOP, MEDIAVIEW_PLAYBACK, MEDIAVIEW_PLAYBACK_TOP,
+    MEDIAVIEW_BUTTONS_RIGHT, MEDIAVIEW_BUTTONS_TOP, MEDIAVIEW_CONTROLLER_RADIUS,
+    MEDIAVIEW_CONTROLLER_SIZE, MEDIAVIEW_PAUSE_ICON, MEDIAVIEW_PAUSE_ICON_OVER,
+    MEDIAVIEW_PLAY_BUTTON, MEDIAVIEW_PLAY_BUTTON_TOP, MEDIAVIEW_PLAY_PROGRESS_LABEL,
+    MEDIAVIEW_PLAY_PROGRESS_LEFT, MEDIAVIEW_PLAY_PROGRESS_SKIP, MEDIAVIEW_PLAY_PROGRESS_TOP,
+    MEDIAVIEW_PLAYBACK, MEDIAVIEW_PLAYBACK_TOP, MEDIAVIEW_SPEED_BUTTON,
 };
 use style::widgets::DEFAULT_INFINITE_RADIAL_ANIMATION;
 use style::{ColorId, ColorRef};
 use ui::{IconButton, InfiniteRadial, RadialState, color, font, font_height, paint_arc};
 
 use super::video::duration_text;
+use crate::player::{Command, RoundLink};
 use crate::px_of;
+use crate::speed::{Kind, Speed};
 use crate::streaming::Playable;
 
 static MEDIAVIEW_PAUSE_BUTTON: style::widgets::IconButton = style::widgets::IconButton {
@@ -50,14 +54,27 @@ struct Stall {
 /// The playback clock: where the video is, moving or not.
 #[derive(Debug, Clone, Copy)]
 enum Clock {
-    Playing { since: Instant, from: Duration },
+    /// Moving `speed` times as fast as the wall clock.
+    Playing {
+        since: Instant,
+        from: Duration,
+        speed: f32,
+    },
     Paused(Duration),
 }
 
 impl Clock {
+    fn start(from: Duration, speed: f32) -> Self {
+        Self::Playing {
+            since: Instant::now(),
+            from,
+            speed,
+        }
+    }
+
     fn now(self) -> Duration {
         match self {
-            Self::Playing { since, from } => from + since.elapsed(),
+            Self::Playing { since, from, speed } => from + since.elapsed().mul_f32(speed),
             Self::Paused(at) => at,
         }
     }
@@ -108,6 +125,15 @@ pub(super) struct VideoPlayback {
     waiting: InfiniteRadial,
     /// When it opened, until the first frame shows (`docs/perf.md`).
     opened: Option<Instant>,
+    speed: f32,
+    /// A round's place in the app's player, which drives it.
+    link: Option<Rc<RoundLink>>,
+    /// The viewer's speed presets, open at a point.
+    speed_menu: Option<(
+        gpui::Point<Pixels>,
+        gpui::Entity<ui::PopupMenu>,
+        gpui::Subscription,
+    )>,
 }
 
 impl VideoPlayback {
@@ -141,6 +167,9 @@ impl VideoPlayback {
             .then(|| sound(file, start))
             .flatten();
         cx.on_release(|this: &mut Self, cx| {
+            if let Some(link) = this.link.take() {
+                link.end();
+            }
             if let Some(image) = this.shown.take() {
                 cx.default_global::<Retired>().0.push(image);
             }
@@ -154,10 +183,7 @@ impl VideoPlayback {
             clock: if has_failed {
                 Clock::Paused(start)
             } else {
-                Clock::Playing {
-                    since: Instant::now(),
-                    from: start,
-                }
+                Clock::start(start, 1.0)
             },
             shown: None,
             pending: None,
@@ -169,7 +195,121 @@ impl VideoPlayback {
             stall: None,
             waiting: InfiniteRadial::new(&DEFAULT_INFINITE_RADIAL_ANIMATION),
             opened: Some(Instant::now()),
+            speed: 1.0,
+            link: None,
+            speed_menu: None,
         }
+    }
+
+    /// Hands a round to the app's player, which then pauses, seeks and
+    /// times it.
+    pub(super) fn link(&mut self, link: Rc<RoundLink>) {
+        self.link = Some(link);
+    }
+
+    /// The player let go of this round: another sound started or the bar
+    /// closed.
+    pub(super) fn is_released(&self) -> bool {
+        self.link
+            .as_ref()
+            .is_some_and(|link| Rc::strong_count(link) == 1)
+    }
+
+    /// Runs what the player asked, then tells it where the round is.
+    fn sync_link(&mut self, cx: &mut Context<Self>) {
+        let Some(link) = self.link.clone() else {
+            return;
+        };
+        for command in link.take_commands() {
+            match command {
+                Command::Pause if self.is_playing() => self.toggle(cx),
+                Command::Resume if !self.is_playing() => self.toggle(cx),
+                Command::Pause | Command::Resume => {}
+                Command::Seek(share) => self.seek_share(share, cx),
+                Command::Speed(speed) => self.set_speed(speed),
+            }
+        }
+        link.report(
+            self.clock.now().min(self.duration),
+            self.duration,
+            (!self.is_playing(), self.is_finished()),
+        );
+    }
+
+    /// Plays `speed` times as fast, sound and frames, from now on.
+    pub(super) fn set_speed(&mut self, speed: f32) {
+        let speed = speed.clamp(media::MIN_SPEED, media::MAX_SPEED);
+        self.speed = speed;
+        if let Some(sound) = &self.sound {
+            sound.set_speed(speed);
+        }
+        if let Clock::Playing { .. } = self.clock {
+            self.clock = Clock::start(self.clock.now(), speed);
+        }
+    }
+
+    /// The viewer's speed button (`mediaviewSpeedButton`), top right.
+    fn speed_button(&self, cx: &mut Context<Self>) -> gpui::AnyElement {
+        let (toggle, menu) = (cx.weak_entity(), cx.weak_entity());
+        let button = crate::speed::button(
+            "media-view-speed",
+            &MEDIAVIEW_SPEED_BUTTON,
+            self.speed,
+            move |_, cx| {
+                let _ = toggle.update(cx, |this, cx| {
+                    let speed = crate::speed::change(Kind::Video, Speed::toggled, cx);
+                    this.set_speed(speed);
+                    cx.notify();
+                });
+            },
+            move |window, cx| {
+                let _ = menu.update(cx, |this, cx| this.show_speed_menu(window, cx));
+            },
+            cx,
+        );
+        div()
+            .absolute()
+            .top(px_of(MEDIAVIEW_BUTTONS_TOP))
+            .right(px_of(MEDIAVIEW_BUTTONS_RIGHT))
+            .child(button)
+            .children(
+                self.speed_menu
+                    .as_ref()
+                    .map(|(position, menu, _)| crate::speed::overlay(*position, menu.clone())),
+            )
+            .into_any_element()
+    }
+
+    fn show_speed_menu(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let weak = cx.weak_entity();
+        let on_choose: crate::speed::OnChoose = Rc::new(move |speed, _, cx| {
+            let _ = weak.update(cx, |this, cx| {
+                let speed = crate::speed::change(Kind::Video, |kept| kept.chosen(speed), cx);
+                this.set_speed(speed);
+                cx.notify();
+            });
+        });
+        let current = self.speed;
+        let menu = gpui::AppContext::new(cx, |cx| crate::speed::menu(current, &on_choose, cx));
+        let subscription = cx.subscribe(&menu, |this, _, _: &gpui::DismissEvent, cx| {
+            this.speed_menu = None;
+            cx.notify();
+        });
+        gpui::Focusable::focus_handle(menu.read(cx), cx).focus(window, cx);
+        self.speed_menu = Some((window.mouse_position(), menu, subscription));
+        cx.notify();
+    }
+
+    /// Whether it plays on off screen: a round with its sound, not a
+    /// muted loop.
+    pub(super) fn plays_away(&self) -> bool {
+        self.ending == Ending::Pause
+    }
+
+    /// Jumps to `share` of the way in, 0 to 1.
+    pub(super) fn seek_share(&mut self, share: f32, cx: &mut Context<Self>) {
+        self.seek(self.duration.mul_f32(share.clamp(0.0, 1.0)));
+        cx.notify();
     }
 
     /// Holds the clock and the sound while the next frame waits for data,
@@ -201,10 +341,7 @@ impl VideoPlayback {
         if let Some(sound) = &self.sound {
             sound.pause();
         }
-        self.clock = Clock::Playing {
-            since: Instant::now(),
-            from: stall.at,
-        };
+        self.clock = Clock::start(stall.at, self.speed);
     }
 
     /// The buffering spinner now: its fade and arc; `None` while hidden.
@@ -259,15 +396,9 @@ impl VideoPlayback {
             Clock::Playing { .. } => Clock::Paused(now),
             Clock::Paused(_) if self.is_ended => {
                 self.seek(Duration::ZERO);
-                Clock::Playing {
-                    since: Instant::now(),
-                    from: Duration::ZERO,
-                }
+                Clock::start(Duration::ZERO, self.speed)
             }
-            Clock::Paused(at) => Clock::Playing {
-                since: Instant::now(),
-                from: at,
-            },
+            Clock::Paused(at) => Clock::start(at, self.speed),
         };
         self.sync_sound();
         cx.notify();
@@ -295,16 +426,18 @@ impl VideoPlayback {
         self.needs_frame = true;
         self.is_ended = false;
         self.clock = match self.clock {
-            Clock::Playing { .. } => Clock::Playing {
-                since: Instant::now(),
-                from: to,
-            },
+            Clock::Playing { .. } => Clock::start(to, self.speed),
             Clock::Paused(_) => Clock::Paused(to),
         };
     }
 
     /// Takes what the decoder made, and shows the latest frame due.
     pub(super) fn advance(&mut self, cx: &mut Context<Self>) {
+        self.advance_frames(cx);
+        self.sync_link(cx);
+    }
+
+    fn advance_frames(&mut self, cx: &mut Context<Self>) {
         let Some(decoder) = &self.decoder else {
             return;
         };
@@ -377,6 +510,7 @@ impl VideoPlayback {
         let now = self.clock.now().min(self.duration);
         let left = now.as_secs();
         let rest = self.duration.saturating_sub(now).as_secs();
+        let speed = self.speed_button(cx);
         let label = &MEDIAVIEW_PLAY_PROGRESS_LABEL;
         let text = |text: String| {
             div()
@@ -419,6 +553,7 @@ impl VideoPlayback {
                         },
                     )),
             )
+            .child(speed)
             .child(text(duration_text(seconds(left))).left(side))
             .child(text(format!("-{}", duration_text(seconds(rest)))).right(side))
             .child(self.bar(share, bar_side, cx))
@@ -593,10 +728,7 @@ mod tests {
     fn a_paused_clock_stands_still() {
         let at = Duration::from_millis(700);
         assert_eq!(Clock::Paused(at).now(), at);
-        let playing = Clock::Playing {
-            since: Instant::now(),
-            from: at,
-        };
+        let playing = Clock::start(at, 1.0);
         assert!(playing.now() >= at);
     }
 }

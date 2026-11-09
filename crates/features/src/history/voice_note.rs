@@ -7,10 +7,12 @@ use std::path::Path;
 use std::rc::Rc;
 use std::time::Duration;
 
-use gpui::{Context, Window};
+use chrono::Local;
+use gpui::{App, Context, Window};
 use i18n::key;
 use model::MessageId;
-use model::message::{Content, Message};
+use model::chats::Chats;
+use model::message::{Content, Message, Sender};
 
 use super::HistoryView;
 use super::documents::{CLICKED_PRIORITY, current};
@@ -22,6 +24,56 @@ use crate::lang::{strings, tr};
 use crate::player::{Playlist, Sound, Track};
 use crate::store::spawn;
 use crate::streaming::Playable;
+
+/// Who sent a voice or a round and when, for the player bar.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct Origin {
+    sender: Sender,
+    is_mine: bool,
+    date: i32,
+}
+
+impl Origin {
+    pub(super) fn of(message: &Message) -> Self {
+        Self {
+            sender: message.sender,
+            is_mine: message.is_outgoing && !message.is_channel_post,
+            date: message.date,
+        }
+    }
+
+    /// "Name" and "today at 18:33" (`FormatVoiceName`).
+    // shortcut: an older date reads "05.11.26", not tdesktop's "5 November 2026".
+    pub(super) fn track(self, chats: &Chats, cx: &App) -> Track {
+        let strings = strings(cx);
+        let name = if self.is_mine {
+            strings.text(key::lng_from_you).to_owned()
+        } else {
+            super::service::sender_name(strings, chats, self.sender)
+        };
+        let date = chrono::DateTime::from_timestamp(i64::from(self.date), 0)
+            .map(|date| date.with_timezone(&Local))
+            .map_or_else(String::new, |sent| {
+                let time = sent.format("%H:%M").to_string();
+                let days = Local::now().date_naive() - sent.date_naive();
+                match days.num_days() {
+                    0 => i18n::fill(&tr(cx, key::lng_player_message_today), &[("time", &time)]),
+                    1 => i18n::fill(
+                        &tr(cx, key::lng_player_message_yesterday),
+                        &[("time", &time)],
+                    ),
+                    _ => i18n::fill(
+                        &tr(cx, key::lng_player_message_date),
+                        &[
+                            ("date", &sent.format("%d.%m.%y").to_string()),
+                            ("time", &time),
+                        ],
+                    ),
+                }
+            });
+        Track::Voice { name, date }
+    }
+}
 
 fn seconds(duration: Duration) -> i32 {
     i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
@@ -79,6 +131,7 @@ impl HistoryView {
             None => 0.0,
         };
         let weak = cx.weak_entity();
+        let origin = Origin::of(message);
         let on_seek = playing.map(|_| -> OnSeek {
             let weak = weak.clone();
             Rc::new(move |share, _, cx| {
@@ -110,7 +163,7 @@ impl HistoryView {
                             if is_unheard {
                                 this.mark_listened(id, cx);
                             }
-                            this.toggle_voice(id, file.clone(), window, cx);
+                            this.toggle_voice((id, origin), file.clone(), window, cx);
                         }
                     }
                 });
@@ -135,10 +188,9 @@ impl HistoryView {
 
     /// Pauses or resumes the voice playing, or starts `message`'s; one
     /// still downloading streams.
-    // shortcut: a streamed voice plays as music, without the speed control, until a later play finds it on disk; decode Opus from the stream if speed matters there.
     fn toggle_voice(
         &mut self,
-        message: MessageId,
+        (message, origin): (MessageId, Origin),
         file: Playable,
         window: &mut Window,
         cx: &mut Context<Self>,
@@ -147,9 +199,10 @@ impl HistoryView {
             return;
         }
         self.player.update(cx, |player, cx| player.stop(cx));
+        let track = origin.track(&self.store.read(cx).state().chats, cx);
         let Some(path) = file.path().map(Path::to_path_buf) else {
             if let Some(player) = self.stream(&file) {
-                self.play(message, (Track::Voice, None), Sound::Music(player), cx);
+                self.play(message, (track, None), Sound::Music(player), cx);
             }
             return;
         };
@@ -172,7 +225,7 @@ impl HistoryView {
                     // MP3 and M4A voices stream as music do.
                     .or_else(|| this.stream(&file).map(Sound::Music));
                 match player {
-                    Some(player) => this.play(message, (Track::Voice, None), player, cx),
+                    Some(player) => this.play(message, (track, None), player, cx),
                     None => this.open_file(&path, window, cx),
                 }
             });

@@ -6,6 +6,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, App, Bounds, DispatchPhase, Entity, FontWeight, HitboxBehavior, Hsla,
     InteractiveElement as _, IntoElement as _, MouseButton, MouseDownEvent, MouseMoveEvent,
@@ -16,25 +17,28 @@ use style::media_player::{
     MEDIA_PLAYER_CLOSE, MEDIA_PLAYER_HEIGHT, MEDIA_PLAYER_NAME, MEDIA_PLAYER_NEXT_BUTTON,
     MEDIA_PLAYER_NEXT_DISABLED_ICON, MEDIA_PLAYER_PADDING, MEDIA_PLAYER_PLAY_BUTTON,
     MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_SKIP, MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK,
-    MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_TIME,
+    MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_SPEED_BUTTON,
+    MEDIA_PLAYER_TIME,
 };
 use style::{ColorId, ColorRef};
 use ui::{IconButton, color, font, font_height};
 
 use super::{Player, Sound, Step, Track};
 use crate::px_of;
+use crate::speed::Speed;
 
 /// The name's and the time's top: `mediaPlayerNameTop` is their baseline.
 // shortcut: the 13 px font's ascent taken as 14 px; measure it if the labels sit off by a pixel.
 const LABEL_TOP: f32 = 22.0 - 14.0;
 
-/// The bar for the song playing; none for a voice or nothing.
-// shortcut: no volume, repeat, order or speed; with row 302.
+/// The bar for the song, voice or round playing; none for nothing.
+// shortcut: no volume, repeat or order; with row 302.
 pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let state = player.read(cx);
     let playing = state.current()?;
-    let Track::Song { performer, title } = &playing.track else {
-        return None;
+    let (performer, title, is_song) = match &playing.track {
+        Track::Song { performer, title } => (performer, title, true),
+        Track::Voice { name, date } => (name, date, false),
     };
     let sound = &playing.sound;
     let (previous, next) = (state.can_step(Step::Previous), state.can_step(Step::Next));
@@ -55,7 +59,8 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         + play_width
         + if skips { skip_width * 2.0 } else { px(0.0) }
         + px_of(MEDIA_PLAYER_PADDING);
-    let right = px_of(MEDIA_PLAYER_CLOSE.width) + px_of(MEDIA_PLAYER_PADDING);
+    let speed_width = px_of(MEDIA_PLAYER_SPEED_BUTTON.size.width);
+    let right = px_of(MEDIA_PLAYER_CLOSE.width) + speed_width + px_of(MEDIA_PLAYER_PADDING);
     let labels = div()
         .absolute()
         .top(px(LABEL_TOP))
@@ -69,6 +74,9 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .absolute()
         .top(px_of(MEDIA_PLAYER_PLAY_TOP))
         .right_0()
+        .flex()
+        .items_center()
+        .child(speed_button(player, state.speed(cx), cx))
         .child(
             IconButton::new("media-player-close", &MEDIA_PLAYER_CLOSE).on_click({
                 let player = player.clone();
@@ -86,10 +94,28 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .child(controls)
         .child(labels)
         .child(close)
-        .child(playback(player, sound.progress(), cx))
-        .child(labels_hover(player, left, right))
-        .children(super::panel::panel(player, cx));
+        // tdesktop draws the played line and the playlist for songs only.
+        .when(is_song, |bar| {
+            bar.child(playback(player, sound.progress(), cx))
+                .child(labels_hover(player, left, right))
+                .children(super::panel::panel(player, cx))
+        })
+        .children(state.speed_menu_overlay());
     Some(element.into_any_element())
+}
+
+/// `mediaPlayerSpeedButton`: a click toggles the faster speed, a right
+/// click opens the presets.
+fn speed_button(player: &Entity<Player>, speed: f32, cx: &App) -> AnyElement {
+    let (toggle, menu) = (player.clone(), player.clone());
+    crate::speed::button(
+        "media-player-speed",
+        &MEDIA_PLAYER_SPEED_BUTTON,
+        speed,
+        move |_, cx| toggle.update(cx, |player, cx| player.change_speed(Speed::toggled, cx)),
+        move |window, cx| menu.update(cx, |player, cx| player.show_speed_menu(window, cx)),
+        cx,
+    )
 }
 
 /// `mediaPlayerPreviousButton` and `mediaPlayerNextButton`; the end that is
