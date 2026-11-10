@@ -27,7 +27,7 @@ const GZIP_MAGIC: [u8; 2] = [0x1f, 0x8b];
 pub enum LottieError {
     #[error("reading the animation failed: {0}")]
     Read(#[from] std::io::Error),
-    #[error("the animation unpacks to more than {MAX_JSON_BYTES} bytes")]
+    #[error("the animation is larger than {MAX_JSON_BYTES} bytes")]
     TooLarge,
     #[error("the animation is not valid Lottie: {0}")]
     Parse(String),
@@ -76,27 +76,30 @@ impl Animation {
     /// Opens a TGS (gzipped) or plain Lottie JSON file.
     ///
     /// # Errors
-    /// When the file cannot be read, unpacks too large or is not Lottie.
+    /// When the file cannot be read, is or unpacks too large, or is not Lottie.
     pub fn open(path: &Path, tone: SkinTone) -> Result<Self, LottieError> {
-        let bytes = std::fs::read(path)?;
+        let mut bytes = Vec::new();
+        std::fs::File::open(path)?
+            .take(MAX_JSON_BYTES + 1)
+            .read_to_end(&mut bytes)?;
         Self::from_bytes(&bytes, tone)
     }
 
     /// # Errors
-    /// When the bytes unpack too large or are not Lottie.
+    /// When the bytes are or unpack too large, or are not Lottie.
     pub fn from_bytes(bytes: &[u8], tone: SkinTone) -> Result<Self, LottieError> {
         let json = if bytes.starts_with(&GZIP_MAGIC) {
             let mut json = Vec::new();
             GzDecoder::new(bytes)
                 .take(MAX_JSON_BYTES + 1)
                 .read_to_end(&mut json)?;
-            if json.len() as u64 > MAX_JSON_BYTES {
-                return Err(LottieError::TooLarge);
-            }
             json
         } else {
             bytes.to_vec()
         };
+        if json.len() as u64 > MAX_JSON_BYTES {
+            return Err(LottieError::TooLarge);
+        }
         let options = ParseOptions {
             fitz_modifier: tone.modifier(),
             channel_order: ChannelOrder::Bgra,
@@ -342,6 +345,14 @@ mod tests {
             Animation::from_bytes(RED.as_bytes(), SkinTone::default()).expect("valid JSON");
         assert!(animation.render(0, 0, 4).is_err());
         assert!(animation.render(0, MAX_SIDE + 1, 4).is_err());
+    }
+
+    #[test]
+    fn plain_json_over_the_cap_is_too_large() {
+        let mut padded = RED.as_bytes().to_vec();
+        padded.resize(usize::try_from(MAX_JSON_BYTES).expect("fits") + 1, b' ');
+        let error = Animation::from_bytes(&padded, SkinTone::default()).expect_err("over the cap");
+        assert!(matches!(error, LottieError::TooLarge), "{error}");
     }
 
     #[test]
