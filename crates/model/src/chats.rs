@@ -461,7 +461,7 @@ impl Chats {
         match self.chats.get_mut(&chat) {
             Some(chat) => change(chat),
             // TDLib sends updateNewChat before any other update about a chat.
-            None => tracing::warn!(chat = chat.0, "update for an unknown chat"),
+            None => tracing::warn!("update for an unknown chat"),
         }
     }
 
@@ -476,7 +476,7 @@ impl Chats {
     /// Moves the chat within `position.list`; an order of 0 takes it out.
     fn place(&mut self, id: ChatId, position: Position) {
         let Some(chat) = self.chats.get_mut(&id) else {
-            tracing::warn!(chat = id.0, "position for an unknown chat");
+            tracing::warn!("position for an unknown chat");
             return;
         };
         let list = self.lists.entry(position.list).or_default();
