@@ -10,6 +10,9 @@ use crate::encode::RATE;
 
 /// Opus's largest frame: 120 ms at 48 kHz.
 const MAX_FRAME: usize = 5760;
+/// The longest voice decoded into memory: 100 minutes, the longest the app
+/// records. A longer file streams as music does.
+const MAX_SAMPLES: usize = 100 * 60 * RATE as usize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
@@ -21,6 +24,8 @@ pub enum DecodeError {
     Opus(#[from] opus::Error),
     #[error("the file is not OGG Opus")]
     NotOpus,
+    #[error("the voice is too long to decode into memory")]
+    TooLong,
 }
 
 /// A voice message's samples, ready to play.
@@ -41,10 +46,11 @@ impl Decoded {
 ///
 /// # Errors
 ///
-/// When the file cannot be read or is not OGG Opus (some apps send MP3 or
-/// M4A voices).
+/// When the file cannot be read, is not OGG Opus (some apps send MP3 or
+/// M4A voices) or is longer than 100 minutes.
 pub fn decode(path: &Path) -> Result<Decoded, DecodeError> {
-    decode_from(std::io::BufReader::new(std::fs::File::open(path)?))
+    let file = std::fs::File::open(path)?;
+    decode_from(std::io::BufReader::new(file), MAX_SAMPLES)
 }
 
 /// The channel count and pre-skip from the `OpusHead` packet.
@@ -60,7 +66,7 @@ fn head(packet: &[u8]) -> Result<(usize, usize), DecodeError> {
     Ok((channels, pre_skip))
 }
 
-fn decode_from<R: Read + Seek>(reader: R) -> Result<Decoded, DecodeError> {
+fn decode_from<R: Read + Seek>(reader: R, max_samples: usize) -> Result<Decoded, DecodeError> {
     let mut reader = ogg::PacketReader::new(reader);
     let first = reader.read_packet()?.ok_or(DecodeError::NotOpus)?;
     let (channels, pre_skip) = head(&first.data)?;
@@ -86,6 +92,9 @@ fn decode_from<R: Read + Seek>(reader: R) -> Result<Decoded, DecodeError> {
                     i16::try_from(mean).unwrap_or(0)
                 }),
         );
+        if samples.len() > max_samples.saturating_add(pre_skip) {
+            return Err(DecodeError::TooLong);
+        }
         if packet.last_in_page() {
             end = usize::try_from(packet.absgp_page()).ok();
         }
@@ -105,8 +114,8 @@ mod tests {
     use super::*;
     use crate::encode::VoiceWriter;
 
-    #[test]
-    fn a_recording_decodes_to_its_length() {
+    /// Two seconds of a 440 Hz tone as a voice file, and its sample count.
+    fn two_seconds() -> (Vec<u8>, u64) {
         let tone: Vec<f32> = (0..96_000_u32)
             .map(|index| {
                 #[expect(clippy::cast_precision_loss, reason = "a test tone")]
@@ -120,9 +129,23 @@ mod tests {
             .finish()
             .expect("writing to memory")
             .expect("long enough");
-        let decoded = decode_from(std::io::Cursor::new(bytes)).expect("our own file decodes");
+        (bytes, encoded.samples)
+    }
+
+    #[test]
+    fn a_voice_over_the_cap_is_too_long() {
+        let (bytes, _) = two_seconds();
+        let error = decode_from(std::io::Cursor::new(bytes), 48_000).expect_err("over the cap");
+        assert!(matches!(error, DecodeError::TooLong), "{error}");
+    }
+
+    #[test]
+    fn a_recording_decodes_to_its_length() {
+        let (bytes, encoded) = two_seconds();
+        let decoded =
+            decode_from(std::io::Cursor::new(bytes), MAX_SAMPLES).expect("our own file decodes");
         // The encoder's 6.5 ms lookahead is not flushed at the end.
-        let missing = encoded.samples - decoded.samples.len() as u64;
+        let missing = encoded - decoded.samples.len() as u64;
         assert!(missing <= 960, "{missing} samples short");
         assert!(decoded.duration() > Duration::from_millis(1980));
         // Past the silent start the tone is there.
@@ -135,7 +158,10 @@ mod tests {
 
     #[test]
     fn other_files_are_not_opus() {
-        let error = decode_from(std::io::Cursor::new(b"ID3 not an ogg".to_vec()));
+        let error = decode_from(
+            std::io::Cursor::new(b"ID3 not an ogg".to_vec()),
+            MAX_SAMPLES,
+        );
         assert!(error.is_err());
         assert!(matches!(head(b"OpusHead"), Err(DecodeError::NotOpus)));
     }
