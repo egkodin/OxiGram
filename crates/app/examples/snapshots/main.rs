@@ -13,6 +13,7 @@ mod lottie;
 mod lottie_soak;
 
 mod media;
+mod photo_soak;
 mod profiles;
 mod scenarios;
 mod soak;
@@ -144,6 +145,12 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
         .and_then(|s| s.parse().ok())
     {
         return lottie_soak::run(session, seconds, cx).await;
+    }
+    if let Some(seconds) = std::env::var("SNAPSHOTS_PHOTOS")
+        .ok()
+        .and_then(|s| s.parse().ok())
+    {
+        return photo_soak::run(session, seconds, cx).await;
     }
 
     // SNAPSHOTS_ONLY=41,77 runs the scenarios whose first step starts so.

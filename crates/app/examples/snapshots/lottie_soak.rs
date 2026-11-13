@@ -81,13 +81,13 @@ fn messages() -> Vec<Message> {
 }
 
 /// What the process holds and has used so far.
-struct Sample {
-    rss_mb: f64,
-    footprint_mb: f64,
+pub(super) struct Sample {
+    pub(super) rss_mb: f64,
+    pub(super) footprint_mb: f64,
     cpu_seconds: f64,
 }
 
-fn sample() -> anyhow::Result<Sample> {
+pub(super) fn sample() -> anyhow::Result<Sample> {
     let pid = std::process::id().to_string();
     let ps = std::process::Command::new("ps")
         .args(["-o", "rss=,time=", "-p", &pid])
@@ -137,7 +137,7 @@ fn megabytes(text: &str) -> Option<f64> {
     }
 }
 
-fn scroll(window: AnyWindowHandle, by: f32, cx: &mut AsyncApp) -> anyhow::Result<()> {
+pub(super) fn scroll(window: AnyWindowHandle, by: f32, cx: &mut AsyncApp) -> anyhow::Result<()> {
     window.update(cx, |_, window, cx| {
         window.dispatch_event(
             PlatformInput::Scroll(ScrollEvent {
