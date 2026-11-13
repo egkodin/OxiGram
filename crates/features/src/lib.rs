@@ -65,6 +65,7 @@ gpui::actions!(
 /// Installs the screens' globals and key bindings. Call after `ui::init`.
 pub fn init(cx: &mut App) {
     cx.set_global(Lang::default());
+    history::init_picture_cache(cx);
     layers::bind_keys(cx);
     boxes::bind_keys(cx);
     history::bind_keys(cx);

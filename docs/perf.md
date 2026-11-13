@@ -232,11 +232,29 @@ over the others so the display link draws it as in the app. One run each;
 - A photo's box comes from its dimensions, so the history does not jump
   when the picture arrives. The file downloads once per history view at
   priority 16 (userpics 1).
-- gpui decodes the downloaded file off the main thread and keeps it in its
-  global image cache with no eviction, at full size (TDLib's largest size,
-  up to 2560 px). Not measured yet: memory after scrolling a photo-heavy
-  channel (M5 live test 1); a per-history cache with eviction is the
-  upgrade if it grows.
+- gpui decodes the downloaded file off the main thread at full size
+  (TDLib's largest size, up to 2560 px). Its own image cache never evicts,
+  so every photo scrolled past stayed twice, decoded and as a texture.
+  `history/picture_cache.rs` holds them instead: 64 MB of decoded pictures,
+  the least recently drawn dropped (with `App::drop_image`) when a new one
+  loads, and nothing drawn within the last second. A photo scrolled back to
+  decodes again behind its thumbnail, as on first view.
+- Photo soak, 2026-11-14, Mac mini M4, release harness (fat LTO, static
+  FFmpeg): `SNAPSHOTS_PHOTOS=60` scrolls a chat of 200 photos, each its own
+  1280×960 JPEG (4.9 MB decoded), up and down at 7,500 px/s. One run each.
+
+  | Seconds | RSS before | Footprint before | RSS after | Footprint after |
+  |---|---|---|---|---|
+  | 0 | 154 MB | 82 MB | 153 MB | 82 MB |
+  | 10 | 1,864 MB | 1,946 MB | 355 MB | 385 MB |
+  | 20 | 2,020 MB | 2,150 MB | 350 MB | 380 MB |
+  | 30–50 | 2,020 MB | 2,150 MB | 350–360 MB | 380–390 MB |
+
+  Before, all 200 photos stayed (200 × 4.9 MB × 2). After, the level is the
+  budget plus what one second of this scroll passes (about 23 photos, twice
+  each); a slower scroll keeps less.
+- Not measured: a photo-heavy channel on the account (M5 live test 1), and
+  photos larger than the window are still decoded at full size.
 
 ## M5: userpic cache soak
 
@@ -258,8 +276,8 @@ over the others so the display link draws it as in the app. One run each;
   334, 369, 388, 400, 415, 428, 441, 455 MB in 165 s, about 2 MB a second.
 - Media viewer (`history/media_view.rs`): the full photo loads through
   gpui's `img` by path, the same path the history bubble already decoded,
-  so opening a downloaded photo decodes nothing new; a photo seen only in
-  the viewer stays in gpui's image cache like the history's photos do.
+  so opening a downloaded photo decodes nothing new; the viewer's picture
+  sits in the same bounded cache as the history's photos.
   Not measured: paging through hundreds of large photos in one session;
   if RSS climbs, drop the image on page as the userpic cache does.
 - Video decoding (`media/src/video.rs`): one thread per playing video,

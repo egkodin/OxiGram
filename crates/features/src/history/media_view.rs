@@ -463,9 +463,11 @@ impl Render for MediaView {
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                 .children(match &playback {
                     Some(playback) => Some(playback.clone().into_any_element()),
-                    None => self
-                        .source(cx)
-                        .map(|source| img(source).size_full().into_any_element()),
+                    None => self.source(cx).map(|source| {
+                        super::picture_cache::bounded(img(source), cx)
+                            .size_full()
+                            .into_any_element()
+                    }),
                 })
         });
         let controller = playback.as_ref().map(|playback| {

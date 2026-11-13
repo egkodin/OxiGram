@@ -290,7 +290,7 @@ fn plain_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement
     let background = color(cx, bubble::palette(ColorId::ImageBg));
     // The box's own ratio, or gpui takes the image's and a still of another
     // shape stretches the bubble past its height.
-    img(source)
+    super::picture_cache::bounded(img(source), cx)
         .w(width)
         .h(height)
         .aspect_ratio(width / height)
