@@ -1,9 +1,10 @@
 //! Safe bindings to TDLib's JSON interface (`td/telegram/td_json_client.h`).
 //!
-//! This is the only crate in the workspace that contains `unsafe` code (ADR 0003).
+//! One of the two places in the workspace with `unsafe` code (ADR 0003); the
+//! other is `media::hw`.
 //! Every string TDLib returns is copied before the wrapper returns, because TDLib
 //! reuses the buffer on the next `td_receive` or `td_execute` call.
-#![allow(
+#![expect(
     unsafe_code,
     reason = "FFI to libtdjson; every unsafe block carries a SAFETY comment"
 )]
