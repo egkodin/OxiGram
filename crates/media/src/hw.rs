@@ -24,7 +24,7 @@ pub(crate) fn attach(context: &mut codec::Context) -> bool {
     let mut device: *mut ffi::AVBufferRef = ptr::null_mut();
     // SAFETY: `device` is a valid out-pointer; FFmpeg leaves it null on failure.
     let created = unsafe {
-        ffi::av_hwdevice_ctx_create(&mut device, DEVICE, ptr::null(), ptr::null_mut(), 0)
+        ffi::av_hwdevice_ctx_create(&raw mut device, DEVICE, ptr::null(), ptr::null_mut(), 0)
     };
     if created < 0 || device.is_null() {
         return false;
