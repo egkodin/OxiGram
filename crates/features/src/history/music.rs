@@ -4,9 +4,10 @@
 
 use std::rc::Rc;
 
-use gpui::Context;
+use gpui::{App, Context};
 use i18n::key;
 use model::MessageId;
+use model::file::File;
 use model::message::{Content, Message};
 
 use super::HistoryView;
@@ -31,9 +32,43 @@ impl HistoryView {
         };
         let file = current(self, &music.file, cx);
         let playing = self.player.read(cx).sound_of(self.chat, message.id);
-        let length = duration_text(music.duration);
+        let (thumb, status) = self.sound_status(file, playing, music.duration, cx);
+        let weak = cx.weak_entity();
+        let (chat, id, file_id) = (message.chat, message.id, file.id);
+        let playable = Playable::of(self.store.read(cx).session(), file);
+        let (performer, title) = music.parts(name);
+        let track = Track::Song { performer, title };
+        Some(FileRow {
+            title: Title::Name(music.name(name)),
+            status,
+            is_unread: false,
+            thumb,
+            on_click: Rc::new(move |_, window, cx| {
+                let _ = weak.update(cx, |this, cx| match thumb {
+                    Thumb::Download => this.add_to_downloads(file_id, (chat, id), cx),
+                    Thumb::Cancel { .. } => this.cancel_download(file_id, cx),
+                    Thumb::Play | Thumb::Pause | Thumb::Document => {
+                        if let Some(file) = &playable {
+                            this.toggle_music(id, file, track.clone(), window, cx);
+                        }
+                    }
+                });
+            }),
+        })
+    }
+
+    /// A sound's circle and the line under its name: the time played while
+    /// it plays, its length once loaded, the transfer, or what a click loads.
+    pub(super) fn sound_status(
+        &self,
+        file: &File,
+        playing: Option<&Sound>,
+        duration: i32,
+        cx: &App,
+    ) -> (Thumb, String) {
+        let length = duration_text(duration);
         let can_stream = Playable::of(self.store.read(cx).session(), file).is_some();
-        let (thumb, status) = match (&file.path, file.is_downloading, playing) {
+        match (&file.path, file.is_downloading, playing) {
             (_, _, Some(player)) => (
                 if player.is_paused() {
                     Thumb::Play
@@ -66,29 +101,7 @@ impl HistoryView {
                     &[("duration", &length), ("size", &size_text(file.size))],
                 ),
             ),
-        };
-        let weak = cx.weak_entity();
-        let (chat, id, file_id) = (message.chat, message.id, file.id);
-        let playable = Playable::of(self.store.read(cx).session(), file);
-        let (performer, title) = music.parts(name);
-        let track = Track::Song { performer, title };
-        Some(FileRow {
-            title: Title::Name(music.name(name)),
-            status,
-            is_unread: false,
-            thumb,
-            on_click: Rc::new(move |_, window, cx| {
-                let _ = weak.update(cx, |this, cx| match thumb {
-                    Thumb::Download => this.add_to_downloads(file_id, (chat, id), cx),
-                    Thumb::Cancel { .. } => this.cancel_download(file_id, cx),
-                    Thumb::Play | Thumb::Pause | Thumb::Document => {
-                        if let Some(file) = &playable {
-                            this.toggle_music(id, file, track.clone(), window, cx);
-                        }
-                    }
-                });
-            }),
-        })
+        }
     }
 
     /// The loaded songs of this chat, oldest first.

@@ -16,10 +16,8 @@ use model::message::{Content, Message, Sender};
 
 use super::HistoryView;
 use super::documents::{CLICKED_PRIORITY, current};
-use super::file_row::{FileRow, Thumb, Title, progress};
-use super::video::duration_text;
+use super::file_row::{FileRow, Thumb, Title};
 use super::waveform::{OnSeek, Waveform};
-use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
 use crate::player::{Playlist, Sound, Track};
 use crate::store::spawn;
@@ -75,10 +73,6 @@ impl Origin {
     }
 }
 
-fn seconds(duration: Duration) -> i32 {
-    i32::try_from(duration.as_secs()).unwrap_or(i32::MAX)
-}
-
 impl HistoryView {
     /// A voice message's row once it is sent.
     pub(super) fn voice(&self, message: &Message, cx: &Context<Self>) -> Option<FileRow> {
@@ -87,42 +81,7 @@ impl HistoryView {
         };
         let file = current(self, &note.file, cx);
         let playing = self.player.read(cx).sound_of(self.chat, message.id);
-        let length = duration_text(note.duration);
-        let can_stream = Playable::of(self.store.read(cx).session(), file).is_some();
-        let (thumb, status) = match (&file.path, file.is_downloading, playing) {
-            (_, _, Some(player)) => (
-                if player.is_paused() {
-                    Thumb::Play
-                } else {
-                    Thumb::Pause
-                },
-                i18n::fill(
-                    &tr(cx, key::lng_duration_played),
-                    &[
-                        ("played", &duration_text(seconds(player.position()))),
-                        ("duration", &duration_text(seconds(player.duration()))),
-                    ],
-                ),
-            ),
-            (Some(_), _, None) => (Thumb::Play, length),
-            (None, true, _) => (
-                Thumb::Cancel {
-                    progress: progress(file.downloaded, file.size),
-                },
-                progress_text(strings(cx), file.downloaded, file.size),
-            ),
-            (None, false, None) => (
-                if can_stream {
-                    Thumb::Play
-                } else {
-                    Thumb::Download
-                },
-                i18n::fill(
-                    &tr(cx, key::lng_duration_and_size),
-                    &[("duration", &length), ("size", &size_text(file.size))],
-                ),
-            ),
-        };
+        let (thumb, status) = self.sound_status(file, playing, note.duration, cx);
         let is_unheard = !message.is_outgoing && !note.is_listened;
         let shown = match playing {
             Some(player) => player.progress(),
