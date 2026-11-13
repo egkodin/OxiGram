@@ -84,13 +84,11 @@ pub enum Schedule {
 }
 
 impl Schedule {
-    fn from_td(state: MessageSchedulingState) -> Option<Self> {
+    fn from_td(state: MessageSchedulingState) -> Self {
         match state {
-            MessageSchedulingState::SendAtDate(state) => Some(Self::At(state.send_date)),
-            MessageSchedulingState::SendWhenOnline(_) => Some(Self::WhenOnline),
-            MessageSchedulingState::SendWhenVideoProcessed(state) => {
-                Some(Self::At(state.send_date))
-            }
+            MessageSchedulingState::SendAtDate(state) => Self::At(state.send_date),
+            MessageSchedulingState::SendWhenOnline(_) => Self::WhenOnline,
+            MessageSchedulingState::SendWhenVideoProcessed(state) => Self::At(state.send_date),
         }
     }
 }

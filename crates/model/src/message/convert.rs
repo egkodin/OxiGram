@@ -30,7 +30,7 @@ impl From<td_api::types::Message> for Message {
             },
             edit_date: message.edit_date,
             content: Content::from(*message.content),
-            reply_to: message.reply_to.and_then(|reply| ReplyTo::from_td(*reply)),
+            reply_to: message.reply_to.map(|reply| ReplyTo::from_td(*reply)),
             forward: message.forward_info.map(|forward| Forward {
                 origin: Origin::from(*forward.origin),
                 date: forward.date,
@@ -50,7 +50,7 @@ impl From<td_api::types::Message> for Message {
             can_be_saved: message.can_be_saved,
             schedule: message
                 .scheduling_state
-                .and_then(|state| Schedule::from_td(*state)),
+                .map(|state| Schedule::from_td(*state)),
             self_destruct: message
                 .self_destruct_type
                 .map(|kind| SelfDestruct::from(*kind)),
@@ -59,9 +59,9 @@ impl From<td_api::types::Message> for Message {
 }
 
 impl ReplyTo {
-    fn from_td(reply: MessageReplyTo) -> Option<Self> {
+    fn from_td(reply: MessageReplyTo) -> Self {
         match reply {
-            MessageReplyTo::Message(reply) => Some(Self {
+            MessageReplyTo::Message(reply) => Self {
                 chat: ChatId(reply.chat_id),
                 message: MessageId(reply.message_id),
                 quote: reply.quote.map(|quote| FormattedText::from(*quote.text)),
@@ -73,15 +73,15 @@ impl ReplyTo {
                             .map(|content| Box::new(Content::from(*content))),
                     })
                 }),
-            }),
-            MessageReplyTo::Story(story) => Some(Self {
+            },
+            MessageReplyTo::Story(story) => Self {
                 chat: ChatId(story.story_poster_chat_id),
                 message: MessageId(0),
                 quote: None,
                 external: Some(Box::new(External::Story {
                     poster: ChatId(story.story_poster_chat_id),
                 })),
-            }),
+            },
         }
     }
 }
