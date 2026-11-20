@@ -1183,18 +1183,25 @@ fn rule(currency: &str) -> Rule {
 
 /// `amount` in the currency's minor units, as "$4.99" or "4,99 €".
 pub(crate) fn format(amount: i64, currency: &str) -> String {
+    let magnitude = amount.unsigned_abs();
     if currency == STARS {
-        return format!("{STAR}{}", crate::lang::group_digits(amount.abs()));
+        return format!(
+            "{STAR}{}",
+            crate::lang::group_unsigned(magnitude, Some(','))
+        );
     }
     let rule = rule(currency);
-    #[expect(clippy::cast_precision_loss, reason = "prices are far below 2^53")]
-    let value = amount.unsigned_abs() as f64 / 10f64.powi(rule.exponent as i32);
-    let precision = if !rule.strips_dot_zero || value.fract() != 0.0 {
-        rule.exponent as usize
-    } else {
-        0
-    };
-    let number = with_separators(&format!("{value:.precision$}"), rule);
+    let scale = 10_u64.pow(rule.exponent);
+    let fraction = magnitude % scale;
+    let separator = (rule.thousands != NO_SEPARATOR).then_some(rule.thousands);
+    let mut number = crate::lang::group_unsigned(magnitude / scale, separator);
+    if rule.exponent != 0 && (!rule.strips_dot_zero || fraction != 0) {
+        number.push(rule.decimal);
+        number.push_str(&format!(
+            "{fraction:0width$}",
+            width = rule.exponent as usize
+        ));
+    }
     let name = if rule.international.is_empty() {
         currency
     } else {
@@ -1213,27 +1220,16 @@ pub(crate) fn format(amount: i64, currency: &str) -> String {
     }
 }
 
-/// "1234567.89" with the rule's thousands and decimal marks.
-fn with_separators(plain: &str, rule: Rule) -> String {
-    let (whole, fraction) = plain.split_once('.').unwrap_or((plain, ""));
-    let mut result = String::new();
-    for (index, digit) in whole.chars().enumerate() {
-        let left = whole.len() - index;
-        if index > 0 && left % 3 == 0 && rule.thousands != NO_SEPARATOR {
-            result.push(rule.thousands);
-        }
-        result.push(digit);
-    }
-    if !fraction.is_empty() {
-        result.push(rule.decimal);
-        result.push_str(fraction);
-    }
-    result
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn large_prices_preserve_minor_units() {
+        assert_eq!(format(i64::MAX, "USD"), "$92,233,720,368,547,758.07");
+        assert_eq!(format(i64::MIN, "USD"), "−$92,233,720,368,547,758.08");
+        assert_eq!(format(i64::MIN, "XTR"), "⭐9,223,372,036,854,775,808");
+    }
 
     #[test]
     fn prices_follow_tdesktops_rules() {

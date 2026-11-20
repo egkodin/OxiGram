@@ -52,11 +52,11 @@ const TABS: [(Direction, i18n::Key); 3] = [
 
 /// "+100" or "−100" (`creditsHistoryRightStyle`).
 fn amount_text(stars: i64) -> String {
-    if stars < 0 {
-        format!("{MINUS}{}", group_digits(-stars))
-    } else {
-        format!("+{}", group_digits(stars))
-    }
+    let sign = if stars < 0 { MINUS } else { '+' };
+    format!(
+        "{sign}{}",
+        crate::lang::group_unsigned(stars.unsigned_abs(), Some(','))
+    )
 }
 
 pub(super) struct StarsPage {
@@ -322,6 +322,7 @@ mod tests {
     #[test]
     fn amounts_carry_their_sign() {
         assert_eq!(amount_text(1500), "+1,500");
+        assert_eq!(amount_text(i64::MIN), "−9,223,372,036,854,775,808");
         assert_eq!(amount_text(-25), "\u{2212}25");
     }
 }
