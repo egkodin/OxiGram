@@ -31,1148 +31,371 @@ const DEFAULT: Rule = Rule {
     strips_dot_zero: false,
 };
 
-/// `CurrencyRulesMap`, sorted by code.
+const SPACED_PREFIX: Rule = Rule {
+    has_space: true,
+    ..DEFAULT
+};
+const SPACED_SUFFIX: Rule = Rule {
+    is_left: false,
+    has_space: true,
+    ..DEFAULT
+};
+const DOT_GROUPED_SUFFIX: Rule = Rule {
+    thousands: '.',
+    decimal: ',',
+    is_left: false,
+    has_space: true,
+    ..DEFAULT
+};
+const SPACE_GROUPED_SUFFIX: Rule = Rule {
+    thousands: ' ',
+    decimal: ',',
+    is_left: false,
+    has_space: true,
+    ..DEFAULT
+};
+
+/// Overrides from `CurrencyRulesMap`, sorted by code.
 const RULES: &[(&str, Rule)] = &[
-    (
-        "AED",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "AFN",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("AED", SPACED_PREFIX),
     (
         "ALL",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
             has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
-    (
-        "AMD",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("AMD", SPACED_SUFFIX),
     (
         "ARS",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
     (
         "AUD",
         Rule {
             international: "AU$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "AZN",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "BAM",
-        Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "BDT",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "BGN",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("AZN", SPACE_GROUPED_SUFFIX),
+    ("BAM", DOT_GROUPED_SUFFIX),
+    ("BDT", SPACED_PREFIX),
+    ("BGN", SPACE_GROUPED_SUFFIX),
     (
         "BHD",
         Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
             exponent: 3,
-            strips_dot_zero: false,
+            ..SPACED_PREFIX
         },
     ),
     (
         "BND",
         Rule {
-            international: "",
             thousands: '.',
             decimal: ',',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "BOB",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
     (
         "BRL",
         Rule {
             international: "R$",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
-    (
-        "BYN",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("BYN", SPACE_GROUPED_SUFFIX),
     (
         "CAD",
         Rule {
             international: "CA$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "CHF",
         Rule {
-            international: "",
             thousands: '\'',
-            decimal: '.',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACED_SUFFIX
         },
     ),
     (
         "CLP",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
             exponent: 0,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
     (
         "CNY",
         Rule {
             international: "CN¥",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "COP",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
     (
         "CRC",
         Rule {
-            international: "",
             thousands: '.',
             decimal: ',',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "CZK",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("CZK", SPACE_GROUPED_SUFFIX),
     (
         "DKK",
         Rule {
-            international: "",
             thousands: '\x00',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
-    (
-        "DOP",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "DZD",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "EGP",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "ETB",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("DZD", SPACED_PREFIX),
+    ("EGP", SPACED_PREFIX),
     (
         "EUR",
         Rule {
             international: "€",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACE_GROUPED_SUFFIX
         },
     ),
     (
         "GBP",
         Rule {
             international: "£",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "GEL",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "GHS",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "GTQ",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("GEL", SPACE_GROUPED_SUFFIX),
     (
         "HKD",
         Rule {
             international: "HK$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "HNL",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "HRK",
-        Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "HUF",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("HNL", SPACED_PREFIX),
+    ("HRK", DOT_GROUPED_SUFFIX),
+    ("HUF", SPACE_GROUPED_SUFFIX),
     (
         "IDR",
         Rule {
-            international: "",
             thousands: '.',
             decimal: ',',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "ILS",
         Rule {
             international: "₪",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACED_PREFIX
         },
     ),
     (
         "INR",
         Rule {
             international: "₹",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "IQD",
         Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
             exponent: 3,
-            strips_dot_zero: false,
+            ..SPACED_PREFIX
         },
     ),
     (
         "IRR",
         Rule {
-            international: "",
-            thousands: ',',
             decimal: '/',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACED_SUFFIX
         },
     ),
     (
         "ISK",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
             exponent: 0,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "JMD",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
     (
         "JOD",
         Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
             exponent: 3,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "JPY",
         Rule {
             international: "¥",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
             exponent: 0,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "KES",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "KGS",
         Rule {
-            international: "",
-            thousands: ' ',
             decimal: '-',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACE_GROUPED_SUFFIX
         },
     ),
     (
         "KRW",
         Rule {
             international: "₩",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
             exponent: 0,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "KZT",
         Rule {
-            international: "",
             thousands: ' ',
             decimal: '-',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "LBP",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "LKR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "MAD",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "MDL",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "MMK",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("LBP", SPACED_PREFIX),
+    ("LKR", SPACED_PREFIX),
+    ("MAD", SPACED_PREFIX),
+    ("MDL", SPACED_SUFFIX),
     (
         "MNT",
         Rule {
-            international: "",
             thousands: ' ',
             decimal: ',',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "MOP",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "MUR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "MVR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("MVR", SPACED_SUFFIX),
     (
         "MXN",
         Rule {
             international: "MX$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "MYR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "MZN",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "NGN",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "NIO",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("NIO", SPACED_PREFIX),
     (
         "NOK",
         Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "NPR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACE_GROUPED_SUFFIX
         },
     ),
     (
         "NZD",
         Rule {
             international: "NZ$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
-    (
-        "PAB",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "PEN",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "PHP",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "PKR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "PLN",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("PAB", SPACED_PREFIX),
+    ("PEN", SPACED_PREFIX),
+    ("PLN", SPACE_GROUPED_SUFFIX),
     (
         "PYG",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
             exponent: 0,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
-    (
-        "QAR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "RON",
-        Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "RSD",
-        Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "RUB",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "SAR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "SEK",
-        Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "SGD",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "SYP",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("QAR", SPACED_PREFIX),
+    ("RON", DOT_GROUPED_SUFFIX),
+    ("RSD", DOT_GROUPED_SUFFIX),
+    ("RUB", SPACE_GROUPED_SUFFIX),
+    ("SAR", SPACED_PREFIX),
+    ("SEK", DOT_GROUPED_SUFFIX),
+    ("SYP", SPACED_PREFIX),
     (
         "THB",
         Rule {
             international: "฿",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "TJS",
         Rule {
-            international: "",
-            thousands: ' ',
             decimal: ';',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACE_GROUPED_SUFFIX
         },
     ),
-    (
-        "TRY",
-        Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "TTD",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("TRY", DOT_GROUPED_SUFFIX),
     (
         "TWD",
         Rule {
             international: "NT$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "TZS",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "UAH",
         Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
             has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..SPACE_GROUPED_SUFFIX
         },
     ),
     (
         "UGX",
         Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
             exponent: 0,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "USD",
         Rule {
             international: "$",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: false,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DEFAULT
         },
     ),
     (
         "UYU",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
-    (
-        "UZS",
-        Rule {
-            international: "",
-            thousands: ' ',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("UZS", SPACE_GROUPED_SUFFIX),
     (
         "VEF",
         Rule {
-            international: "",
-            thousands: '.',
-            decimal: ',',
             is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
     (
         "VND",
         Rule {
             international: "₫",
-            thousands: '.',
-            decimal: ',',
-            is_left: false,
-            has_space: true,
             exponent: 0,
-            strips_dot_zero: false,
+            ..DOT_GROUPED_SUFFIX
         },
     ),
-    (
-        "YER",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
-    (
-        "ZAR",
-        Rule {
-            international: "",
-            thousands: ',',
-            decimal: '.',
-            is_left: true,
-            has_space: true,
-            exponent: 2,
-            strips_dot_zero: false,
-        },
-    ),
+    ("YER", SPACED_PREFIX),
+    ("ZAR", SPACED_PREFIX),
 ];
 
 fn rule(currency: &str) -> Rule {
