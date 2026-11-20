@@ -23,7 +23,7 @@ impl Route {
         Self::from_tail(object).or_else(|| Self::from_envelope(object))
     }
 
-    fn from_tail(object: &str) -> Option<Self> {
+    pub(crate) fn from_tail(object: &str) -> Option<Self> {
         let body = object.strip_suffix('}')?;
         let (body, client) = body.rsplit_once(r#","@client_id":"#)?;
         let client = ClientId(client.parse().ok()?);

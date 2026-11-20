@@ -45,7 +45,7 @@ pub fn send(client: ClientId, request: &CStr) {
 ///
 /// Returns `None` if TDLib returned no response.
 #[must_use]
-pub fn execute(request: &CStr) -> Option<String> {
+pub fn execute(request: &CStr) -> Option<Response> {
     // SAFETY: `request` is NUL-terminated and outlives the call; td_execute may be
     // called from any thread. Its result lives in a thread-local buffer
     // (`current_output` in ClientJson.cpp) that only the next td_receive or
@@ -80,7 +80,7 @@ impl Receiver {
 
     /// Waits up to `timeout` for the next update or response of any client.
     #[must_use]
-    pub fn receive(&mut self, timeout: Duration) -> Option<String> {
+    pub fn receive(&mut self, timeout: Duration) -> Option<Response> {
         // SAFETY: only one Receiver exists (see `take`) and `&mut self` serializes
         // its calls, so td_receive is never called concurrently. The result is
         // null or a thread-local buffer valid until the next td_receive or
@@ -95,19 +95,52 @@ impl Drop for Receiver {
     }
 }
 
+/// A TDLib object that exceeds the Rust client's copy budget.
+pub struct OversizedResponse(String);
+
+impl OversizedResponse {
+    /// TDLib appends its numeric routing fields at the end. Never log this slice.
+    #[must_use]
+    pub fn routing_suffix(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for OversizedResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("OversizedResponse")
+    }
+}
+
+/// Owned JSON, or just enough of an oversized object's tail to reject its request.
+pub type Response = Result<String, OversizedResponse>;
+
+const MAX_RESPONSE_BYTES: usize = 64 << 20;
+
+fn copy_limited(bytes: &[u8], limit: usize) -> Response {
+    if bytes.len() > limit {
+        // ClientJson.cpp appends a u64 @extra and i32 @client_id after the payload.
+        let suffix = &bytes[bytes.len().saturating_sub(96)..];
+        return Err(OversizedResponse(
+            String::from_utf8_lossy(suffix).into_owned(),
+        ));
+    }
+    Ok(String::from_utf8_lossy(bytes).into_owned())
+}
+
 /// Copies a string returned by TDLib.
 ///
 /// # Safety
 ///
 /// `ptr` is null or points to a NUL-terminated string that stays valid for the
 /// duration of this call.
-unsafe fn copy_response(ptr: *const c_char) -> Option<String> {
+unsafe fn copy_response(ptr: *const c_char) -> Option<Response> {
     if ptr.is_null() {
         return None;
     }
     // SAFETY: `ptr` is non-null and valid per this function's contract.
     let response = unsafe { CStr::from_ptr(ptr) };
-    Some(response.to_string_lossy().into_owned())
+    Some(copy_limited(response.to_bytes(), MAX_RESPONSE_BYTES))
 }
 
 #[cfg(test)]
@@ -116,12 +149,25 @@ mod tests {
 
     #[test]
     fn execute_returns_the_linked_tdlib_version() {
-        let response = execute(cr#"{"@type":"getOption","name":"version"}"#).unwrap();
+        let response = execute(cr#"{"@type":"getOption","name":"version"}"#)
+            .unwrap()
+            .unwrap();
         let expected = include_str!("../../../tdlib/VERSION").trim();
         assert_eq!(
             response,
             format!(r#"{{"@type":"optionValueString","value":"{expected}"}}"#)
         );
+    }
+
+    #[test]
+    fn over_budget_responses_keep_only_the_routing_suffix() {
+        let suffix = r#","@extra":17,"@client_id":3}"#;
+        let mut bytes = vec![b'x'; 256];
+        bytes.extend_from_slice(suffix.as_bytes());
+        let rejected = copy_limited(&bytes, 256).unwrap_err();
+        assert!(rejected.routing_suffix().ends_with(suffix));
+        assert!(rejected.routing_suffix().len() <= 96);
+        assert_eq!(copy_limited(b"{}", 2).unwrap(), "{}");
     }
 
     #[test]

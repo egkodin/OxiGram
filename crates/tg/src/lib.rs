@@ -26,7 +26,7 @@ use futures_channel::{mpsc, oneshot};
 use td_api::Function;
 use td_api::enums::{AuthorizationState, Update};
 use td_api::functions::GetOption;
-use td_sys::{ClientId, Receiver};
+use td_sys::{ClientId, Receiver, Response};
 
 pub use error::{DecodeError, TdError};
 use route::Route;
@@ -45,7 +45,7 @@ const RECEIVE_TIMEOUT: Duration = Duration::from_secs(1);
 pub fn execute<F: Function>(function: &F) -> Result<F::Response, TdError> {
     let request = encode(function, None)?;
     let response = td_sys::execute(&request).ok_or(TdError::NoResponse)?;
-    decode::<F>(&response)
+    decode::<F>(&response.map_err(|_| TdError::TooLarge)?)
 }
 
 /// The receive thread and the routing state shared with every [`Client`].
@@ -91,7 +91,7 @@ impl Runtime {
             .spawn(move || {
                 while thread_shared.running.load(Ordering::Acquire) {
                     if let Some(object) = receiver.receive(RECEIVE_TIMEOUT) {
-                        thread_shared.dispatch(&object);
+                        thread_shared.dispatch(object);
                     }
                 }
                 thread_shared.shut_down();
@@ -180,11 +180,11 @@ impl Client {
         let sent = self.send(function);
         async move {
             let response = sent?.await.map_err(|_| TdError::Closed)?;
-            decode::<F>(&response)
+            decode::<F>(&response.map_err(|_| TdError::TooLarge)?)
         }
     }
 
-    fn send<F: Function>(&self, function: &F) -> Result<oneshot::Receiver<String>, TdError> {
+    fn send<F: Function>(&self, function: &F) -> Result<oneshot::Receiver<Response>, TdError> {
         let extra = self.shared.next_extra.fetch_add(1, Ordering::Relaxed);
         let request = encode(function, Some(extra))?;
         let (reply, response) = oneshot::channel();
@@ -238,7 +238,7 @@ struct Shared {
 #[derive(Debug)]
 struct Pending {
     client: ClientId,
-    reply: oneshot::Sender<String>,
+    reply: oneshot::Sender<Response>,
 }
 
 impl Shared {
@@ -257,22 +257,33 @@ impl Shared {
     }
 
     /// Routes one object from `td_receive`.
-    fn dispatch(&self, object: &str) {
-        let Some(route) = Route::of(object) else {
+    fn dispatch(&self, object: Response) {
+        let route = match &object {
+            Ok(json) => Route::of(json),
+            Err(error) => {
+                tracing::warn!("TDLib object exceeded the response size limit");
+                Route::from_tail(error.routing_suffix())
+            }
+        };
+        let Some(route) = route else {
             tracing::warn!("dropping TDLib object without @client_id");
             return;
         };
         match route.extra {
             Some(extra) => self.respond(extra, object),
-            None => self.update(route.client, object),
+            None => {
+                if let Ok(json) = object {
+                    self.update(route.client, &json);
+                }
+            }
         }
     }
 
-    fn respond(&self, extra: u64, object: &str) {
+    fn respond(&self, extra: u64, object: Response) {
         let pending = self.lock_pending().remove(&extra);
         match pending {
             // A send error means the caller dropped its future; nothing to do.
-            Some(pending) => drop(pending.reply.send(object.to_owned())),
+            Some(pending) => drop(pending.reply.send(object)),
             None => tracing::debug!(extra, "response to an unknown request"),
         }
     }

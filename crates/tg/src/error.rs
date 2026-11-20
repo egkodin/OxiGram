@@ -7,6 +7,8 @@ pub enum TdError {
     /// TDLib answered with an `error` object.
     #[error("TDLib error {code}")]
     Td { code: i32, message: String },
+    #[error("TDLib response exceeds the supported size")]
+    TooLarge,
     /// The client or the runtime closed before the response arrived.
     #[error("the TDLib client is closed")]
     Closed,
