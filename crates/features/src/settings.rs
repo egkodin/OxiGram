@@ -1,6 +1,7 @@
 //! App-wide preferences that outlive a session (`Core::Settings`), kept as
 //! JSON next to the TDLib database.
 
+use std::io::{self, Read as _};
 use std::path::{Path, PathBuf};
 
 use gpui::{App, Global};
@@ -214,27 +215,51 @@ pub struct Settings {
 
 impl Global for Settings {}
 
+const MAX_SETTINGS_BYTES: u64 = 4 << 20;
+
+fn check_size(bytes: &[u8]) -> io::Result<()> {
+    if bytes.len() as u64 > MAX_SETTINGS_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "settings exceed 4 MiB",
+        ));
+    }
+    Ok(())
+}
+
+fn read_values(path: &Path) -> io::Result<Values> {
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(MAX_SETTINGS_BYTES + 1)
+        .read_to_end(&mut bytes)?;
+    check_size(&bytes)?;
+    serde_json::from_slice(&bytes).map_err(|error| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "invalid settings at line {}, column {}",
+                error.line(),
+                error.column()
+            ),
+        )
+    })
+}
+
 /// Reads the settings at `path` and applies them. A missing or unreadable
 /// file gives the defaults.
 pub fn load(path: PathBuf, cx: &mut App) {
-    let values = match std::fs::read(&path) {
-        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_else(|error| {
-            tracing::warn!(%error, "settings are unreadable, using the defaults");
-            Values::default()
-        }),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Values::default(),
+    let (values, path) = match read_values(&path) {
+        Ok(values) => (values, Some(path)),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => (Values::default(), Some(path)),
         Err(error) => {
-            tracing::warn!(%error, "cannot read the settings, using the defaults");
-            Values::default()
+            tracing::warn!(%error, "cannot read settings; using defaults in memory to preserve the file");
+            (Values::default(), None)
         }
     };
     apply_theme(&values, cx);
     apply_devices(&values);
     crate::power_saving::apply(crate::power_saving::Saving(values.power_saving));
-    cx.set_global(Settings {
-        path: Some(path),
-        values,
-    });
+    cx.set_global(Settings { path, values });
 }
 
 pub(crate) fn is_night_mode(cx: &App) -> bool {
@@ -600,6 +625,7 @@ fn apply_theme(values: &Values, cx: &mut App) {
 /// Writes through a temporary file so a crash leaves the old settings.
 fn save(path: &Path, values: &Values) -> std::io::Result<()> {
     let json = serde_json::to_vec_pretty(values).map_err(std::io::Error::other)?;
+    check_size(&json)?;
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -617,6 +643,24 @@ mod tests {
         assert_eq!(known_accounts(Vec::new(), 3), (vec![0], 0));
         assert_eq!(known_accounts(vec![0, 2], 2), (vec![0, 2], 2));
         assert_eq!(known_accounts(vec![1, 2], 0), (vec![1, 2], 1));
+    }
+
+    #[test]
+    fn oversized_settings_and_invalid_values_are_safe_to_report() {
+        let path =
+            std::env::temp_dir().join(format!("oxigram-settings-limits-{}", std::process::id()));
+        let mut bytes = b"{}".to_vec();
+        bytes.resize(usize::try_from(MAX_SETTINGS_BYTES).unwrap() + 1, b' ');
+        std::fs::write(&path, bytes).unwrap();
+        let oversized = read_values(&path);
+        std::fs::write(&path, br#"{"night_mode":"private device name"}"#).unwrap();
+        let invalid = read_values(&path).unwrap_err();
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(
+            oversized.unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
+        );
+        assert!(!invalid.to_string().contains("private"));
     }
 
     #[test]
@@ -656,8 +700,7 @@ mod tests {
             video_speed: crate::speed::Speed::default().toggled(),
         };
         save(&path, &values).expect("the temp dir is writable");
-        let read: Values =
-            serde_json::from_slice(&std::fs::read(&path).expect("just written")).expect("valid");
+        let read = read_values(&path).expect("just written");
         assert_eq!(read, values);
         // Unknown and missing keys fall back to the defaults.
         let partial: Values = serde_json::from_str(r#"{"future_key": 1}"#).expect("valid");
