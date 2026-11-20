@@ -54,6 +54,16 @@ requests. The cache test verified that returning to an evicted key starts
 a fresh fetch and accepts its completion. Reaction and userpic tracking
 metadata keep their existing policies. Both were small in this workload.
 
+Follow-up mask test: the RGBA-to-BGRA circular mask now edits the resized
+buffer in place. An optimized standalone harness ran the old and new
+`round_image::circled` on the same 2048 × 2048 synthetic RGBA square
+(`[10, 20, 30, 200]`). In three fresh child processes per version,
+macOS `getrusage` reported 35.54 MB peak RSS before and 18.73 MB after.
+The 16,777,216 output bytes matched byte for byte. The unit regression
+also verifies buffer reuse and the center, corner and antialiased edge
+pixels. This measures masking alone. At 160 × 160, the eliminated
+second buffer is 0.1024 MB per concurrent mask.
+
 Run the cache workloads with:
 
 ```sh

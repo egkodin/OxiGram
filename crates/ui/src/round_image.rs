@@ -249,7 +249,7 @@ fn file_stamp(path: &Path) -> Stamp {
 fn load(path: &Path, side: u32) -> Loaded {
     let stamp = file_stamp(path);
     let image = match load_square(path, side) {
-        Ok(filled) => Some(Arc::new(RenderImage::new([Frame::new(circled(&filled))]))),
+        Ok(filled) => Some(Arc::new(RenderImage::new([Frame::new(circled(filled))]))),
         Err(_) => {
             tracing::warn!("cannot decode a userpic within the image limits");
             None
@@ -277,16 +277,15 @@ fn load_square(path: &Path, side: u32) -> image::ImageResult<RgbaImage> {
     }
     Ok(decoded
         .resize_to_fill(side, side, FilterType::Lanczos3)
-        .to_rgba8())
+        .into_rgba8())
 }
 
 /// BGRA with straight alpha, as gpui's sprites expect, and an antialiased
 /// circle: each pixel keeps the share of it inside the circle.
-fn circled(square: &RgbaImage) -> RgbaImage {
+fn circled(mut square: RgbaImage) -> RgbaImage {
     #[expect(clippy::cast_precision_loss, reason = "userpics are small")]
     let radius = square.width().min(square.height()) as f32 / 2.0;
-    let mut out = RgbaImage::new(square.width(), square.height());
-    for (x, y, pixel) in square.enumerate_pixels() {
+    for (x, y, pixel) in square.enumerate_pixels_mut() {
         #[expect(clippy::cast_precision_loss, reason = "userpics are small")]
         let (dx, dy) = (x as f32 + 0.5 - radius, y as f32 + 0.5 - radius);
         let coverage = (radius - (dx * dx + dy * dy).sqrt() + 0.5).clamp(0.0, 1.0);
@@ -297,9 +296,9 @@ fn circled(square: &RgbaImage) -> RgbaImage {
             reason = "coverage is within 0..=1"
         )]
         let alpha = (f32::from(a) * coverage).round() as u8;
-        out.put_pixel(x, y, image::Rgba([b, g, r, alpha]));
+        *pixel = image::Rgba([b, g, r, alpha]);
     }
-    out
+    square
 }
 
 #[cfg(test)]
@@ -511,7 +510,9 @@ mod tests {
     #[test]
     fn keeps_the_middle_and_clears_the_corners() {
         let square = RgbaImage::from_pixel(40, 40, image::Rgba([10, 20, 30, 255]));
-        let round = circled(&square);
+        let buffer = square.as_raw().as_ptr();
+        let round = circled(square);
+        assert_eq!(round.as_raw().as_ptr(), buffer);
         assert_eq!(round.get_pixel(20, 20).0, [30, 20, 10, 255]);
         assert_eq!(round.get_pixel(0, 0).0[3], 0);
         // On the edge the pixel is partly covered.

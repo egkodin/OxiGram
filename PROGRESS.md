@@ -2,6 +2,13 @@
 
 ## Code-only audit follow-up, 2026-11-20
 
+- Continued by making the userpic mask reuse its resized RGBA buffer.
+  The isolated mask workload went from 35.54 MB to 18.73 MB peak RSS
+  with byte-identical BGRA output. All 420 workspace tests and strict
+  Clippy passed with system FFmpeg and runtime Metal shaders. The
+  dependency checks had the same Chrono advisory outcome. See
+  [docs/perf.md](docs/perf.md#cache-retention).
+
 - Refreshed the Codebase Memory index and added a synthetic two-account
   TDLib routing regression. The stalled account received all 8,192 updates
   and its close in order. Another account received a reply and closed
