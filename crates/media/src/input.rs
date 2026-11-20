@@ -59,6 +59,20 @@ impl Origin {
     }
 }
 
+/// Whether the decoder produced a frame on this pass.
+pub(crate) fn frame_ready(result: Result<(), ffmpeg::Error>) -> Result<bool, ffmpeg::Error> {
+    match result {
+        Ok(()) => Ok(true),
+        Err(
+            ffmpeg::Error::Eof
+            | ffmpeg::Error::Other {
+                errno: ffmpeg::error::EAGAIN,
+            },
+        ) => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
 /// `READ_AHEAD_TIME` of a file of `size` bytes lasting `duration`.
 fn read_ahead(size: u64, duration: Duration) -> u64 {
     let seconds = duration.as_secs_f64();
@@ -85,6 +99,22 @@ mod tests {
             Origin::Path(PathBuf::from("test\0clip.mp4"))
                 .open()
                 .is_err()
+        );
+    }
+
+    #[test]
+    fn decoder_errors_are_distinct_from_a_drained_queue() {
+        assert_eq!(frame_ready(Ok(())), Ok(true));
+        assert_eq!(frame_ready(Err(ffmpeg::Error::Eof)), Ok(false));
+        assert_eq!(
+            frame_ready(Err(ffmpeg::Error::Other {
+                errno: ffmpeg::error::EAGAIN
+            })),
+            Ok(false)
+        );
+        assert_eq!(
+            frame_ready(Err(ffmpeg::Error::InvalidData)),
+            Err(ffmpeg::Error::InvalidData)
         );
     }
 

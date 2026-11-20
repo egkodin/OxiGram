@@ -337,7 +337,10 @@ impl Playback<'_> {
                 Ok(()) => continue,
                 Err(ffmpeg::Error::Eof) => {
                     // Draining twice after the end is harmless.
-                    let _ = source.decoder.send_eof();
+                    match source.decoder.send_eof() {
+                        Ok(()) | Err(ffmpeg::Error::Eof) => {}
+                        Err(error) => return Err(VideoError::Decode(error)),
+                    }
                     if let Flow::Stop = self.drain(&mut source)? {
                         return Ok(());
                     }
@@ -377,7 +380,9 @@ impl Playback<'_> {
     fn drain(&mut self, source: &mut Source) -> Result<Flow, VideoError> {
         loop {
             let mut decoded = frame::Video::empty();
-            if source.decoder.receive_frame(&mut decoded).is_err() {
+            if !crate::input::frame_ready(source.decoder.receive_frame(&mut decoded))
+                .map_err(VideoError::Decode)?
+            {
                 return Ok(Flow::Go);
             }
             let position = frame_position(decoded.timestamp(), source.time_base)?;
@@ -435,7 +440,10 @@ impl Playback<'_> {
 }
 
 fn frame_position(timestamp: Option<i64>, time_base: f64) -> Result<Duration, VideoError> {
-    #[expect(clippy::cast_precision_loss, reason = "FFmpeg timestamps are converted to seconds")]
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "FFmpeg timestamps are converted to seconds"
+    )]
     let seconds = timestamp.unwrap_or(0) as f64 * time_base;
     if !time_base.is_finite() || time_base <= 0.0 {
         return Err(VideoError::Decode(ffmpeg::Error::InvalidData));

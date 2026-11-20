@@ -473,7 +473,7 @@ impl Source {
 
     fn drain(&mut self, shared: &Shared) -> Result<(), ffmpeg::Error> {
         let mut decoded = frame::Audio::empty();
-        while self.decoder.receive_frame(&mut decoded).is_ok() {
+        while crate::input::frame_ready(self.decoder.receive_frame(&mut decoded))? {
             let samples = self.resample(&decoded, shared.rate)?;
             push(shared, &samples);
             if shared.is_closed.load(Ordering::Relaxed) {
