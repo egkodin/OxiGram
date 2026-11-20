@@ -13,6 +13,8 @@ const MAX_FRAME: usize = 5760;
 /// The longest voice decoded into memory: 100 minutes, the longest the app
 /// records. A longer file streams as music does.
 const MAX_SAMPLES: usize = 100 * 60 * RATE as usize;
+/// Bounds Ogg packet assembly before a packet reaches the Opus decoder.
+const MAX_VOICE_BYTES: u64 = 128 << 20;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DecodeError {
@@ -26,6 +28,8 @@ pub enum DecodeError {
     NotOpus,
     #[error("the voice is too long to decode into memory")]
     TooLong,
+    #[error("the voice file is too large to decode into memory")]
+    TooLarge,
 }
 
 /// A voice message's samples, ready to play.
@@ -50,7 +54,11 @@ impl Decoded {
 /// M4A voices) or is longer than 100 minutes.
 pub fn decode(path: &Path) -> Result<Decoded, DecodeError> {
     let file = std::fs::File::open(path)?;
-    decode_from(std::io::BufReader::new(file), MAX_SAMPLES)
+    let size = file.metadata()?.len();
+    if size > MAX_VOICE_BYTES {
+        return Err(DecodeError::TooLarge);
+    }
+    decode_from(std::io::BufReader::new(file.take(size)), MAX_SAMPLES)
 }
 
 /// The channel count and pre-skip from the `OpusHead` packet.
@@ -130,6 +138,17 @@ mod tests {
             .expect("writing to memory")
             .expect("long enough");
         (bytes, encoded.samples)
+    }
+
+    #[test]
+    fn oversized_voice_files_are_rejected_before_packet_assembly() {
+        let path = std::env::temp_dir().join(format!("oxigram-large-voice-{}", std::process::id()));
+        let file = std::fs::File::create_new(&path).unwrap();
+        file.set_len(MAX_VOICE_BYTES + 1).unwrap();
+        drop(file);
+        let result = decode(&path);
+        std::fs::remove_file(path).unwrap();
+        assert!(matches!(result, Err(DecodeError::TooLarge)));
     }
 
     #[test]
