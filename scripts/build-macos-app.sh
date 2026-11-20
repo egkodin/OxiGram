@@ -6,7 +6,10 @@ cd "$root"
 [[ "$(uname -s)" == Darwin ]] || { echo "macOS is required" >&2; exit 1; }
 ffmpeg_version="$(awk '$1 == "ffmpeg" { print $2 }' ffmpeg/SOURCES)"
 ffmpeg_dir="${RGRAM_FFMPEG_DIR:-$HOME/.cache/rgram/ffmpeg-$ffmpeg_version}"
-[[ -f "$ffmpeg_dir/lib/pkgconfig/libavcodec.pc" ]] || { echo "Run scripts/build-ffmpeg.sh first" >&2; exit 1; }
+if [[ ! -f "$ffmpeg_dir/lib/libvpx.a" ]] || ! grep -Eq '(^|[[:space:]])-lvpx([[:space:]]|$)' "$ffmpeg_dir/lib/pkgconfig/libavcodec.pc"; then
+    echo "Rebuild static FFmpeg with scripts/build-ffmpeg.sh for VP9 alpha support" >&2
+    exit 1
+fi
 unset FFMPEG_DIR
 export PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig"
 "$root/scripts/check-metal.sh"
