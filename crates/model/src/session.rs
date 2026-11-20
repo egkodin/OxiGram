@@ -91,6 +91,17 @@ pub enum ListLoad {
 #[error(transparent)]
 pub struct RequestError(#[from] TdError);
 
+impl RequestError {
+    /// Server details for a local error dialog. They can contain private data.
+    #[must_use]
+    pub fn user_message(&self) -> String {
+        match &self.0 {
+            TdError::Td { code, message } => format!("TDLib error {code}: {message}"),
+            error => error.to_string(),
+        }
+    }
+}
+
 impl Session {
     #[must_use]
     pub fn new(client: tg::Client) -> Self {

@@ -1,11 +1,11 @@
 use std::fmt;
 
 /// Why a TDLib request failed.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum TdError {
     /// TDLib answered with an `error` object.
-    #[error("TDLib error {code}: {message}")]
+    #[error("TDLib error {code}")]
     Td { code: i32, message: String },
     /// The client or the runtime closed before the response arrived.
     #[error("the TDLib client is closed")]
@@ -22,6 +22,12 @@ pub enum TdError {
         function: &'static str,
         error: DecodeError,
     },
+}
+
+impl fmt::Debug for TdError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
 }
 
 impl TdError {
@@ -86,6 +92,16 @@ mod tests {
         let text = DecodeError::from(&error).to_string();
         assert!(!text.contains("5551234567"), "{text}");
         assert!(text.starts_with("unexpected data at line 1"), "{text}");
+    }
+
+    #[test]
+    fn server_error_diagnostics_omit_private_text() {
+        let error = TdError::Td {
+            code: 400,
+            message: "private local filename".to_owned(),
+        };
+        assert_eq!(error.to_string(), "TDLib error 400");
+        assert!(!format!("{error:?}").contains("private"));
     }
 
     #[test]

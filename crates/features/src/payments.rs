@@ -26,7 +26,7 @@ pub(crate) fn open(link: PaymentLink, targets: &Targets, window: &mut Window, cx
                 Ok(()) => later(&targets, cx),
                 Err(error) => {
                     tracing::warn!(%error, "reading the payment form failed");
-                    toast(&targets, error.to_string(), cx);
+                    toast(&targets, error.user_message(), cx);
                 }
             });
         })

@@ -174,7 +174,7 @@ impl BusinessPage {
                 tracing::warn!(%error, "changing the sponsored messages switch failed");
                 let _ = this.update(cx, |this, cx| {
                     this.sponsored = previous;
-                    crate::payments::toast(&targets, error.to_string(), cx);
+                    crate::payments::toast(&targets, error.user_message(), cx);
                     cx.notify();
                 });
             }
