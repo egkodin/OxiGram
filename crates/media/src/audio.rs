@@ -379,7 +379,7 @@ struct Source {
 impl Source {
     fn open(origin: Origin, shared: &Shared) -> Result<Self, AudioError> {
         ffmpeg::init().map_err(AudioError::Open)?;
-        ffmpeg::log::set_level(ffmpeg::log::Level::Fatal);
+        ffmpeg::log::set_level(ffmpeg::log::Level::Quiet);
         let input = origin.open().map_err(AudioError::Open)?;
         let stream = input
             .streams()

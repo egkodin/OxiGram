@@ -218,9 +218,7 @@ struct Source {
 impl Source {
     fn open(origin: Origin) -> Result<Self, VideoError> {
         ffmpeg::init().map_err(VideoError::Open)?;
-        // FFmpeg's own log goes to stderr; rgram logs through `tracing`,
-        // and a hardware decoder that declines a stream is not an error.
-        ffmpeg::log::set_level(ffmpeg::log::Level::Fatal);
+        ffmpeg::log::set_level(ffmpeg::log::Level::Quiet);
         let input = origin.open().map_err(VideoError::Open)?;
         let stream = input
             .streams()

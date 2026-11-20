@@ -15,8 +15,9 @@ use gpui::{
 };
 use model::{Environment, Parameters, Secret};
 use style::{ColorId, ColorRef};
-use td_api::enums::OptionValue;
-use td_api::functions::{GetOption, SetLogVerbosityLevel};
+use td_api::enums::{LogStream, OptionValue};
+use td_api::functions::{GetOption, SetLogStream};
+use td_api::types::LogStreamEmpty;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::filter::LevelFilter;
 
@@ -26,9 +27,6 @@ const WINDOW_DEFAULT_WIDTH: f32 = 800.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 600.0;
 const WINDOW_MIN_WIDTH: f32 = 380.0;
 const WINDOW_MIN_HEIGHT: f32 = 480.0;
-
-/// TDLib log verbosity: errors only. Levels above 2 log message content.
-const TDLIB_LOG_VERBOSITY: i32 = 1;
 
 const TEST_DC_VAR: &str = "RGRAM_TEST_DC";
 /// `RGRAM_WITHHOLD_VIEWS=1` browses without reading messages, for checks on
@@ -40,10 +38,10 @@ const SETTINGS_FILE: &str = "settings.json";
 
 fn main() -> anyhow::Result<()> {
     init_logging()?;
-    tg::execute(&SetLogVerbosityLevel {
-        new_verbosity_level: TDLIB_LOG_VERBOSITY,
+    tg::execute(&SetLogStream {
+        log_stream: Box::new(LogStream::Empty(LogStreamEmpty {})),
     })
-    .context("setting TDLib's log verbosity")?;
+    .context("disabling TDLib's native log")?;
     if std::env::args().nth(1).as_deref() == Some("--version") {
         return print_version();
     }
@@ -77,7 +75,7 @@ fn main() -> anyhow::Result<()> {
         features::init(cx);
         match settings {
             Ok(path) => features::settings::load(path, cx),
-            Err(error) => tracing::warn!("{error}"),
+            Err(_) => tracing::warn!("settings unavailable because the data directory is unusable"),
         }
         // Before the window opens: windows read the zoom as they are made.
         #[cfg(target_os = "macos")]

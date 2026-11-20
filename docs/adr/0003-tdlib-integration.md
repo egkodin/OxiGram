@@ -118,10 +118,9 @@ tests), and the version mismatch alone rules out using its generated types.
   `message_unload_delay` option lets TDLib unload messages of closed chats;
   `use_storage_optimizer` is on, and `optimizeStorage` runs on a timer with the
   limits from the storage settings (M6).
-- Logging: `setLogVerbosityLevel(1)` through `td_execute` before the first client
-  exists, and verbosity above 2 is never enabled by default, because higher levels
-  log message content. TDLib's log moves from stderr to a file in the data
-  directory once rgram has one (M1).
+- The application calls `setLogStream(logStreamEmpty)` before creating the
+  first client. Native diagnostics can include account data. The Rust
+  request and update handlers report failures through redacted diagnostics.
 
 ## Consequences
 
