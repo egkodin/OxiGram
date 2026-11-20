@@ -26,7 +26,8 @@ use futures_channel::{mpsc, oneshot};
 use td_api::Function;
 use td_api::enums::{AuthorizationState, Update};
 use td_api::functions::GetOption;
-use td_sys::{ClientId, Receiver, Response};
+pub use td_sys::ClientId;
+use td_sys::{Receiver, Response};
 
 pub use error::{DecodeError, TdError};
 use route::Route;
@@ -164,6 +165,12 @@ pub struct Client {
 }
 
 impl Client {
+    /// The TDLib instance that owns this client's file identifiers.
+    #[must_use]
+    pub fn id(&self) -> ClientId {
+        self.id
+    }
+
     /// Sends `function` now and returns a future of its response.
     ///
     /// The request is sent when this is called, not when the future is first

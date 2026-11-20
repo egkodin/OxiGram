@@ -7,6 +7,7 @@ use td_api::functions::{
     GetFileDownloadedPrefixSize, LoadChats, SetOption, SetProfilePhoto, SetTdlibParameters,
 };
 use td_api::types::{InputChatPhotoStatic, InputFileLocal, OptionValueBoolean, OptionValueString};
+pub use tg::ClientId;
 use tg::TdError;
 
 use crate::auth;
@@ -114,6 +115,11 @@ impl Session {
     #[must_use]
     pub fn with_views(self, views: Views) -> Self {
         Self { views, ..self }
+    }
+
+    #[must_use]
+    pub fn client_id(&self) -> ClientId {
+        self.client.id()
     }
 
     pub(crate) fn views(&self) -> Views {

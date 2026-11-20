@@ -25,9 +25,20 @@ struct Entry {
     window: Arc<Mutex<Option<(u64, u64)>>>,
 }
 
-fn registry() -> &'static Mutex<HashMap<FileId, Entry>> {
-    static REGISTRY: OnceLock<Mutex<HashMap<FileId, Entry>>> = OnceLock::new();
+type StreamKey = (model::ClientId, FileId);
+type Registry = HashMap<StreamKey, Entry>;
+
+fn registry() -> &'static Mutex<Registry> {
+    static REGISTRY: OnceLock<Mutex<Registry>> = OnceLock::new();
     REGISTRY.get_or_init(Mutex::default)
+}
+
+fn register(key: StreamKey, signal: Signal) -> Arc<Mutex<Option<(u64, u64)>>> {
+    let mut registry = registry().lock().expect("stream registry lock poisoned");
+    let entry = registry.entry(key).or_default();
+    entry.signals.retain(|signal| !signal.is_closed());
+    entry.signals.push(signal);
+    Arc::clone(&entry.window)
 }
 
 /// A file to play: complete on disk, or streamed while it downloads.
@@ -93,13 +104,7 @@ impl Playable {
             unreachable!("only a streaming file has a stream");
         };
         let signal = Signal::new();
-        let window = {
-            let mut registry = registry().lock().expect("stream registry lock poisoned");
-            let entry = registry.entry(*file).or_default();
-            entry.signals.retain(|signal| !signal.is_closed());
-            entry.signals.push(signal.clone());
-            Arc::clone(&entry.window)
-        };
+        let window = register((session.client_id(), *file), signal.clone());
         let source = TdFile {
             session: session.clone(),
             file: *file,
@@ -112,14 +117,15 @@ impl Playable {
 }
 
 /// A file update: readers waiting on `file` look again.
-pub(crate) fn wake(file: FileId) {
+pub(crate) fn wake(client: model::ClientId, file: FileId) {
+    let key = (client, file);
     let mut registry = registry().lock().expect("stream registry lock poisoned");
-    let Some(entry) = registry.get_mut(&file) else {
+    let Some(entry) = registry.get_mut(&key) else {
         return;
     };
     entry.signals.retain(|signal| !signal.is_closed());
     if entry.signals.is_empty() {
-        registry.remove(&file);
+        registry.remove(&key);
         return;
     }
     for signal in &entry.signals {
@@ -199,5 +205,28 @@ impl FileSource for TdFile {
     fn is_loading(&mut self) -> io::Result<bool> {
         let partial = wait(self.session.partial_file(self.file))?;
         Ok(partial.is_loading || partial.is_complete)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn audio_and_video_share_ranges_only_within_the_same_client() {
+        let file = FileId(1);
+        let first = (model::ClientId(-1), file);
+        let second = (model::ClientId(-2), file);
+        let signals = [Signal::new(), Signal::new(), Signal::new()];
+        let audio = register(first, signals[0].clone());
+        let video = register(first, signals[1].clone());
+        let other = register(second, signals[2].clone());
+        assert!(Arc::ptr_eq(&audio, &video));
+        assert!(!Arc::ptr_eq(&audio, &other));
+        for signal in signals {
+            signal.close();
+        }
+        wake(first.0, file);
+        wake(second.0, file);
     }
 }

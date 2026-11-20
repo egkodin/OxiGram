@@ -257,7 +257,7 @@ impl Store {
     pub fn apply(&mut self, event: Event, cx: &mut Context<Self>) {
         let was = matches!(event, Event::Auth(_)).then(|| self.state.auth.clone());
         if let Event::Chats(model::chats::Change::File(file)) = &event {
-            crate::streaming::wake(file.id);
+            crate::streaming::wake(self.session.client_id(), file.id);
         }
         self.state.apply(event);
         if let Some(was) = was {

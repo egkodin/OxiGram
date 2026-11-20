@@ -61,5 +61,7 @@ pub use ids::{
     SupergroupId, UserId,
 };
 pub use secret::Secret;
-pub use session::{Environment, ListLoad, Parameters, Presence, RequestError, Session, Views};
+pub use session::{
+    ClientId, Environment, ListLoad, Parameters, Presence, RequestError, Session, Views,
+};
 pub use state::{ConnectionState, State, UnreadMessages};
