@@ -561,7 +561,25 @@ pub fn accounts(cx: &App) -> (Vec<u32>, u32) {
 }
 
 /// The first account alone when none are listed, and a listed active one.
-fn known_accounts(mut list: Vec<u32>, active: u32) -> (Vec<u32>, u32) {
+fn known_accounts(stored: Vec<u32>, active: u32) -> (Vec<u32>, u32) {
+    let mut list = Vec::with_capacity(crate::accounts::PREMIUM_MAX_ACCOUNTS);
+    for &id in &stored {
+        if !list.contains(&id) {
+            list.push(id);
+            if list.len() == crate::accounts::PREMIUM_MAX_ACCOUNTS {
+                break;
+            }
+        }
+    }
+    if list.len() != stored.len() {
+        tracing::warn!("ignoring duplicate or excess saved account slots");
+        if !list.contains(&active)
+            && stored.contains(&active)
+            && let Some(last) = list.last_mut()
+        {
+            *last = active;
+        }
+    }
     if list.is_empty() {
         list.push(0);
     }
@@ -661,6 +679,13 @@ mod tests {
             std::io::ErrorKind::InvalidData
         );
         assert!(!invalid.to_string().contains("private"));
+    }
+
+    #[test]
+    fn restoring_accounts_bounds_clients_and_keeps_the_active_account() {
+        let (ids, active) = known_accounts(vec![2, 2, 4, 5, 6, 7, 8, 9], 9);
+        assert_eq!(ids, [2, 4, 5, 6, 7, 9]);
+        assert_eq!(active, 9);
     }
 
     #[test]
