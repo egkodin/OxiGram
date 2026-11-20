@@ -7,7 +7,7 @@ const RESET_WAIT_PREFIX: &str = "2FA_CONFIRM_WAIT_";
 
 /// Why a sign-in step failed, sorted the way tdesktop's intro screens react
 /// to server errors (`intro_*.cpp`).
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, PartialEq, Eq, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
     /// FLOOD_WAIT: too many attempts.
@@ -55,8 +55,14 @@ pub enum Error {
     #[error("the TDLib client is closed")]
     Closed,
     /// Any other error, shown as the server's text, as tdesktop does.
-    #[error("error {code}: {message}")]
+    #[error("error {code}")]
     Server { code: i32, message: String },
+}
+
+impl std::fmt::Debug for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
 }
 
 impl From<TdError> for Error {
@@ -146,6 +152,14 @@ mod tests {
             }
         );
         assert_eq!(Error::from(TdError::Closed), Error::Closed);
+    }
+
+    #[test]
+    fn diagnostics_omit_server_text() {
+        let error = td(400, "private fixture");
+        assert_eq!(error.to_string(), "error 400");
+        assert_eq!(format!("{error:?}"), "error 400");
+        assert!(matches!(error, Error::Server { message, .. } if message == "private fixture"));
     }
 
     #[test]
