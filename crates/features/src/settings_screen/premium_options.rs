@@ -72,22 +72,28 @@ struct Prices {
     per_month: String,
 }
 
-#[expect(
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    reason = "prices and periods are small"
-)]
 fn prices(option: &SubscriptionOption, base: &SubscriptionOption) -> Prices {
-    let months = f64::from(option.months.max(1));
-    let monthly = base.amount as f64 / f64::from(base.months.max(1));
-    let baseline = monthly * months;
-    let money = |amount: f64| currency::format(amount.round() as i64, &option.currency);
+    let months = i128::from(option.months.max(1));
+    let base_months = i128::from(base.months.max(1));
+    let amount = i128::from(option.amount);
+    let baseline = i128::from(base.amount) * months;
+    let money = |n, d| currency::format(rounded_ratio(n, d), &option.currency);
     Prices {
-        discount: ((1.0 - option.amount as f64 / baseline) * 100.0).round() as i64,
-        full: money(baseline),
-        per_year: money(option.amount as f64 / (months / 12.0)),
-        per_month: money(option.amount as f64 / months),
+        discount: if baseline > 0 {
+            rounded_ratio(100 * (baseline - amount * base_months), baseline)
+        } else {
+            0
+        },
+        full: money(baseline, base_months),
+        per_year: money(amount * 12, months),
+        per_month: money(amount, months),
     }
+}
+
+/// Rounds a price ratio with a positive denominator to the nearest minor unit.
+fn rounded_ratio(numerator: i128, denominator: i128) -> i64 {
+    let rounded = (numerator + numerator.signum() * (denominator / 2)) / denominator;
+    i64::try_from(rounded).unwrap_or(if rounded < 0 { i64::MIN } else { i64::MAX })
 }
 
 fn option_texts(option: &SubscriptionOption, base: &SubscriptionOption, cx: &App) -> OptionTexts {
@@ -239,6 +245,16 @@ mod tests {
             months,
             link: PaymentLink::Other,
         }
+    }
+
+    #[test]
+    fn prices_retain_minor_units_and_handle_a_zero_baseline() {
+        let monthly = option(1, i64::MAX);
+        let result = prices(&monthly, &option(1, 0));
+        assert_eq!(result.per_month, "$92,233,720,368,547,758.07");
+        assert_eq!(result.discount, 0);
+        assert_eq!(prices(&option(2, 5), &monthly).per_month, "$0.03");
+        assert_eq!(rounded_ratio(-5, 2), -3);
     }
 
     #[test]
