@@ -52,6 +52,7 @@ opus = "0.4.0"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 tdlib-rs-parser = "1.4.0"
+tempfile = "3.27.0"
 thiserror = "2.0.21"
 # Lottie (TGS) rendering, the renderer tdesktop links since its commit 6190755
 # (ADR 0007); the rev is tdesktop's pin in Telegram/build/prepare/prepare.py.

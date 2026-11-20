@@ -1,7 +1,7 @@
 //! App-wide preferences that outlive a session (`Core::Settings`), kept as
 //! JSON next to the TDLib database.
 
-use std::io::{self, Read as _};
+use std::io::{self, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 
 use gpui::{App, Global};
@@ -644,12 +644,12 @@ fn apply_theme(values: &Values, cx: &mut App) {
 fn save(path: &Path, values: &Values) -> std::io::Result<()> {
     let json = serde_json::to_vec_pretty(values).map_err(std::io::Error::other)?;
     check_size(&json)?;
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let temporary = path.with_extension("json.tmp");
-    std::fs::write(&temporary, json)?;
-    std::fs::rename(&temporary, path)
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(dir)?;
+    let mut temporary = tempfile::NamedTempFile::new_in(dir)?;
+    temporary.write_all(&json)?;
+    temporary.persist(path).map_err(|error| error.error)?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -724,7 +724,18 @@ mod tests {
             audio_speed: crate::speed::Speed::default(),
             video_speed: crate::speed::Speed::default().toggled(),
         };
+        let sibling = path.with_extension("json.tmp");
+        std::fs::write(&sibling, b"other writer").unwrap();
         save(&path, &values).expect("the temp dir is writable");
+        assert_eq!(std::fs::read(&sibling).unwrap(), b"other writer");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            assert_eq!(
+                std::fs::metadata(&path).unwrap().permissions().mode() & 0o077,
+                0
+            );
+        }
         let read = read_values(&path).expect("just written");
         assert_eq!(read, values);
         // Unknown and missing keys fall back to the defaults.
