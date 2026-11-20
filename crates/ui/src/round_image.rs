@@ -215,19 +215,36 @@ fn file_stamp(path: &Path) -> Stamp {
 
 fn load(path: &Path, side: u32) -> Loaded {
     let stamp = file_stamp(path);
-    let image = match image::open(path) {
-        Ok(decoded) => {
-            let filled = decoded
-                .resize_to_fill(side, side, FilterType::Lanczos3)
-                .to_rgba8();
-            Some(Arc::new(RenderImage::new([Frame::new(circled(&filled))])))
-        }
-        Err(error) => {
-            tracing::warn!(%error, "cannot decode a userpic");
+    let image = match load_square(path, side) {
+        Ok(filled) => Some(Arc::new(RenderImage::new([Frame::new(circled(&filled))]))),
+        Err(_) => {
+            tracing::warn!("cannot decode a userpic within the image limits");
             None
         }
     };
     Loaded { image, stamp }
+}
+
+fn load_square(path: &Path, side: u32) -> image::ImageResult<RgbaImage> {
+    const MAX_SIDE: u32 = 4096;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(MAX_SIDE);
+    limits.max_image_height = Some(MAX_SIDE);
+    limits.max_alloc = Some(64 << 20);
+    limits.check_dimensions(side, side)?;
+    let mut reader = image::ImageReader::open(path)?;
+    reader.limits(limits);
+    let mut decoded = reader.decode()?;
+    let (width, height) = (decoded.width(), decoded.height());
+    let short = width.min(height);
+    // resize_to_fill scales the long edge before cropping. A thin strip can
+    // exceed the decode budget at this step even when both input sides fit.
+    if u64::from(width.max(height)) * u64::from(side) > u64::from(short) * u64::from(MAX_SIDE) {
+        decoded = decoded.crop_imm((width - short) / 2, (height - short) / 2, short, short);
+    }
+    Ok(decoded
+        .resize_to_fill(side, side, FilterType::Lanczos3)
+        .to_rgba8())
 }
 
 /// BGRA with straight alpha, as gpui's sprites expect, and an antialiased
@@ -342,6 +359,18 @@ mod tests {
         std::fs::write(&path, b"the whole file now").expect("the scratch file is writable");
         assert!(matches!(cache.lookup(&key, now), Lookup::Start { .. }));
         std::fs::remove_file(path).expect("the scratch file exists");
+    }
+
+    #[test]
+    fn rejects_userpics_exceeding_the_dimension_budget() {
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::RgbImage::new(4097, 1)
+            .write_to(&mut png, image::ImageFormat::Png)
+            .unwrap();
+        let path = scratch_file("over-budget.png", png.get_ref());
+        let loaded = load(&path, 1);
+        std::fs::remove_file(path).unwrap();
+        assert!(loaded.image.is_none());
     }
 
     #[test]
