@@ -565,11 +565,13 @@ mod tests {
         };
         assert_eq!((info.width, info.height), (1920, 1080));
         let mut count = 0;
+        let started = Instant::now();
         loop {
             match next(&decoder) {
                 Output::Frame(frame) => {
                     assert_eq!((frame.width, frame.height), (960, 540));
                     assert_eq!(frame.pixels.len(), 960 * 540 * 4);
+                    thread::sleep(frame.position.saturating_sub(started.elapsed()));
                     count += 1;
                 }
                 Output::End => break,
