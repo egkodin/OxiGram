@@ -1,5 +1,84 @@
 # Progress
 
+## Workspace audit, 2026-11-20
+
+Reviewed the Cargo workspace, the TDLib C interface, the media decoders and
+the local GPUI patches. Codebase Memory indexed 15,766 nodes and 70,350
+edges at the start. The TL schema and the vendored patch required direct
+source inspection. The TDLib review checked the header signatures, ownership
+of returned buffers and single-receiver contract. The media review checked
+hardware device ownership and frame-transfer preconditions.
+
+| Severity | Finding and disposition |
+|---|---|
+| High | A deferred macOS resize captured an unretained native window. The callback now holds a retain until it finishes. The three local GPUI patches reproduced the checked-in source when applied to the pinned upstream revision. |
+| High | Reading settings, copying TDLib JSON and accepting compressed animations could allocate from unbounded input. Settings now have a 4 MiB limit and preserve an unreadable file. TDLib copies at most 64 MiB per response and can reject a correlated oversized reply. Both compressed and expanded animation input have an 8 MiB limit. |
+| High | History diagnostics exposed message identifiers. TDLib errors, malformed response tags and sign-in errors could expose server text. Removed the identifier output and kept raw error messages only where the UI uses them. |
+| High | “Save As” could truncate an existing document on a failed copy. It now finishes a platform-native copy in a private staging directory before replacement. Preference writes use a unique private file, so concurrent saves cannot share a scratch file. |
+| Medium | Invalid media paths and timestamps could panic. FFmpeg audio and video drains could mask decoder failures as normal completion. The media boundary validates inputs and distinguishes EOF and EAGAIN from failures. Video decoders limit coded frames to 8192 × 4320 pixels in area. Whole-file voice decoding bounds Ogg input at 128 MiB and retains the existing streaming fallback. |
+| Medium | Streaming readers from different accounts could share a download window for the same numeric file ID. Readers now share only within one TDLib client. Dropping the final reader removes its registration immediately, including when no later file update arrives. |
+| Medium | The local static FFmpeg cache lacked libvpx. The alpha fixture lost transparency with that build and passed with the pinned recipe. The packaging script now rejects the stale cache before building the app. The installed cache still needs rebuilding before packaging on this Mac. |
+| Medium | Large userpics and extreme aspect ratios could allocate oversized image buffers. Userpics now have dimension and decode limits and crop extreme inputs before resizing. Restoring invalid account settings now deduplicates IDs and respects the six-account limit. |
+| Medium | Prices beyond floating-point integer precision could display incorrect minor units. Formatting now operates on integers across the signed 64-bit range. Comparing distant TDLib message dates could overflow when grouping history bubbles. |
+| Dependency | Updating heapless and rustix cleared ten unsoundness advisories. The final lockfile scan reported zero known vulnerabilities and seven unmaintained crates. Cargo Deny passed bans, licenses and sources. Its advisory check failed on chrono (RUSTSEC-2026-0543). There is no patched chrono release for this advisory. Replacing it requires checking local-time conversion, scheduling, calendars and daylight-saving behavior across the UI. The policy still reports the failure. |
+
+The application also disables native TDLib and FFmpeg diagnostic text and
+omits panic payloads, thread names and source directories from its Rust panic
+report. A child-process test checks the emitted stderr. OS crash reports and
+third-party system services remain outside this verification.
+
+**Repository privacy.** Gitleaks scanned reachable Git history with values
+redacted. Five matches came from test/snapshot fixtures and a README setup
+example. The locally configured API hash was absent from all 4,170 blobs
+checked. These scans cannot establish the absence of all personal data or
+secrets from historical content.
+
+**Maintainability.** The currency rule table now specifies overrides from
+shared defaults. Its source shrank from 1,245 to 468 lines. An independent
+comparison found identical values for all seven rule fields across all
+95 currencies and the fallback. Subscription prices and discounts also use
+integer ratios, including the zero-baseline case.
+
+The initial inventory found 28 Rust files longer than
+800 lines, including generated assets, fixture snapshots and the style
+parser. The largest hand-written branches included chat-update dispatch
+and service-message formatting, both with cyclomatic complexity 40.
+Their branches encode distinct protocol cases. Splitting them solely on
+line count would not remove those cases. The static scan found no
+production `dbg!`, `todo!` or `unimplemented!` calls. No test was
+removed. Repeated build-script setup and long protocol dispatch functions
+remain. A wholesale lint rewrite would also touch generated code and UI
+composition. Pedantic findings remain visible.
+
+**Remaining coverage.** The per-response cap applies after TDLib creates
+its native response. The aggregate update channel remains unbounded.
+A bound needs a delivery policy that preserves account updates and lets the
+receiver route replies and shutdown. Generated bindings and upstream GPUI
+were outside the line-by-line unsafe review. Static checks cannot establish
+the allocator cost of the per-session emoji, reaction and userpic maps, which
+have no explicit entry ceiling. FFmpeg container probing precedes the video
+decoder's pixel limit. Native allocations during probing, sustained cache
+growth, hot paths and idle wakeups remain unmeasured. The partial
+release baseline is in [docs/perf.md](docs/perf.md).
+
+**Verification on macOS arm64.** All 417 workspace tests passed, including
+the TDLib lifecycle and the static FFmpeg alpha, seek and streaming tests.
+`cargo fmt --all -- --check` and the workspace's Clippy settings with
+`-D warnings` passed. A separate `-W clippy::pedantic` run completed with
+warnings. Tests and lint used `--locked --offline --workspace --all-features`
+and Clippy also used `--all-targets`. A version-only launch with runtime
+shaders printed OxiGram 0.1.0 and TDLib 1.8.69. The precompiled-shader build
+could not run the Xcode Metal compiler on this host. Linux and Windows were
+not tested. The linker warned about the SDK's obsolete QTKit stub, and Cargo
+reported an upstream future-compatibility warning for `block 0.1.6`.
+
+The checkout's `target/` fell from 7,928,068 to 2,544,908 KiB (2.43 GiB).
+The existing release app bundle was preserved. The audit moved the old debug
+cache into a disposable Cargo build directory, which reached 14 GiB during
+verification. Git metadata occupied about
+8 MiB. The audit's source fixes are separate local commits beginning at
+`ee5e17a` and ending at `33ca603`.
+
 ## Disk budget (owner's standing rule)
 
 - The git repository (.git plus tracked files) stays under 50 MB; never

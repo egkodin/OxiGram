@@ -1,5 +1,23 @@
 # Performance and memory
 
+## Release samples, 2026-11-20
+
+The installed macOS release bundle was sampled on a signed-in account
+with read receipts withheld. CPU is process CPU time divided by elapsed
+wall time, with one fully occupied core counting as 100%. RSS is resident
+memory as reported by the OS.
+
+| Activity | Sampling interval | RSS | Mean CPU |
+|---|---|---:|---:|
+| Idle chat list | 50 s | 197.2–199.5 MiB | 0.32% |
+| Video playing | 11 s | 286.4–296.3 MiB | 11.6% |
+
+The video average excludes the later samples taken with the profiler
+attached. Live work ended when the audit moved to code only. The
+5,000-message scroll, animated-emoji screen and 30-minute growth check
+have no measurements for this run. No allocation ranking or before/after
+performance claim follows from these two samples.
+
 Budgets come from the project brief. They are starting targets: M1 records a
 baseline on a real account and refines them here. A target is loosened only with
 a written justification.
@@ -11,7 +29,7 @@ Release build, macOS Apple Silicon, account with ~500 chats.
 | Metric | Target | Latest | Status |
 |---|---|---|---|
 | Cold start to interactive chat list (database present) | < 800 ms | — | M1 |
-| Idle RSS on the chat list | < 150 MB | — | M1; re-base on footprint (below) |
+| Idle RSS on the chat list | < 150 MB | 197.2–199.5 MiB | Above budget in the November 20 sample |
 | RSS after scrolling 10 media-heavy chats and returning | < 250 MB, no growth in a soak test | — | M5 |
 | History scroll frame time, p99 | < 8 ms (120 Hz) | 5.44 ms frame build, no dropped refreshes (10,000 synthetic messages, 120 Hz) | ok; real chats not measured |
 | Opening a chat to first messages (TDLib cache) | < 100 ms | — | M3 |
