@@ -8,7 +8,7 @@ use model::message::{Content, Message};
 
 /// Messages closer than this join the previous one's run
 /// (`kAttachMessageToPreviousSecondsDelta`).
-const ATTACH_SECONDS: i32 = 900;
+const ATTACH_SECONDS: u32 = 900;
 
 /// Whether `message` continues the run of `previous`: the same sender,
 /// within 15 minutes, on the same day, and neither is a service message.
@@ -16,7 +16,7 @@ pub(crate) fn is_attached<Tz: TimeZone>(previous: &Message, message: &Message, t
     !is_service(previous)
         && !is_service(message)
         && previous.sender == message.sender
-        && (message.date - previous.date).abs() < ATTACH_SECONDS
+        && message.date.abs_diff(previous.date) < ATTACH_SECONDS
         && day(previous.date, tz) == day(message.date, tz)
 }
 
@@ -188,6 +188,11 @@ mod tests {
     #[test]
     fn same_sender_within_fifteen_minutes_on_one_day_attaches() {
         let utc = Utc;
+        assert!(!is_attached(
+            &message(1, i32::MIN),
+            &message(1, i32::MAX),
+            &utc
+        ));
         let noon = 12 * 3600;
         assert!(is_attached(
             &message(1, noon),
