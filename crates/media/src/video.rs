@@ -380,12 +380,10 @@ impl Playback<'_> {
             if source.decoder.receive_frame(&mut decoded).is_err() {
                 return Ok(Flow::Go);
             }
-            #[expect(clippy::cast_precision_loss, reason = "timestamps fit an f64")]
-            let seconds = decoded.timestamp().unwrap_or(0) as f64 * source.time_base;
-            let position = Duration::from_secs_f64(seconds.max(0.0));
+            let position = frame_position(decoded.timestamp(), source.time_base)?;
             if self
                 .skip_until
-                .is_some_and(|until| position + frame_slack() < until)
+                .is_some_and(|until| position.saturating_add(frame_slack()) < until)
             {
                 continue;
             }
@@ -434,6 +432,16 @@ impl Playback<'_> {
             generation: 0,
         })
     }
+}
+
+fn frame_position(timestamp: Option<i64>, time_base: f64) -> Result<Duration, VideoError> {
+    #[expect(clippy::cast_precision_loss, reason = "FFmpeg timestamps are converted to seconds")]
+    let seconds = timestamp.unwrap_or(0) as f64 * time_base;
+    if !time_base.is_finite() || time_base <= 0.0 {
+        return Err(VideoError::Decode(ffmpeg::Error::InvalidData));
+    }
+    Duration::try_from_secs_f64(seconds.max(0.0))
+        .map_err(|_| VideoError::Decode(ffmpeg::Error::InvalidData))
 }
 
 /// Half a frame at 60 fps: a frame this close before the seek target is
@@ -498,6 +506,13 @@ mod tests {
     use super::*;
     use std::sync::Arc;
     use std::time::Instant;
+
+    #[test]
+    fn frame_positions_handle_preroll_and_invalid_time_bases() {
+        assert_eq!(frame_position(Some(-1), 1.0).unwrap(), Duration::ZERO);
+        assert!(frame_position(Some(i64::MAX), 4.0).is_err());
+        assert!(frame_position(None, f64::NAN).is_err());
+    }
 
     const CLIP: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/clip.mp4");
     /// 64x64 VP9 with alpha: clear but for an opaque red square in the middle.
