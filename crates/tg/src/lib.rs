@@ -372,6 +372,17 @@ mod tests {
 
     #[test]
     fn stalled_account_keeps_order_without_delaying_another_reply_or_close() {
+        let (done, finished) = std::sync::mpsc::channel();
+        thread::spawn(move || {
+            dispatch_with_a_stalled_account();
+            done.send(()).unwrap();
+        });
+        finished
+            .recv_timeout(Duration::from_secs(5))
+            .expect("routing failed or waited for the stalled account");
+    }
+
+    fn dispatch_with_a_stalled_account() {
         let (slow, slow_updates) = mpsc::unbounded();
         let (other, other_updates) = mpsc::unbounded();
         let (reply, response) = oneshot::channel();
