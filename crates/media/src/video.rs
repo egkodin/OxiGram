@@ -20,6 +20,8 @@ use crate::stream::{Signal, Stream};
 
 /// Frames decoded ahead of the one on screen (tdesktop keeps a few too).
 const QUEUE: usize = 2;
+/// Maximum coded image area, including cinema 8K.
+const MAX_FRAME_PIXELS: u32 = 8192 * 4320;
 
 #[derive(Debug, thiserror::Error)]
 pub enum VideoError {
@@ -230,13 +232,13 @@ impl Source {
         } else {
             Decoding::Hardware
         };
-        let decoder = match open_decoder(&stream, first) {
+        let decoder = match open_decoder(&stream, first, MAX_FRAME_PIXELS) {
             Ok(decoder) => decoder,
             Err(error) => {
                 if first == Decoding::Alpha {
                     tracing::warn!(%error, "no libvpx: the video loses its alpha");
                 }
-                open_decoder(&stream, Decoding::Software)?
+                open_decoder(&stream, Decoding::Software, MAX_FRAME_PIXELS)?
             }
         };
         let duration =
@@ -261,6 +263,7 @@ impl Source {
 fn open_decoder(
     stream: &ffmpeg::format::stream::Stream<'_>,
     decoding: Decoding,
+    max_pixels: u32,
 ) -> Result<decoder::Video, VideoError> {
     let mut context =
         codec::Context::from_parameters(stream.parameters()).map_err(VideoError::Open)?;
@@ -271,14 +274,17 @@ fn open_decoder(
         kind: threading::Type::Frame,
         ..threading::Config::default()
     });
-    if decoding != Decoding::Alpha {
-        return context.decoder().video().map_err(VideoError::Open);
+    let codec = if decoding == Decoding::Alpha {
+        decoder::find_by_name(ALPHA_DECODER)
+    } else {
+        context.codec().or_else(|| decoder::find(context.id()))
     }
-    let codec = decoder::find_by_name(ALPHA_DECODER)
-        .ok_or(VideoError::Open(ffmpeg::Error::DecoderNotFound))?;
+    .ok_or(VideoError::Open(ffmpeg::Error::DecoderNotFound))?;
+    let mut options = ffmpeg::Dictionary::new();
+    options.set("max_pixels", &max_pixels.to_string());
     context
         .decoder()
-        .open_as(codec)
+        .open_as_with(codec, options)
         .and_then(decoder::Opened::video)
         .map_err(VideoError::Open)
 }
@@ -547,6 +553,27 @@ mod tests {
             Output::Frame(frame) => frame,
             other => panic!("expected a frame, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn a_decoder_rejects_frames_above_its_pixel_budget() {
+        ffmpeg::init().unwrap();
+        let mut input = Origin::Path(CLIP.into()).open().unwrap();
+        let stream = input.streams().best(media::Type::Video).unwrap();
+        let index = stream.index();
+        let Ok(mut decoder) = open_decoder(&stream, Decoding::Software, 32 * 32) else {
+            return;
+        };
+        for (stream, packet) in input.packets() {
+            if stream.index() == index && decoder.send_packet(&packet).is_err() {
+                return;
+            }
+            assert!(decoder.receive_frame(&mut frame::Video::empty()).is_err());
+        }
+        assert!(
+            decoder.send_eof().is_err()
+                || decoder.receive_frame(&mut frame::Video::empty()).is_err()
+        );
     }
 
     #[test]
