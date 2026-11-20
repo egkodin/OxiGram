@@ -3,7 +3,7 @@
 
 use std::collections::HashMap;
 use std::future::Future;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use gpui::{App, Context, EventEmitter, Task};
 use model::file::File;
@@ -36,9 +36,7 @@ pub struct Store {
     forwarding: HashMap<ChatId, Forwarding>,
     /// Userpics asked for: how many tries, and whether one is running.
     userpics: HashMap<FileId, Userpic>,
-    /// Emoji pictures asked for this run: None while they load or when
-    /// Telegram has none.
-    emoji: HashMap<EmojiKey, Option<Emoji>>,
+    emoji: EmojiCache,
     /// Emoji reactions' animations asked for this run, by emoji.
     reaction_animations: HashMap<String, Option<ReactionAnimations>>,
 }
@@ -58,6 +56,75 @@ pub enum EmojiKey {
     Custom(CustomEmojiId),
     /// A lone emoji's big version (`getAnimatedEmoji`).
     Animated(String),
+}
+
+const EMOJI_CAPACITY: usize = 4096;
+const EMOJI_RETAIN: usize = 3072;
+const EMOJI_KEEP: Duration = Duration::from_secs(1);
+
+#[derive(Debug, Default)]
+struct EmojiCache {
+    entries: HashMap<EmojiKey, EmojiEntry>,
+    last_trim: Option<Instant>,
+}
+
+#[derive(Debug)]
+enum EmojiEntry {
+    Loading,
+    Ready {
+        value: Option<Box<Emoji>>,
+        used: Instant,
+    },
+}
+
+impl EmojiCache {
+    /// A miss reserves a fetch. A known entry can still be loading or empty.
+    fn lookup(&mut self, key: &EmojiKey, now: Instant) -> Option<Option<Emoji>> {
+        match self.entries.get_mut(key) {
+            Some(EmojiEntry::Ready { value, used }) => {
+                *used = now;
+                Some(value.as_deref().cloned())
+            }
+            Some(EmojiEntry::Loading) => Some(None),
+            None => {
+                self.entries.insert(key.clone(), EmojiEntry::Loading);
+                None
+            }
+        }
+    }
+
+    fn finish(&mut self, key: EmojiKey, value: Option<Emoji>, now: Instant) {
+        self.entries.insert(
+            key,
+            EmojiEntry::Ready {
+                value: value.map(Box::new),
+                used: now,
+            },
+        );
+        if self.entries.len() <= EMOJI_CAPACITY
+            || self
+                .last_trim
+                .is_some_and(|last| now.duration_since(last) < EMOJI_KEEP)
+        {
+            return;
+        }
+        self.last_trim = Some(now);
+        let mut cold: Vec<_> = self
+            .entries
+            .iter()
+            .filter_map(|(key, entry)| match entry {
+                EmojiEntry::Ready { used, .. } if now.duration_since(*used) >= EMOJI_KEEP => {
+                    Some((key.clone(), *used))
+                }
+                _ => None,
+            })
+            .collect();
+        cold.sort_unstable_by_key(|(_, used)| *used);
+        for (key, _) in cold.into_iter().take(self.entries.len() - EMOJI_RETAIN) {
+            self.entries.remove(&key);
+        }
+        self.entries.shrink_to(EMOJI_CAPACITY);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -109,7 +176,7 @@ impl Store {
             environment,
             forwarding: HashMap::new(),
             userpics: HashMap::new(),
-            emoji: HashMap::new(),
+            emoji: EmojiCache::default(),
             reaction_animations: HashMap::new(),
         }
     }
@@ -152,7 +219,6 @@ impl Store {
 
     /// The path of an emoji's picture once on disk; the first ask fetches
     /// it, and views draw again when it lands.
-    // shortcut: one request per emoji and no retry; batch ids and retry when long reaction lists or a flaky network show gaps.
     pub fn emoji_picture(&mut self, key: &EmojiKey, cx: &mut Context<Self>) -> Option<String> {
         self.emoji(key, cx)?.still
     }
@@ -173,21 +239,26 @@ impl Store {
     }
 
     fn emoji(&mut self, key: &EmojiKey, cx: &mut Context<Self>) -> Option<Emoji> {
-        if let Some(known) = self.emoji.get(key) {
-            return known.clone();
+        if let Some(known) = self.emoji.lookup(key, Instant::now()) {
+            return known;
         }
-        self.emoji.insert(key.clone(), None);
         let task = spawn(fetch_emoji(self.session.clone(), key.clone()), cx);
         let key = key.clone();
-        cx.spawn(async move |this, cx| match task.await {
-            Ok(Some(emoji)) => {
-                let _ = this.update(cx, |this, cx| {
-                    this.emoji.insert(key, Some(emoji));
+        cx.spawn(async move |this, cx| {
+            let emoji = match task.await {
+                Ok(emoji) => emoji,
+                Err(error) => {
+                    tracing::warn!(%error, "loading an emoji picture failed");
+                    None
+                }
+            };
+            let _ = this.update(cx, |this, cx| {
+                let loaded = emoji.is_some();
+                this.emoji.finish(key, emoji, Instant::now());
+                if loaded {
                     cx.notify();
-                });
-            }
-            Ok(None) => {}
-            Err(error) => tracing::warn!(%error, "loading an emoji picture failed"),
+                }
+            });
         })
         .detach();
         None
@@ -390,6 +461,143 @@ pub fn spawn<T: Send + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "offline memory measurement"]
+    fn offline_account_cache_workload() {
+        let file = |id| File {
+            id: FileId(id),
+            path: Some(format!(
+                "/synthetic/account1/cache/thumbnails/photo-{id:08}.webp"
+            )),
+            is_downloading: false,
+            downloaded: 512,
+            size: 512,
+            uploaded: 512,
+            is_uploading: false,
+            prefix: Default::default(),
+        };
+        let mut emoji = EmojiCache::default();
+        let start = Instant::now();
+        for id in 0..10_000 {
+            let key = EmojiKey::Custom(CustomEmojiId(i64::from(id)));
+            let still = file(id + 10_000);
+            let now = start + Duration::from_millis(u64::try_from(id).unwrap() * 30);
+            assert!(emoji.lookup(&key, now).is_none());
+            emoji.finish(
+                key,
+                Some(Emoji {
+                    still: still.path.clone(),
+                    sticker: StickerPicture {
+                        kind: StickerKind::Animated,
+                        dimensions: None,
+                        file: file(id),
+                        still: Some(still),
+                        premium_effect: None,
+                        skin_tone: None,
+                        set: None,
+                    },
+                }),
+                now,
+            );
+        }
+        let mut reactions = HashMap::new();
+        for id in 0..128 {
+            reactions.insert(
+                format!("reaction-{id}"),
+                Some(ReactionAnimations {
+                    appear: Some(file(id)),
+                    center: Some(file(id)),
+                    around: Some(file(id)),
+                }),
+            );
+        }
+        let mut userpics = HashMap::new();
+        for id in 0..50_000 {
+            let mut userpic = Userpic::default();
+            assert!(userpic.start().is_some());
+            userpics.insert(FileId(id), userpic);
+        }
+        let file_path_capacity = |file: &File| file.path.as_ref().map_or(0, String::capacity);
+        measure(
+            &emoji.entries,
+            emoji
+                .entries
+                .values()
+                .filter_map(|entry| match entry {
+                    EmojiEntry::Ready { value, .. } => value.as_deref(),
+                    EmojiEntry::Loading => None,
+                })
+                .map(|emoji| {
+                    size_of::<Emoji>()
+                        + emoji.still.as_ref().map_or(0, String::capacity)
+                        + file_path_capacity(&emoji.sticker.file)
+                        + emoji
+                            .sticker
+                            .still
+                            .iter()
+                            .map(file_path_capacity)
+                            .sum::<usize>()
+                })
+                .sum(),
+            "emoji",
+        );
+        assert!(emoji.entries.len() <= EMOJI_CAPACITY);
+        measure(
+            &reactions,
+            reactions
+                .iter()
+                .map(|(name, animations)| {
+                    let animations = animations.as_ref().expect("synthetic reaction is loaded");
+                    name.capacity()
+                        + [&animations.appear, &animations.center, &animations.around]
+                            .into_iter()
+                            .flatten()
+                            .map(file_path_capacity)
+                            .sum::<usize>()
+                })
+                .sum(),
+            "reactions",
+        );
+        measure(&userpics, 0, "userpic download tracking");
+    }
+
+    fn measure<K, V>(map: &HashMap<K, V>, payload_bytes: usize, label: &str) {
+        let slot_bytes = map.capacity() * size_of::<(K, V)>();
+        eprintln!(
+            "{label}: {} entries, {} bytes in usable slots and owned payloads",
+            map.len(),
+            slot_bytes + payload_bytes
+        );
+    }
+
+    #[test]
+    fn emoji_cache_keeps_recent_and_pending_entries_and_fetches_evicted_ones_again() {
+        let mut emoji = EmojiCache::default();
+        let start = Instant::now();
+        let cold = EmojiKey::Animated("❄️".to_owned());
+        let hot = EmojiKey::Animated("🔥".to_owned());
+        let pending = EmojiKey::Animated("⌛".to_owned());
+        for key in [&cold, &hot] {
+            assert!(emoji.lookup(key, start).is_none());
+            emoji.finish(key.clone(), None, start);
+        }
+        assert!(emoji.lookup(&pending, start).is_none());
+        assert!(matches!(emoji.lookup(&pending, start), Some(None)));
+        let now = start + EMOJI_KEEP;
+        assert!(matches!(emoji.lookup(&hot, now), Some(None)));
+        for id in 0..EMOJI_CAPACITY {
+            let key = EmojiKey::Custom(CustomEmojiId(i64::try_from(id).unwrap()));
+            assert!(emoji.lookup(&key, now).is_none());
+            emoji.finish(key, None, now);
+        }
+        assert!(matches!(emoji.lookup(&hot, now), Some(None)));
+        assert!(matches!(emoji.lookup(&pending, now), Some(None)));
+        emoji.finish(pending, None, now);
+        assert!(emoji.lookup(&cold, now).is_none());
+        emoji.finish(cold.clone(), None, now);
+        assert!(matches!(emoji.lookup(&cold, now), Some(None)));
+    }
 
     #[test]
     fn a_userpic_is_tried_three_times_with_growing_pauses() {
