@@ -556,6 +556,30 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "offline RSS measurement requiring a generated local fixture"]
+    fn offline_video_rss_workload() {
+        let clip = std::env::var_os("OXIGRAM_OFFLINE_CLIP").expect("path to a local 1080p fixture");
+        let decoder = VideoDecoder::open(Path::new(&clip), (960, 540)).unwrap();
+        let Output::Info(info) = next(&decoder) else {
+            panic!("the info comes first");
+        };
+        assert_eq!((info.width, info.height), (1920, 1080));
+        let mut count = 0;
+        loop {
+            match next(&decoder) {
+                Output::Frame(frame) => {
+                    assert_eq!((frame.width, frame.height), (960, 540));
+                    assert_eq!(frame.pixels.len(), 960 * 540 * 4);
+                    count += 1;
+                }
+                Output::End => break,
+                other => panic!("unexpected {other:?}"),
+            }
+        }
+        assert_eq!(count, 240);
+    }
+
+    #[test]
     fn a_decoder_rejects_frames_above_its_pixel_budget() {
         ffmpeg::init().unwrap();
         let mut input = Origin::Path(CLIP.into()).open().unwrap();
