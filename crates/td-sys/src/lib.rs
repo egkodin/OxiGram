@@ -15,6 +15,8 @@ use std::marker::PhantomData;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+// SAFETY: signatures match td_json_client.h in the pinned TDLib. Creating an
+// ID takes no pointers and is thread-safe. The other calls stay private.
 unsafe extern "C" {
     safe fn td_create_client_id() -> c_int;
     fn td_send(client_id: c_int, request: *const c_char);
