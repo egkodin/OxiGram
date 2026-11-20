@@ -37,6 +37,7 @@ const SILENT_VAR: &str = "RGRAM_SILENT";
 const SETTINGS_FILE: &str = "settings.json";
 
 fn main() -> anyhow::Result<()> {
+    install_panic_hook();
     init_logging()?;
     tg::execute(&SetLogStream {
         log_stream: Box::new(LogStream::Empty(LogStreamEmpty {})),
@@ -177,6 +178,24 @@ fn print_version() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn install_panic_hook() {
+    // A panic payload or thread name can contain message text or a local path.
+    std::panic::set_hook(Box::new(|info| {
+        use std::io::Write as _;
+        let mut stderr = std::io::stderr().lock();
+        if let Some(location) = info.location() {
+            let name = location
+                .file()
+                .rsplit(['/', '\\'])
+                .next()
+                .unwrap_or("unknown");
+            let _ = writeln!(stderr, "OxiGram panicked at {name}:{}", location.line());
+        } else {
+            let _ = writeln!(stderr, "OxiGram panicked");
+        }
+    }));
+}
+
 fn init_logging() -> anyhow::Result<()> {
     let filter = EnvFilter::builder()
         .with_default_directive(LevelFilter::INFO.into())
@@ -253,5 +272,31 @@ impl Render for Notice {
                 cx,
             ))
             .child(notice)
+    }
+}
+
+#[cfg(test)]
+mod panic_tests {
+    #[test]
+    fn diagnostic_omits_panic_payload() {
+        const CHILD: &str = "OXIGRAM_PANIC_HOOK_TEST_CHILD";
+        if std::env::var_os(CHILD).is_some() {
+            super::install_panic_hook();
+            panic!("private fixture payload");
+        }
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "panic_tests::diagnostic_omits_panic_payload",
+                "--nocapture",
+            ])
+            .env(CHILD, "1")
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("OxiGram panicked at main.rs:"));
+        assert!(!stderr.contains("private fixture payload"));
+        assert!(!stderr.contains(env!("CARGO_MANIFEST_DIR")));
     }
 }
