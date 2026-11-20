@@ -43,10 +43,7 @@ impl Route {
             extra: Option<u64>,
         }
         let envelope: Envelope = serde_json::from_str(object).ok()?;
-        tracing::warn!(
-            object = type_name(object),
-            "TDLib object layout changed; routed by a full parse"
-        );
+        tracing::warn!("TDLib object layout changed; routed by a full parse");
         Some(Self {
             client: ClientId(envelope.client?),
             extra: envelope.extra,
@@ -54,7 +51,7 @@ impl Route {
     }
 }
 
-/// The `@type` of an object, for logs. Never returns field values.
+/// Reads the leading `@type` field in TDLib's compact JSON.
 pub(crate) fn type_name(object: &str) -> &str {
     object
         .strip_prefix(r#"{"@type":""#)

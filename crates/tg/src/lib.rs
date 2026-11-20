@@ -259,10 +259,7 @@ impl Shared {
     /// Routes one object from `td_receive`.
     fn dispatch(&self, object: &str) {
         let Some(route) = Route::of(object) else {
-            tracing::warn!(
-                object = route::type_name(object),
-                "dropping object without @client_id"
-            );
+            tracing::warn!("dropping TDLib object without @client_id");
             return;
         };
         match route.extra {
@@ -285,7 +282,6 @@ impl Shared {
             Ok(update) => update,
             Err(error) => {
                 tracing::warn!(
-                    update = route::type_name(object),
                     error = %DecodeError::from(&error),
                     "dropping undecodable update"
                 );
