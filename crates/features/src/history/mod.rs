@@ -419,7 +419,6 @@ impl HistoryView {
             .then(|| history.older_page())
             .flatten()
             .or_else(|| near_bottom.then(|| history.newer_page()).flatten());
-        tracing::debug!(count, near_top, near_bottom, ?page, "history preload");
         if let Some(page) = page {
             self.load(page, cx);
         }
@@ -442,7 +441,6 @@ impl HistoryView {
                 this.loading = None;
                 match result {
                     Ok(messages) => this.store.update(cx, |store, cx| {
-                        tracing::debug!(?page, count = messages.len(), "history page loaded");
                         store.add_history_page(key, page, messages, cx);
                     }),
                     Err(error) => tracing::warn!(%error, "loading history failed"),
