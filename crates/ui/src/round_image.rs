@@ -19,6 +19,10 @@ use image::{Frame, RgbaImage, imageops::FilterType};
 
 /// Prepared images kept: a few screens of chat list and history userpics.
 const CAPACITY: usize = 512;
+/// Pixel buffers only. The atlas has its own storage for the same images.
+const PIXEL_BUDGET: usize = 24_000_000;
+/// Keep the visible working set even when it temporarily exceeds the budget.
+const KEEP: Duration = Duration::from_secs(1);
 /// The wait before decoding a failed file again, doubling up to the cap.
 const FIRST_RETRY: Duration = Duration::from_secs(2);
 const MAX_RETRY: Duration = Duration::from_secs(60);
@@ -47,6 +51,16 @@ struct Entry {
     slot: Slot,
     /// Interior, so a cache hit while drawing needs no `&mut` global.
     last_used: Cell<u64>,
+    touched_at: Cell<Instant>,
+}
+
+impl Slot {
+    fn pixel_bytes(&self) -> usize {
+        match self {
+            Self::Ready(image) => image.as_bytes(0).expect("userpics have one frame").len(),
+            _ => 0,
+        }
+    }
 }
 
 /// What a lookup found.
@@ -70,6 +84,7 @@ struct RoundImages {
     entries: HashMap<Key, Entry>,
     clock: Cell<u64>,
     capacity: usize,
+    pixel_bytes: usize,
 }
 
 impl Default for RoundImages {
@@ -86,6 +101,7 @@ impl RoundImages {
             entries: HashMap::new(),
             clock: Cell::new(0),
             capacity,
+            pixel_bytes: 0,
         }
     }
 
@@ -100,6 +116,7 @@ impl RoundImages {
             return Lookup::Start { wait: FIRST_RETRY };
         };
         entry.last_used.set(self.tick());
+        entry.touched_at.set(now);
         match &entry.slot {
             Slot::Loading { .. } => Lookup::Wait,
             Slot::Ready(image) => Lookup::Ready(image.clone()),
@@ -118,12 +135,15 @@ impl RoundImages {
         }
     }
 
-    fn start(&mut self, key: Key, wait: Duration) {
+    fn start(&mut self, key: Key, wait: Duration, now: Instant) {
         let entry = Entry {
             slot: Slot::Loading { wait },
             last_used: Cell::new(self.tick()),
+            touched_at: Cell::new(now),
         };
-        self.entries.insert(key, entry);
+        if let Some(previous) = self.entries.insert(key, entry) {
+            self.pixel_bytes -= previous.slot.pixel_bytes();
+        }
     }
 
     /// Stores a decode's result and evicts the least recently drawn images
@@ -139,9 +159,8 @@ impl RoundImages {
             // Evicted while it loaded; the image was never drawn.
             return;
         };
-        let wait = match entry.slot {
-            Slot::Loading { wait } => wait,
-            _ => FIRST_RETRY,
+        let Slot::Loading { wait } = entry.slot else {
+            return;
         };
         entry.slot = match loaded.image {
             Some(image) => Slot::Ready(image),
@@ -151,23 +170,35 @@ impl RoundImages {
                 stamp: loaded.stamp,
             },
         };
-        while self.entries.len() > self.capacity {
+        entry.touched_at.set(now);
+        self.pixel_bytes += entry.slot.pixel_bytes();
+        self.evict(now, PIXEL_BUDGET, &mut free);
+    }
+
+    fn evict(&mut self, now: Instant, budget: usize, mut free: impl FnMut(Arc<RenderImage>)) {
+        while self.entries.len() > self.capacity || self.pixel_bytes > budget {
+            let over_capacity = self.entries.len() > self.capacity;
             // Loading entries stay, so a decode in flight is never repeated.
             let oldest = self
                 .entries
                 .iter()
-                .filter(|(_, entry)| !matches!(entry.slot, Slot::Loading { .. }))
+                .filter(|(_, entry)| match entry.slot {
+                    Slot::Loading { .. } => false,
+                    Slot::Failed { .. } => over_capacity,
+                    Slot::Ready(_) => {
+                        over_capacity || now.duration_since(entry.touched_at.get()) >= KEEP
+                    }
+                })
                 .min_by_key(|(_, entry)| entry.last_used.get())
                 .map(|(key, _)| key.clone());
             let Some(oldest) = oldest else {
                 break;
             };
-            if let Some(Entry {
-                slot: Slot::Ready(image),
-                ..
-            }) = self.entries.remove(&oldest)
-            {
-                free(image);
+            if let Some(entry) = self.entries.remove(&oldest) {
+                self.pixel_bytes -= entry.slot.pixel_bytes();
+                if let Slot::Ready(image) = entry.slot {
+                    free(image);
+                }
             }
         }
     }
@@ -177,17 +208,19 @@ impl RoundImages {
 /// circle; `None` while it decodes in the background or after it failed.
 pub(crate) fn round_file(path: &Path, side: u32, cx: &mut App) -> Option<Arc<RenderImage>> {
     let key = (path.to_path_buf(), side);
+    let now = Instant::now();
     let found = cx
         .try_global::<RoundImages>()
         .map_or(Lookup::Start { wait: FIRST_RETRY }, |cache| {
-            cache.lookup(&key, Instant::now())
+            cache.lookup(&key, now)
         });
     let wait = match found {
         Lookup::Ready(image) => return Some(image),
         Lookup::Wait => return None,
         Lookup::Start { wait } => wait,
     };
-    cx.default_global::<RoundImages>().start(key.clone(), wait);
+    cx.default_global::<RoundImages>()
+        .start(key.clone(), wait, now);
     let file = key.0.clone();
     let decode = cx
         .background_executor()
@@ -292,6 +325,49 @@ mod tests {
         Loaded { image: None, stamp }
     }
 
+    #[test]
+    #[ignore = "offline memory measurement"]
+    fn offline_userpic_cache_workload() {
+        let mut cache = RoundImages::default();
+        let start = Instant::now();
+        let mut peak = 0;
+        for id in 0..2000 {
+            let side = 160;
+            let key = (PathBuf::from(format!("avatar-{id}")), side);
+            let now = start + Duration::from_millis(id * 30);
+            let pixels = RgbaImage::from_pixel(side, side, image::Rgba([30, 20, 10, 255]));
+            cache.start(key.clone(), FIRST_RETRY, now);
+            cache.finish(
+                key,
+                Loaded {
+                    image: Some(Arc::new(RenderImage::new([Frame::new(pixels)]))),
+                    stamp: None,
+                },
+                now,
+                |_| {},
+            );
+            peak = peak.max(decoded_bytes(&cache));
+        }
+        eprintln!(
+            "userpics: {} entries, {} retained pixel bytes, {peak} peak retained pixel bytes",
+            cache.entries.len(),
+            decoded_bytes(&cache)
+        );
+        assert!(peak <= PIXEL_BUDGET);
+        assert_eq!(cache.pixel_bytes, decoded_bytes(&cache));
+    }
+
+    fn decoded_bytes(cache: &RoundImages) -> usize {
+        cache
+            .entries
+            .values()
+            .map(|entry| match &entry.slot {
+                Slot::Ready(image) => image.as_bytes(0).expect("userpics have one frame").len(),
+                _ => 0,
+            })
+            .sum()
+    }
+
     /// A file of its own in the temp folder with `bytes`.
     fn scratch_file(name: &str, bytes: &[u8]) -> PathBuf {
         let path = std::env::temp_dir().join(format!("rgram-round-{}-{name}", std::process::id()));
@@ -305,13 +381,13 @@ mod tests {
         let now = Instant::now();
         let (a, b, c) = (image(), image(), image());
         for (name, image) in [("a", &a), ("b", &b)] {
-            cache.start(key(name), FIRST_RETRY);
+            cache.start(key(name), FIRST_RETRY, now);
             cache.finish(key(name), ready(image), now, |_| panic!("under capacity"));
         }
         // Drawing `a` again leaves `b` the oldest.
         assert!(matches!(cache.lookup(&key("a"), now), Lookup::Ready(_)));
         let mut freed = Vec::new();
-        cache.start(key("c"), FIRST_RETRY);
+        cache.start(key("c"), FIRST_RETRY, now);
         cache.finish(key("c"), ready(&c), now, |image| freed.push(image));
         assert_eq!(freed.len(), 1);
         assert!(Arc::ptr_eq(&freed[0], &b), "the freed image is b's");
@@ -322,11 +398,52 @@ mod tests {
     }
 
     #[test]
+    fn pixel_pressure_preserves_an_active_userpic_and_reloads_an_evicted_one() {
+        let mut png = std::io::Cursor::new(Vec::new());
+        RgbaImage::from_pixel(2, 2, image::Rgba([200, 100, 50, 255]))
+            .write_to(&mut png, image::ImageFormat::Png)
+            .unwrap();
+        let path = scratch_file("eviction.png", png.get_ref());
+        let cold = (path.clone(), 2);
+        let hot = key("hot");
+        let mut cache = RoundImages::default();
+        let start = Instant::now();
+        cache.start(cold.clone(), FIRST_RETRY, start);
+        cache.finish(cold.clone(), load(&path, 2), start, |_| {});
+        let Lookup::Ready(original) = cache.lookup(&cold, start) else {
+            panic!("the fixture must decode");
+        };
+        cache.start(hot.clone(), FIRST_RETRY, start);
+        let hot_image = image();
+        cache.finish(hot.clone(), ready(&hot_image), start, |_| {});
+
+        let now = start + KEEP;
+        assert!(matches!(cache.lookup(&hot, now), Lookup::Ready(_)));
+        let mut freed = Vec::new();
+        cache.evict(now, 4, |image| freed.push(image));
+        assert_eq!(freed.len(), 1);
+        assert!(Arc::ptr_eq(&freed[0], &original));
+        assert_eq!(cache.pixel_bytes, 4);
+        assert!(matches!(cache.lookup(&hot, now), Lookup::Ready(_)));
+        let Lookup::Start { wait } = cache.lookup(&cold, now) else {
+            panic!("eviction must leave the image reloadable");
+        };
+        cache.start(cold.clone(), wait, now);
+        cache.finish(cold.clone(), load(&path, 2), now, |_| {});
+        std::fs::remove_file(path).unwrap();
+        let Lookup::Ready(reloaded) = cache.lookup(&cold, now) else {
+            panic!("the evicted userpic must decode again");
+        };
+        assert_ne!(reloaded.id, original.id);
+        assert_eq!(reloaded.as_bytes(0), original.as_bytes(0));
+    }
+
+    #[test]
     fn keeps_decodes_in_flight_over_capacity() {
         let mut cache = RoundImages::with_capacity(1);
         let now = Instant::now();
-        cache.start(key("loading"), FIRST_RETRY);
-        cache.start(key("a"), FIRST_RETRY);
+        cache.start(key("loading"), FIRST_RETRY, now);
+        cache.start(key("a"), FIRST_RETRY, now);
         cache.finish(key("a"), ready(&image()), now, |_| {});
         assert!(matches!(cache.lookup(&key("loading"), now), Lookup::Wait));
     }
@@ -337,7 +454,7 @@ mod tests {
         let key = (path.clone(), 46);
         let mut cache = RoundImages::with_capacity(4);
         let now = Instant::now();
-        cache.start(key.clone(), FIRST_RETRY);
+        cache.start(key.clone(), FIRST_RETRY, now);
         cache.finish(key.clone(), failed(file_stamp(&path)), now, |_| {});
         assert!(matches!(cache.lookup(&key, now), Lookup::Wait));
         let due = now + FIRST_RETRY;
@@ -354,7 +471,7 @@ mod tests {
         let key = (path.clone(), 46);
         let mut cache = RoundImages::with_capacity(4);
         let now = Instant::now();
-        cache.start(key.clone(), FIRST_RETRY);
+        cache.start(key.clone(), FIRST_RETRY, now);
         cache.finish(key.clone(), failed(file_stamp(&path)), now, |_| {});
         std::fs::write(&path, b"the whole file now").expect("the scratch file is writable");
         assert!(matches!(cache.lookup(&key, now), Lookup::Start { .. }));
