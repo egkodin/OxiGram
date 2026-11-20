@@ -38,7 +38,14 @@ impl Origin {
     /// a few seconds of the file's rate.
     pub(crate) fn open(self) -> Result<Input, ffmpeg::Error> {
         match self {
-            Self::Path(path) => ffmpeg::format::input(&path),
+            Self::Path(path) => {
+                // ffmpeg-next's path adapter unwraps both UTF-8 and CString conversion.
+                let path = path
+                    .to_str()
+                    .filter(|s| !s.as_bytes().contains(&0))
+                    .ok_or(ffmpeg::Error::InvalidData)?;
+                ffmpeg::format::input(path)
+            }
             Self::Stream(stream) => {
                 let (signal, size) = (stream.signal().clone(), stream.size());
                 let io = StreamIo::from_read_seek_with_capacity(stream, IO_BUFFER)?;
@@ -71,6 +78,15 @@ fn read_ahead(size: u64, duration: Duration) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_path_that_cannot_be_passed_to_ffmpeg_returns_an_error() {
+        assert!(
+            Origin::Path(PathBuf::from("test\0clip.mp4"))
+                .open()
+                .is_err()
+        );
+    }
 
     #[test]
     fn read_ahead_is_a_few_seconds_within_bounds() {
