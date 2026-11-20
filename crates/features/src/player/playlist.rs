@@ -39,6 +39,25 @@ pub(crate) enum Step {
     Next,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum Repeat {
+    #[default]
+    Off,
+    One,
+    All,
+}
+
+impl Repeat {
+    pub(crate) fn cycle(self) -> Self {
+        match self {
+            Self::Off => Self::One,
+            Self::One => Self::All,
+            Self::All => Self::Off,
+        }
+    }
+}
+
 /// The history's loaded songs when one starts, then the chat's shared
 /// music around it once that arrives.
 #[derive(Debug)]
@@ -51,18 +70,38 @@ pub(crate) struct Playlist {
 
 impl Playlist {
     /// The song a `step` away from `message`; none past either end.
-    pub(crate) fn neighbour(&self, message: MessageId, step: Step) -> Option<&Song> {
-        neighbour(&self.songs, message, step)
+    pub(crate) fn neighbour(
+        &self,
+        message: MessageId,
+        step: Step,
+        repeat: Repeat,
+    ) -> Option<&Song> {
+        neighbour(&self.songs, message, step, repeat)
+    }
+
+    pub(super) fn after_end(&self, message: MessageId, repeat: Repeat) -> Option<&Song> {
+        after_end(&self.songs, message, repeat)
     }
 }
 
-fn neighbour(songs: &[Song], message: MessageId, step: Step) -> Option<&Song> {
+fn after_end(songs: &[Song], message: MessageId, repeat: Repeat) -> Option<&Song> {
+    if repeat == Repeat::One {
+        return songs.iter().find(|song| song.message == message);
+    }
+    neighbour(songs, message, Step::Next, repeat)
+}
+
+fn neighbour(songs: &[Song], message: MessageId, step: Step, repeat: Repeat) -> Option<&Song> {
     let index = songs.iter().position(|song| song.message == message)?;
-    let target = match step {
-        Step::Previous => index.checked_sub(1)?,
-        Step::Next => index + 1,
+    let song = match step {
+        Step::Previous => index.checked_sub(1).and_then(|index| songs.get(index)),
+        Step::Next => songs.get(index + 1),
     };
-    songs.get(target)
+    song.or_else(|| match (repeat, step) {
+        (Repeat::All, Step::Previous) => songs.last(),
+        (Repeat::All, Step::Next) => songs.first(),
+        _ => None,
+    })
 }
 
 #[cfg(test)]
@@ -84,7 +123,7 @@ mod tests {
     }
 
     fn at(songs: &[Song], message: i64, step: Step) -> Option<i64> {
-        neighbour(songs, MessageId(message), step).map(|song| song.message.0)
+        neighbour(songs, MessageId(message), step, Repeat::Off).map(|song| song.message.0)
     }
 
     #[test]
@@ -95,5 +134,42 @@ mod tests {
         assert_eq!(at(&songs, 30, Step::Next), None);
         assert_eq!(at(&songs, 10, Step::Previous), None);
         assert_eq!(at(&songs, 15, Step::Next), None);
+    }
+
+    #[test]
+    fn repeat_all_wraps_a_known_playlist_in_both_directions() {
+        let songs = songs(&[10, 20, 30]);
+        let at = |id, step| {
+            neighbour(&songs, MessageId(id), step, Repeat::All).map(|song| song.message.0)
+        };
+        assert_eq!(at(30, Step::Next), Some(10));
+        assert_eq!(at(10, Step::Previous), Some(30));
+        assert_eq!(at(20, Step::Next), Some(30));
+        assert_eq!(at(15, Step::Next), None);
+        assert_eq!(
+            after_end(&songs, MessageId(30), Repeat::All).map(|song| song.message),
+            Some(MessageId(10))
+        );
+        assert!(after_end(&songs, MessageId(30), Repeat::Off).is_none());
+    }
+
+    #[test]
+    fn repeat_one_applies_to_natural_completion_only() {
+        let songs = songs(&[10, 20, 30]);
+        assert_eq!(
+            after_end(&songs, MessageId(20), Repeat::One)
+                .unwrap()
+                .message,
+            MessageId(20)
+        );
+        assert_eq!(
+            neighbour(&songs, MessageId(20), Step::Next, Repeat::One)
+                .unwrap()
+                .message,
+            MessageId(30)
+        );
+        assert_eq!(Repeat::Off.cycle(), Repeat::One);
+        assert_eq!(Repeat::One.cycle(), Repeat::All);
+        assert_eq!(Repeat::All.cycle(), Repeat::Off);
     }
 }

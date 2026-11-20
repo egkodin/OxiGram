@@ -17,13 +17,14 @@ use style::media_player::{
     MEDIA_PLAYER_CLOSE, MEDIA_PLAYER_HEIGHT, MEDIA_PLAYER_NAME, MEDIA_PLAYER_NEXT_BUTTON,
     MEDIA_PLAYER_NEXT_DISABLED_ICON, MEDIA_PLAYER_PADDING, MEDIA_PLAYER_PLAY_BUTTON,
     MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_SKIP, MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK,
-    MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_SPEED_BUTTON,
+    MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_REPEAT_BUTTON,
+    MEDIA_PLAYER_REPEAT_DISABLED_ICON, MEDIA_PLAYER_REPEAT_ONE_ICON, MEDIA_PLAYER_SPEED_BUTTON,
     MEDIA_PLAYER_TIME,
 };
 use style::{ColorId, ColorRef};
 use ui::{IconButton, color, font, font_height};
 
-use super::{Player, Sound, Step, Track};
+use super::{Player, Repeat, Sound, Step, Track};
 use crate::px_of;
 use crate::speed::Speed;
 
@@ -32,7 +33,7 @@ use crate::speed::Speed;
 const LABEL_TOP: f32 = 22.0 - 14.0;
 
 /// The bar for the song, voice or round playing; none for nothing.
-// shortcut: no volume, repeat or order; with row 302.
+// shortcut: no volume or order; with row 302.
 pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let state = player.read(cx);
     let playing = state.current()?;
@@ -41,7 +42,10 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         Track::Voice { name, date } => (name, date, false),
     };
     let sound = &playing.sound;
-    let (previous, next) = (state.can_step(Step::Previous), state.can_step(Step::Next));
+    let (previous, next) = (
+        state.can_step(Step::Previous, cx),
+        state.can_step(Step::Next, cx),
+    );
     // `handlePlaylistUpdate`: the skip buttons only while either end is open.
     let skips = previous || next;
     let play_width = px_of(MEDIA_PLAYER_PLAY_BUTTON.size.width);
@@ -60,7 +64,10 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         + if skips { skip_width * 2.0 } else { px(0.0) }
         + px_of(MEDIA_PLAYER_PADDING);
     let speed_width = px_of(MEDIA_PLAYER_SPEED_BUTTON.size.width);
-    let right = px_of(MEDIA_PLAYER_CLOSE.width) + speed_width + px_of(MEDIA_PLAYER_PADDING);
+    let mut right = px_of(MEDIA_PLAYER_CLOSE.width) + speed_width + px_of(MEDIA_PLAYER_PADDING);
+    if is_song {
+        right += px_of(MEDIA_PLAYER_REPEAT_BUTTON.width);
+    }
     let labels = div()
         .absolute()
         .top(px(LABEL_TOP))
@@ -76,6 +83,9 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .right_0()
         .flex()
         .items_center()
+        .when(is_song, |controls| {
+            controls.child(repeat_button(player, cx))
+        })
         .child(speed_button(player, state.speed(cx), cx))
         .child(
             IconButton::new("media-player-close", &MEDIA_PLAYER_CLOSE).on_click({
@@ -102,6 +112,21 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         })
         .children(state.speed_menu_overlay());
     Some(element.into_any_element())
+}
+
+fn repeat_button(player: &Entity<Player>, cx: &App) -> IconButton {
+    let icon = match crate::settings::song_repeat(cx) {
+        Repeat::Off => Some(MEDIA_PLAYER_REPEAT_DISABLED_ICON),
+        Repeat::One => Some(MEDIA_PLAYER_REPEAT_ONE_ICON),
+        Repeat::All => None,
+    };
+    let player = player.clone();
+    IconButton::new("media-player-repeat", &MEDIA_PLAYER_REPEAT_BUTTON)
+        .icon_override(icon)
+        .on_click(move |_, _, cx| {
+            crate::settings::cycle_song_repeat(cx);
+            player.update(cx, |_, cx| cx.notify());
+        })
 }
 
 /// `mediaPlayerSpeedButton`: a click toggles the faster speed, a right

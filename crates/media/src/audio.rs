@@ -74,6 +74,7 @@ struct Shared {
     fraction: AtomicU64,
     /// The decoder reached the end of the file.
     is_drained: AtomicBool,
+    reached_end: AtomicBool,
     is_closed: AtomicBool,
     /// The file's length in microseconds, once it opened.
     duration: AtomicU64,
@@ -192,6 +193,7 @@ impl AudioPlayer {
             speed: AtomicU32::new(1.0_f32.to_bits()),
             fraction: AtomicU64::new(0),
             is_drained: AtomicBool::new(false),
+            reached_end: AtomicBool::new(false),
             is_closed: AtomicBool::new(false),
             duration: AtomicU64::new(0),
         });
@@ -232,7 +234,12 @@ impl AudioPlayer {
 
     /// Played to the end of the file.
     pub fn is_finished(&self) -> bool {
-        self.shared.is_drained.load(Ordering::Relaxed) && self.shared.buffer().is_empty()
+        self.shared.is_drained.load(Ordering::Acquire) && self.shared.buffer().is_empty()
+    }
+
+    /// Whether decoding reached a normal EOF rather than stopping on an error.
+    pub fn reached_end(&self) -> bool {
+        self.shared.reached_end.load(Ordering::Relaxed)
     }
 
     pub fn is_paused(&self) -> bool {
@@ -419,7 +426,8 @@ impl Source {
                 Err(ffmpeg::Error::Eof) => {
                     self.decoder.send_eof()?;
                     self.drain(shared)?;
-                    shared.is_drained.store(true, Ordering::Relaxed);
+                    shared.reached_end.store(true, Ordering::Relaxed);
+                    shared.is_drained.store(true, Ordering::Release);
                     // A seek may still come back from the end.
                     if !self.wait_at_end(shared) {
                         return Ok(());
@@ -443,6 +451,7 @@ impl Source {
                 .expect("audio seek lock poisoned")
                 .is_some()
             {
+                shared.reached_end.store(false, Ordering::Relaxed);
                 shared.is_drained.store(false, Ordering::Relaxed);
                 return true;
             }
@@ -607,6 +616,7 @@ mod tests {
         let player = silent(TONE, Duration::ZERO);
         assert!((player.duration().as_secs_f32() - 1.0).abs() < 0.05);
         wait_until("the end", || player.is_finished());
+        assert!(player.reached_end());
         assert!(player.position() >= Duration::from_millis(900));
     }
 

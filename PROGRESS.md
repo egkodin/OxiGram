@@ -1,5 +1,17 @@
 # Progress
 
+## M5 continuation: song repeat
+
+- Added a saved Repeat Off, One and All setting to the song bar. Telegram
+  Desktop's local `media_player_widget.cpp` and `media_player_instance.cpp`
+  establish the cycle and the distinction between manual skips and natural
+  completion. Repeat One reopens the same song at its start after EOF.
+  Repeat All wraps within OxiGram's currently loaded playlist. Decoder
+  errors retain ordinary next-track handling and cannot trigger a repeat.
+- Offline verification covers both wrap directions, Repeat One versus
+  manual skip, preferences round-trip and silent audio EOF. Volume, playlist
+  ordering and any visual or signed-in checks remain open.
+
 ## Code-only audit follow-up, 2026-11-20
 
 - Continued by making the userpic mask reuse its resized RGBA buffer.
@@ -521,10 +533,8 @@ Next, in this order (see the shortcut comments in
   stop; when the OS quits the app, gpui waits only 200 ms, so that path
   may still crash (wake `td_receive` with a request if live test 24 shows
   it); the `history-perf` example still quits without stopping it.
-- Player bar: songs only (a voice shows none); no volume, repeat, order
-  or speed; square play and pause glyphs without the morph. The next
-  song plays only once it is fully downloaded, and the bar hides in
-  between.
+- Player bar: volume and playlist ordering are still open. The bar hides
+  briefly while it fetches the next song.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
@@ -595,8 +605,8 @@ Next, in this order (see the shortcut comments in
 
 ### Next steps (M5, offline), in the owner's order
 
-- Repeat, order, speed and volume (row 302), then the bar for voices
-  with their queue (row 304).
+- Order and volume (row 302), then the voice queue (row 304). Song repeat
+  now has offline coverage, and the bar already has speed controls.
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)

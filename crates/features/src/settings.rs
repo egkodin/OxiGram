@@ -169,6 +169,7 @@ struct Values {
     voice_speed: crate::speed::Speed,
     /// Songs (`audioPlaybackSpeed`).
     audio_speed: crate::speed::Speed,
+    song_repeat: crate::player::Repeat,
     /// Videos in the viewer (`videoPlaybackSpeed`).
     video_speed: crate::speed::Speed,
 }
@@ -201,6 +202,7 @@ impl Default for Values {
             interface_scale: 0,
             voice_speed: crate::speed::Speed::default(),
             audio_speed: crate::speed::Speed::default(),
+            song_repeat: crate::player::Repeat::default(),
             video_speed: crate::speed::Speed::default(),
         }
     }
@@ -348,6 +350,14 @@ pub(crate) fn set_speed(kind: crate::speed::Kind, speed: crate::speed::Speed, cx
 
 pub(crate) fn is_large_emoji(cx: &App) -> bool {
     values(cx).is_none_or(|values| values.large_emoji)
+}
+
+pub(crate) fn song_repeat(cx: &App) -> crate::player::Repeat {
+    values(cx).map_or_else(crate::player::Repeat::default, |values| values.song_repeat)
+}
+
+pub(crate) fn cycle_song_repeat(cx: &mut App) {
+    change(cx, |values| values.song_repeat = values.song_repeat.cycle());
 }
 
 pub(crate) fn set_large_emoji(large: bool, cx: &mut App) {
@@ -722,6 +732,7 @@ mod tests {
             interface_scale: 150,
             voice_speed: crate::speed::Speed::default().chosen(1.5),
             audio_speed: crate::speed::Speed::default(),
+            song_repeat: crate::player::Repeat::All,
             video_speed: crate::speed::Speed::default().toggled(),
         };
         let sibling = path.with_extension("json.tmp");

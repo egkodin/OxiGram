@@ -15,7 +15,7 @@ use model::profile::SharedMedia;
 use model::{ChatId, MessageId};
 
 pub(crate) use self::bar::bar;
-pub(crate) use self::playlist::{Playlist, Song, Step};
+pub(crate) use self::playlist::{Playlist, Repeat, Song, Step};
 pub(crate) use self::sound::{Command, RoundLink, Sound};
 use crate::streaming::Playable;
 
@@ -144,21 +144,22 @@ impl Player {
     }
 
     /// Whether the playlist goes on a `step` from what plays.
-    pub(crate) fn can_step(&self, step: Step) -> bool {
-        self.neighbour(step).is_some()
+    pub(crate) fn can_step(&self, step: Step, cx: &App) -> bool {
+        self.neighbour(step, crate::settings::song_repeat(cx))
+            .is_some()
     }
 
     /// Moves to the previous or next song, once it is on disk.
     pub(crate) fn step(&mut self, step: Step, cx: &mut Context<Self>) {
-        if let Some((playlist, song)) = self.neighbour(step) {
+        if let Some((playlist, song)) = self.neighbour(step, crate::settings::song_repeat(cx)) {
             self.fetch(playlist, song, cx);
         }
     }
 
-    fn neighbour(&self, step: Step) -> Option<(Rc<Playlist>, Song)> {
+    fn neighbour(&self, step: Step, repeat: Repeat) -> Option<(Rc<Playlist>, Song)> {
         let playing = self.playing.as_ref()?;
         let playlist = playing.playlist.clone()?;
-        let song = playlist.neighbour(playing.message, step)?.clone();
+        let song = playlist.neighbour(playing.message, step, repeat)?.clone();
         Some((playlist, song))
     }
 
@@ -195,8 +196,17 @@ impl Player {
 
     /// Ends what played; the next song follows it (`moveInPlaylist(1, true)`).
     fn finish(&mut self, cx: &mut Context<Self>) {
-        let next = self.neighbour(Step::Next);
-        self.playing = None;
+        let next = self.playing.take().and_then(|playing| {
+            let playlist = playing.playlist?;
+            let repeat = match (&playing.track, &playing.sound) {
+                (Track::Song { .. }, Sound::Music(audio)) if audio.reached_end() => {
+                    crate::settings::song_repeat(cx)
+                }
+                _ => Repeat::Off,
+            };
+            let song = playlist.after_end(playing.message, repeat)?.clone();
+            Some((playlist, song))
+        });
         match next {
             Some((playlist, song)) => self.fetch(playlist, song, cx),
             None => self.reset_hover(),
