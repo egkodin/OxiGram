@@ -88,14 +88,17 @@ impl Animation {
     /// # Errors
     /// When the bytes are or unpack too large, or are not Lottie.
     pub fn from_bytes(bytes: &[u8], tone: SkinTone) -> Result<Self, LottieError> {
+        if bytes.len() as u64 > MAX_JSON_BYTES {
+            return Err(LottieError::TooLarge);
+        }
+        let mut unpacked = Vec::new();
         let json = if bytes.starts_with(&GZIP_MAGIC) {
-            let mut json = Vec::new();
             GzDecoder::new(bytes)
                 .take(MAX_JSON_BYTES + 1)
-                .read_to_end(&mut json)?;
-            json
+                .read_to_end(&mut unpacked)?;
+            unpacked.as_slice()
         } else {
-            bytes.to_vec()
+            bytes
         };
         if json.len() as u64 > MAX_JSON_BYTES {
             return Err(LottieError::TooLarge);
@@ -105,7 +108,7 @@ impl Animation {
             channel_order: ChannelOrder::Bgra,
             ..ParseOptions::default()
         };
-        let composition = Composition::parse_with_options(&json, &Limits::default(), &options)
+        let composition = Composition::parse_with_options(json, &Limits::default(), &options)
             .map_err(|error| LottieError::Parse(error.to_string()))?;
         let frames = composition.frame_count().max(1);
         let frame_rate = if composition.frame_rate.is_finite() {
@@ -345,6 +348,16 @@ mod tests {
             Animation::from_bytes(RED.as_bytes(), SkinTone::default()).expect("valid JSON");
         assert!(animation.render(0, 0, 4).is_err());
         assert!(animation.render(0, MAX_SIDE + 1, 4).is_err());
+    }
+
+    #[test]
+    fn over_limit_input_is_rejected_before_gzip_decoding() {
+        let mut bytes = gzip(RED.as_bytes());
+        bytes.resize(usize::try_from(MAX_JSON_BYTES).expect("fits") + 1, 0);
+        assert!(matches!(
+            Animation::from_bytes(&bytes, SkinTone::default()),
+            Err(LottieError::TooLarge)
+        ));
     }
 
     #[test]
