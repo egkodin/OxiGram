@@ -363,3 +363,83 @@ const _: fn() = || {
     fn send<T: Send>() {}
     send::<Updates>();
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::{FutureExt as _, StreamExt as _};
+    use td_api::enums::OptionValue;
+
+    #[test]
+    fn stalled_account_keeps_order_without_delaying_another_reply_or_close() {
+        let (slow, slow_updates) = mpsc::unbounded();
+        let (other, other_updates) = mpsc::unbounded();
+        let (reply, response) = oneshot::channel();
+        let (pending_at_close, canceled) = oneshot::channel();
+        let shared = Shared {
+            running: AtomicBool::new(true),
+            next_extra: AtomicU64::new(3),
+            pending: Mutex::new(HashMap::from([
+                (
+                    1,
+                    Pending {
+                        client: ClientId(2),
+                        reply,
+                    },
+                ),
+                (
+                    2,
+                    Pending {
+                        client: ClientId(2),
+                        reply: pending_at_close,
+                    },
+                ),
+            ])),
+            clients: Mutex::new(HashMap::from([(ClientId(1), slow), (ClientId(2), other)])),
+            thread: Mutex::new(None),
+        };
+        let close = |client| {
+            shared.dispatch(Ok(format!(
+                r#"{{"@type":"updateAuthorizationState","authorization_state":{{"@type":"authorizationStateClosed"}},"@client_id":{client}}}"#
+            )));
+        };
+        const BACKLOG: i64 = 8192;
+        for value in 0..BACKLOG {
+            shared.dispatch(Ok(format!(
+                r#"{{"@type":"updateOption","name":"sequence","value":{{"@type":"optionValueInteger","value":"{value}"}},"@client_id":1}}"#
+            )));
+        }
+        let reply_json = r#"{"@type":"ok","@extra":1,"@client_id":2}"#;
+        shared.dispatch(Ok(reply_json.to_owned()));
+        close(2);
+
+        assert_eq!(
+            response.now_or_never().unwrap().unwrap().unwrap(),
+            reply_json
+        );
+        assert!(canceled.now_or_never().unwrap().is_err());
+        check_closed(&mut Updates(other_updates));
+
+        close(1);
+        let mut updates = Updates(slow_updates);
+        for expected in 0..BACKLOG {
+            let Some(Update::Option(update)) = updates.next().now_or_never().unwrap() else {
+                panic!("missing update {expected}");
+            };
+            let OptionValue::Integer(value) = *update.value else {
+                panic!("unexpected update at {expected}");
+            };
+            assert_eq!(value.value, expected);
+        }
+        check_closed(&mut updates);
+    }
+
+    fn check_closed(updates: &mut Updates) {
+        assert!(matches!(
+            updates.next().now_or_never(),
+            Some(Some(Update::AuthorizationState(state)))
+                if matches!(*state.authorization_state, AuthorizationState::Closed(_))
+        ));
+        assert!(matches!(updates.next().now_or_never(), Some(None)));
+    }
+}
