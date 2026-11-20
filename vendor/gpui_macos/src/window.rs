@@ -29,7 +29,7 @@ use ctor::ctor;
 use futures::channel::oneshot;
 use gpui_util::ResultExt;
 use objc2::{
-    AnyThread, MainThreadMarker, class, msg_send,
+    AnyThread, MainThreadMarker, Message as _, class, msg_send,
     rc::{Retained, autoreleasepool},
     runtime::{AnyClass, AnyObject, AnyProtocol, Bool, ClassBuilder, ProtocolObject, Sel},
     sel,
@@ -851,6 +851,7 @@ impl MacWindowState {
         {
             return;
         }
+        // SAFETY: the live NSWindow is queried on the main thread; a nil screen is handled below.
         let screen: *mut AnyObject = unsafe { msg_send![self.native_window, screen] };
         let Some(display_id) = display_id_for_screen(screen) else {
             // AppKit can temporarily report no screen while displays are being reconfigured.
@@ -970,7 +971,7 @@ impl MacWindowState {
     }
 
     fn scale_factor(&self) -> f32 {
-        get_scale_factor(self.native_window) * interface_zoom()
+        get_scale_factor(self.native_window()) * interface_zoom()
     }
 
     fn window_bounds(&self) -> WindowBounds {
@@ -1205,6 +1206,7 @@ impl MacWindow {
 
             if let Some(window_min_size) = window_min_size {
                 let zoom = f64::from(interface_zoom());
+                // SAFETY: open initialized this NSWindow on the main thread; the setter takes NSSize by value.
                 let _: () = msg_send![native_window, setContentMinSize: NSSize {
                     width: window_min_size.width.to_f64() * zoom,
                     height: window_min_size.height.to_f64() * zoom,
@@ -1477,16 +1479,16 @@ impl PlatformWindow for MacWindow {
 
     fn resize(&mut self, size: Size<Pixels>) {
         let this = self.0.lock();
-        let window = this.native_window;
+        let window = this.native_window().retain();
         let closed = this.closed.clone();
         this.foreground_executor
             .spawn(async move {
-                if_window_not_closed(closed, || unsafe {
+                if_window_not_closed(closed, || {
                     let zoom = interface_zoom();
-                    let _: () = msg_send![window, setContentSize: NSSize {
-                        width: (size.width.as_f32() * zoom) as f64,
-                        height: (size.height.as_f32() * zoom) as f64,
-                    }];
+                    window.setContentSize(NSSize {
+                        width: f64::from(size.width.as_f32() * zoom),
+                        height: f64::from(size.height.as_f32() * zoom),
+                    });
                 })
             })
             .detach();
@@ -2497,14 +2499,11 @@ impl rwh::HasDisplayHandle for MacWindow {
     }
 }
 
-fn get_scale_factor(native_window: *mut AnyObject) -> f32 {
-    let factor = unsafe {
-        let screen: *mut AnyObject = msg_send![native_window, screen];
-        if screen.is_null() {
-            return 2.0;
-        }
-        (&*screen.cast::<NSScreen>()).backingScaleFactor() as f32
+fn get_scale_factor(native_window: &NSWindow) -> f32 {
+    let Some(screen) = native_window.screen() else {
+        return 2.0;
     };
+    let factor = screen.backingScaleFactor() as f32;
 
     // We are not certain what triggers this, but it seems that sometimes
     // this method would return 0 (https://github.com/zed-industries/zed/issues/6412)
@@ -3191,11 +3190,12 @@ fn update_window_scale_factor(window_state: &Arc<Mutex<MacWindowState>>) {
     let drawable_size = size.to_device_pixels(scale_factor);
     let layer = lock.renderer.layer_ptr().cast::<AnyObject>();
     if !layer.is_null() {
+        // SAFETY: the locked renderer owns the CALayer during this main-thread geometry update.
         unsafe {
             // rgram patch (ADR 0005): the layer keeps the screen's own scale.
             let _: () = msg_send![
                 layer,
-                setContentsScale: get_scale_factor(lock.native_window) as f64
+                setContentsScale: get_scale_factor(lock.native_window()) as f64
             ];
         }
     }
@@ -3399,7 +3399,7 @@ extern "C" fn set_frame_size(this: &AnyObject, _: Sel, size: NSSize) {
     }
 
     // rgram patch (ADR 0005): `new_size` is in points, so the screen's scale.
-    let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window));
+    let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window()));
     lock.renderer.update_drawable_size(drawable_size);
 
     if let Some(mut callback) = lock.resize_callback.take() {
@@ -3434,6 +3434,8 @@ extern "C" fn display_layer(this: &AnyObject, _: Sel, _: *mut AnyObject) {
 
 extern "C" fn step(view: *mut c_void) {
     let view = view as *mut AnyObject;
+    // SAFETY: start_display_link registers the GPUIView with its state ivar. The
+    // main-queue source is cancelled in MacWindow::drop before releasing that view.
     let window_state = unsafe { get_window_state(&*view) };
     let mut lock = window_state.lock();
 

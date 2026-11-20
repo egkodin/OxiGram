@@ -109,10 +109,13 @@ fn read_modifiers(native_event: &NSEvent) -> Modifiers {
     }
 }
 
+/// # Safety
+/// A non-null event must be a live NSEvent on the AppKit main thread for this call.
 pub(crate) unsafe fn platform_input_from_native(
     native_event: *mut AnyObject,
     window_height: Option<Pixels>,
 ) -> Option<PlatformInput> {
+    // SAFETY: the caller supplies an NSEvent as documented; a nil event returns None.
     unsafe {
         let native_event = native_event.cast::<NSEvent>().as_ref()?;
         let event_type = native_event.r#type();
