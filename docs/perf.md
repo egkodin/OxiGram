@@ -9,14 +9,144 @@ memory as reported by the OS.
 
 | Activity | Sampling interval | RSS | Mean CPU |
 |---|---|---:|---:|
-| Idle chat list | 50 s | 197.2–199.5 MiB | 0.32% |
-| Video playing | 11 s | 286.4–296.3 MiB | 11.6% |
+| Idle chat list | 50 s | 206.8–209.2 MB | 0.32% |
+| Video playing | 11 s | 300.3–310.7 MB | 11.6% |
 
 The video average excludes the later samples taken with the profiler
 attached. Live work ended when the audit moved to code only. The
 5,000-message scroll, animated-emoji screen and 30-minute growth check
 have no measurements for this run. No allocation ranking or before/after
 performance claim follows from these two samples.
+
+## Offline follow-up, 2026-11-20
+
+All sizes below use decimal MB. The signed-in idle baseline was 206.8–209.2 MB
+RSS before the audit fixes, or 106.8–109.2 MB over the new goal. The historical
+empty window already used 101.4 MB RSS. Today's cache workloads isolate two
+retention costs. They cannot apportion the remaining idle RSS among TDLib,
+model state, GPU resource mappings, decoded images, and resident code.
+
+### Cache retention
+
+| Offline workload | Before entries | Before MB | After entries | After MB |
+|---|---:|---:|---:|---:|
+| One account, 10,000 distinct loaded emoji with local paths | 10,000 | 6.72 | 3,850 | 2.28 |
+| One account, 128 reaction results with three paths per result | 128 | 0.09 | 128 | 0.09 |
+| One account, 50,000 userpic download tracking records | 50,000 | 0.46 | 50,000 | 0.46 |
+| Shared decoded userpic cache, 2,000 distinct 160 × 160 BGRA images | 512 | 52.43 | 234 | 23.96 |
+
+The account test counts usable hash-table slots, boxed metadata and owned
+string capacity. It excludes hash-table control bytes, allocator overhead
+and decoded pixels. The decoded userpic test counts actual pixel bytes in
+`RenderImage` frames and spaces insertions 30 ms apart on a synthetic clock.
+Peak retained pixels were 52,428,800 bytes before and 23,961,600 bytes after.
+The after test process peaked at 36.08 MB RSS without a GPU atlas. These
+workloads use separate processes. Their savings cannot be added to estimate
+the signed-in result.
+
+The userpic cache keeps its 512-entry ceiling and starts evicting cold
+images above 24 MB of decoded pixels. Recent draws and decodes can exceed
+the byte budget until later completions trigger eviction. Evictions still
+release the corresponding atlas image. A fixture test kept an active image
+and decoded an evicted image back to identical pixels. The emoji cache trims
+old entries in batches above 4,096, retaining recent lookups and pending
+requests. The cache test verified that returning to an evicted key starts
+a fresh fetch and accepts its completion. Reaction and userpic tracking
+metadata keep their existing policies. Both were small in this workload.
+
+Run the cache workloads with:
+
+```sh
+cargo test --locked --offline --workspace --all-features --lib offline_account_cache_workload -- --ignored --nocapture
+cargo test --locked --offline --workspace --all-features --lib offline_userpic_cache_workload -- --ignored --nocapture
+```
+
+### TDLib update delivery
+
+The sole `td_receive` caller sees all clients. It sends replies by `@extra`
+to waiting one-shots and sends updates by `@client_id` to per-client FIFOs.
+`authorizationStateClosed` enters that account's FIFO after its earlier
+updates, removes its sender, and cancels any outstanding replies for that
+client. The GPUI pump applies events in order and signals shutdown when the
+stream ends. The runtime stop path drops all senders and pending replies.
+
+`stalled_account_keeps_order_without_delaying_another_reply_or_close`
+injected 8,192 sequenced updates before polling the first account. It
+confirmed the second account could receive its reply, cancel a pending
+request and close while the first remained stalled. The first account
+then received all 8,192 updates and its close in order. A blocking bounded
+send would stop the shared receiver before it sees the second account's
+messages. A nonblocking bounded send would reject updates, and a secondary
+in-memory backlog would move the same growth elsewhere. The queue remains
+unbounded. The test did not establish a lossless policy for an indefinitely
+stalled account within a fixed RAM budget.
+
+### Video decoder peak RSS
+
+An offline fixture exercises the real video decoder without the viewer,
+audio, TDLib or a GPU atlas. The static FFmpeg dev build decodes 240 H.264
+frames at 1920 × 1080 into 960 × 540 BGRA at the clip's 30 fps cadence.
+Each run uses a fresh test process. Peak RSS is the child process's
+`getrusage(RUSAGE_CHILDREN).ru_maxrss` in bytes on macOS, read by a Python
+parent running only that process. The media test binary used 8.54 MB peak
+RSS when it ran no tests.
+
+| Decoder build | Peak RSS, median of 3 | Range |
+|---|---:|---:|
+| Existing and retained implementation | 111.33 MB | 110.95–111.39 MB |
+| Experiment with an exactly preallocated BGRA buffer and row copies | 122.90 MB | 120.90–125.49 MB |
+
+The experiment reduced time to drain frames in the unpaced dev workload
+from 4.67 s to 0.88 s. The paced RSS regression outweighed that result,
+so frame packing remains as before. The RSS includes FFmpeg's decoder
+surfaces and buffers, native framework mappings and Rust frame buffers.
+The fixed output queue itself is two frames deep, or 4.15 MB of 960 × 540
+BGRA payload at capacity. The remaining peak was not apportioned by allocator
+or subsystem. Release playback, startup and scrolling were outside this
+offline comparison.
+
+```sh
+ffmpeg -nostdin -f lavfi -i testsrc2=size=1920x1080:rate=30 -frames:v 240 \
+  -an -c:v libx264 -pix_fmt yuv420p -preset ultrafast /tmp/oxigram-1080p.mp4
+cargo test --locked --offline --workspace --all-features --lib --no-run
+OXIGRAM_OFFLINE_CLIP=/tmp/oxigram-1080p.mp4 python3 -c '
+import resource, subprocess, sys
+subprocess.run(sys.argv[1:], check=True)
+print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)
+' /path/to/media-test-binary --ignored --exact video::tests::offline_video_rss_workload
+```
+
+Use the media test executable printed by Cargo and the pinned static
+FFmpeg recipe from `scripts/build-ffmpeg.sh`.
+
+### macOS bundle size
+
+Measured on macOS 27.2.1 arm64 by summing the logical byte length of
+every regular file in each signed bundle. `otool -L` confirmed that TDLib
+is the only bundled dylib. FFmpeg, libvpx, dav1d, Opus, embedded icons and
+fonts are included in the executable. macOS supplies the system
+frameworks and libraries.
+
+| Bundle component | Preserved release | Offline release candidate |
+|---|---:|---:|
+| Complete .app | 65.46 MB (65,460,117 bytes) | 65.96 MB (65,960,725 bytes) |
+| Signed executable, including static libraries | 35.37 MB | 35.87 MB |
+| Signed TDLib dylib | 28.98 MB | 28.98 MB |
+| Icon resource | 1.10 MB | 1.10 MB |
+| Launcher, plist and bundle signature files | 0.0044 MB | 0.0044 MB |
+
+For the candidate, built the current code in the normal stripped, fat-LTO
+release profile with the rebuilt pinned static FFmpeg. Staged the resulting
+executable and TDLib beside a copy of the preserved bundle's resources and
+launcher. Both bundles passed `codesign --verify --deep --strict`.
+The candidate used `runtime-shaders` because the host lacks the Metal
+Toolchain. The regular packaging recipe uses precompiled shaders.
+
+The executable and TDLib account for 98.3% of the candidate. The link map
+attributed 6.50 MB of file-backed symbol bytes inside the executable to
+FFmpeg and its bundled codecs, and another 0.40 MB to the separate Opus
+encoder. These counts exclude alignment and zero-fill, and are included
+in the executable row. The pre-signing candidate executable was 36.08 MB.
 
 Budgets come from the project brief. They are starting targets: M1 records a
 baseline on a real account and refines them here. A target is loosened only with
@@ -29,20 +159,21 @@ Release build, macOS Apple Silicon, account with ~500 chats.
 | Metric | Target | Latest | Status |
 |---|---|---|---|
 | Cold start to interactive chat list (database present) | < 800 ms | — | M1 |
-| Idle RSS on the chat list | < 150 MB | 197.2–199.5 MiB | Above budget in the November 20 sample |
+| Idle RSS on the chat list | < 100 MB | 206.8–209.2 MB before the audit fixes | Historical gap of 106.8–109.2 MB. Current result requires a signed-in run. |
 | RSS after scrolling 10 media-heavy chats and returning | < 250 MB, no growth in a soak test | — | M5 |
 | History scroll frame time, p99 | < 8 ms (120 Hz) | 5.44 ms frame build, no dropped refreshes (10,000 synthetic messages, 120 Hz) | ok; real chats not measured |
 | Opening a chat to first messages (TDLib cache) | < 100 ms | — | M3 |
 | Idle with no animations | ~0 % CPU, zero redraws | 0.0 % CPU, no redraws (empty window) | ok |
-| Release binary size without TDLib | < 30 MB | 17.0 MB | ok |
+| Release executable, with static FFmpeg and excluding TDLib | < 30 MB | 35.37 MB in preserved bundle | Above the historical executable budget |
+| Complete macOS release bundle | < 100 MB | 65.46 MB preserved release, 65.96 MB runtime-shader candidate | Within goal for both measured bundles |
 
 ## Measuring memory on macOS
 
-`ps` RSS counts resident pages of shared system frameworks and is not what the
-user sees. rgram measures the physical footprint (`vmmap --summary <pid>`, the
-figure Activity Monitor shows). The empty M0 window has 101 MB RSS and a 47 MB
-footprint. At M1 the 150 MB idle target is restated as footprint, with the
-justification recorded here.
+`ps -o rss= -p <pid>` reports resident memory in units of 1024 bytes, including
+resident shared mappings. Multiply by 1024 and divide by 1,000,000 for decimal
+MB. Use RSS for the 100 MB goal. The older physical footprint samples
+(`vmmap --summary <pid>`) describe a different metric. The empty M0 window had
+101.4 MB RSS and 46.6 MB physical footprint.
 
 ## M0: empty window
 
@@ -202,7 +333,7 @@ over the others so the display link draws it as in the app. One run each;
 - Memory is bounded by the players: those off screen close after 3 s, and
   beyond 32 the oldest close at once. Before that cap a fast scroll kept all
   300 open and the footprint peaked at 412 MB. Frames are not cached (a
-  224 px emoji is 12 MB of frames, over the 4 MiB per-animation limit), so
+  224 px emoji is 12 MB of frames, over the 4.19 MB per-animation limit), so
   each is rendered on the `lottie` thread when due.
 - Scrolling with Power Usage all off costs about as much as with it on: the
   scroll itself, not Lottie (18 frames/s are the first frames).
@@ -253,7 +384,7 @@ over the others so the display link draws it as in the app. One run each;
 - gpui decodes the downloaded file off the main thread at full size
   (TDLib's largest size, up to 2560 px). Its own image cache never evicts,
   so every photo scrolled past stayed twice, decoded and as a texture.
-  `history/picture_cache.rs` holds them instead: 64 MB of decoded pictures,
+  `history/picture_cache.rs` holds them instead: 67.11 MB of decoded pictures,
   the least recently drawn dropped (with `App::drop_image`) when a new one
   loads, and nothing drawn within the last second. A photo scrolled back to
   decodes again behind its thumbnail, as on first view.
@@ -278,7 +409,8 @@ over the others so the display link draws it as in the app. One run each;
 
 - Downloaded userpics are decoded on the background executor, filled into
   their device-pixel square (Lanczos3) and cut to a circle (`ui::round_image`).
-  The cache keeps the 512 most recently drawn; each eviction calls
+  The historical soak below used a cache of the 512 most recently drawn.
+  Each eviction calls
   `App::drop_image`, which frees the texture in every window's atlas. A
   failed decode waits 2 s, doubling to 60 s, or until the file's time or
   length changes.

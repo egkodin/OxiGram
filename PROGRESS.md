@@ -1,5 +1,60 @@
 # Progress
 
+## Code-only audit follow-up, 2026-11-20
+
+- Refreshed the Codebase Memory index and added a synthetic two-account
+  TDLib routing regression. The stalled account received all 8,192 updates
+  and its close in order. Another account received a reply and closed
+  before the stalled consumer resumed. The shared receiver still uses
+  unbounded per-account queues. A finite in-memory queue with a blocking
+  sender would prevent it from reaching other accounts' replies and closes.
+- Offline decoded userpic retention fell from 52.43 MB to 23.96 MB. Offline
+  custom emoji metadata fell from 6.72 MB to 2.28 MB for one synthetic
+  account. Cache tests covered active items, pending fetches and reloading
+  after eviction. Reaction and userpic download tracking were small in the
+  workload. Methods and measurements are in [docs/perf.md](docs/perf.md).
+- The paced offline 1080p decoder workload peaked at 111.33 MB RSS
+  (three runs, median). A frame-packing experiment raised the median to
+  122.90 MB. The existing decoder implementation was kept.
+- `cargo tree --locked --offline -i chrono` found the direct `features`
+  dependency, the `oxigram` snapshot dev-dependency, and separate normal
+  dependencies in the pinned GPUI and its scheduler. The app uses Chrono
+  for local rendering, calendar navigation, date arithmetic and scheduled
+  message conversion. GPUI uses it for accessibility debug timestamps and
+  implements the scheduler's `Clock::utc_now -> DateTime<Utc>`. The
+  scheduler also advances its wall-clock test value alongside monotonic
+  time. Removing only the app's usage would leave Chrono in the lockfile.
+  The [RustSec advisory](https://rustsec.org/advisories/RUSTSEC-2026-0543.html)
+  marks all versions unmaintained and lists no patched version.
+- The local-time probe used Chrono 0.4.45 and `TZ=America/New_York`.
+  `2024-03-10 02:30` had no mapping. For the repeated
+  `2024-11-03 01:30`, the existing `.earliest()` call selected
+  06:30 UTC on this host, although 05:30 UTC was also valid. A migration
+  needs an explicit compatibility decision for that fold, plus calendar
+  and local date coverage. The time code, upstream pin and denial policy
+  stay as they are. Cargo Deny reports RUSTSEC-2026-0543.
+- macOS arm64 verification with the pinned, rebuilt static FFmpeg passed
+  420 workspace tests. Three opt-in offline memory workloads ran
+  separately. Formatting and workspace Clippy with all targets, all
+  features and `-D warnings` passed. Cargo Audit reported zero known
+  vulnerabilities and seven unmaintained crates from the local advisory
+  database. Its sandboxed crates.io index lock was unavailable. Cargo Deny
+  passed bans, licenses and sources. No dependency policy changed.
+- Workspace `target/` used 2.61 GB on disk before and after this pass.
+  The temporary debug verification directory, tools and fixtures reached
+  5.33 GB together, with 7.94 GB combined across the two directories.
+  The temporary debug build was removed before the release build. The
+  remaining temporary build, tools, fixtures and staging bundle were
+  removed after measurement.
+- The preserved signed bundle is 65.46 MB, with a 35.37 MB executable.
+  The independently signed, staged release candidate is 65.96 MB, with a
+  35.87 MB executable. Both include TDLib and all bundle resources. The
+  candidate uses runtime Metal shaders due to the missing Metal Toolchain
+  on this host. Full packaging with precompiled shaders remains unverified
+  for this revision. Current signed-in idle RSS, visual verification,
+  startup and scroll performance still require a separately authorized
+  live run.
+
 ## Workspace audit, 2026-11-20
 
 Reviewed the Cargo workspace, the TDLib C interface, the media decoders and
