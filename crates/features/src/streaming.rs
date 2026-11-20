@@ -110,6 +110,7 @@ impl Playable {
             file: *file,
             size: *size,
             local: None,
+            signal: signal.clone(),
             window,
         };
         Stream::new(source, signal)
@@ -140,7 +141,19 @@ struct TdFile {
     /// The downloaded part, opened once TDLib wrote some. TDLib renames it
     /// when the download completes; an open file reads on regardless.
     local: Option<std::fs::File>,
+    signal: Signal,
     window: Arc<Mutex<Option<(u64, u64)>>>,
+}
+
+impl Drop for TdFile {
+    fn drop(&mut self) {
+        release_reader((self.session.client_id(), self.file), &self.signal);
+    }
+}
+
+fn release_reader(key: StreamKey, signal: &Signal) {
+    signal.close();
+    wake(key.0, key.1);
 }
 
 /// TDLib's answer, waited for on the decoder's thread (TDLib replies on its
@@ -223,10 +236,12 @@ mod tests {
         let other = register(second, signals[2].clone());
         assert!(Arc::ptr_eq(&audio, &video));
         assert!(!Arc::ptr_eq(&audio, &other));
-        for signal in signals {
-            signal.close();
-        }
-        wake(first.0, file);
-        wake(second.0, file);
+        release_reader(first, &signals[0]);
+        assert!(registry().lock().unwrap().contains_key(&first));
+        release_reader(first, &signals[1]);
+        assert!(!registry().lock().unwrap().contains_key(&first));
+        assert!(registry().lock().unwrap().contains_key(&second));
+        release_reader(second, &signals[2]);
+        assert!(!registry().lock().unwrap().contains_key(&second));
     }
 }
