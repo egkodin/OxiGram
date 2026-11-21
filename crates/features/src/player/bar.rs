@@ -15,17 +15,19 @@ use gpui::{
 };
 use style::media_player::{
     MEDIA_PLAYER_CLOSE, MEDIA_PLAYER_HEIGHT, MEDIA_PLAYER_NAME, MEDIA_PLAYER_NEXT_BUTTON,
-    MEDIA_PLAYER_NEXT_DISABLED_ICON, MEDIA_PLAYER_PADDING, MEDIA_PLAYER_PLAY_BUTTON,
-    MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_SKIP, MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK,
-    MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_REPEAT_BUTTON,
-    MEDIA_PLAYER_REPEAT_DISABLED_ICON, MEDIA_PLAYER_REPEAT_ONE_ICON, MEDIA_PLAYER_SPEED_BUTTON,
-    MEDIA_PLAYER_TIME, MEDIA_PLAYER_VOLUME_ICON0, MEDIA_PLAYER_VOLUME_ICON1,
-    MEDIA_PLAYER_VOLUME_TOGGLE,
+    MEDIA_PLAYER_NEXT_DISABLED_ICON, MEDIA_PLAYER_ORDER_BUTTON, MEDIA_PLAYER_PADDING,
+    MEDIA_PLAYER_PLAY_BUTTON, MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_SKIP,
+    MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK, MEDIA_PLAYER_PREVIOUS_BUTTON,
+    MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_REPEAT_BUTTON,
+    MEDIA_PLAYER_REPEAT_DISABLED_ICON, MEDIA_PLAYER_REPEAT_ONE_ICON,
+    MEDIA_PLAYER_REVERSE_DISABLED_ICON, MEDIA_PLAYER_REVERSE_ICON, MEDIA_PLAYER_SHUFFLE_ICON,
+    MEDIA_PLAYER_SPEED_BUTTON, MEDIA_PLAYER_TIME, MEDIA_PLAYER_VOLUME_ICON0,
+    MEDIA_PLAYER_VOLUME_ICON1, MEDIA_PLAYER_VOLUME_TOGGLE,
 };
 use style::{ColorId, ColorRef};
 use ui::{IconButton, color, font, font_height};
 
-use super::{Player, Repeat, Sound, Step, Track};
+use super::{Order, Player, Repeat, Sound, Step, Track};
 use crate::px_of;
 use crate::speed::Speed;
 
@@ -34,7 +36,6 @@ use crate::speed::Speed;
 const LABEL_TOP: f32 = 22.0 - 14.0;
 
 /// The bar for the song, voice or round playing; none for nothing.
-// shortcut: no playlist ordering; with row 302.
 pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let state = player.read(cx);
     let playing = state.current()?;
@@ -67,7 +68,9 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let speed_width = px_of(MEDIA_PLAYER_SPEED_BUTTON.size.width);
     let mut right = px_of(MEDIA_PLAYER_CLOSE.width) + speed_width + px_of(MEDIA_PLAYER_PADDING);
     if is_song {
-        right += px_of(MEDIA_PLAYER_REPEAT_BUTTON.width) + px_of(MEDIA_PLAYER_VOLUME_TOGGLE.width);
+        right += px_of(MEDIA_PLAYER_REPEAT_BUTTON.width)
+            + px_of(MEDIA_PLAYER_VOLUME_TOGGLE.width)
+            + px_of(MEDIA_PLAYER_ORDER_BUTTON.width);
     }
     let labels = div()
         .absolute()
@@ -88,6 +91,7 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
             controls
                 .child(volume_button(player, cx))
                 .child(repeat_button(player, cx))
+                .child(order_button(player, cx))
         })
         .child(speed_button(player, state.speed(cx), cx))
         .child(
@@ -129,6 +133,20 @@ fn repeat_button(player: &Entity<Player>, cx: &App) -> IconButton {
         .on_click(move |_, _, cx| {
             crate::settings::cycle_song_repeat(cx);
             player.update(cx, |_, cx| cx.notify());
+        })
+}
+
+fn order_button(player: &Entity<Player>, cx: &App) -> IconButton {
+    let icon = match crate::settings::song_order(cx) {
+        Order::Normal => MEDIA_PLAYER_REVERSE_DISABLED_ICON,
+        Order::Reverse => MEDIA_PLAYER_REVERSE_ICON,
+        Order::Shuffle => MEDIA_PLAYER_SHUFFLE_ICON,
+    };
+    let player = player.clone();
+    IconButton::new("media-player-order", &MEDIA_PLAYER_ORDER_BUTTON)
+        .icon_override(Some(icon))
+        .on_click(move |_, window, cx| {
+            player.update(cx, |player, cx| player.show_order_menu(window, cx));
         })
 }
 

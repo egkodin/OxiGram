@@ -11,11 +11,13 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use gpui::{App, AppContext as _, Context, Entity, Global, Task};
+use i18n::key;
 use model::profile::SharedMedia;
 use model::{ChatId, MessageId};
 
 pub(crate) use self::bar::bar;
-pub(crate) use self::playlist::{Playlist, Repeat, Song, Step};
+pub(crate) use self::playlist::{Order, Playlist, Repeat, Song, Step};
+use self::playlist::{Shuffle, Traversal};
 pub(crate) use self::sound::{Command, RoundLink, Sound};
 use crate::streaming::Playable;
 
@@ -62,6 +64,7 @@ pub(crate) struct Player {
     skipping: Option<Task<()>>,
     /// The chat's shared music being fetched for the playlist.
     widening: Option<Task<()>>,
+    shuffle: Option<Shuffle>,
     hover: panel::Hover,
     /// The player presets, open at a point.
     control_menu: Option<(
@@ -127,6 +130,8 @@ impl Player {
         cx: &mut Context<Self>,
     ) {
         self.skipping = None;
+        self.shuffle = (playlist.is_some() && crate::settings::song_order(cx) == Order::Shuffle)
+            .then(|| Shuffle::new(message));
         self.begin((chat, message), track, sound, playlist, cx);
     }
 
@@ -145,22 +150,31 @@ impl Player {
 
     /// Whether the playlist goes on a `step` from what plays.
     pub(crate) fn can_step(&self, step: Step, cx: &App) -> bool {
-        self.neighbour(step, crate::settings::song_repeat(cx))
-            .is_some()
+        self.neighbour(step, cx).is_some()
     }
 
     /// Moves to the previous or next song, once it is on disk.
     pub(crate) fn step(&mut self, step: Step, cx: &mut Context<Self>) {
-        if let Some((playlist, song)) = self.neighbour(step, crate::settings::song_repeat(cx)) {
+        if let Some((playlist, song)) = self.neighbour(step, cx) {
+            let (playlist, song) = (playlist.clone(), song.clone());
             self.fetch(playlist, song, cx);
         }
     }
 
-    fn neighbour(&self, step: Step, repeat: Repeat) -> Option<(Rc<Playlist>, Song)> {
+    fn neighbour(&self, step: Step, cx: &App) -> Option<(&Rc<Playlist>, &Song)> {
         let playing = self.playing.as_ref()?;
-        let playlist = playing.playlist.clone()?;
-        let song = playlist.neighbour(playing.message, step, repeat)?.clone();
+        let playlist = playing.playlist.as_ref()?;
+        let repeat = crate::settings::song_repeat(cx);
+        let song = playlist.neighbour(playing.message, step, repeat, self.traversal(cx))?;
         Some((playlist, song))
+    }
+
+    fn traversal(&self, cx: &App) -> Traversal<'_> {
+        match (crate::settings::song_order(cx), &self.shuffle) {
+            (Order::Shuffle, Some(shuffle)) => Traversal::Shuffled(shuffle),
+            (Order::Reverse, _) => Traversal::Reverse,
+            _ => Traversal::Forward,
+        }
     }
 
     /// Moves to `song`, streamed while it downloads, as tdesktop does.
@@ -206,7 +220,9 @@ impl Player {
                 }
                 _ => Repeat::Off,
             };
-            let song = playlist.after_end(playing.message, repeat)?.clone();
+            let song = playlist
+                .after_end(playing.message, repeat, self.traversal(cx))?
+                .clone();
             Some((playlist, song))
         });
         match next {
@@ -341,6 +357,55 @@ impl Player {
         self.open_control_menu(menu, window, cx);
     }
 
+    pub(super) fn show_order_menu(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
+        use style::media_player::{
+            MEDIA_PLAYER_ORDER_ICON_REVERSE, MEDIA_PLAYER_ORDER_ICON_REVERSE_ACTIVE,
+            MEDIA_PLAYER_ORDER_ICON_SHUFFLE, MEDIA_PLAYER_ORDER_ICON_SHUFFLE_ACTIVE,
+        };
+        let weak = cx.weak_entity();
+        let current = crate::settings::song_order(cx);
+        let menu = cx.new(|cx| {
+            let mut menu = ui::PopupMenu::new(&style::widgets::POPUP_MENU_WITH_ICONS, cx);
+            for (order, text, icon, active) in [
+                (
+                    Order::Reverse,
+                    key::lng_audio_player_reverse,
+                    MEDIA_PLAYER_ORDER_ICON_REVERSE,
+                    MEDIA_PLAYER_ORDER_ICON_REVERSE_ACTIVE,
+                ),
+                (
+                    Order::Shuffle,
+                    key::lng_audio_player_shuffle,
+                    MEDIA_PLAYER_ORDER_ICON_SHUFFLE,
+                    MEDIA_PLAYER_ORDER_ICON_SHUFFLE_ACTIVE,
+                ),
+            ] {
+                let weak = weak.clone();
+                let selected = order == current;
+                let target = if selected { Order::Normal } else { order };
+                menu.option(
+                    crate::lang::tr(cx, text),
+                    Some(if selected { active } else { icon }),
+                    move |_, cx| {
+                        let _ = weak.update(cx, |player, cx| player.change_order(target, cx));
+                    },
+                );
+            }
+            menu
+        });
+        self.open_control_menu(menu, window, cx);
+    }
+
+    fn change_order(&mut self, order: Order, cx: &mut Context<Self>) {
+        self.shuffle = self
+            .playing
+            .as_ref()
+            .filter(|playing| order == Order::Shuffle && playing.playlist.is_some())
+            .map(|playing| Shuffle::new(playing.message));
+        crate::settings::set_song_order(cx, order);
+        cx.notify();
+    }
+
     fn open_control_menu(
         &mut self,
         menu: Entity<ui::PopupMenu>,
@@ -393,6 +458,7 @@ impl Player {
         self.playing = None;
         self.skipping = None;
         self.widening = None;
+        self.shuffle = None;
         self.reset_hover();
         cx.notify();
     }

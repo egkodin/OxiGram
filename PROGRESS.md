@@ -1,6 +1,6 @@
 # Progress
 
-## M5 continuation: song repeat and volume
+## M5 continuation: song repeat, volume and order
 
 - Added a saved Repeat Off, One and All setting to the song bar. Telegram
   Desktop's local `media_player_widget.cpp` and `media_player_instance.cpp`
@@ -13,11 +13,18 @@
   gain is in place before either local or streaming music starts, and
   muted playback keeps advancing. Voices and videos use their existing
   output level. A continuous volume slider remains open.
+- The song bar saves Reverse order and Shuffle. Selecting the active
+  option returns to normal order, as in Telegram Desktop's
+  `OrderController`. Reverse swaps next and previous. Shuffle keeps a
+  stable, randomly seeded order anchored at the starting song as the
+  loaded playlist changes. Both modes use the loaded playlist for
+  automatic advance, manual skips and Repeat All.
 - Offline verification covers both wrap directions, Repeat One versus
   manual skip, preferences round-trip, silent audio EOF and actual
-  output samples at reduced gain and mute. All 423 workspace tests and
-  strict Clippy passed with runtime shaders and system FFmpeg. Playlist
-  ordering, visual inspection and signed-in checks remain open.
+  output samples at reduced gain and mute. Reverse and Shuffle have
+  offline tests for next, previous and wrapping. All 425 workspace tests
+  and strict Clippy passed with runtime shaders and system FFmpeg.
+  Visual inspection and signed-in checks remain open.
 
 ## Code-only audit follow-up, 2026-11-20
 
@@ -540,8 +547,8 @@ Next, in this order (see the shortcut comments in
   stop; when the OS quits the app, gpui waits only 200 ms, so that path
   may still crash (wake `td_receive` with a request if live test 24 shows
   it); the `history-perf` example still quits without stopping it.
-- Player bar: playlist ordering and a continuous volume slider are still
-  open. The bar hides briefly while it fetches the next song.
+- Player bar: a continuous volume slider is still open. The bar hides
+  briefly while it fetches the next song.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
@@ -612,8 +619,7 @@ Next, in this order (see the shortcut comments in
 
 ### Next steps (M5, offline), in the owner's order
 
-- Playlist order (row 302), then the voice queue (row 304). Song repeat
-  and volume presets now have offline coverage. The bar has speed controls.
+- Voice queue and listened marks (row 304).
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)

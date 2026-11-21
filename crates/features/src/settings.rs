@@ -170,6 +170,7 @@ struct Values {
     /// Songs (`audioPlaybackSpeed`).
     audio_speed: crate::speed::Speed,
     song_repeat: crate::player::Repeat,
+    song_order: crate::player::Order,
     song_volume: u8,
     unmuted_song_volume: u8,
     /// Videos in the viewer (`videoPlaybackSpeed`).
@@ -205,6 +206,7 @@ impl Default for Values {
             voice_speed: crate::speed::Speed::default(),
             audio_speed: crate::speed::Speed::default(),
             song_repeat: crate::player::Repeat::default(),
+            song_order: crate::player::Order::default(),
             song_volume: 100,
             unmuted_song_volume: 100,
             video_speed: crate::speed::Speed::default(),
@@ -362,6 +364,14 @@ pub(crate) fn song_repeat(cx: &App) -> crate::player::Repeat {
 
 pub(crate) fn cycle_song_repeat(cx: &mut App) {
     change(cx, |values| values.song_repeat = values.song_repeat.cycle());
+}
+
+pub(crate) fn song_order(cx: &App) -> crate::player::Order {
+    values(cx).map_or_else(crate::player::Order::default, |values| values.song_order)
+}
+
+pub(crate) fn set_song_order(cx: &mut App, order: crate::player::Order) {
+    change(cx, |values| values.song_order = order);
 }
 
 pub(crate) fn song_volume(cx: &App) -> u8 {
@@ -759,6 +769,7 @@ mod tests {
             voice_speed: crate::speed::Speed::default().chosen(1.5),
             audio_speed: crate::speed::Speed::default(),
             song_repeat: crate::player::Repeat::All,
+            song_order: crate::player::Order::Shuffle,
             song_volume: 0,
             unmuted_song_volume: 50,
             video_speed: crate::speed::Speed::default().toggled(),
