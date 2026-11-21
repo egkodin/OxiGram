@@ -1,6 +1,6 @@
 //! The emoji panel over the field (`TabbedPanel` holding an
 //! `EmojiListWidget`): recently used emoji, then the categories, with an
-//! icon per section in the footer. Hovering the emoji button shows it,
+//! icon per section in the category bar. Hovering the emoji button shows it,
 //! leaving both hides it, and clicking an emoji types it into the field.
 
 use std::rc::Rc;
@@ -115,6 +115,7 @@ pub(super) struct EmojiPanel {
     sections: Rc<Vec<Vec<SharedString>>>,
     rows: Rc<Vec<Row>>,
     is_shown: bool,
+    is_pinned: bool,
     tab: Tab,
     pub(super) stickers: super::sticker_panel::StickerPanel,
     pub(super) gifs: super::gif_panel::GifPanel,
@@ -138,6 +139,7 @@ impl EmojiPanel {
             sections: Rc::default(),
             rows: Rc::default(),
             is_shown: false,
+            is_pinned: false,
             tab: Tab::Emoji,
             stickers: super::sticker_panel::StickerPanel::new(),
             gifs: super::gif_panel::GifPanel::new(),
@@ -292,6 +294,7 @@ impl HistoryView {
 
     pub(super) fn hide_emoji_panel(&mut self, cx: &mut Context<Self>) {
         self.emoji.is_shown = false;
+        self.emoji.is_pinned = false;
         self.emoji.gifs.stop_preview();
         self.emoji.stickers.clear_hover();
         self.emoji.hiding = None;
@@ -312,7 +315,11 @@ impl HistoryView {
             self.emoji.hiding = None;
             return;
         }
-        if !self.emoji.is_shown || self.emoji.over_button || self.emoji.over_panel {
+        if !self.emoji.is_shown
+            || self.emoji.is_pinned
+            || self.emoji.over_button
+            || self.emoji.over_panel
+        {
             return;
         }
         let delay = Duration::from_millis(u64::try_from(EMOJI_PAN_DURATION).unwrap_or(0));
@@ -324,9 +331,10 @@ impl HistoryView {
     }
 
     fn toggle_emoji_panel(&mut self, cx: &mut Context<Self>) {
-        if self.emoji.is_shown {
+        if self.emoji.is_pinned {
             self.hide_emoji_panel(cx);
         } else {
+            self.emoji.is_pinned = true;
             self.show_emoji_panel(cx);
         }
     }
@@ -418,6 +426,7 @@ impl HistoryView {
         let chosen = emoji.clone();
         div()
             .id(("emoji", index * 64 + column))
+            .cursor_pointer()
             .relative()
             .flex_none()
             .w(cell_width)
@@ -537,7 +546,7 @@ impl HistoryView {
         }
     }
 
-    fn emoji_footer(&self, cx: &mut Context<Self>) -> AnyElement {
+    fn emoji_categories(&self, cx: &mut Context<Self>) -> AnyElement {
         let st = &DEFAULT_EMOJI_PAN;
         let skip = px_of(st.icon_skip);
         let cell = ((px_of(EMOJI_PAN_WIDTH) - skip * 2.0) / SECTION_COUNT as f32).floor();
@@ -552,6 +561,7 @@ impl HistoryView {
                 let is_active = self.emoji.active == section;
                 div()
                     .id(("emoji-section", section))
+                    .cursor_pointer()
                     .relative()
                     .w(cell)
                     .h_full()
@@ -592,7 +602,7 @@ impl HistoryView {
         let st = &DEFAULT_EMOJI_PAN;
         let bottom = window.viewport_size().height - px_of(HISTORY_ATTACH.height);
         let height = content_height(bottom);
-        let tabs_height = px(28.0);
+        let tabs_height = px(36.0);
         let tab = self.emoji.tab;
         let body = match tab {
             Tab::Gifs => self.saved_gifs(cx),
@@ -614,41 +624,57 @@ impl HistoryView {
                     .into_any_element()
             }
         };
-        let tabs = div().h(tabs_height).flex_none().flex().children(
-            [
-                (Tab::Emoji, key::lng_switch_emoji),
-                (Tab::Stickers, key::lng_switch_stickers),
-                (Tab::Gifs, key::lng_switch_gifs),
-            ]
-            .into_iter()
-            .enumerate()
-            .map(|(index, (choice, title))| {
-                let fg = if choice == tab {
-                    ColorId::WindowActiveTextFg
-                } else {
-                    ColorId::WindowFg
-                };
-                div()
-                    .id(("picker-tab", index))
-                    .flex_1()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .cursor_pointer()
-                    .text_color(color(cx, ColorRef::Palette(fg)))
-                    .child(tr(cx, title))
-                    .on_click(cx.listener(move |this, _, _, cx| {
-                        this.emoji.tab = choice;
-                        if choice != Tab::Gifs {
-                            this.emoji.gifs.stop_preview();
-                        }
-                        if choice != Tab::Stickers {
-                            this.emoji.stickers.clear_hover();
-                        }
-                        cx.notify();
-                    }))
-            }),
-        );
+        let tabs = div()
+            .h(tabs_height)
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap(px(4.0))
+            .px(px(8.0))
+            .children(
+                [
+                    (Tab::Emoji, key::lng_switch_emoji),
+                    (Tab::Stickers, key::lng_switch_stickers),
+                    (Tab::Gifs, key::lng_switch_gifs),
+                ]
+                .into_iter()
+                .enumerate()
+                .map(|(index, (choice, title))| {
+                    let fg = if choice == tab {
+                        ColorId::WindowActiveTextFg
+                    } else {
+                        ColorId::WindowFg
+                    };
+                    let selected =
+                        color(cx, ColorRef::Palette(ColorId::WindowActiveTextFg)).opacity(0.14);
+                    let hover = color(cx, ColorRef::Palette(ColorId::WindowBgOver));
+                    div()
+                        .id(("picker-tab", index))
+                        .flex_1()
+                        .h(px(28.0))
+                        .rounded(px(8.0))
+                        .text_sm()
+                        .font_weight(gpui::FontWeight::SEMIBOLD)
+                        .when(choice == tab, |tab| tab.bg(selected))
+                        .when(choice != tab, |tab| tab.hover(move |tab| tab.bg(hover)))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .cursor_pointer()
+                        .text_color(color(cx, ColorRef::Palette(fg)))
+                        .child(tr(cx, title))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            this.emoji.tab = choice;
+                            if choice != Tab::Gifs {
+                                this.emoji.gifs.stop_preview();
+                            }
+                            if choice != Tab::Stickers {
+                                this.emoji.stickers.clear_hover();
+                            }
+                            cx.notify();
+                        }))
+                }),
+            );
         let shadow = st.show_animation.shadow;
         Some(
             div()
@@ -674,6 +700,7 @@ impl HistoryView {
                         .rounded(px_of(EMOJI_PAN_RADIUS))
                         .overflow_hidden()
                         .bg(color(cx, st.bg))
+                        .text_color(color(cx, ColorRef::Palette(ColorId::WindowFg)))
                         .shadow(vec![gpui::BoxShadow {
                             color: color(cx, ColorRef::Palette(ColorId::WindowShadowFg))
                                 .opacity(shadow.opacity as f32),
@@ -683,8 +710,8 @@ impl HistoryView {
                             inset: false,
                         }])
                         .child(tabs)
-                        .child(body)
-                        .children((tab == Tab::Emoji).then(|| self.emoji_footer(cx))),
+                        .children((tab == Tab::Emoji).then(|| self.emoji_categories(cx)))
+                        .child(body),
                 )
                 .into_any_element(),
         )

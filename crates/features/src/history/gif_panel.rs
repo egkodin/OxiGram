@@ -247,8 +247,12 @@ impl HistoryView {
                         let needs_placeholder = picture.is_none();
                         div()
                             .id(("saved-gif", index))
-                            .flex_1()
-                            .min_w_0()
+                            .relative()
+                            .w(
+                                (crate::px_of(style::chat_helpers::EMOJI_PAN_WIDTH) - px(16.0))
+                                    / 3.0,
+                            )
+                            .flex_none()
                             .h(px(92.0))
                             .rounded(px(4.0))
                             .overflow_hidden()
@@ -258,20 +262,22 @@ impl HistoryView {
                             .bg(color(cx, ColorRef::Palette(ColorId::WindowBgOver)))
                             .children(picture.map(|picture| {
                                 let preview = preview.clone();
-                                super::picture_cache::bounded(picture, cx)
-                                    .object_fit(ObjectFit::Cover)
-                                    .size_full()
-                                    .with_loading(move || {
-                                        preview.clone().map_or_else(
-                                            || div().into_any_element(),
-                                            |preview| {
-                                                img(preview)
-                                                    .object_fit(ObjectFit::Cover)
-                                                    .size_full()
-                                                    .into_any_element()
-                                            },
-                                        )
-                                    })
+                                div().absolute().inset_0().child(
+                                    super::picture_cache::bounded(picture, cx)
+                                        .object_fit(ObjectFit::Cover)
+                                        .size_full()
+                                        .with_loading(move || {
+                                            preview.clone().map_or_else(
+                                                || div().into_any_element(),
+                                                |preview| {
+                                                    img(preview)
+                                                        .object_fit(ObjectFit::Cover)
+                                                        .size_full()
+                                                        .into_any_element()
+                                                },
+                                            )
+                                        }),
+                                )
                             }))
                             .on_hover(cx.listener(move |this, over: &bool, _, cx| {
                                 let panel = &mut this.emoji.gifs;
