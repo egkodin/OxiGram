@@ -271,7 +271,7 @@ fn element(button: Button, out: bool, is_selected: bool, cx: &App) -> AnyElement
         })
         .child(chip_face(
             button.motion,
-            emoji(&button.kind, button.picture.as_deref()).into_any_element(),
+            emoji(&button.kind, button.picture.as_deref(), cx).into_any_element(),
         ))
         .map(|this| match button.label {
             Label::Count(count) if count.is_empty() => this,
@@ -330,19 +330,28 @@ fn bubble_bg(out: bool, is_selected: bool) -> ColorId {
     }
 }
 
-/// A custom emoji reaction's picture once on disk; the first ask fetches it.
+/// The reaction's Telegram artwork once on disk; the first ask fetches it.
 pub(super) fn picture(store: &Entity<Store>, kind: &ReactionKind, cx: &mut App) -> Option<String> {
     match kind {
         ReactionKind::CustomEmoji(id) => store.update(cx, |store, cx| {
             store.emoji_picture(&EmojiKey::Custom(*id), cx)
         }),
-        ReactionKind::Emoji(_) | ReactionKind::Paid => None,
+        ReactionKind::Emoji(emoji) => store.update(cx, |store, cx| {
+            let icon = store.reaction_animations(emoji, cx)?.icon?;
+            let known = store.state().chats.file(icon.id).unwrap_or(&icon);
+            if let Some(path) = &known.path {
+                return Some(path.clone());
+            }
+            store.load_userpic(icon.id, 8, cx);
+            None
+        }),
+        ReactionKind::Paid => None,
     }
 }
 
 /// The reaction's emoji in its square: a custom one's picture, else the
 /// glyph; a star until a custom one's picture lands.
-pub(super) fn emoji(kind: &ReactionKind, picture: Option<&str>) -> Div {
+pub(super) fn emoji(kind: &ReactionKind, picture: Option<&str>, cx: &App) -> Div {
     let square = div()
         .flex_none()
         .size(px_of(REACTION_INLINE_SIZE))
@@ -350,7 +359,8 @@ pub(super) fn emoji(kind: &ReactionKind, picture: Option<&str>) -> Div {
         .items_center()
         .justify_center();
     if let Some(path) = picture {
-        return square.child(img(PathBuf::from(path)).size_full());
+        return square
+            .child(super::picture_cache::bounded(img(PathBuf::from(path)), cx).size_full());
     }
     let glyph = match kind {
         ReactionKind::Emoji(emoji) => emoji_presentation(emoji),

@@ -65,6 +65,7 @@ impl HistoryView {
         }
         let session = self.store.read(cx).session();
         let task = if is_chosen {
+            self.stop_flying(message, kind);
             spawn(session.remove_reaction(self.chat, message, kind), cx)
         } else {
             self.start_flying(message, kind, cx);
@@ -200,7 +201,7 @@ impl HistoryView {
         let is_chosen = strip.chosen.contains(kind);
         let face = match self.strip_frame(kind, strip.instance, cx) {
             Some(frame) => img(frame).size_full().into_any_element(),
-            None => emoji(kind, shown.as_deref()).into_any_element(),
+            None => emoji(kind, shown.as_deref(), cx).into_any_element(),
         };
         let (weak, kind, message) = (cx.weak_entity(), kind.clone(), strip.message);
         div()

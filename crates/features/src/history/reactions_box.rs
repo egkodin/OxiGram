@@ -209,7 +209,7 @@ impl ReactionsBox {
             (st.text_bg, st.text_fg)
         };
         let icon = match &tab.kind {
-            Some(kind) => emoji(kind, picture(&self.store, kind, cx).as_deref()),
+            Some(kind) => emoji(kind, picture(&self.store, kind, cx).as_deref(), cx),
             None if is_selected => div().child(ui::icon(REACTIONS_TAB_ALL_SELECTED)),
             None => div().child(ui::icon(REACTIONS_TAB_ALL)),
         };
@@ -322,7 +322,7 @@ impl ReactionsBox {
                     .absolute()
                     .top(emoji_top)
                     .right(px_of(EMOJI_SIZE) * 1.5)
-                    .child(emoji(&added.kind, shown.as_deref())),
+                    .child(emoji(&added.kind, shown.as_deref(), cx)),
             )
             .into_any_element()
     }

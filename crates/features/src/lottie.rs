@@ -124,9 +124,20 @@ impl Player {
 
     fn is_moving(&self, now: Instant) -> bool {
         self.info().is_some()
+            && self.shown.is_some()
             && self.play != Play::Still
             && !self.is_done
             && now.saturating_duration_since(self.seen) < SEEN_GRACE
+    }
+
+    fn restart(&mut self) -> Option<Arc<RenderImage>> {
+        self.position = 0.0;
+        self.is_done = false;
+        if self.shown == Some(0) {
+            return None;
+        }
+        self.shown = None;
+        self.image.take()
     }
 
     /// The frame it should show now.
@@ -163,7 +174,7 @@ pub(crate) struct Players {
     cached_bytes: usize,
     is_window_visible: bool,
     last_tick: Instant,
-    tick: Option<Task<()>>,
+    tick: Option<(Instant, Task<()>)>,
     retired: Vec<Arc<RenderImage>>,
     frames_shown: u64,
 }
@@ -233,8 +244,9 @@ pub(crate) fn frame(key: &Key, play: Play, cx: &mut App) -> Option<Arc<RenderIma
 pub(crate) fn replay(key: &Key, cx: &mut App) {
     players(cx).update(cx, |players, cx| {
         if let Some(player) = players.players.get_mut(key) {
-            player.position = 0.0;
-            player.is_done = false;
+            let old = player.restart();
+            players.retire(old);
+            players.show_due(key, cx);
             players.schedule(Duration::ZERO, cx);
         }
     });
@@ -345,16 +357,26 @@ impl Players {
 
     /// Runs the next step after `wait`, unless one is already due.
     fn schedule(&mut self, wait: Duration, cx: &mut Context<Self>) {
-        if self.tick.is_some() || !self.is_window_visible {
+        let deadline = Instant::now() + wait;
+        if !self.is_window_visible
+            || self
+                .tick
+                .as_ref()
+                .is_some_and(|(pending, _)| *pending <= deadline)
+        {
             return;
         }
-        self.tick = Some(cx.spawn(async move |this, cx| {
-            cx.background_executor().timer(wait).await;
-            let _ = this.update(cx, |this, cx| {
-                this.tick = None;
-                this.step(cx);
-            });
-        }));
+        // A render completion or a replay must preempt the idle eviction timer.
+        self.tick = Some((
+            deadline,
+            cx.spawn(async move |this, cx| {
+                cx.background_executor().timer(wait).await;
+                let _ = this.update(cx, |this, cx| {
+                    this.tick = None;
+                    this.step(cx);
+                });
+            }),
+        ));
     }
 
     /// Moves what is drawn, shows or renders the frames now due, frees what
@@ -455,8 +477,11 @@ impl Players {
         {
             *slot = Some(pixels.clone());
         }
-        self.show(key, index, &pixels);
-        cx.notify();
+        // An in-flight nonzero frame can arrive after a replay.
+        if player.shown.is_some() || index == 0 {
+            self.show(key, index, &pixels);
+            cx.notify();
+        }
         // The frame may be late: what is due now could already be another.
         self.schedule(Duration::ZERO, cx);
     }
@@ -581,10 +606,26 @@ mod tests {
     #[test]
     fn a_player_not_drawn_lately_stops_and_a_still_never_moves() {
         let mut player = ready(Play::Loop, 60);
+        player.shown = Some(0);
         assert!(player.is_moving(Instant::now()));
         player.seen = Instant::now() - SEEN_GRACE * 2;
         assert!(!player.is_moving(Instant::now()));
         assert!(!ready(Play::Still, 60).is_moving(Instant::now()));
+    }
+
+    #[test]
+    fn a_replayed_player_waits_for_frame_zero_before_advancing() {
+        let mut player = ready(Play::Once, 60);
+        assert!(!player.is_moving(Instant::now()));
+        player.advance(Duration::from_secs(2));
+        player.shown = Some(59);
+        assert!(player.is_done);
+        let _ = player.restart();
+        assert_eq!(player.due(), Some(0));
+        assert!(!player.is_done);
+        assert!(!player.is_moving(Instant::now()));
+        player.shown = Some(0);
+        assert!(player.is_moving(Instant::now()));
     }
 
     #[test]

@@ -34,7 +34,7 @@ pub(super) struct Motions {
 }
 
 impl Motions {
-    /// A fresh instance, so each flight or menu plays from its start.
+    /// A fresh instance for each reaction menu.
     pub(super) fn next_instance(&mut self) -> u64 {
         self.count += 1;
         OWN_INSTANCES | self.count
@@ -46,8 +46,9 @@ impl Motions {
 struct Flying {
     message: MessageId,
     kind: ReactionKind,
-    instance: u64,
     started: Instant,
+    center_started: bool,
+    around_started: bool,
 }
 
 /// What a chip draws in place of its glyph and around it.
@@ -81,13 +82,24 @@ impl HistoryView {
         if !plays(Flag::EmojiReactions, cx) {
             return;
         }
-        let instance = self.motions.next_instance();
         self.motions.flying = Some(Flying {
             message,
             kind: kind.clone(),
-            instance,
             started: Instant::now(),
+            center_started: false,
+            around_started: false,
         });
+    }
+
+    pub(super) fn stop_flying(&mut self, message: MessageId, kind: &ReactionKind) {
+        if self
+            .motions
+            .flying
+            .as_ref()
+            .is_some_and(|flying| flying.message == message && flying.kind == *kind)
+        {
+            self.motions.flying = None;
+        }
     }
 
     /// The chip's moving face: its flight, else an animated custom emoji.
@@ -141,7 +153,7 @@ impl HistoryView {
         kind: &ReactionKind,
         cx: &mut Context<Self>,
     ) -> Option<Motion> {
-        let flying = self.motions.flying.clone()?;
+        let mut flying = self.motions.flying.clone()?;
         if flying.message != message || flying.kind != *kind {
             return None;
         }
@@ -154,14 +166,21 @@ impl HistoryView {
             .store
             .update(cx, |store, cx| store.reaction_animations(emoji, cx));
         let image = points(REACTION_INLINE_IMAGE);
-        let mut once = |file: Option<&File>, side: f32| match file {
-            Some(file) => self.play_once(file, side, flying.instance, cx),
+        // The history has one flight. Reuse its decoded animation when the
+        // same reaction is added again and restart each asset on arrival.
+        let instance = OWN_INSTANCES | (1 << 62) | cx.entity_id().as_u64();
+        let mut once = |file: Option<&File>, side: f32, started: &mut bool| match file {
+            Some(file) => self.play_once(file, side, instance, started, cx),
             None => Once::Done,
         };
         let (center, around) = match &animations {
             Some(found) => (
-                once(found.center.as_ref(), image),
-                once(found.around.as_ref(), image * AROUND_MULTIPLIER),
+                once(found.center.as_ref(), image, &mut flying.center_started),
+                once(
+                    found.around.as_ref(),
+                    image * AROUND_MULTIPLIER,
+                    &mut flying.around_started,
+                ),
             ),
             None => (Once::Loading, Once::Loading),
         };
@@ -169,6 +188,7 @@ impl HistoryView {
             self.motions.flying = None;
             return None;
         }
+        self.motions.flying = Some(flying);
         let playing = |once: Once, side: f32| match once {
             Once::Playing(image) => Some(Face { image, side }),
             Once::Loading | Once::Done => None,
@@ -179,10 +199,20 @@ impl HistoryView {
         })
     }
 
-    fn play_once(&mut self, file: &File, side: f32, instance: u64, cx: &mut Context<Self>) -> Once {
+    fn play_once(
+        &mut self,
+        file: &File,
+        side: f32,
+        instance: u64,
+        started: &mut bool,
+        cx: &mut Context<Self>,
+    ) -> Once {
         let Some(key) = self.lottie_key(file, (side, side), instance, cx) else {
             return Once::Loading;
         };
+        if !std::mem::replace(started, true) {
+            crate::lottie::replay(&key, cx);
+        }
         if crate::lottie::is_done(&key, cx) {
             return Once::Done;
         }

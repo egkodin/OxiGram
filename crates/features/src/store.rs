@@ -506,6 +506,7 @@ mod tests {
             reactions.insert(
                 format!("reaction-{id}"),
                 Some(ReactionAnimations {
+                    icon: None,
                     appear: Some(file(id)),
                     center: Some(file(id)),
                     around: Some(file(id)),

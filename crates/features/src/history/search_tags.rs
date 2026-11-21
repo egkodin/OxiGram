@@ -164,7 +164,7 @@ impl HistoryView {
             let pill = pill(
                 ("history-search-tag", index),
                 look,
-                emoji(&tag.kind, shown.as_deref()),
+                emoji(&tag.kind, shown.as_deref(), cx),
                 tag.text(),
                 cx,
             )

@@ -230,6 +230,7 @@ impl From<ReactionType> for ReactionKind {
 /// plays `appear`, a reaction the user adds plays `center` and `around`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ReactionAnimations {
+    pub icon: Option<File>,
     pub appear: Option<File>,
     pub center: Option<File>,
     pub around: Option<File>,
@@ -247,6 +248,7 @@ impl Session {
                 result
                     .map_err(RequestError::from)
                     .map(|reaction| ReactionAnimations {
+                        icon: sticker_file(*reaction.static_icon, StickerKind::Still),
                         appear: tgs(*reaction.appear_animation),
                         center: reaction.center_animation.and_then(|sticker| tgs(*sticker)),
                         around: reaction.around_animation.and_then(|sticker| tgs(*sticker)),
@@ -257,8 +259,12 @@ impl Session {
 
 /// The sticker's file when it is Lottie.
 fn tgs(sticker: td_api::types::Sticker) -> Option<File> {
+    sticker_file(sticker, StickerKind::Animated)
+}
+
+fn sticker_file(sticker: td_api::types::Sticker, kind: StickerKind) -> Option<File> {
     let picture = StickerPicture::from(sticker);
-    (picture.kind == StickerKind::Animated).then_some(picture.file)
+    (picture.kind == kind).then_some(picture.file)
 }
 
 #[cfg(test)]
