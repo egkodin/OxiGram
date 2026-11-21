@@ -1,5 +1,19 @@
 # Progress
 
+## M5 continuation: saved GIF picker
+
+- The compose picker has a GIFs tab that loads saved animations from
+  TDLib. It shows still previews in a scrollable grid, requests visible
+  JPEG thumbnails when no usable embedded preview exists, and handles
+  loading, empty results and retry. Selecting a GIF sends its existing file ID in
+  the current chat or topic. The draft stays in place, and a reply is
+  cleared after a successful request. Cached items stay scoped to the
+  TDLib session that loaded them.
+- Offline tests cover the send request's file ID, topic and reply, and
+  reject malformed or oversized embedded JPEGs. All 434 workspace tests,
+  formatting and strict Clippy passed offline. Live display and sending,
+  animated picker previews and GIF search remain open.
+
 ## M5 continuation: rounds into the voice queue
 
 - An ordinary round video can advance to the next voice note after
@@ -662,7 +676,7 @@ Next, in this order (see the shortcut comments in
 
 - Let the queue start a round. The video decoder and its frame rendering
   are currently owned by the open history.
-- Sticker and GIF panels in the emoji panel.
+- Sticker panel and GIF search in the compose picker.
 
 ### Live test list (M5)
 

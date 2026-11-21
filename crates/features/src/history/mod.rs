@@ -25,6 +25,7 @@ mod emoji_panel;
 mod field_bar;
 mod file_row;
 mod forwarding;
+mod gif_panel;
 mod grouped_layout;
 mod headers;
 mod inline_emoji;

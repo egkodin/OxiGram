@@ -132,7 +132,7 @@ fn media(
 }
 
 /// The thumbnail's file when it is a still image gpui can draw.
-fn still(thumbnail: Option<Box<td_api::types::Thumbnail>>) -> Option<File> {
+pub(crate) fn still(thumbnail: Option<Box<td_api::types::Thumbnail>>) -> Option<File> {
     let thumbnail = thumbnail?;
     matches!(*thumbnail.format, td_api::enums::ThumbnailFormat::Jpeg(_))
         .then(|| File::from(*thumbnail.file))

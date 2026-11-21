@@ -17,7 +17,7 @@ use crate::text::FormattedText;
 
 mod convert;
 
-pub(crate) use convert::interaction;
+pub(crate) use convert::{interaction, still};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {

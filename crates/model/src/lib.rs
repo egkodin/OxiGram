@@ -35,6 +35,7 @@ pub mod profile;
 pub mod proxies;
 pub mod reaction;
 pub mod rights;
+pub mod saved_gifs;
 pub mod saved_tags;
 pub mod scheduled;
 pub mod search;

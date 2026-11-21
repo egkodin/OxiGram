@@ -107,6 +107,8 @@ pub(super) struct EmojiPanel {
     sections: Rc<Vec<Vec<SharedString>>>,
     rows: Rc<Vec<Row>>,
     is_shown: bool,
+    show_gifs: bool,
+    pub(super) gifs: super::gif_panel::GifPanel,
     over_button: bool,
     over_panel: bool,
     /// The emoji under the pointer, as its row and column.
@@ -127,6 +129,8 @@ impl EmojiPanel {
             sections: Rc::default(),
             rows: Rc::default(),
             is_shown: false,
+            show_gifs: false,
+            gifs: super::gif_panel::GifPanel::new(),
             over_button: false,
             over_panel: false,
             hovered: None,
@@ -276,7 +280,7 @@ impl HistoryView {
         cx.notify();
     }
 
-    fn hide_emoji_panel(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn hide_emoji_panel(&mut self, cx: &mut Context<Self>) {
         self.emoji.is_shown = false;
         self.emoji.hiding = None;
         cx.notify();
@@ -576,8 +580,48 @@ impl HistoryView {
         let st = &DEFAULT_EMOJI_PAN;
         let bottom = window.viewport_size().height - px_of(HISTORY_ATTACH.height);
         let height = content_height(bottom);
-        self.sync_emoji_bottom(height - px_of(st.footer));
-        let weak = cx.weak_entity();
+        let tabs_height = px(28.0);
+        let shown_gifs = self.emoji.show_gifs;
+        let body = if shown_gifs {
+            self.saved_gifs(cx)
+        } else {
+            self.sync_emoji_bottom(height - px_of(st.footer) - tabs_height);
+            let weak = cx.weak_entity();
+            div()
+                .flex_1()
+                .min_h_0()
+                .pl(px_of(EMOJI_PAN_RADIUS))
+                .child(
+                    list(self.emoji.list.clone(), move |index, _, cx: &mut App| {
+                        weak.update(cx, |this, cx| this.emoji_row(index, cx))
+                            .unwrap_or_else(|_| div().into_any_element())
+                    })
+                    .size_full(),
+                )
+                .into_any_element()
+        };
+        let tabs = div().h(tabs_height).flex_none().flex().children(
+            [(false, key::lng_switch_emoji), (true, key::lng_switch_gifs)].map(|(gifs, title)| {
+                let fg = if gifs == shown_gifs {
+                    ColorId::WindowActiveTextFg
+                } else {
+                    ColorId::WindowFg
+                };
+                div()
+                    .id(("picker-tab", usize::from(gifs)))
+                    .flex_1()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor_pointer()
+                    .text_color(color(cx, ColorRef::Palette(fg)))
+                    .child(tr(cx, title))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.emoji.show_gifs = gifs;
+                        cx.notify();
+                    }))
+            }),
+        );
         let shadow = st.show_animation.shadow;
         Some(
             div()
@@ -611,16 +655,9 @@ impl HistoryView {
                             spread_radius: px(0.0),
                             inset: false,
                         }])
-                        .child(
-                            div().flex_1().min_h_0().pl(px_of(EMOJI_PAN_RADIUS)).child(
-                                list(self.emoji.list.clone(), move |index, _, cx: &mut App| {
-                                    weak.update(cx, |this, cx| this.emoji_row(index, cx))
-                                        .unwrap_or_else(|_| div().into_any_element())
-                                })
-                                .size_full(),
-                            ),
-                        )
-                        .child(self.emoji_footer(cx)),
+                        .child(tabs)
+                        .child(body)
+                        .children((!shown_gifs).then(|| self.emoji_footer(cx))),
                 )
                 .into_any_element(),
         )
