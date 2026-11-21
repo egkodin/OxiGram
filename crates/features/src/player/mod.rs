@@ -63,8 +63,8 @@ pub(crate) struct Player {
     /// The chat's shared music being fetched for the playlist.
     widening: Option<Task<()>>,
     hover: panel::Hover,
-    /// The speed presets, open at a point.
-    speed_menu: Option<(
+    /// The player presets, open at a point.
+    control_menu: Option<(
         gpui::Point<gpui::Pixels>,
         Entity<ui::PopupMenu>,
         gpui::Subscription,
@@ -179,7 +179,8 @@ impl Player {
                 tracing::warn!("the next song has no size yet");
                 return;
             };
-            let sound = match file.audio(Duration::ZERO) {
+            let volume = cx.update(|cx| crate::settings::song_volume(cx));
+            let sound = match file.audio(Duration::ZERO, volume) {
                 Ok(sound) => sound,
                 Err(error) => {
                     tracing::warn!(%error, "cannot play the next song");
@@ -196,6 +197,7 @@ impl Player {
 
     /// Ends what played; the next song follows it (`moveInPlaylist(1, true)`).
     fn finish(&mut self, cx: &mut Context<Self>) {
+        self.control_menu = None;
         let next = self.playing.take().and_then(|playing| {
             let playlist = playing.playlist?;
             let repeat = match (&playing.track, &playing.sound) {
@@ -314,17 +316,61 @@ impl Player {
         });
         let current = self.speed(cx);
         let menu = cx.new(|cx| crate::speed::menu(current, &on_choose, cx));
+        self.open_control_menu(menu, window, cx);
+    }
+
+    // shortcut: five presets, with a continuous slider when the player controls support one.
+    pub(crate) fn show_volume_menu(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
+        let weak = cx.weak_entity();
+        let current = crate::settings::song_volume(cx);
+        let menu = cx.new(|cx| {
+            let mut menu = ui::PopupMenu::new(&style::widgets::POPUP_MENU_WITH_ICONS, cx);
+            for level in [0, 25, 50, 75, 100] {
+                let weak = weak.clone();
+                let label = if level == current {
+                    format!("✓ {level}%")
+                } else {
+                    format!("{level}%")
+                };
+                menu.option(label, None, move |_, cx| {
+                    let _ = weak.update(cx, |player, cx| player.change_volume(level, cx));
+                });
+            }
+            menu
+        });
+        self.open_control_menu(menu, window, cx);
+    }
+
+    fn open_control_menu(
+        &mut self,
+        menu: Entity<ui::PopupMenu>,
+        window: &mut gpui::Window,
+        cx: &mut Context<Self>,
+    ) {
         let subscription = cx.subscribe(&menu, |this, _, _: &gpui::DismissEvent, cx| {
-            this.speed_menu = None;
+            this.control_menu = None;
             cx.notify();
         });
         gpui::Focusable::focus_handle(menu.read(cx), cx).focus(window, cx);
-        self.speed_menu = Some((window.mouse_position(), menu, subscription));
+        self.control_menu = Some((window.mouse_position(), menu, subscription));
         cx.notify();
     }
 
-    pub(crate) fn speed_menu_overlay(&self) -> Option<gpui::AnyElement> {
-        let (position, menu, _) = self.speed_menu.as_ref()?;
+    pub(crate) fn change_volume(&mut self, volume: u8, cx: &mut Context<Self>) {
+        if let Some(Playing {
+            track: Track::Song { .. },
+            sound: Sound::Music(audio),
+            ..
+        }) = &self.playing
+        {
+            audio.set_volume(volume);
+            crate::settings::set_song_volume(cx, volume);
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn control_menu_overlay(&self) -> Option<gpui::AnyElement> {
+        let (position, menu, _) = self.control_menu.as_ref()?;
         Some(crate::speed::overlay(*position, menu.clone()))
     }
 
@@ -343,6 +389,7 @@ impl Player {
     }
 
     pub(crate) fn stop(&mut self, cx: &mut Context<Self>) {
+        self.control_menu = None;
         self.playing = None;
         self.skipping = None;
         self.widening = None;

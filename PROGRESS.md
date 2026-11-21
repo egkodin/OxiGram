@@ -1,6 +1,6 @@
 # Progress
 
-## M5 continuation: song repeat
+## M5 continuation: song repeat and volume
 
 - Added a saved Repeat Off, One and All setting to the song bar. Telegram
   Desktop's local `media_player_widget.cpp` and `media_player_instance.cpp`
@@ -8,9 +8,16 @@
   completion. Repeat One reopens the same song at its start after EOF.
   Repeat All wraps within OxiGram's currently loaded playlist. Decoder
   errors retain ordinary next-track handling and cannot trigger a repeat.
+- Added saved song volume. Left-click mutes or restores the last nonzero
+  level. Right-click opens presets from 0% to 100% in 25% steps. The saved
+  gain is in place before either local or streaming music starts, and
+  muted playback keeps advancing. Voices and videos use their existing
+  output level. A continuous volume slider remains open.
 - Offline verification covers both wrap directions, Repeat One versus
-  manual skip, preferences round-trip and silent audio EOF. Volume, playlist
-  ordering and any visual or signed-in checks remain open.
+  manual skip, preferences round-trip, silent audio EOF and actual
+  output samples at reduced gain and mute. All 423 workspace tests and
+  strict Clippy passed with runtime shaders and system FFmpeg. Playlist
+  ordering, visual inspection and signed-in checks remain open.
 
 ## Code-only audit follow-up, 2026-11-20
 
@@ -533,8 +540,8 @@ Next, in this order (see the shortcut comments in
   stop; when the OS quits the app, gpui waits only 200 ms, so that path
   may still crash (wake `td_receive` with a request if live test 24 shows
   it); the `history-perf` example still quits without stopping it.
-- Player bar: volume and playlist ordering are still open. The bar hides
-  briefly while it fetches the next song.
+- Player bar: playlist ordering and a continuous volume slider are still
+  open. The bar hides briefly while it fetches the next song.
 - Videos and GIFs play in the system player; inline playback and GIF
   autoplay wait for the media viewer (row 292).
 - Contact cards: ADD adds without AddContactBox; a card with no
@@ -605,8 +612,8 @@ Next, in this order (see the shortcut comments in
 
 ### Next steps (M5, offline), in the owner's order
 
-- Order and volume (row 302), then the voice queue (row 304). Song repeat
-  now has offline coverage, and the bar already has speed controls.
+- Playlist order (row 302), then the voice queue (row 304). Song repeat
+  and volume presets now have offline coverage. The bar has speed controls.
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)

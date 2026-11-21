@@ -626,7 +626,7 @@ impl VideoPlayback {
 
 /// `file`'s sound from `start`; none for a silent video.
 fn sound(file: &Playable, start: Duration) -> Option<AudioPlayer> {
-    match file.audio(start) {
+    match file.audio(start, 100) {
         Ok(sound) => Some(sound),
         Err(AudioError::NoAudio) => None,
         Err(error) => {

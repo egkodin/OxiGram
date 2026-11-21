@@ -70,6 +70,7 @@ struct Shared {
     is_paused: AtomicBool,
     /// How many source frames play per output frame, as `f32` bits.
     speed: AtomicU32,
+    gain: AtomicU32,
     /// The part of a source frame the speed stepped past, as `f64` bits.
     fraction: AtomicU64,
     /// The decoder reached the end of the file.
@@ -81,6 +82,26 @@ struct Shared {
 }
 
 impl Shared {
+    fn new(rate: u32, channels: u16, start: Duration, volume: u8) -> Self {
+        Self {
+            buffer: Mutex::new(VecDeque::new()),
+            space: Condvar::new(),
+            channels: usize::from(channels),
+            rate,
+            base: AtomicU64::new(0),
+            played: AtomicU64::new(0),
+            seek: Mutex::new((start > Duration::ZERO).then_some(start)),
+            is_paused: AtomicBool::new(false),
+            speed: AtomicU32::new(1.0_f32.to_bits()),
+            gain: AtomicU32::new(gain(volume).to_bits()),
+            fraction: AtomicU64::new(0),
+            is_drained: AtomicBool::new(false),
+            reached_end: AtomicBool::new(false),
+            is_closed: AtomicBool::new(false),
+            duration: AtomicU64::new(0),
+        }
+    }
+
     fn buffer(&self) -> MutexGuard<'_, VecDeque<f32>> {
         self.buffer.lock().expect("audio buffer lock poisoned")
     }
@@ -103,6 +124,14 @@ impl Shared {
         buffer.drain(..frames * self.channels);
         self.fraction.store(fraction.to_bits(), Ordering::Relaxed);
         drop(buffer);
+        let gain = f32::from_bits(self.gain.load(Ordering::Relaxed));
+        if gain == 0.0 {
+            output.fill(0.0);
+        } else if gain < 1.0 {
+            for sample in output {
+                *sample *= gain;
+            }
+        }
         let frames = u64::try_from(frames).unwrap_or(0);
         self.played.fetch_add(frames, Ordering::Relaxed);
         self.space.notify_one();
@@ -153,13 +182,13 @@ impl std::fmt::Debug for AudioPlayer {
 
 impl AudioPlayer {
     /// Starts playing `path`'s sound from `start`.
-    // shortcut: speed steps through the samples, so the pitch moves with it; tdesktop keeps the pitch (row 302). No volume.
+    // shortcut: speed steps through the samples, so the pitch moves with it; tdesktop keeps the pitch (row 302).
     ///
     /// # Errors
     ///
     /// When the file cannot be opened or has no sound.
-    pub fn open(path: &Path, start: Duration) -> Result<Self, AudioError> {
-        Self::start(Origin::Path(path.to_owned()), start, Wait::Opened)
+    pub fn open(path: &Path, start: Duration, volume: u8) -> Result<Self, AudioError> {
+        Self::start(Origin::Path(path.to_owned()), start, volume, Wait::Opened)
     }
 
     /// Starts playing a file while it downloads, from `start`. It returns
@@ -169,8 +198,8 @@ impl AudioPlayer {
     /// # Errors
     ///
     /// When the decoder thread or the output cannot start.
-    pub fn open_stream(stream: Stream, start: Duration) -> Result<Self, AudioError> {
-        Self::start(Origin::Stream(stream), start, Wait::No)
+    pub fn open_stream(stream: Stream, start: Duration, volume: u8) -> Result<Self, AudioError> {
+        Self::start(Origin::Stream(stream), start, volume, Wait::No)
     }
 
     /// Whether the decoder waits for bytes still downloading.
@@ -178,25 +207,10 @@ impl AudioPlayer {
         self.signal.as_ref().is_some_and(Signal::is_waiting)
     }
 
-    fn start(origin: Origin, start: Duration, wait: Wait) -> Result<Self, AudioError> {
+    fn start(origin: Origin, start: Duration, volume: u8, wait: Wait) -> Result<Self, AudioError> {
         let output = Output::open();
         let (rate, channels) = output.format();
-        let shared = Arc::new(Shared {
-            buffer: Mutex::new(VecDeque::new()),
-            space: Condvar::new(),
-            channels: usize::from(channels),
-            rate,
-            base: AtomicU64::new(0),
-            played: AtomicU64::new(0),
-            seek: Mutex::new((start > Duration::ZERO).then_some(start)),
-            is_paused: AtomicBool::new(false),
-            speed: AtomicU32::new(1.0_f32.to_bits()),
-            fraction: AtomicU64::new(0),
-            is_drained: AtomicBool::new(false),
-            reached_end: AtomicBool::new(false),
-            is_closed: AtomicBool::new(false),
-            duration: AtomicU64::new(0),
-        });
+        let shared = Arc::new(Shared::new(rate, channels, start, volume));
         let (opened, is_open) = mpsc::sync_channel(1);
         let decoding = Arc::clone(&shared);
         let signal = origin.signal();
@@ -260,11 +274,22 @@ impl AudioPlayer {
         self.shared.speed.store(speed.to_bits(), Ordering::Relaxed);
     }
 
+    /// Sets output level as a percentage, leaving the playback clock running.
+    pub fn set_volume(&self, percent: u8) {
+        self.shared
+            .gain
+            .store(gain(percent).to_bits(), Ordering::Relaxed);
+    }
+
     /// Plays on from `to`; the decoder starts over there.
     pub fn seek(&self, to: Duration) {
         *self.shared.seek.lock().expect("audio seek lock poisoned") = Some(to);
         self.shared.space.notify_all();
     }
+}
+
+fn gain(percent: u8) -> f32 {
+    f32::from(percent.min(100)) / 100.0
 }
 
 impl Drop for AudioPlayer {
@@ -597,7 +622,7 @@ mod tests {
 
     fn silent(path: &str, start: Duration) -> AudioPlayer {
         silence_output();
-        AudioPlayer::open(Path::new(path), start).expect("the tone opens")
+        AudioPlayer::open(Path::new(path), start, 100).expect("the tone opens")
     }
 
     fn wait_until(what: &str, done: impl Fn() -> bool) {
@@ -637,6 +662,23 @@ mod tests {
     }
 
     #[test]
+    fn gain_scales_output_and_muting_advances_playback() {
+        let player = AudioPlayer {
+            shared: Arc::new(Shared::new(10, 1, Duration::ZERO, 50)),
+            signal: None,
+            _sink: Sink::Clock,
+        };
+        player.shared.buffer().extend([1.0, -0.5, 1.0, -0.5]);
+        let mut output = [0.0; 2];
+        player.shared.pull(&mut output);
+        assert_eq!(output, [0.5, -0.25]);
+        player.set_volume(0);
+        player.shared.pull(&mut output);
+        assert_eq!(output, [0.0, 0.0]);
+        assert_eq!(player.position(), Duration::from_millis(400));
+    }
+
+    #[test]
     fn speed_steps_through_the_frames() {
         let buffer: VecDeque<f32> = (0..8).map(|n| n as f32).collect();
         let mut output = [0.0; 4];
@@ -670,7 +712,7 @@ mod tests {
     #[test]
     fn a_file_without_sound_says_so() {
         silence_output();
-        let error = AudioPlayer::open(Path::new(CLIP), Duration::ZERO).expect_err("no sound");
+        let error = AudioPlayer::open(Path::new(CLIP), Duration::ZERO, 100).expect_err("no sound");
         assert!(matches!(error, AudioError::NoAudio), "{error:?}");
     }
 }

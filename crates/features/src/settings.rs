@@ -170,6 +170,8 @@ struct Values {
     /// Songs (`audioPlaybackSpeed`).
     audio_speed: crate::speed::Speed,
     song_repeat: crate::player::Repeat,
+    song_volume: u8,
+    unmuted_song_volume: u8,
     /// Videos in the viewer (`videoPlaybackSpeed`).
     video_speed: crate::speed::Speed,
 }
@@ -203,6 +205,8 @@ impl Default for Values {
             voice_speed: crate::speed::Speed::default(),
             audio_speed: crate::speed::Speed::default(),
             song_repeat: crate::player::Repeat::default(),
+            song_volume: 100,
+            unmuted_song_volume: 100,
             video_speed: crate::speed::Speed::default(),
         }
     }
@@ -358,6 +362,28 @@ pub(crate) fn song_repeat(cx: &App) -> crate::player::Repeat {
 
 pub(crate) fn cycle_song_repeat(cx: &mut App) {
     change(cx, |values| values.song_repeat = values.song_repeat.cycle());
+}
+
+pub(crate) fn song_volume(cx: &App) -> u8 {
+    values(cx).map_or(100, |values| values.song_volume.min(100))
+}
+
+pub(crate) fn toggled_song_volume(cx: &App) -> u8 {
+    if song_volume(cx) == 0 {
+        values(cx).map_or(100, |values| values.unmuted_song_volume.clamp(1, 100))
+    } else {
+        0
+    }
+}
+
+pub(crate) fn set_song_volume(cx: &mut App, volume: u8) {
+    let volume = volume.min(100);
+    change(cx, |values| {
+        values.song_volume = volume;
+        if volume > 0 {
+            values.unmuted_song_volume = volume;
+        }
+    });
 }
 
 pub(crate) fn set_large_emoji(large: bool, cx: &mut App) {
@@ -733,6 +759,8 @@ mod tests {
             voice_speed: crate::speed::Speed::default().chosen(1.5),
             audio_speed: crate::speed::Speed::default(),
             song_repeat: crate::player::Repeat::All,
+            song_volume: 0,
+            unmuted_song_volume: 50,
             video_speed: crate::speed::Speed::default().toggled(),
         };
         let sibling = path.with_extension("json.tmp");

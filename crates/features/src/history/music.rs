@@ -140,7 +140,8 @@ impl HistoryView {
             return;
         }
         self.player.update(cx, |player, cx| player.stop(cx));
-        match (self.stream(file), file.path()) {
+        let volume = crate::settings::song_volume(cx);
+        match (self.stream(file, volume), file.path()) {
             (Some(player), _) => {
                 let playlist = self.playlist(cx);
                 self.play(message, (track, Some(playlist)), Sound::Music(player), cx);

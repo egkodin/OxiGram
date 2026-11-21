@@ -160,7 +160,7 @@ impl HistoryView {
         self.player.update(cx, |player, cx| player.stop(cx));
         let track = origin.track(&self.store.read(cx).state().chats, cx);
         let Some(path) = file.path().map(Path::to_path_buf) else {
-            if let Some(player) = self.stream(&file) {
+            if let Some(player) = self.stream(&file, 100) {
                 self.play(message, (track, None), Sound::Music(player), cx);
             }
             return;
@@ -182,7 +182,7 @@ impl HistoryView {
                     })
                     .map(Sound::Voice)
                     // MP3 and M4A voices stream as music do.
-                    .or_else(|| this.stream(&file).map(Sound::Music));
+                    .or_else(|| this.stream(&file, 100).map(Sound::Music));
                 match player {
                     Some(player) => this.play(message, (track, None), player, cx),
                     None => this.open_file(&path, window, cx),
@@ -200,8 +200,8 @@ impl HistoryView {
     }
 
     /// `file`'s sound from its start.
-    pub(super) fn stream(&self, file: &Playable) -> Option<media::AudioPlayer> {
-        file.audio(Duration::ZERO)
+    pub(super) fn stream(&self, file: &Playable, volume: u8) -> Option<media::AudioPlayer> {
+        file.audio(Duration::ZERO, volume)
             .inspect_err(|error| tracing::warn!(%error, "cannot play the file"))
             .ok()
     }

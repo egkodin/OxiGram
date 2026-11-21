@@ -19,7 +19,8 @@ use style::media_player::{
     MEDIA_PLAYER_PLAY_LEFT, MEDIA_PLAYER_PLAY_SKIP, MEDIA_PLAYER_PLAY_TOP, MEDIA_PLAYER_PLAYBACK,
     MEDIA_PLAYER_PREVIOUS_BUTTON, MEDIA_PLAYER_PREVIOUS_DISABLED_ICON, MEDIA_PLAYER_REPEAT_BUTTON,
     MEDIA_PLAYER_REPEAT_DISABLED_ICON, MEDIA_PLAYER_REPEAT_ONE_ICON, MEDIA_PLAYER_SPEED_BUTTON,
-    MEDIA_PLAYER_TIME,
+    MEDIA_PLAYER_TIME, MEDIA_PLAYER_VOLUME_ICON0, MEDIA_PLAYER_VOLUME_ICON1,
+    MEDIA_PLAYER_VOLUME_TOGGLE,
 };
 use style::{ColorId, ColorRef};
 use ui::{IconButton, color, font, font_height};
@@ -33,7 +34,7 @@ use crate::speed::Speed;
 const LABEL_TOP: f32 = 22.0 - 14.0;
 
 /// The bar for the song, voice or round playing; none for nothing.
-// shortcut: no volume or order; with row 302.
+// shortcut: no playlist ordering; with row 302.
 pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let state = player.read(cx);
     let playing = state.current()?;
@@ -66,7 +67,7 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
     let speed_width = px_of(MEDIA_PLAYER_SPEED_BUTTON.size.width);
     let mut right = px_of(MEDIA_PLAYER_CLOSE.width) + speed_width + px_of(MEDIA_PLAYER_PADDING);
     if is_song {
-        right += px_of(MEDIA_PLAYER_REPEAT_BUTTON.width);
+        right += px_of(MEDIA_PLAYER_REPEAT_BUTTON.width) + px_of(MEDIA_PLAYER_VOLUME_TOGGLE.width);
     }
     let labels = div()
         .absolute()
@@ -84,7 +85,9 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         .flex()
         .items_center()
         .when(is_song, |controls| {
-            controls.child(repeat_button(player, cx))
+            controls
+                .child(volume_button(player, cx))
+                .child(repeat_button(player, cx))
         })
         .child(speed_button(player, state.speed(cx), cx))
         .child(
@@ -110,7 +113,7 @@ pub(crate) fn bar(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
                 .child(labels_hover(player, left, right))
                 .children(super::panel::panel(player, cx))
         })
-        .children(state.speed_menu_overlay());
+        .children(state.control_menu_overlay());
     Some(element.into_any_element())
 }
 
@@ -127,6 +130,30 @@ fn repeat_button(player: &Entity<Player>, cx: &App) -> IconButton {
             crate::settings::cycle_song_repeat(cx);
             player.update(cx, |_, cx| cx.notify());
         })
+}
+
+fn volume_button(player: &Entity<Player>, cx: &App) -> AnyElement {
+    let icon = match crate::settings::song_volume(cx) {
+        0 => Some(MEDIA_PLAYER_VOLUME_ICON0),
+        1..=65 => Some(MEDIA_PLAYER_VOLUME_ICON1),
+        _ => None,
+    };
+    let (toggle, menu) = (player.clone(), player.clone());
+    div()
+        .id("media-player-volume")
+        .child(
+            IconButton::new("media-player-volume-toggle", &MEDIA_PLAYER_VOLUME_TOGGLE)
+                .icon_override(icon)
+                .on_click(move |_, _, cx| {
+                    let volume = crate::settings::toggled_song_volume(cx);
+                    toggle.update(cx, |player, cx| player.change_volume(volume, cx));
+                }),
+        )
+        .on_mouse_down(MouseButton::Right, move |_, window, cx| {
+            cx.stop_propagation();
+            menu.update(cx, |player, cx| player.show_volume_menu(window, cx));
+        })
+        .into_any_element()
 }
 
 /// `mediaPlayerSpeedButton`: a click toggles the faster speed, a right

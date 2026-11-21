@@ -86,10 +86,10 @@ impl Playable {
 
     /// Plays the sound from `start`. A streamed file opens at once and is
     /// silent if it has no sound.
-    pub(crate) fn audio(&self, start: Duration) -> Result<AudioPlayer, AudioError> {
+    pub(crate) fn audio(&self, start: Duration, volume: u8) -> Result<AudioPlayer, AudioError> {
         match self {
-            Self::Complete(path) => AudioPlayer::open(path, start),
-            Self::Streaming { .. } => AudioPlayer::open_stream(self.stream(), start),
+            Self::Complete(path) => AudioPlayer::open(path, start, volume),
+            Self::Streaming { .. } => AudioPlayer::open_stream(self.stream(), start, volume),
         }
     }
 
