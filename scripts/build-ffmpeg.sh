@@ -94,7 +94,7 @@ ninja -C "$work/dav1d-build" install
 )
 
 # Everything off, then exactly what rgram plays: Telegram's videos, round
-# videos, GIFs (H.264 MP4) and WebM stickers; voice (Opus) and music.
+# videos, animations (H.264 MP4 and GIF) and WebM stickers; voice and music.
 configure=(
   --prefix="$prefix"
   --enable-static --disable-shared --enable-pic
@@ -103,9 +103,9 @@ configure=(
   --enable-swscale --enable-swresample
   --enable-protocol=file
   --enable-libdav1d --enable-libvpx
-  --enable-decoder=h264,hevc,vp9,libvpx_vp9,av1,libdav1d,aac,opus,mp3,mp3float,flac,vorbis
-  --enable-demuxer=mov,matroska,ogg,mp3,flac,aac
-  --enable-parser=h264,hevc,vp9,av1,aac,opus,mpegaudio,flac,vorbis
+  --enable-decoder=h264,hevc,vp9,libvpx_vp9,av1,libdav1d,aac,opus,mp3,mp3float,flac,vorbis,gif
+  --enable-demuxer=mov,matroska,ogg,mp3,flac,aac,gif
+  --enable-parser=h264,hevc,vp9,av1,aac,opus,mpegaudio,flac,vorbis,gif
   "${hwaccel[@]}"
 )
 (

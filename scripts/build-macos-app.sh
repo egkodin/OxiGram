@@ -10,6 +10,12 @@ if [[ ! -f "$ffmpeg_dir/lib/libvpx.a" ]] || ! grep -Eq '(^|[[:space:]])-lvpx([[:
     echo "Rebuild static FFmpeg with scripts/build-ffmpeg.sh for VP9 alpha support" >&2
     exit 1
 fi
+if ! ar -t "$ffmpeg_dir/lib/libavcodec.a" | grep -Fx gifdec.o >/dev/null ||
+   ! ar -t "$ffmpeg_dir/lib/libavcodec.a" | grep -Fx gif_parser.o >/dev/null ||
+   ! ar -t "$ffmpeg_dir/lib/libavformat.a" | grep -Fx gifdec.o >/dev/null; then
+    echo "Rebuild static FFmpeg with scripts/build-ffmpeg.sh for GIF playback" >&2
+    exit 1
+fi
 unset FFMPEG_DIR
 export PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig"
 "$root/scripts/check-metal.sh"

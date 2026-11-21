@@ -639,6 +639,29 @@ mod tests {
     }
 
     #[test]
+    fn saved_mp4_and_gif_animations_restart_after_decoder_eof() {
+        let gif = concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/animation.gif");
+        for path in [CLIP, gif] {
+            let mut decoder = VideoDecoder::open(Path::new(path), (320, 240)).unwrap();
+            assert!(matches!(next(&decoder), Output::Info(_)), "{path}");
+            let first = frame(next(&decoder));
+            let mut changed = false;
+            loop {
+                match next(&decoder) {
+                    Output::Frame(frame) => changed |= frame.pixels != first.pixels,
+                    Output::End => break,
+                    other => panic!("{path}: unexpected {other:?}"),
+                }
+            }
+            assert!(changed, "{path} must animate");
+            decoder.seek(Duration::ZERO);
+            let restarted = frame(next(&decoder));
+            assert_eq!(restarted.position, first.position);
+            assert_eq!(restarted.pixels, first.pixels);
+        }
+    }
+
+    #[test]
     fn a_seek_drops_what_came_before_and_starts_at_the_target() {
         let mut decoder = VideoDecoder::open(Path::new(CLIP), (64, 64)).expect("the thread starts");
         assert!(matches!(next(&decoder), Output::Info(_)));
