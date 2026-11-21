@@ -267,10 +267,12 @@ pub(super) fn forward_element(header: ForwardHeader, fg: ColorRef, cx: &App) -> 
         .items_center()
         .gap(gpui::px(4.0))
         .when_some(header.on_click, |div, click| {
-            div.cursor_pointer().on_click(move |event, window, cx| {
-                cx.stop_propagation();
-                click(event, window, cx);
-            })
+            div.cursor_pointer()
+                .on_mouse_down(gpui::MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .on_click(move |event, window, cx| {
+                    cx.stop_propagation();
+                    click(event, window, cx);
+                })
         })
         .children(
             header

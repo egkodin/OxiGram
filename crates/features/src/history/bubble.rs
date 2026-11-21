@@ -124,6 +124,7 @@ pub(super) fn palette(id: ColorId) -> ColorRef {
 pub(super) fn element(mut item: Item<'_>, cx: &App) -> AnyElement {
     let after = item.after.take();
     div()
+        .id(("history-message", item.message.id.0.cast_unsigned()))
         .w_full()
         .flex()
         .flex_col()
@@ -293,10 +294,12 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
                 .left(px_of(HISTORY_PHOTO_LEFT))
                 .bottom(px_of(MSG_MARGIN.bottom))
                 .when_some(item.on_author.clone(), |div, click| {
-                    div.cursor_pointer().on_click(move |event, window, cx| {
-                        cx.stop_propagation();
-                        click(event, window, cx);
-                    })
+                    div.cursor_pointer()
+                        .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                        .on_click(move |event, window, cx| {
+                            cx.stop_propagation();
+                            click(event, window, cx);
+                        })
                 })
                 .child(Userpic::new(px_of(MSG_PHOTO_SIZE), userpic))
         });
@@ -523,10 +526,12 @@ pub(super) fn name_line(item: &Item<'_>, out: bool, cx: &App) -> Option<Div> {
                 div()
                     .id("message-author-name")
                     .when_some(item.on_author.clone(), |div, click| {
-                        div.cursor_pointer().on_click(move |event, window, cx| {
-                            cx.stop_propagation();
-                            click(event, window, cx);
-                        })
+                        div.cursor_pointer()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                            .on_click(move |event, window, cx| {
+                                cx.stop_propagation();
+                                click(event, window, cx);
+                            })
                     })
                     .truncate()
                     .text_color(color(cx, palette(name_color(author.color_index))))
