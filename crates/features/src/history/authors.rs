@@ -63,17 +63,12 @@ impl HistoryView {
         ))
     }
 
-    pub(super) fn on_sender(
-        &self,
-        sender: Sender,
-        open_channel: bool,
-        cx: &Context<Self>,
-    ) -> OnClick {
+    pub(super) fn on_sender(&self, sender: Sender, open_chat: bool, cx: &Context<Self>) -> OnClick {
         let weak = cx.weak_entity();
         Rc::new(move |_, _, cx| {
             let _ = weak.update(cx, |_, cx| match sender {
                 Sender::User(user) => cx.emit(HistoryEvent::OpenProfile(model::ChatId(user.0))),
-                Sender::Chat(chat) if open_channel => cx.emit(HistoryEvent::OpenChat(chat)),
+                Sender::Chat(chat) if open_chat => cx.emit(HistoryEvent::OpenChat(chat)),
                 Sender::Chat(chat) => cx.emit(HistoryEvent::OpenProfile(chat)),
             });
         })
@@ -100,13 +95,7 @@ impl HistoryView {
                         .into()
                 }),
                 avatar,
-                on_click: sender.map(|sender| {
-                    self.on_sender(
-                        sender,
-                        matches!(forward.origin, model::message::Origin::Channel { .. }),
-                        cx,
-                    )
-                }),
+                on_click: sender.map(|sender| self.on_sender(sender, true, cx)),
             },
             file,
         ))

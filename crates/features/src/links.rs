@@ -52,7 +52,7 @@ pub(crate) fn open(link: Link, targets: &Targets, window: &mut Window, cx: &mut 
                     }
                     Err(error) => {
                         tracing::warn!(%error, "opening a mentioned profile failed");
-                        let _ = targets.layers.update(cx, |layers, cx| {
+                        targets.layers.update(cx, |layers, cx| {
                             layers.show_toast(
                                 not_found,
                                 &style::widgets::DEFAULT_TOAST,
