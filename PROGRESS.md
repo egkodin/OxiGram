@@ -1,5 +1,32 @@
 # Progress
 
+## History and picker interaction fixes (2026-11-21)
+
+- Reproduced an oversized preview image and outgoing bubbles beyond the
+  right edge in a narrow window. The history can now shrink below its
+  contents' preferred width, pinned summaries stay within their row,
+  and preview images scale to fit the preview frame.
+- Message rows scope their interactive IDs to the message. Author and
+  forwarded-origin clicks take precedence over row selection.
+- Reaction controls and the context menu share their outside-click
+  boundary. The full list is laid out inside the anchored popup and
+  includes Premium choices for eligible accounts.
+- Clicking the composer button keeps the picker open. The active media
+  tab has a clear highlight and emoji category shortcuts sit above the grid.
+  Sticker headings inherit the theme foreground and GIFs use three equal
+  columns regardless of the image dimensions.
+- Verified with Computer Use in the signed local test build. At the
+  original narrow width the preview fit and the outgoing bubble was
+  visible. A group author name and a different author's avatar opened
+  the intended profiles. Expanded reactions showed all available rows
+  on a channel post and scrolled in a group. All three picker tabs were
+  inspected. The test used existing messages without sending content
+  or adding reactions.
+- All 440 workspace tests passed with the system FFmpeg and runtime
+  shader features. Formatting and strict workspace Clippy passed.
+  The local UI test build is staged separately under
+  `target/ui-check-2026-11-21/OxiGram.app`.
+
 ## M5 continuation: forwarded origins, media and reactions (2026-11-21)
 
 - Clicking a forwarded user opens their profile. A forwarded chat or
