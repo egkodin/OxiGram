@@ -88,11 +88,15 @@ impl HistoryView {
         if let Some(preset) = super::menu::preset_reactions(cx) {
             return Task::ready(preset);
         }
-        let task = self
-            .store
-            .read(cx)
+        let store = self.store.read(cx);
+        let state = store.state();
+        let is_premium = state
+            .me
+            .and_then(|me| state.chats.user(me))
+            .is_some_and(|me| me.is_premium);
+        let task = store
             .session()
-            .available_reactions(self.chat, message);
+            .available_reactions(self.chat, message, is_premium);
         spawn(
             async move {
                 task.await
@@ -138,11 +142,10 @@ impl HistoryView {
     /// The strip's row of reactions, or every one once expanded; a pick
     /// closes the menu.
     pub(super) fn strip_element(&mut self, strip: &Strip, cx: &mut Context<Self>) -> AnyElement {
-        let has_more = strip.kinds.len() > STRIP_COUNT;
-        let shown = match (strip.is_expanded, has_more) {
-            (true, _) => strip.kinds.len(),
-            (false, true) => STRIP_COUNT - 1,
-            (false, false) => STRIP_COUNT,
+        let shown = if strip.is_expanded {
+            strip.kinds.len()
+        } else {
+            STRIP_COUNT - 1
         };
         let mut buttons: Vec<AnyElement> = strip
             .kinds
@@ -171,9 +174,7 @@ impl HistoryView {
                 .children(buttons)
                 .into_any_element();
         }
-        if has_more {
-            buttons.push(self.expand_button(cx));
-        }
+        buttons.push(self.expand_button(cx));
         div()
             .flex()
             .items_center()

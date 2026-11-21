@@ -58,6 +58,7 @@ pub struct PopupMenu {
     style: &'static PopupStyle,
     items: Vec<Item>,
     hovered: Option<usize>,
+    dismiss_outside: bool,
     focus: FocusHandle,
 }
 
@@ -83,8 +84,14 @@ impl PopupMenu {
             style,
             items: Vec::new(),
             hovered: None,
+            dismiss_outside: true,
             focus: cx.focus_handle(),
         }
+    }
+
+    /// A parent that contains additional controls handles outside clicks.
+    pub fn use_parent_dismissal(&mut self) {
+        self.dismiss_outside = false;
     }
 
     /// Adds an action; the menu closes before `handler` runs.
@@ -262,7 +269,9 @@ impl Render for PopupMenu {
             .key_context(CONTEXT)
             .track_focus(&self.focus)
             .on_action(cx.listener(|_, _: &CloseMenu, _, cx| cx.emit(DismissEvent)))
-            .on_mouse_down_out(cx.listener(|_, _, _, cx| cx.emit(DismissEvent)))
+            .when(self.dismiss_outside, |menu| {
+                menu.on_mouse_down_out(cx.listener(|_, _, _, cx| cx.emit(DismissEvent)))
+            })
             // Clicks inside must not reach what lies under the menu.
             .occlude()
             .min_w(px_of(st.menu.width_min))

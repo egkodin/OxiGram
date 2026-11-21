@@ -161,11 +161,12 @@ impl Session {
     }
 
     /// The reactions the user may add to a message, top ones first, without
-    /// the paid one and those that need Premium.
+    /// the paid one and Premium options unavailable to this account.
     pub fn available_reactions(
         &self,
         chat: ChatId,
         message: MessageId,
+        is_premium: bool,
     ) -> impl Future<Output = Result<Vec<ReactionKind>, RequestError>> + Send + use<> {
         self.client()
             .request(&GetMessageAvailableReactions {
@@ -173,7 +174,7 @@ impl Session {
                 message_id: message.0,
                 row_size: PICKER_ROW,
             })
-            .map(|result| {
+            .map(move |result| {
                 result.map_err(RequestError::from).map(|available| {
                     let all = available
                         .top_reactions
@@ -181,7 +182,7 @@ impl Session {
                         .chain(available.recent_reactions)
                         .chain(available.popular_reactions);
                     pickable(
-                        all.filter(|reaction| !reaction.needs_premium)
+                        all.filter(|reaction| is_premium || !reaction.needs_premium)
                             .map(|reaction| ReactionKind::from(*reaction.r#type)),
                     )
                 })

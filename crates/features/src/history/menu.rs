@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use gpui::{
     Anchor, AnyElement, App, AppContext as _, ClipboardItem, Context, DismissEvent, Entity,
-    Focusable as _, IntoElement, ParentElement, Pixels, Point, SharedString, Styled as _,
-    Subscription, Window, anchored, deferred, div, point, px,
+    Focusable as _, InteractiveElement as _, IntoElement, ParentElement, Pixels, Point,
+    SharedString, Styled as _, Subscription, Window, anchored, deferred, div, point, px,
 };
 use i18n::key;
 use model::MessageId;
@@ -503,6 +503,7 @@ impl HistoryView {
         if menu.read(cx).is_empty() {
             return;
         }
+        menu.update(cx, |menu, _| menu.use_parent_dismissal());
         let subscription = cx.subscribe(&menu, |this, _, _: &DismissEvent, cx| {
             this.menu = None;
             cx.notify();
@@ -728,22 +729,22 @@ impl HistoryView {
                     .anchor(open.corner)
                     .position(open.position)
                     .snap_to_window_with_margin(px(EDGE_MARGIN))
-                    // The strip floats over the menu, which keeps its place.
-                    // shortcut: a menu at the window's top puts the strip off screen; flip it under the menu when that shows up.
                     .child(
                         div()
+                            .id("history-menu-with-reactions")
                             .relative()
+                            .flex()
+                            .flex_col()
+                            .items_end()
                             .opacity(shown)
                             .top(px((shown - 1.0) * APPEAR_LIFT))
-                            .child(open.menu.clone())
-                            .children(strip.map(|strip| {
-                                div()
-                                    .absolute()
-                                    // It grows leftwards: menus snap off the right edge.
-                                    .right_0()
-                                    .bottom(gpui::relative(1.0))
-                                    .child(strip)
-                            })),
+                            .occlude()
+                            .on_mouse_down_out(cx.listener(|this, _, _, cx| {
+                                this.menu = None;
+                                cx.notify();
+                            }))
+                            .children(strip)
+                            .child(open.menu.clone()),
                     ),
             )
             .with_priority(1)
