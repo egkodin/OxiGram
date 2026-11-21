@@ -162,6 +162,46 @@ Budgets come from the project brief. They are starting targets: M1 records a
 baseline on a real account and refines them here. A target is loosened only with
 a written justification.
 
+## Offline media follow-up, 2026-11-21
+
+The same paced 1080p decode workload ran in three fresh processes with
+the GIF-enabled static FFmpeg. Peak RSS was 115.93, 115.39 and 110.40 MB,
+with a median of 115.39 MB against the prior 111.33 MB median. The samples
+overlapped a release build. The comparison does not isolate a cause for
+the difference and does not measure the signed-in app, its GPU atlas or
+GIF-picker memory. The picker starts one muted decoder on hover and
+caps its output at 320 × 240 pixels.
+
+The arm64 release candidate at `target/current-6ece55c/OxiGram.app`
+uses the stripped fat-LTO profile, static FFmpeg and runtime Metal
+shaders. The preserved 65.46 MB bundle and the new candidate passed
+`codesign --verify --deep --strict`. Summing the logical file sizes in
+the complete signed candidate gave the following breakdown.
+
+| Component | Bytes | Decimal MB |
+|---|---:|---:|
+| Complete .app | 66,273,781 | 66.27 |
+| Native executable with FFmpeg and static libraries | 36,186,944 | 36.19 |
+| TDLib dylib | 28,978,752 | 28.98 |
+| Resources, launcher, plist and signing files | 1,108,085 | 1.11 |
+
+`otool -L` found TDLib and macOS system libraries. The earlier
+59.52 MB developer bundle at `target/current-b9ea15c/OxiGram.app`
+loads five Homebrew FFmpeg dylibs from outside the app. It is excluded
+from the complete-bundle baseline. The new candidate is 33.73 MB under
+the 100 MB goal, and it uses runtime shaders because the precompiled
+Metal toolchain was unavailable.
+
+The checkout's `target/` used 4.24 GB after staging. The external
+verification directory reached 5.08 GB of allocated disk space,
+including 5.00 GB of Cargo build output, the FFmpeg build and the
+fixtures. Its Cargo output was removed before final packaging and the
+remaining scratch files after verification.
+
+The last signed-in idle sample still stands at 206.8–209.2 MB RSS,
+106.8–109.2 MB above the 100 MB goal. A new live sample and a breakdown
+of resident allocations are still needed.
+
 ## Budgets
 
 Release build, macOS Apple Silicon, account with ~500 chats.

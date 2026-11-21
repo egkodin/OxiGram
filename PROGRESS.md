@@ -1,5 +1,46 @@
 # Progress
 
+## M5 continuation: forwarded origins, media and reactions (2026-11-21)
+
+- Clicking a forwarded user opens their profile. A forwarded chat or
+  channel opens the source conversation and displays its avatar when
+  TDLib has it. Hidden origins show the localized privacy notice.
+  Message author names, avatars and username mentions open profiles.
+- Link previews retain TDLib's photos, covers and still thumbnails.
+  Small previews load a suitable photo variant beside the description.
+  Large previews use the supplied position and reuse the history's
+  download and image cache.
+- The compose picker has an installed Stickers tab with grouped packs,
+  stills and animated TGS previews on hover. Sticker and saved GIF sends
+  reuse the original TDLib file ID, current topic and reply. Saved GIF
+  tiles prefer the full JPEG and play one muted preview on hover. Sent
+  animations can loop inline.
+- Premium emoji animate in the picker and in message text when a TGS
+  asset is available. Sending preserves the byte ranges of chosen
+  emoji through edits, message splitting and a refused send. Identical
+  glyphs typed by hand stay ordinary emoji.
+- Reactions keep Telegram's still artwork when available. Removing
+  cancels its pending effect. Re-adding starts a fresh playback of the
+  center and around animations. A pending Lottie eviction wakeup can
+  no longer hold up a replay.
+- The rebuilt static FFmpeg includes the GIF demuxer, parser and
+  decoder. Generated MP4 and raw GIF fixtures decoded different frames
+  and restarted correctly after EOF. All 440 workspace tests passed
+  offline with all features and static FFmpeg. Formatting, strict
+  workspace Clippy and shell syntax checks passed. Cargo Audit reported
+  seven unmaintained crates. Cargo Deny passed bans, licenses and
+  sources and still fails on Chrono (RUSTSEC-2026-0543).
+- The signed arm64 release candidate with static FFmpeg and runtime
+  shaders is 66.27 MB in total, with a 36.19 MB executable. The original
+  bundle was preserved and still verifies. The offline 1080p decoder
+  median peak was 115.39 MB RSS. Full results and the measurement method
+  are in [docs/perf.md](docs/perf.md). Signed-in idle RSS remains open.
+- Open for parity are sticker and GIF search, sticker recents and
+  favorites, WebM animation in inline emoji and sticker thumbnails,
+  custom emoji in saved drafts and edits of sent messages, and
+  Telegram Desktop's advanced reaction effects. Live rendering and
+  sending still need verification.
+
 ## M5 continuation: saved GIF picker
 
 - The compose picker has a GIFs tab that loads saved animations from
