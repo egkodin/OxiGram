@@ -10,11 +10,11 @@ use td_api::types as td;
 use crate::file::{File, Minithumbnail};
 use crate::send::reply;
 use crate::thread::Key;
-use crate::{FileId, MessageId, RequestError, Session};
+use crate::{MessageId, RequestError, Session};
 
 #[derive(Debug, Clone)]
 pub struct SavedGif {
-    pub file: FileId,
+    pub file: File,
     pub width: i32,
     pub height: i32,
     pub duration: i32,
@@ -25,7 +25,7 @@ pub struct SavedGif {
 impl From<td::Animation> for SavedGif {
     fn from(animation: td::Animation) -> Self {
         Self {
-            file: FileId(animation.animation.id),
+            file: File::from(*animation.animation),
             width: animation.width,
             height: animation.height,
             duration: animation.duration,
@@ -70,7 +70,7 @@ fn send_request(key: Key, reply_to: Option<MessageId>, gif: &SavedGif) -> SendMe
         input_message_content: Box::new(InputMessageContent::InputMessageAnimation(
             td::InputMessageAnimation {
                 animation: Box::new(td::InputAnimation {
-                    animation: Box::new(InputFile::Id(td::InputFileId { id: gif.file.0 })),
+                    animation: Box::new(InputFile::Id(td::InputFileId { id: gif.file.id.0 })),
                     thumbnail: None,
                     added_sticker_file_ids: vec![],
                     duration: gif.duration,
@@ -88,13 +88,22 @@ fn send_request(key: Key, reply_to: Option<MessageId>, gif: &SavedGif) -> SendMe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ChatId;
     use crate::message::Topic;
+    use crate::{ChatId, FileId};
 
     #[test]
     fn a_saved_gif_sends_by_file_id_in_the_current_topic() {
         let gif = SavedGif {
-            file: FileId(17),
+            file: File {
+                id: FileId(17),
+                path: None,
+                is_downloading: false,
+                downloaded: 0,
+                size: 0,
+                uploaded: 0,
+                is_uploading: false,
+                prefix: Default::default(),
+            },
             width: 480,
             height: 270,
             duration: 3,

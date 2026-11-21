@@ -69,6 +69,7 @@ impl HistoryView {
                 playback.update(cx, |playback, cx| playback.advance(cx));
             }
         }
+        self.emoji.gifs.tick(window, cx);
         media_video::drop_retired(window, cx);
         crate::lottie::drop_retired(window, cx);
         if inline

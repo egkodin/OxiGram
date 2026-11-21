@@ -282,6 +282,7 @@ impl HistoryView {
 
     pub(super) fn hide_emoji_panel(&mut self, cx: &mut Context<Self>) {
         self.emoji.is_shown = false;
+        self.emoji.gifs.stop_preview();
         self.emoji.hiding = None;
         cx.notify();
     }
@@ -618,6 +619,9 @@ impl HistoryView {
                     .child(tr(cx, title))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.emoji.show_gifs = gifs;
+                        if !gifs {
+                            this.emoji.gifs.stop_preview();
+                        }
                         cx.notify();
                     }))
             }),

@@ -219,8 +219,8 @@ impl HistoryView {
                 Center::Pause | Center::Waiting(_) => {}
                 Center::Play => {
                     let Some(file) = &playable else { return };
-                    match (shape, file.path()) {
-                        (Shape::Round { is_unviewed }, _) => {
+                    match shape {
+                        Shape::Round { is_unviewed } => {
                             if is_unviewed {
                                 this.mark_listened(id, cx);
                             }
@@ -228,10 +228,8 @@ impl HistoryView {
                             let track = origin.track(&this.store.read(cx).state().chats, cx);
                             this.play_round(id, file, (side, length), track, can_follow_round, cx);
                         }
-                        // A GIF on disk that cannot autoplay.
-                        (Shape::Frame, Some(path)) => this.open_file(path, window, cx),
-                        // A GIF still downloading streams in its bubble.
-                        (Shape::Frame, None) => {
+                        // Use the same muted loop for a local or streamed GIF.
+                        Shape::Frame => {
                             this.play_inline(id, file, (size, Duration::ZERO), Ending::Loop, cx);
                         }
                     }

@@ -1,14 +1,16 @@
-//! The saved GIFs tab. Still previews keep the picker from starting decoders.
+//! The saved GIFs tab, with stills for visible tiles and one hovered preview.
 
 use std::io::Cursor;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, App, Context, Image, InteractiveElement as _, IntoElement as _, ListAlignment,
-    ListState, ObjectFit, ParentElement as _, StatefulInteractiveElement as _, Styled as _,
-    StyledImage as _, div, img, list, px,
+    AnyElement, App, AppContext as _, Context, Entity, Image, InteractiveElement as _,
+    IntoElement as _, ListAlignment, ListState, ObjectFit, ParentElement as _, RenderImage,
+    StatefulInteractiveElement as _, Styled as _, StyledImage as _, Subscription, Window, div, img,
+    list, px,
 };
 use i18n::key;
 use model::rights::Writing;
@@ -18,7 +20,9 @@ use style::{ColorId, ColorRef};
 
 use super::HistoryView;
 use super::field_bar::FieldBar;
+use super::media_video::{Ending, VideoPlayback};
 use crate::lang::tr;
+use crate::streaming::Playable;
 use ui::color;
 
 const COLUMNS: usize = 3;
@@ -49,6 +53,9 @@ pub(super) struct GifPanel {
     list: ListState,
     sending: bool,
     send_failed: bool,
+    hovered: Option<FileId>,
+    playback: Option<(Entity<VideoPlayback>, Subscription)>,
+    seen: bool,
 }
 
 impl GifPanel {
@@ -59,6 +66,26 @@ impl GifPanel {
             list: ListState::new(0, ListAlignment::Top, px(0.0)),
             sending: false,
             send_failed: false,
+            hovered: None,
+            playback: None,
+            seen: false,
+        }
+    }
+
+    pub(super) fn stop_preview(&mut self) {
+        self.hovered = None;
+        self.playback = None;
+    }
+
+    pub(super) fn tick(&mut self, window: &mut Window, cx: &App) {
+        if !std::mem::take(&mut self.seen) {
+            self.stop_preview();
+        } else if self
+            .playback
+            .as_ref()
+            .is_some_and(|(video, _)| video.read(cx).needs_redraw())
+        {
+            window.request_animation_frame();
         }
     }
 
@@ -169,16 +196,29 @@ impl HistoryView {
         }
     }
 
-    fn saved_gif_row(&self, row: usize, cx: &mut Context<Self>) -> AnyElement {
+    fn saved_gif_row(&mut self, row: usize, cx: &mut Context<Self>) -> AnyElement {
         let Saved::Ready(gifs) = &self.emoji.gifs.saved else {
             return div().into_any_element();
         };
-        let Some(owner) = &self.emoji.gifs.owner else {
+        let Some(owner) = self.emoji.gifs.owner.clone() else {
             return div().into_any_element();
         };
         if owner.client_id() != self.store.read(cx).session().client_id() {
             return div().into_any_element();
         }
+        let Some(gifs) = gifs.chunks(COLUMNS).nth(row) else {
+            return div().into_any_element();
+        };
+        let hovered = self.emoji.gifs.hovered;
+        let playing = gifs
+            .iter()
+            .find(|(gif, _)| hovered == Some(gif.file.id))
+            .map(|(gif, _)| gif.clone());
+        let animated = playing.as_ref().and_then(|gif| self.gif_frame(gif, cx));
+        let Saved::Ready(gifs) = &self.emoji.gifs.saved else {
+            return div().into_any_element();
+        };
+        let gifs = &gifs[row * COLUMNS..];
         let disabled = self.emoji.gifs.sending
             || matches!(
                 self.compose.bar,
@@ -190,16 +230,20 @@ impl HistoryView {
             .p(px(4.0))
             .children(
                 gifs.iter()
-                    .skip(row * COLUMNS)
                     .take(COLUMNS)
                     .enumerate()
                     .map(|(column, (gif, preview))| {
                         let index = row * COLUMNS + column;
-                        let (owner, file) = (owner.clone(), gif.file);
-                        let picture = preview
-                            .clone()
+                        let (owner, file) = (owner.clone(), gif.file.id);
+                        let frame = animated.as_ref().filter(|_| hovered == Some(file)).cloned();
+                        let path = frame
+                            .is_none()
+                            .then(|| self.gif_thumbnail(gif, cx))
+                            .flatten();
+                        let picture = frame
                             .map(img)
-                            .or_else(|| self.gif_thumbnail(gif, cx).map(img));
+                            .or_else(|| path.map(img))
+                            .or_else(|| preview.clone().map(img));
                         let needs_placeholder = picture.is_none();
                         div()
                             .id(("saved-gif", index))
@@ -213,9 +257,33 @@ impl HistoryView {
                             .justify_center()
                             .bg(color(cx, ColorRef::Palette(ColorId::WindowBgOver)))
                             .children(picture.map(|picture| {
+                                let preview = preview.clone();
                                 super::picture_cache::bounded(picture, cx)
                                     .object_fit(ObjectFit::Cover)
                                     .size_full()
+                                    .with_loading(move || {
+                                        preview.clone().map_or_else(
+                                            || div().into_any_element(),
+                                            |preview| {
+                                                img(preview)
+                                                    .object_fit(ObjectFit::Cover)
+                                                    .size_full()
+                                                    .into_any_element()
+                                            },
+                                        )
+                                    })
+                            }))
+                            .on_hover(cx.listener(move |this, over: &bool, _, cx| {
+                                let panel = &mut this.emoji.gifs;
+                                if *over && panel.hovered != Some(file) {
+                                    panel.stop_preview();
+                                    panel.hovered = Some(file);
+                                    panel.seen = true;
+                                    cx.notify();
+                                } else if !*over && panel.hovered == Some(file) {
+                                    panel.stop_preview();
+                                    cx.notify();
+                                }
                             }))
                             .children(
                                 needs_placeholder.then(|| {
@@ -232,6 +300,39 @@ impl HistoryView {
                     }),
             )
             .into_any_element()
+    }
+
+    fn gif_frame(&mut self, gif: &SavedGif, cx: &mut Context<Self>) -> Option<Arc<RenderImage>> {
+        self.emoji.gifs.seen = true;
+        if !crate::power_saving::plays(crate::power_saving::Flag::Animations, cx) {
+            self.emoji.gifs.playback = None;
+            return None;
+        }
+        if self.emoji.gifs.playback.is_none() {
+            let store = self.store.read(cx);
+            let file = store.state().chats.file(gif.file.id).unwrap_or(&gif.file);
+            let Some(playable) = Playable::of(store.session(), file) else {
+                self.request_file(gif.file.id, cx);
+                return None;
+            };
+            let video = cx.new(|cx| {
+                VideoPlayback::new(
+                    &playable,
+                    Duration::ZERO,
+                    (320, 240),
+                    Duration::ZERO,
+                    Ending::Loop,
+                    cx,
+                )
+            });
+            let observer = cx.observe(&video, |_, _, cx| cx.notify());
+            self.emoji.gifs.playback = Some((video, observer));
+        }
+        let (video, _) = self.emoji.gifs.playback.as_ref()?;
+        video.update(cx, |video, cx| {
+            video.advance(cx);
+            video.frame()
+        })
     }
 
     fn gif_thumbnail(&self, gif: &SavedGif, cx: &mut App) -> Option<PathBuf> {
@@ -268,7 +369,7 @@ impl HistoryView {
         let Saved::Ready(gifs) = &self.emoji.gifs.saved else {
             return;
         };
-        let Some((gif, _)) = gifs.iter().find(|(gif, _)| gif.file == file) else {
+        let Some((gif, _)) = gifs.iter().find(|(gif, _)| gif.file.id == file) else {
             return;
         };
         let request = session.send_saved_gif(self.key(), reply, gif);
