@@ -161,6 +161,10 @@ impl Playlist {
         after_end(&self.items, message, repeat, order)
     }
 
+    pub(super) fn adjacent_to_round(&self, round: MessageId, step: Step) -> Option<&QueueItem> {
+        voice_next_to_round(&self.items, round, step)
+    }
+
     pub(super) fn items_from_search(
         &self,
         found: Vec<Message>,
@@ -180,6 +184,14 @@ impl Playlist {
             .filter_map(|message| crate::history::queue_voice(message, &store.state().chats, cx))
             .collect();
         Some(merge_voice_items(voices, &self.items, anchor))
+    }
+}
+
+fn voice_next_to_round(items: &[QueueItem], round: MessageId, step: Step) -> Option<&QueueItem> {
+    let split = items.partition_point(|item| item.message < round);
+    match step {
+        Step::Previous => items[..split].last(),
+        Step::Next => items[split..].iter().find(|item| item.message > round),
     }
 }
 
@@ -420,5 +432,17 @@ mod tests {
         assert_eq!(merged.len(), 64);
         assert_eq!(at(&merged, 40, Step::Previous), Some(39));
         assert_eq!(at(&merged, 40, Step::Next), Some(41));
+    }
+
+    #[test]
+    fn the_round_can_advance_to_an_audio_note_outside_the_round_itself() {
+        let voices = songs(&[10, 30]);
+        let at =
+            |id, step| voice_next_to_round(&voices, MessageId(id), step).map(|item| item.message.0);
+        assert_eq!(at(20, Step::Next), Some(30));
+        assert_eq!(at(20, Step::Previous), Some(10));
+        assert_eq!(at(40, Step::Next), None);
+        assert_eq!(at(5, Step::Previous), None);
+        assert_eq!(at(10, Step::Next), Some(30));
     }
 }

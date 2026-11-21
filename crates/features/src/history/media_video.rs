@@ -232,7 +232,16 @@ impl VideoPlayback {
         link.report(
             self.clock.now().min(self.duration),
             self.duration,
-            (!self.is_playing(), self.is_finished()),
+            (
+                !self.is_playing(),
+                if self.has_failed {
+                    crate::player::RoundEnd::Stopped
+                } else if self.is_finished() {
+                    crate::player::RoundEnd::Completed
+                } else {
+                    crate::player::RoundEnd::Active
+                },
+            ),
         );
     }
 

@@ -22,6 +22,14 @@ pub(crate) enum Command {
     Speed(f32),
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RoundEnd {
+    #[default]
+    Active,
+    Completed,
+    Stopped,
+}
+
 /// A round video playing in its history: the history's playback reports
 /// where it is and takes the player's commands at its next frame. Once the
 /// player lets go of it, the round stops.
@@ -30,7 +38,7 @@ pub(crate) struct RoundLink {
     position: Cell<Duration>,
     duration: Cell<Duration>,
     is_paused: Cell<bool>,
-    is_finished: Cell<bool>,
+    ending: Cell<RoundEnd>,
     commands: RefCell<Vec<Command>>,
 }
 
@@ -41,17 +49,19 @@ impl RoundLink {
         &self,
         position: Duration,
         duration: Duration,
-        (is_paused, is_finished): (bool, bool),
+        (is_paused, ending): (bool, RoundEnd),
     ) {
         self.position.set(position);
         self.duration.set(duration);
         self.is_paused.set(is_paused);
-        self.is_finished.set(is_finished);
+        self.ending.set(ending);
     }
 
     /// The round's playback is gone.
     pub(crate) fn end(&self) {
-        self.is_finished.set(true);
+        if self.ending.get() == RoundEnd::Active {
+            self.ending.set(RoundEnd::Stopped);
+        }
     }
 
     /// What the player asked since the last frame.
@@ -115,7 +125,15 @@ impl Sound {
         match self {
             Self::Voice(player) => player.is_finished(),
             Self::Music(player) => player.is_finished(),
-            Self::Round(link) => link.is_finished.get(),
+            Self::Round(link) => link.ending.get() != RoundEnd::Active,
+        }
+    }
+
+    pub(super) fn reached_end(&self) -> bool {
+        match self {
+            Self::Voice(player) => player.is_finished(),
+            Self::Music(player) => player.reached_end(),
+            Self::Round(link) => link.ending.get() == RoundEnd::Completed,
         }
     }
 
@@ -169,9 +187,26 @@ mod tests {
         link.report(
             Duration::from_secs(1),
             Duration::from_secs(4),
-            (false, false),
+            (false, RoundEnd::Active),
         );
         assert!((sound.progress() - 0.25).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn a_round_release_preserves_completion_but_does_not_create_it() {
+        let duration = Duration::from_secs(1);
+        for (ending, completed) in [
+            (RoundEnd::Active, false),
+            (RoundEnd::Stopped, false),
+            (RoundEnd::Completed, true),
+        ] {
+            let link = Rc::new(RoundLink::default());
+            let sound = Sound::Round(link.clone());
+            link.report(duration, duration, (true, ending));
+            link.end();
+            assert!(sound.is_finished());
+            assert_eq!(sound.reached_end(), completed);
+        }
     }
 
     #[test]

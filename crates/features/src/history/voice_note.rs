@@ -185,7 +185,7 @@ impl HistoryView {
         }
         self.player.update(cx, |player, cx| player.stop(cx));
         let track = origin.track(&self.store.read(cx).state().chats, cx);
-        let playlist = self.voice_playlist(message, cx);
+        let playlist = self.voice_playlist(Some(message), cx);
         let Some(path) = file.path().map(Path::to_path_buf) else {
             if let Some(player) = self.stream(&file, 100) {
                 self.play(message, (track, playlist), Sound::Music(player), cx);
@@ -219,7 +219,11 @@ impl HistoryView {
         .detach();
     }
 
-    fn voice_playlist(&self, anchor: MessageId, cx: &Context<Self>) -> Option<Rc<Playlist>> {
+    pub(super) fn voice_playlist(
+        &self,
+        voice: Option<MessageId>,
+        cx: &Context<Self>,
+    ) -> Option<Rc<Playlist>> {
         let store = self.store.read(cx);
         let state = store.state();
         let key = self.key();
@@ -229,14 +233,16 @@ impl HistoryView {
             .iter()
             .filter_map(|message| queue_voice(message, &state.chats, cx))
             .collect();
-        items.iter().any(|item| item.message == anchor).then(|| {
-            Rc::new(Playlist {
-                key,
-                session: store.session().clone(),
-                voice_store: Some(self.store.downgrade()),
-                items,
+        voice
+            .is_none_or(|anchor| items.iter().any(|item| item.message == anchor))
+            .then(|| {
+                Rc::new(Playlist {
+                    key,
+                    session: store.session().clone(),
+                    voice_store: Some(self.store.downgrade()),
+                    items,
+                })
             })
-        })
     }
 
     /// Pauses or resumes `message`'s sound; false when it does not play.

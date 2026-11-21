@@ -99,10 +99,17 @@ impl HistoryView {
         file: &Playable,
         (side, length): (f32, Duration),
         track: Track,
+        can_follow: bool,
         cx: &mut Context<Self>,
     ) {
         let link = Rc::new(RoundLink::default());
-        self.play(message, (track, None), Sound::Round(Rc::clone(&link)), cx);
+        let playlist = can_follow.then(|| self.voice_playlist(None, cx)).flatten();
+        self.play(
+            message,
+            (track, playlist),
+            Sound::Round(Rc::clone(&link)),
+            cx,
+        );
         self.play_inline(message, file, ((side, side), length), Ending::Pause, cx);
         if let Some((playback, _)) = self.inline.playing.get(&message) {
             playback.update(cx, |playback, _| playback.link(link));

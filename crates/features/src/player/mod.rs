@@ -19,7 +19,7 @@ use model::{ChatId, MessageId};
 pub(crate) use self::bar::bar;
 pub(crate) use self::playlist::{Order, Playlist, QueueItem, Repeat, Step};
 use self::playlist::{Shuffle, Traversal};
-pub(crate) use self::sound::{Command, RoundLink, Sound};
+pub(crate) use self::sound::{Command, RoundEnd, RoundLink, Sound};
 use crate::streaming::Playable;
 
 /// How many songs around the one playing the playlist asks for
@@ -182,7 +182,11 @@ impl Player {
         let (repeat, order) = playing
             .track
             .navigation(crate::settings::song_repeat(cx), self.traversal(cx));
-        let song = playlist.neighbour(playing.message, step, repeat, order)?;
+        let song = if matches!(playing.sound, Sound::Round(_)) {
+            playlist.adjacent_to_round(playing.message, step)
+        } else {
+            playlist.neighbour(playing.message, step, repeat, order)
+        }?;
         Some((playlist, song))
     }
 
@@ -249,27 +253,35 @@ impl Player {
             self.playing = None;
             return;
         }
-        let next = self.playing.take().and_then(|playing| {
-            let playlist = playing.playlist?;
-            if matches!((&playing.track, &playing.sound), (Track::Voice { .. }, Sound::Music(audio)) if !audio.reached_end()) {
-                return None;
-            }
-            let repeat = match (&playing.track, &playing.sound) {
-                (Track::Song { .. }, Sound::Music(audio)) if audio.reached_end() => {
-                    crate::settings::song_repeat(cx)
-                }
-                _ => Repeat::Off,
-            };
-            let (repeat, order) = playing.track.navigation(repeat, self.traversal(cx));
-            let song = playlist
-                .after_end(playing.message, repeat, order)?
-                .clone();
-            Some((playlist, song))
-        });
+        let next = self
+            .playing
+            .take()
+            .and_then(|playing| self.automatic_next(playing, cx));
         match next {
             Some((playlist, song)) => self.fetch(playlist, song, cx),
             None => self.reset_hover(),
         }
+    }
+
+    fn automatic_next(&self, playing: Playing, cx: &App) -> Option<(Rc<Playlist>, QueueItem)> {
+        let playlist = playing.playlist?;
+        if matches!(playing.track, Track::Voice { .. }) && !playing.sound.reached_end() {
+            return None;
+        }
+        let repeat = match (&playing.track, &playing.sound) {
+            (Track::Song { .. }, Sound::Music(audio)) if audio.reached_end() => {
+                crate::settings::song_repeat(cx)
+            }
+            _ => Repeat::Off,
+        };
+        let (repeat, order) = playing.track.navigation(repeat, self.traversal(cx));
+        let song = if matches!(playing.sound, Sound::Round(_)) {
+            playlist.adjacent_to_round(playing.message, Step::Next)
+        } else {
+            playlist.after_end(playing.message, repeat, order)
+        }?
+        .clone();
+        Some((playlist, song))
     }
 
     fn begin(
@@ -320,12 +332,7 @@ impl Player {
         self.widening.is_some()
             && self.skipping.is_none()
             && self.playing.as_ref().is_some_and(|playing| {
-                matches!(playing.track, Track::Voice { .. })
-                    && match &playing.sound {
-                        Sound::Music(audio) => audio.reached_end(),
-                        Sound::Voice(_) => true,
-                        Sound::Round(_) => false,
-                    }
+                matches!(playing.track, Track::Voice { .. }) && playing.sound.reached_end()
             })
             && !self.can_step(Step::Next, cx)
     }
@@ -391,33 +398,44 @@ impl Player {
                 None => None,
             };
             this.update(cx, |this, cx| {
-                this.widening = None;
-                let Some(playing) = this.playing.as_mut().filter(|p| {
-                    p.message == message
-                        && p.playlist
-                            .as_ref()
-                            .is_some_and(|current| Rc::ptr_eq(current, &playlist))
-                }) else {
-                    return;
-                };
-                let Some(items) =
-                    found.and_then(|found| playlist.items_from_search(found, message, cx))
-                else {
-                    return;
-                };
-                if !items.iter().any(|item| item.message == message) {
-                    return;
-                }
-                playing.playlist = Some(Rc::new(Playlist {
-                    key: playlist.key,
-                    session: playlist.session.clone(),
-                    voice_store: playlist.voice_store.clone(),
-                    items,
-                }));
-                cx.notify();
+                this.apply_media_window(&playlist, message, found, cx);
             })
             .ok();
         }));
+    }
+
+    fn apply_media_window(
+        &mut self,
+        playlist: &Rc<Playlist>,
+        message: MessageId,
+        found: Option<Vec<model::message::Message>>,
+        cx: &mut Context<Self>,
+    ) {
+        self.widening = None;
+        let Some(playing) = self.playing.as_mut().filter(|p| {
+            p.message == message
+                && p.playlist
+                    .as_ref()
+                    .is_some_and(|current| Rc::ptr_eq(current, playlist))
+        }) else {
+            return;
+        };
+        let Some(items) = found.and_then(|found| playlist.items_from_search(found, message, cx))
+        else {
+            return;
+        };
+        if !matches!(playing.sound, Sound::Round(_))
+            && !items.iter().any(|item| item.message == message)
+        {
+            return;
+        }
+        playing.playlist = Some(Rc::new(Playlist {
+            key: playlist.key,
+            session: playlist.session.clone(),
+            voice_store: playlist.voice_store.clone(),
+            items,
+        }));
+        cx.notify();
     }
 
     /// What plays plays at this speed.

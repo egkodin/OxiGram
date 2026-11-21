@@ -1,5 +1,16 @@
 # Progress
 
+## M5 continuation: rounds into the voice queue
+
+- An ordinary round video can advance to the next voice note after
+  decoder EOF. Its Previous and Next buttons find the adjacent voice
+  notes in the scoped queue too. A released view or a failed decoder
+  stops the queue. Timed and unsent rounds do not start one.
+- All 432 workspace tests and strict Clippy passed offline. The tests
+  distinguish round completion from release and cover navigation with
+  the round outside the audio list. Auto-starting a round still needs
+  a video host that survives history changes. Live playback is open.
+
 ## M5 continuation: scoped voice search
 
 - The voice queue now searches around the current note using TDLib's
@@ -649,7 +660,8 @@ Next, in this order (see the shortcut comments in
 
 ### Next steps (M5, offline), in the owner's order
 
-- Extend the voice queue to rounds.
+- Let the queue start a round. The video decoder and its frame rendering
+  are currently owned by the open history.
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)

@@ -205,6 +205,7 @@ impl HistoryView {
         let (chat, id, file_id) = (message.chat, message.id, file.id);
         let playable = Playable::of(self.store.read(cx).session(), file);
         let is_video = matches!(message.content, Content::Video(_));
+        let can_follow_round = message.self_destruct.is_none() && message.sending.is_none();
         let length = Duration::from_secs(u64::try_from(seconds).unwrap_or(0));
         let origin = super::voice_note::Origin::of(message);
         Rc::new(move |_, window, cx| {
@@ -225,7 +226,7 @@ impl HistoryView {
                             }
                             let side = px_of(MAX_VIDEO_MESSAGE_SIZE).into();
                             let track = origin.track(&this.store.read(cx).state().chats, cx);
-                            this.play_round(id, file, (side, length), track, cx);
+                            this.play_round(id, file, (side, length), track, can_follow_round, cx);
                         }
                         // A GIF on disk that cannot autoplay.
                         (Shape::Frame, Some(path)) => this.open_file(path, window, cx),
