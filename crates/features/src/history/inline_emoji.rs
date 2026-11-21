@@ -2,15 +2,15 @@
 //! fallback glyph keeps its place but goes transparent, and the emoji's
 //! picture is painted over it once the text is laid out.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use gpui::{
-    AnyElement, Bounds, Corners, Hsla, ImageAssetLoader, IntoElement as _, Resource, Styled as _,
-    TextLayout, TextRun, canvas, point, size,
+    AnyElement, Bounds, Corners, Hsla, ImageAssetLoader, IntoElement as _, RenderImage, Resource,
+    Styled as _, TextLayout, TextRun, canvas, point, size,
 };
 use model::CustomEmojiId;
 use model::text::{EntityKind, FormattedText};
@@ -20,48 +20,66 @@ use super::HistoryView;
 use crate::px_of;
 use crate::store::EmojiKey;
 
-/// The pictures of a text's custom emoji that are on disk.
-pub(super) type Pictures = Rc<HashMap<CustomEmojiId, String>>;
+#[derive(Clone)]
+pub(super) enum Picture {
+    Frame(Arc<RenderImage>),
+    Still(String),
+}
+
+pub(super) type Pictures = Rc<HashMap<CustomEmojiId, Picture>>;
 
 impl HistoryView {
-    /// Asks for the pictures of `text`'s custom emoji; the ones on disk.
-    // shortcut: animated custom emoji show their still; tdesktop plays them, which comes with a Lottie player per emoji.
+    /// Loads the artwork once per distinct custom emoji in the message.
     pub(super) fn emoji_pictures(
-        &self,
+        &mut self,
         text: Option<&FormattedText>,
         cx: &mut gpui::Context<Self>,
     ) -> Pictures {
-        let ids = text.into_iter().flat_map(|text| {
-            text.entities.iter().filter_map(|entity| match entity.kind {
-                EntityKind::CustomEmoji { id } => Some(id),
-                _ => None,
+        let ids: HashSet<_> = text
+            .into_iter()
+            .flat_map(|text| {
+                text.entities.iter().filter_map(|entity| match entity.kind {
+                    EntityKind::CustomEmoji { id } => Some(id),
+                    _ => None,
+                })
             })
-        });
-        let ids: Vec<CustomEmojiId> = ids.collect();
-        let pictures = self.store.update(cx, |store, cx| {
+            .collect();
+        let side: f32 = px_of(EMOJI_SIZE).into();
+        Rc::new(
             ids.into_iter()
-                .filter_map(|id| Some((id, store.emoji_picture(&EmojiKey::Custom(id), cx)?)))
-                .collect()
-        });
-        Rc::new(pictures)
+                .filter_map(|id| {
+                    let picture = self
+                        .custom_emoji(id, side, cx)
+                        .map(Picture::Frame)
+                        .or_else(|| {
+                            self.store
+                                .update(cx, |store, cx| {
+                                    store.emoji_picture(&EmojiKey::Custom(id), cx)
+                                })
+                                .map(Picture::Still)
+                        })?;
+                    Some((id, picture))
+                })
+                .collect(),
+        )
     }
 }
 
-/// Where each emoji with a picture sits in `range`, from 0, and its file.
+/// Where each emoji with artwork sits in `range`, from 0.
 pub(super) fn places(
     text: &FormattedText,
     range: &Range<usize>,
     pictures: &Pictures,
-) -> Vec<(Range<usize>, String)> {
+) -> Vec<(Range<usize>, Picture)> {
     text.entities
         .iter()
         .filter(|entity| range.start <= entity.range.start && entity.range.end <= range.end)
         .filter_map(|entity| match entity.kind {
             EntityKind::CustomEmoji { id } => {
-                let path = pictures.get(&id)?.clone();
+                let picture = pictures.get(&id)?.clone();
                 Some((
                     entity.range.start - range.start..entity.range.end - range.start,
-                    path,
+                    picture,
                 ))
             }
             _ => None,
@@ -106,13 +124,13 @@ pub(super) fn hide(runs: Vec<TextRun>, hidden: &[Range<usize>]) -> Vec<TextRun> 
 }
 
 /// The pictures over the laid-out text.
-pub(super) fn overlay(layout: TextLayout, places: Vec<(Range<usize>, String)>) -> AnyElement {
+pub(super) fn overlay(layout: TextLayout, places: Vec<(Range<usize>, Picture)>) -> AnyElement {
     canvas(
         |_, _, _| (),
         move |_, (), window, cx| {
             let side = px_of(EMOJI_SIZE);
             let line_height = layout.line_height();
-            for (range, path) in &places {
+            for (range, picture) in &places {
                 let (Some(start), Some(end)) = (
                     layout.position_for_index(range.start),
                     layout.position_for_index(range.end),
@@ -129,9 +147,16 @@ pub(super) fn overlay(layout: TextLayout, places: Vec<(Range<usize>, String)>) -
                     start.x + (width - side) / 2.0,
                     start.y + (line_height - side) / 2.0,
                 );
-                let source = Resource::Path(Arc::from(Path::new(path)));
-                let Some(Ok(image)) = window.use_asset::<ImageAssetLoader>(&source, cx) else {
-                    continue;
+                let image = match picture {
+                    Picture::Frame(image) => image.clone(),
+                    Picture::Still(path) => {
+                        let source = Resource::Path(Arc::from(Path::new(path)));
+                        let Some(Ok(image)) = window.use_asset::<ImageAssetLoader>(&source, cx)
+                        else {
+                            continue;
+                        };
+                        image
+                    }
                 };
                 let square = Bounds::new(at, size(side, side));
                 if let Err(error) =
