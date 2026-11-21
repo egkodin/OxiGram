@@ -304,9 +304,10 @@ impl Players {
             player.is_done = false;
         }
         let image = player.image.clone();
+        let resumed = was_idle && player.is_moving(now);
         if is_new {
             self.open(key.clone(), cx);
-        } else if was_idle {
+        } else if resumed {
             self.schedule(Duration::ZERO, cx);
         }
         image
