@@ -69,6 +69,7 @@ mod special;
 mod spoiler;
 mod sponsored;
 mod sticker;
+mod sticker_panel;
 mod sticker_set_box;
 mod sync;
 mod text;

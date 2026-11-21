@@ -102,12 +102,21 @@ pub(super) enum Over {
     Panel,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum Tab {
+    #[default]
+    Emoji,
+    Stickers,
+    Gifs,
+}
+
 pub(super) struct EmojiPanel {
     list: ListState,
     sections: Rc<Vec<Vec<SharedString>>>,
     rows: Rc<Vec<Row>>,
     is_shown: bool,
-    show_gifs: bool,
+    tab: Tab,
+    pub(super) stickers: super::sticker_panel::StickerPanel,
     pub(super) gifs: super::gif_panel::GifPanel,
     over_button: bool,
     over_panel: bool,
@@ -129,7 +138,8 @@ impl EmojiPanel {
             sections: Rc::default(),
             rows: Rc::default(),
             is_shown: false,
-            show_gifs: false,
+            tab: Tab::Emoji,
+            stickers: super::sticker_panel::StickerPanel::new(),
             gifs: super::gif_panel::GifPanel::new(),
             over_button: false,
             over_panel: false,
@@ -283,6 +293,7 @@ impl HistoryView {
     pub(super) fn hide_emoji_panel(&mut self, cx: &mut Context<Self>) {
         self.emoji.is_shown = false;
         self.emoji.gifs.stop_preview();
+        self.emoji.stickers.clear_hover();
         self.emoji.hiding = None;
         cx.notify();
     }
@@ -582,34 +593,43 @@ impl HistoryView {
         let bottom = window.viewport_size().height - px_of(HISTORY_ATTACH.height);
         let height = content_height(bottom);
         let tabs_height = px(28.0);
-        let shown_gifs = self.emoji.show_gifs;
-        let body = if shown_gifs {
-            self.saved_gifs(cx)
-        } else {
-            self.sync_emoji_bottom(height - px_of(st.footer) - tabs_height);
-            let weak = cx.weak_entity();
-            div()
-                .flex_1()
-                .min_h_0()
-                .pl(px_of(EMOJI_PAN_RADIUS))
-                .child(
-                    list(self.emoji.list.clone(), move |index, _, cx: &mut App| {
-                        weak.update(cx, |this, cx| this.emoji_row(index, cx))
-                            .unwrap_or_else(|_| div().into_any_element())
-                    })
-                    .size_full(),
-                )
-                .into_any_element()
+        let tab = self.emoji.tab;
+        let body = match tab {
+            Tab::Gifs => self.saved_gifs(cx),
+            Tab::Stickers => self.installed_stickers(cx),
+            Tab::Emoji => {
+                self.sync_emoji_bottom(height - px_of(st.footer) - tabs_height);
+                let weak = cx.weak_entity();
+                div()
+                    .flex_1()
+                    .min_h_0()
+                    .pl(px_of(EMOJI_PAN_RADIUS))
+                    .child(
+                        list(self.emoji.list.clone(), move |index, _, cx: &mut App| {
+                            weak.update(cx, |this, cx| this.emoji_row(index, cx))
+                                .unwrap_or_else(|_| div().into_any_element())
+                        })
+                        .size_full(),
+                    )
+                    .into_any_element()
+            }
         };
         let tabs = div().h(tabs_height).flex_none().flex().children(
-            [(false, key::lng_switch_emoji), (true, key::lng_switch_gifs)].map(|(gifs, title)| {
-                let fg = if gifs == shown_gifs {
+            [
+                (Tab::Emoji, key::lng_switch_emoji),
+                (Tab::Stickers, key::lng_switch_stickers),
+                (Tab::Gifs, key::lng_switch_gifs),
+            ]
+            .into_iter()
+            .enumerate()
+            .map(|(index, (choice, title))| {
+                let fg = if choice == tab {
                     ColorId::WindowActiveTextFg
                 } else {
                     ColorId::WindowFg
                 };
                 div()
-                    .id(("picker-tab", usize::from(gifs)))
+                    .id(("picker-tab", index))
                     .flex_1()
                     .flex()
                     .items_center()
@@ -618,9 +638,12 @@ impl HistoryView {
                     .text_color(color(cx, ColorRef::Palette(fg)))
                     .child(tr(cx, title))
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        this.emoji.show_gifs = gifs;
-                        if !gifs {
+                        this.emoji.tab = choice;
+                        if choice != Tab::Gifs {
                             this.emoji.gifs.stop_preview();
+                        }
+                        if choice != Tab::Stickers {
+                            this.emoji.stickers.clear_hover();
                         }
                         cx.notify();
                     }))
@@ -661,7 +684,7 @@ impl HistoryView {
                         }])
                         .child(tabs)
                         .child(body)
-                        .children((!shown_gifs).then(|| self.emoji_footer(cx))),
+                        .children((tab == Tab::Emoji).then(|| self.emoji_footer(cx))),
                 )
                 .into_any_element(),
         )

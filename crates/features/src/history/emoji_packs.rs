@@ -12,7 +12,8 @@ use gpui::{
 };
 use i18n::key;
 use model::sticker::{StickerKind, StickerPicture};
-use model::sticker_set::{SetSticker, StickerSet};
+use model::sticker_set::{SetKind, SetSticker, StickerSet};
+use model::{RequestError, Session};
 use style::chat_helpers::{DEFAULT_EMOJI_PAN, EMOJI_PAN_AREA, EMOJI_PAN_RADIUS};
 use style::widgets::DEFAULT_TOAST;
 use ui::color;
@@ -32,6 +33,18 @@ const EMOJI_SIDE: f32 = 24.0;
 
 /// A pack with the emoji it holds.
 pub(super) type Packs = Rc<Vec<StickerSet>>;
+
+pub(super) async fn installed_packs(
+    session: &Session,
+    kind: SetKind,
+) -> Result<Vec<StickerSet>, RequestError> {
+    let ids = session.installed_sticker_sets(kind).await?;
+    let mut sets = Vec::with_capacity(ids.len());
+    for id in ids {
+        sets.push(session.sticker_set(id).await?);
+    }
+    Ok(sets)
+}
 
 /// A still sticker's own file, else its thumbnail, once on disk; asks for
 /// it otherwise.
@@ -62,14 +75,7 @@ impl HistoryView {
         self.emoji.has_asked_packs = true;
         let session = self.store.read(cx).session().clone();
         let task = spawn(
-            async move {
-                let ids = session.installed_emoji_sets().await?;
-                let mut sets = Vec::with_capacity(ids.len());
-                for id in ids {
-                    sets.push(session.sticker_set(id).await?);
-                }
-                Ok::<_, model::RequestError>(sets)
-            },
+            async move { installed_packs(&session, SetKind::Emoji).await },
             cx,
         );
         cx.spawn(async move |this, cx| {
@@ -125,7 +131,7 @@ impl HistoryView {
 
     /// A pack's emoji in its cell; hovered like the standard ones.
     pub(super) fn custom_emoji_cell(
-        &self,
+        &mut self,
         (index, column): (usize, usize),
         sticker: SetSticker,
         (width, height): (gpui::Pixels, gpui::Pixels),
@@ -134,7 +140,18 @@ impl HistoryView {
         let area_width = px_of(EMOJI_PAN_AREA.width);
         let area_height = px_of(EMOJI_PAN_AREA.height);
         let is_hovered = self.emoji.hovered == Some((index, column));
-        let picture = still(&self.store, &sticker.picture, cx);
+        let animated = if sticker.picture.kind == StickerKind::Animated
+            && crate::power_saving::plays(crate::power_saving::Flag::EmojiPanel, cx)
+        {
+            let size = (EMOJI_SIDE, EMOJI_SIDE);
+            self.lottie_key(&sticker.picture.file, size, 0, cx)
+                .and_then(|key| crate::lottie::frame(&key, crate::lottie::Play::Loop, cx))
+                .map(ImageSource::from)
+        } else {
+            None
+        };
+        let picture =
+            animated.or_else(|| still(&self.store, &sticker.picture, cx).map(ImageSource::from));
         let side = gpui::px(EMOJI_SIDE);
         let mut area = div()
             .absolute()
@@ -146,7 +163,9 @@ impl HistoryView {
             .flex()
             .items_center()
             .justify_center()
-            .children(picture.map(|path| img(ImageSource::from(path)).size(side)));
+            .children(
+                picture.map(|source| super::picture_cache::bounded(img(source), cx).size(side)),
+            );
         if is_hovered {
             area = area.bg(color(cx, DEFAULT_EMOJI_PAN.over_bg));
         }
