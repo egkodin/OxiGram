@@ -22,7 +22,7 @@ use style::widgets::DEFAULT_POPUP_MENU;
 use style::{ColorId, ColorRef};
 use ui::{color, font, font_height};
 
-use super::{Player, Playing, Song, Track};
+use super::{Player, Playing, QueueItem, Track};
 use crate::history::duration_text;
 use crate::px_of;
 
@@ -80,7 +80,7 @@ impl Player {
         let current = self
             .playing
             .as_ref()
-            .and_then(|playing| current_row(&playing.playlist.as_ref()?.songs, playing.message));
+            .and_then(|playing| current_row(&playing.playlist.as_ref()?.items, playing.message));
         if let (true, Some(row)) = (is_shown, current) {
             self.hover.scroll.scroll_to_top_of_item(row);
         }
@@ -93,7 +93,7 @@ impl Player {
 }
 
 /// The row of `message` in the panel, which lists `songs` newest first.
-fn current_row(songs: &[Song], message: MessageId) -> Option<usize> {
+fn current_row(songs: &[QueueItem], message: MessageId) -> Option<usize> {
     let index = songs.iter().position(|song| song.message == message)?;
     Some(songs.len() - 1 - index)
 }
@@ -115,7 +115,7 @@ pub(super) fn panel(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
         return None;
     }
     let playing = state.current()?;
-    let songs = &playing.playlist.as_ref()?.songs;
+    let songs = &playing.playlist.as_ref()?.items;
     if songs.is_empty() {
         return None;
     }
@@ -181,7 +181,7 @@ pub(super) fn panel(player: &Entity<Player>, cx: &App) -> Option<AnyElement> {
 fn row(
     player: &Entity<Player>,
     index: usize,
-    song: &Song,
+    song: &QueueItem,
     playing: &Playing,
     cx: &App,
 ) -> AnyElement {
@@ -244,7 +244,7 @@ fn row(
 }
 
 /// The length, or "played / length" for the song playing.
-fn status_text(song: &Song, playing: Option<&Playing>) -> String {
+fn status_text(song: &QueueItem, playing: Option<&Playing>) -> String {
     let length = duration_text(song.duration);
     match playing {
         Some(playing) => {
@@ -263,9 +263,9 @@ mod tests {
 
     #[test]
     fn the_newest_song_is_the_first_row() {
-        let songs: Vec<Song> = [10, 20, 30]
+        let songs: Vec<QueueItem> = [10, 20, 30]
             .into_iter()
-            .map(|id| Song {
+            .map(|id| QueueItem {
                 message: MessageId(id),
                 file: FileId(1),
                 track: Track::Voice {
@@ -273,6 +273,7 @@ mod tests {
                     date: String::new(),
                 },
                 duration: 0,
+                unread_voice: false,
             })
             .collect();
         assert_eq!(current_row(&songs, MessageId(30)), Some(0));

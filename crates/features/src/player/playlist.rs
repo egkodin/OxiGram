@@ -9,19 +9,20 @@ use model::{ChatId, FileId, MessageId, Session};
 
 use super::Track;
 
-/// A song the player can move to.
+/// An audio message the player can move to.
 #[derive(Debug, Clone)]
-pub(crate) struct Song {
+pub(crate) struct QueueItem {
     pub message: MessageId,
     pub file: FileId,
     pub track: Track,
     /// In seconds.
     pub duration: i32,
+    pub unread_voice: bool,
 }
 
-impl Song {
+impl QueueItem {
     /// `message`'s song; none when it is not music.
-    pub(crate) fn of(message: &Message) -> Option<Self> {
+    pub(crate) fn song(message: &Message) -> Option<Self> {
         let Content::Audio { name, music, .. } = &message.content else {
             return None;
         };
@@ -31,6 +32,7 @@ impl Song {
             file: music.file.id,
             track: Track::Song { performer, title },
             duration: music.duration,
+            unread_voice: false,
         })
     }
 }
@@ -96,11 +98,11 @@ impl Shuffle {
 
     fn neighbour<'a>(
         &self,
-        songs: &'a [Song],
+        songs: &'a [QueueItem],
         message: MessageId,
         step: Step,
         repeat: Repeat,
-    ) -> Option<&'a Song> {
+    ) -> Option<&'a QueueItem> {
         if !songs.iter().any(|song| song.message == message) {
             return None;
         }
@@ -125,26 +127,25 @@ impl Shuffle {
     }
 }
 
-/// The history's loaded songs when one starts, then the chat's shared
-/// music around it once that arrives.
+/// The loaded audio queue, widened with shared media for songs.
 #[derive(Debug)]
 pub(crate) struct Playlist {
     pub chat: ChatId,
     pub session: Session,
     /// Oldest first.
-    pub songs: Vec<Song>,
+    pub items: Vec<QueueItem>,
 }
 
 impl Playlist {
-    /// The song a `step` away from `message`; none past either end.
+    /// The item a `step` away from `message` in the chosen order.
     pub(super) fn neighbour(
         &self,
         message: MessageId,
         step: Step,
         repeat: Repeat,
         order: Traversal<'_>,
-    ) -> Option<&Song> {
-        ordered_neighbour(&self.songs, message, step, repeat, order)
+    ) -> Option<&QueueItem> {
+        ordered_neighbour(&self.items, message, step, repeat, order)
     }
 
     pub(super) fn after_end(
@@ -152,17 +153,17 @@ impl Playlist {
         message: MessageId,
         repeat: Repeat,
         order: Traversal<'_>,
-    ) -> Option<&Song> {
-        after_end(&self.songs, message, repeat, order)
+    ) -> Option<&QueueItem> {
+        after_end(&self.items, message, repeat, order)
     }
 }
 
 fn after_end<'a>(
-    songs: &'a [Song],
+    songs: &'a [QueueItem],
     message: MessageId,
     repeat: Repeat,
     order: Traversal<'_>,
-) -> Option<&'a Song> {
+) -> Option<&'a QueueItem> {
     if repeat == Repeat::One {
         return songs.iter().find(|song| song.message == message);
     }
@@ -170,12 +171,12 @@ fn after_end<'a>(
 }
 
 fn ordered_neighbour<'a>(
-    songs: &'a [Song],
+    songs: &'a [QueueItem],
     message: MessageId,
     step: Step,
     repeat: Repeat,
     order: Traversal<'_>,
-) -> Option<&'a Song> {
+) -> Option<&'a QueueItem> {
     match (order, step) {
         (Traversal::Shuffled(shuffle), step) => shuffle.neighbour(songs, message, step, repeat),
         (Traversal::Reverse, Step::Previous) => {
@@ -189,11 +190,11 @@ fn ordered_neighbour<'a>(
 }
 
 fn chronological_neighbour(
-    songs: &[Song],
+    songs: &[QueueItem],
     message: MessageId,
     step: Step,
     repeat: Repeat,
-) -> Option<&Song> {
+) -> Option<&QueueItem> {
     let index = songs.iter().position(|song| song.message == message)?;
     let song = match step {
         Step::Previous => index.checked_sub(1).and_then(|index| songs.get(index)),
@@ -210,9 +211,9 @@ fn chronological_neighbour(
 mod tests {
     use super::*;
 
-    fn songs(ids: &[i64]) -> Vec<Song> {
+    fn songs(ids: &[i64]) -> Vec<QueueItem> {
         ids.iter()
-            .map(|&id| Song {
+            .map(|&id| QueueItem {
                 message: MessageId(id),
                 file: FileId(1),
                 track: Track::Voice {
@@ -220,11 +221,12 @@ mod tests {
                     date: String::new(),
                 },
                 duration: 0,
+                unread_voice: false,
             })
             .collect()
     }
 
-    fn at(songs: &[Song], message: i64, step: Step) -> Option<i64> {
+    fn at(songs: &[QueueItem], message: i64, step: Step) -> Option<i64> {
         ordered_neighbour(
             songs,
             MessageId(message),
@@ -335,5 +337,21 @@ mod tests {
             last
         );
         assert!(after_end(&songs, MessageId(-1), Repeat::All, order).is_none());
+    }
+
+    #[test]
+    fn a_voice_queue_advances_in_message_order_and_stops_at_the_end() {
+        let voices = songs(&[10, 20, 30]);
+        let (repeat, order) = voices[0].track.navigation(Repeat::All, Traversal::Reverse);
+        assert_eq!(
+            after_end(&voices, MessageId(20), repeat, order).map(|item| item.message),
+            Some(MessageId(30))
+        );
+        assert_eq!(
+            ordered_neighbour(&voices, MessageId(20), Step::Previous, repeat, order)
+                .map(|item| item.message),
+            Some(MessageId(10))
+        );
+        assert!(after_end(&voices, MessageId(30), repeat, order).is_none());
     }
 }

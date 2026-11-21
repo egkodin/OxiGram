@@ -16,7 +16,7 @@ use super::file_row::{FileRow, Thumb, Title, progress};
 use super::video::duration_text;
 use crate::file_sizes::{progress_text, size_text};
 use crate::lang::{strings, tr};
-use crate::player::{Playlist, Song, Sound, Track};
+use crate::player::{Playlist, QueueItem, Sound, Track};
 use crate::streaming::Playable;
 
 fn seconds(duration: std::time::Duration) -> i32 {
@@ -114,14 +114,14 @@ impl HistoryView {
                 history
                     .messages()
                     .iter()
-                    .filter_map(|message| Song::of(message))
+                    .filter_map(|message| QueueItem::song(message))
                     .collect()
             })
             .unwrap_or_default();
         Rc::new(Playlist {
             chat: self.chat,
             session: store.session().clone(),
-            songs,
+            items: songs,
         })
     }
 

@@ -16,7 +16,7 @@ use model::profile::SharedMedia;
 use model::{ChatId, MessageId};
 
 pub(crate) use self::bar::bar;
-pub(crate) use self::playlist::{Order, Playlist, Repeat, Song, Step};
+pub(crate) use self::playlist::{Order, Playlist, QueueItem, Repeat, Step};
 use self::playlist::{Shuffle, Traversal};
 pub(crate) use self::sound::{Command, RoundLink, Sound};
 use crate::streaming::Playable;
@@ -45,6 +45,17 @@ impl Track {
             Self::Song { .. } => crate::speed::Kind::Audio,
         }
     }
+
+    fn navigation<'a>(
+        &self,
+        song_repeat: Repeat,
+        song_order: Traversal<'a>,
+    ) -> (Repeat, Traversal<'a>) {
+        match self {
+            Self::Song { .. } => (song_repeat, song_order),
+            Self::Voice { .. } => (Repeat::Off, Traversal::Forward),
+        }
+    }
 }
 
 pub(crate) struct Playing {
@@ -52,8 +63,9 @@ pub(crate) struct Playing {
     pub message: MessageId,
     pub track: Track,
     pub sound: Sound,
-    /// The songs around it; none for a voice.
+    /// The audio messages around it, when the track can advance.
     playlist: Option<Rc<Playlist>>,
+    unread_voice: bool,
     _ticker: Task<()>,
 }
 
@@ -130,13 +142,14 @@ impl Player {
         cx: &mut Context<Self>,
     ) {
         self.skipping = None;
-        self.shuffle = (playlist.is_some() && crate::settings::song_order(cx) == Order::Shuffle)
+        self.shuffle = (matches!(track, Track::Song { .. })
+            && crate::settings::song_order(cx) == Order::Shuffle)
             .then(|| Shuffle::new(message));
-        self.begin((chat, message), track, sound, playlist, cx);
+        self.begin((chat, message), track, sound, playlist, false, cx);
     }
 
     /// Plays or pauses `song` from the playlist, as a click on it.
-    pub(crate) fn choose(&mut self, song: Song, cx: &mut Context<Self>) {
+    pub(crate) fn choose(&mut self, song: QueueItem, cx: &mut Context<Self>) {
         let Some(playing) = &self.playing else {
             return;
         };
@@ -161,11 +174,13 @@ impl Player {
         }
     }
 
-    fn neighbour(&self, step: Step, cx: &App) -> Option<(&Rc<Playlist>, &Song)> {
+    fn neighbour(&self, step: Step, cx: &App) -> Option<(&Rc<Playlist>, &QueueItem)> {
         let playing = self.playing.as_ref()?;
         let playlist = playing.playlist.as_ref()?;
-        let repeat = crate::settings::song_repeat(cx);
-        let song = playlist.neighbour(playing.message, step, repeat, self.traversal(cx))?;
+        let (repeat, order) = playing
+            .track
+            .navigation(crate::settings::song_repeat(cx), self.traversal(cx));
+        let song = playlist.neighbour(playing.message, step, repeat, order)?;
         Some((playlist, song))
     }
 
@@ -177,33 +192,49 @@ impl Player {
         }
     }
 
-    /// Moves to `song`, streamed while it downloads, as tdesktop does.
-    fn fetch(&mut self, playlist: Rc<Playlist>, song: Song, cx: &mut Context<Self>) {
+    /// Streams the selected queue item while it downloads.
+    fn fetch(&mut self, playlist: Rc<Playlist>, item: QueueItem, cx: &mut Context<Self>) {
         let session = playlist.session.clone();
-        let fetch = session.file(song.file);
+        let fetch = session.file(item.file);
         self.skipping = Some(cx.spawn(async move |this, cx| {
-            let file = match fetch.await {
-                Ok(file) => file,
-                Err(error) => {
-                    tracing::warn!(%error, "looking up the next song failed");
-                    return;
-                }
-            };
-            let Some(file) = Playable::of(&session, &file) else {
-                tracing::warn!("the next song has no size yet");
-                return;
-            };
-            let volume = cx.update(|cx| crate::settings::song_volume(cx));
-            let sound = match file.audio(Duration::ZERO, volume) {
-                Ok(sound) => sound,
-                Err(error) => {
-                    tracing::warn!(%error, "cannot play the next song");
-                    return;
-                }
-            };
-            let key = (playlist.chat, song.message);
+            let sound = async {
+                let file = fetch
+                    .await
+                    .inspect_err(|error| {
+                        tracing::warn!(%error, "looking up the next audio message failed");
+                    })
+                    .ok()?;
+                let Some(file) = Playable::of(&session, &file) else {
+                    tracing::warn!("the next audio message has no size yet");
+                    return None;
+                };
+                let volume = match item.track {
+                    Track::Song { .. } => cx.update(|cx| crate::settings::song_volume(cx)),
+                    Track::Voice { .. } => 100,
+                };
+                file.audio(Duration::ZERO, volume)
+                    .inspect_err(|error| {
+                        tracing::warn!(%error, "cannot advance audio playback");
+                    })
+                    .ok()
+            }
+            .await;
             this.update(cx, |this, cx| {
-                this.begin(key, song.track, Sound::Music(sound), Some(playlist), cx);
+                this.skipping = None;
+                if let Some(sound) = sound {
+                    let key = (playlist.chat, item.message);
+                    this.begin(
+                        key,
+                        item.track,
+                        Sound::Music(sound),
+                        Some(playlist),
+                        item.unread_voice,
+                        cx,
+                    );
+                } else if this.playing.is_none() {
+                    this.reset_hover();
+                    cx.notify();
+                }
             })
             .ok();
         }));
@@ -212,16 +243,24 @@ impl Player {
     /// Ends what played; the next song follows it (`moveInPlaylist(1, true)`).
     fn finish(&mut self, cx: &mut Context<Self>) {
         self.control_menu = None;
+        if self.skipping.is_some() {
+            self.playing = None;
+            return;
+        }
         let next = self.playing.take().and_then(|playing| {
             let playlist = playing.playlist?;
+            if matches!((&playing.track, &playing.sound), (Track::Voice { .. }, Sound::Music(audio)) if !audio.reached_end()) {
+                return None;
+            }
             let repeat = match (&playing.track, &playing.sound) {
                 (Track::Song { .. }, Sound::Music(audio)) if audio.reached_end() => {
                     crate::settings::song_repeat(cx)
                 }
                 _ => Repeat::Off,
             };
+            let (repeat, order) = playing.track.navigation(repeat, self.traversal(cx));
             let song = playlist
-                .after_end(playing.message, repeat, self.traversal(cx))?
+                .after_end(playing.message, repeat, order)?
                 .clone();
             Some((playlist, song))
         });
@@ -237,6 +276,7 @@ impl Player {
         track: Track,
         sound: Sound,
         playlist: Option<Rc<Playlist>>,
+        unread_voice: bool,
         cx: &mut Context<Self>,
     ) {
         sound.set_speed(crate::speed::current(track.speed_kind(), cx));
@@ -244,6 +284,7 @@ impl Player {
             loop {
                 cx.background_executor().timer(TICK).await;
                 let is_over = this.update(cx, |this, cx| {
+                    this.report_started_voice(cx);
                     let is_over = this
                         .playing
                         .as_ref()
@@ -265,10 +306,33 @@ impl Player {
             track,
             sound,
             playlist,
+            unread_voice,
             _ticker: ticker,
         });
         self.widen(cx);
         cx.notify();
+    }
+
+    fn report_started_voice(&mut self, cx: &mut Context<Self>) {
+        let Some(playing) = self.playing.as_mut() else {
+            return;
+        };
+        if !playing.unread_voice || playing.sound.position().is_zero() {
+            return;
+        }
+        playing.unread_voice = false;
+        let Some(playlist) = &playing.playlist else {
+            return;
+        };
+        let report = playlist
+            .session
+            .open_message_content(playing.chat, playing.message);
+        cx.spawn(async move |_, _| {
+            if let Err(error) = report.await {
+                tracing::warn!(%error, "marking a queued voice listened failed");
+            }
+        })
+        .detach();
     }
 
     /// Swaps the history's songs for the chat's shared music around the
@@ -277,6 +341,9 @@ impl Player {
         let Some(playing) = &self.playing else {
             return;
         };
+        if !matches!(playing.track, Track::Song { .. }) {
+            return;
+        }
         let Some(playlist) = playing.playlist.clone() else {
             return;
         };
@@ -296,7 +363,7 @@ impl Player {
                 }
             };
             // Newest first from TDLib; the playlist is oldest first.
-            let songs: Vec<Song> = found.iter().rev().filter_map(Song::of).collect();
+            let songs: Vec<QueueItem> = found.iter().rev().filter_map(QueueItem::song).collect();
             if !songs.iter().any(|song| song.message == message) {
                 return;
             }
@@ -307,7 +374,7 @@ impl Player {
                 playing.playlist = Some(Rc::new(Playlist {
                     chat: playlist.chat,
                     session: playlist.session.clone(),
-                    songs,
+                    items: songs,
                 }));
                 cx.notify();
             })

@@ -1,5 +1,21 @@
 # Progress
 
+## M5 continuation: voice queue
+
+- Starting a voice note queues the voice notes already loaded in the
+  current conversation or topic. Previous, Next and normal completion
+  follow message order and stop at the ends. Song repeat, shuffle and
+  volume do not apply to the voice queue. An explicit skip already being
+  fetched takes precedence when the current track ends.
+- A queued incoming voice note reports listened after playback advances,
+  through the existing `open_message_content` receipt policy. Withheld
+  receipts remain withheld. The queue stops on a voice decoder failure.
+  Rounds and voice notes outside the loaded history remain open for the
+  full Telegram Desktop queue behavior.
+- All 426 workspace tests, formatting and strict Clippy passed offline.
+  The voice queue regression fails if it inherits song ordering or
+  repeat. Live playback and receipt delivery were outside this run.
+
 ## M5 continuation: song repeat, volume and order
 
 - Added a saved Repeat Off, One and All setting to the song bar. Telegram
@@ -619,7 +635,8 @@ Next, in this order (see the shortcut comments in
 
 ### Next steps (M5, offline), in the owner's order
 
-- Voice queue and listened marks (row 304).
+- Extend the loaded voice queue to rounds and to notes outside the
+  loaded history.
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)
