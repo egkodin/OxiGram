@@ -242,13 +242,13 @@ impl HistoryView {
 /// The picture with the bubble's corners where it meets the bubble's edge.
 pub(super) fn picture(mut photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
     let Some(effect) = photo.effect.take() else {
-        return plain_picture(photo, corners, cx);
+        return plain_picture(photo, corners, false, cx);
     };
     let image = effect.image;
     // Over the messages around it, unclipped, as tdesktop's effects layer.
     div()
         .relative()
-        .child(plain_picture(photo, corners, cx))
+        .child(plain_picture(photo, corners, false, cx))
         .child(
             canvas(
                 |_, _, _| (),
@@ -269,7 +269,11 @@ pub(super) fn picture(mut photo: Photo, corners: Corners<Pixels>, cx: &App) -> A
         .into_any_element()
 }
 
-fn plain_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
+pub(super) fn preview_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement {
+    plain_picture(photo, corners, true, cx)
+}
+
+fn plain_picture(photo: Photo, corners: Corners<Pixels>, fit: bool, cx: &App) -> AnyElement {
     let (width, height) = (px_of(Px(photo.width)), px_of(Px(photo.height)));
     if let Some(frame) = photo.frame {
         return playing(frame, corners)
@@ -283,7 +287,14 @@ fn plain_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement
             .when_some(bg, |this, bg| this.bg(bg))
             .map(|this| rounded(this, corners))
             .w(width)
-            .h(height)
+            .aspect_ratio(width / height)
+            .map(|view| {
+                if fit {
+                    view.max_w_full()
+                } else {
+                    view.h(height)
+                }
+            })
             .into_any_element();
     };
     let thumbnail = photo.thumbnail;
@@ -292,7 +303,13 @@ fn plain_picture(photo: Photo, corners: Corners<Pixels>, cx: &App) -> AnyElement
     // shape stretches the bubble past its height.
     super::picture_cache::bounded(img(source), cx)
         .w(width)
-        .h(height)
+        .map(|view| {
+            if fit {
+                view.max_w_full()
+            } else {
+                view.h(height)
+            }
+        })
         .aspect_ratio(width / height)
         .object_fit(ObjectFit::Cover)
         .map(|this| rounded(this, corners))

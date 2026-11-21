@@ -607,7 +607,7 @@ impl MainView {
             .flex()
             .flex_col()
             .children(crate::player::bar(&self.player, cx))
-            .child(div().flex_1().min_h_0().flex().child(section))
+            .child(div().flex_1().min_w_0().min_h_0().flex().child(section))
             .into_any_element()
     }
 }
@@ -643,7 +643,13 @@ impl Render for MainView {
             .bg(color(cx, ColorRef::Palette(ColorId::DialogsBg)))
             .child(self.top_bar(layout, folders, cx))
             .child(div().flex_1().min_h_0().child(self.dialogs.clone()));
-        let columns = div().relative().flex_1().h_full().flex().child(list);
+        let columns = div()
+            .relative()
+            .flex_1()
+            .min_w_0()
+            .h_full()
+            .flex()
+            .child(list);
         let root = div()
             .key_context(CONTEXT)
             .track_focus(&self.focus)

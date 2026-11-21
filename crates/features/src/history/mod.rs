@@ -757,6 +757,7 @@ impl Render for HistoryView {
                 ))
             })
             .size_full()
+            .min_w_0()
             .flex()
             .flex_col()
             .bg(color(cx, ColorRef::Palette(ColorId::WindowBgOver)))

@@ -240,6 +240,8 @@ impl HistoryView {
         Some(
             div()
                 .id("history-pinned")
+                .min_w_0()
+                .overflow_hidden()
                 .relative()
                 .flex_none()
                 .flex()

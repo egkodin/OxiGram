@@ -77,7 +77,12 @@ pub(super) fn element(page: WebPage<'_>, cx: &App) -> AnyElement {
     let picture = photo.map(|photo| {
         div()
             .mt(px(4.0))
-            .child(super::photo::picture(photo, Corners::all(px(4.0)), cx))
+            .overflow_hidden()
+            .child(super::photo::preview_picture(
+                photo,
+                Corners::all(px(4.0)),
+                cx,
+            ))
     });
     let has_picture = picture.is_some();
     let picture_above = preview.show_media_above_description && preview.show_large_media;
