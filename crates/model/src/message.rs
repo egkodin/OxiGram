@@ -329,7 +329,7 @@ impl From<td_api::types::LinkPreview> for LinkPreview {
             site_name: preview.site_name,
             title: preview.title,
             description: FormattedText::from(*preview.description),
-            image: preview_image(*preview.r#type).map(Box::new),
+            image: preview_image(*preview.r#type, preview.show_large_media).map(Box::new),
             show_large_media: preview.show_large_media,
             show_media_above_description: preview.show_media_above_description,
             is_above_text: preview.show_above_text,
@@ -338,16 +338,19 @@ impl From<td_api::types::LinkPreview> for LinkPreview {
     }
 }
 
-fn preview_image(kind: LinkPreviewType) -> Option<Media> {
-    use td_api::types::{Minithumbnail as TdMini, Photo, Thumbnail};
+fn preview_image(kind: LinkPreviewType, large: bool) -> Option<Media> {
+    use td_api::types::{ChatPhoto, Minithumbnail as TdMini, Photo, PhotoSize, Thumbnail};
 
-    fn photo_image(mut photo: Photo) -> Option<Media> {
-        let size = photo.sizes.pop();
+    fn photo_image(sizes: Vec<PhotoSize>, mini: Option<Box<TdMini>>, target: i32) -> Option<Media> {
+        let size = sizes.into_iter().min_by_key(|size| {
+            let side = size.width.max(size.height);
+            (side < target, side.abs_diff(target))
+        });
         let dimensions = size
             .as_ref()
             .and_then(|size| Dimensions::new(size.width, size.height));
         let file = size.map(|size| File::from(*size.photo));
-        image(file, dimensions, photo.minithumbnail)
+        image(file, dimensions, mini)
     }
 
     fn still_image(still: Option<Box<Thumbnail>>, mini: Option<Box<TdMini>>) -> Option<Media> {
@@ -371,12 +374,43 @@ fn preview_image(kind: LinkPreviewType) -> Option<Media> {
         })
     }
 
+    let target = if large { 800 } else { 144 };
+    let web_photo = |photo: Photo| photo_image(photo.sizes, photo.minithumbnail, target);
+    let peer_photo = |photo: Box<ChatPhoto>| photo_image(photo.sizes, photo.minithumbnail, target);
+    let sticker_image = |sticker: td_api::types::Sticker| {
+        let sticker = StickerPicture::from(sticker);
+        image(sticker.drawable().cloned(), sticker.dimensions, None)
+    };
     match kind {
-        LinkPreviewType::Article(article) => article.photo.and_then(|photo| photo_image(*photo)),
-        LinkPreviewType::Photo(photo) => photo_image(*photo.photo),
-        LinkPreviewType::App(app) => photo_image(*app.photo),
+        LinkPreviewType::Article(article) => article.photo.and_then(|photo| web_photo(*photo)),
+        LinkPreviewType::Photo(photo) => web_photo(*photo.photo),
+        LinkPreviewType::App(app) => web_photo(*app.photo),
+        LinkPreviewType::WebApp(app) => app.photo.and_then(|photo| web_photo(*photo)),
+        LinkPreviewType::Chat(chat) => chat.photo.and_then(peer_photo),
+        LinkPreviewType::User(user) => user.photo.and_then(peer_photo),
+        LinkPreviewType::DirectMessagesChat(chat) => chat.photo.and_then(peer_photo),
+        LinkPreviewType::ChannelBoost(chat) => chat.photo.and_then(peer_photo),
+        LinkPreviewType::SupergroupBoost(chat) => chat.photo.and_then(peer_photo),
+        LinkPreviewType::VideoChat(chat) => chat.photo.and_then(peer_photo),
+        LinkPreviewType::Sticker(sticker) => sticker_image(*sticker.sticker),
+        LinkPreviewType::StickerSet(set) => set.stickers.into_iter().find_map(sticker_image),
+        LinkPreviewType::StoryAlbum(album) => album
+            .photo_icon
+            .and_then(|photo| web_photo(*photo))
+            .or_else(|| {
+                album
+                    .video_icon
+                    .and_then(|video| still_image(video.thumbnail, video.minithumbnail))
+            }),
+        LinkPreviewType::Audio(audio) => still_image(
+            audio.audio.album_cover_thumbnail,
+            audio.audio.album_cover_minithumbnail,
+        ),
+        LinkPreviewType::VideoNote(note) => {
+            still_image(note.video_note.thumbnail, note.video_note.minithumbnail)
+        }
         LinkPreviewType::Album(album) => album.media.into_iter().find_map(|media| match media {
-            LinkPreviewAlbumMedia::Photo(photo) => photo_image(*photo.photo),
+            LinkPreviewAlbumMedia::Photo(photo) => web_photo(*photo.photo),
             LinkPreviewAlbumMedia::Video(video) => {
                 still_image(video.video.thumbnail, video.video.minithumbnail)
             }
@@ -387,14 +421,14 @@ fn preview_image(kind: LinkPreviewType) -> Option<Media> {
         ),
         LinkPreviewType::Video(video) => video
             .cover
-            .and_then(|cover| photo_image(*cover))
+            .and_then(|cover| web_photo(*cover))
             .or_else(|| still_image(video.video.thumbnail, video.video.minithumbnail)),
         LinkPreviewType::Document(document) => {
             still_image(document.document.thumbnail, document.document.minithumbnail)
         }
         LinkPreviewType::EmbeddedAnimationPlayer(player) => player
             .thumbnail
-            .and_then(|photo| photo_image(*photo))
+            .and_then(|photo| web_photo(*photo))
             .or_else(|| {
                 player
                     .animation
@@ -402,14 +436,14 @@ fn preview_image(kind: LinkPreviewType) -> Option<Media> {
             }),
         LinkPreviewType::EmbeddedVideoPlayer(player) => player
             .thumbnail
-            .and_then(|photo| photo_image(*photo))
+            .and_then(|photo| web_photo(*photo))
             .or_else(|| {
                 player
                     .video
                     .and_then(|video| still_image(video.thumbnail, video.minithumbnail))
             }),
         LinkPreviewType::EmbeddedAudioPlayer(player) => {
-            player.thumbnail.and_then(|photo| photo_image(*photo))
+            player.thumbnail.and_then(|photo| web_photo(*photo))
         }
         _ => None,
     }
@@ -441,15 +475,19 @@ mod preview_tests {
             progressive_sizes: vec![],
         };
         let article = |photo| LinkPreviewType::Article(LinkPreviewTypeArticle { photo });
-        assert!(preview_image(article(None)).is_none());
-        let image = preview_image(article(Some(Box::new(Photo {
-            has_stickers: false,
-            minithumbnail: None,
-            sizes: vec![size(1, 40), size(2, 800)],
-        }))))
-        .unwrap();
-        assert_eq!(image.file.unwrap().id, crate::FileId(2));
-        assert_eq!(image.dimensions, Dimensions::new(800, 800));
+        assert!(preview_image(article(None), true).is_none());
+        let with_sizes = || {
+            article(Some(Box::new(Photo {
+                has_stickers: false,
+                minithumbnail: None,
+                sizes: vec![size(1, 40), size(2, 160), size(3, 800), size(4, 2560)],
+            })))
+        };
+        let large = preview_image(with_sizes(), true).unwrap();
+        assert_eq!(large.file.unwrap().id, crate::FileId(3));
+        assert_eq!(large.dimensions, Dimensions::new(800, 800));
+        let small = preview_image(with_sizes(), false).unwrap();
+        assert_eq!(small.file.unwrap().id, crate::FileId(2));
     }
 }
 

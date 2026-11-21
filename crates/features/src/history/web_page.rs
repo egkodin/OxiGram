@@ -81,10 +81,12 @@ pub(super) fn element(page: WebPage<'_>, cx: &App) -> AnyElement {
     });
     let has_picture = picture.is_some();
     let picture_above = preview.show_media_above_description && preview.show_large_media;
-    let (above, below) = if picture_above {
-        (picture, None)
+    let (above, below, beside) = if !preview.show_large_media {
+        (None, None, picture)
+    } else if picture_above {
+        (picture, None, None)
     } else {
-        (None, picture)
+        (None, picture, None)
     };
     let text_fg = color(cx, text_fg);
     let name_fg = color(cx, name_fg);
@@ -116,30 +118,39 @@ pub(super) fn element(page: WebPage<'_>, cx: &App) -> AnyElement {
     } else {
         Link::HiddenUrl(preview.url.clone())
     };
+    let text = parts.into_iter().enumerate().map(|(index, part)| {
+        let room = (index == last && !has_picture)
+            .then(|| room.clone())
+            .flatten();
+        let is_site = index == 0 && !preview.site_name.is_empty();
+        match ad.as_ref().filter(|_| is_site) {
+            Some(ad) => div()
+                .flex()
+                .items_center()
+                .child(line(part, room))
+                .child(hint(ad, name_fg))
+                .into_any_element(),
+            None => line(part, room),
+        }
+    });
     quote_frame(id, color(cx, tint), HISTORY_PAGE_PREVIEW.padding)
         .cursor_pointer()
         .on_click(move |_, window, cx| on_link(link.clone(), window, cx))
         .mt(px_of(HISTORY_REPLY_TOP))
-        // Below the text the time goes on the box's last line.
         .when(!is_last_in_bubble, |this| {
             this.mb(px_of(HISTORY_REPLY_BOTTOM))
         })
         .children(above)
-        .children(parts.into_iter().enumerate().map(|(index, part)| {
-            let room = (index == last && !has_picture)
-                .then(|| room.clone())
-                .flatten();
-            let is_site = index == 0 && !preview.site_name.is_empty();
-            match ad.as_ref().filter(|_| is_site) {
-                Some(ad) => div()
+        .map(|frame| match beside {
+            Some(picture) => frame.child(
+                div()
                     .flex()
-                    .items_center()
-                    .child(line(part, room))
-                    .child(hint(ad, name_fg))
-                    .into_any_element(),
-                None => line(part, room),
-            }
-        }))
+                    .gap(px(8.0))
+                    .child(div().flex_1().min_w_0().children(text))
+                    .child(picture.flex_none()),
+            ),
+            None => frame.children(text),
+        })
         .children(below)
         .when(has_picture && is_last_in_bubble, |frame| {
             frame.child(div().h(font_height(style::chat::MSG_DATE_FONT)))
