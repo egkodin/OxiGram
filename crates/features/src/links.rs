@@ -42,11 +42,34 @@ pub(crate) fn open(link: Link, targets: &Targets, window: &mut Window, cx: &mut 
                 .session()
                 .search_public_chat(&username);
             let not_found = tr(cx, key::lng_username_not_found);
-            open_chat_when(spawn(task, cx), targets, Some(not_found), cx);
+            let task = spawn(task, cx);
+            let targets = targets.clone();
+            window
+                .spawn(cx, async move |cx| match task.await {
+                    Ok(chat) => {
+                        let _ =
+                            cx.update(|window, cx| crate::info::show(targets, chat, window, cx));
+                    }
+                    Err(error) => {
+                        tracing::warn!(%error, "opening a mentioned profile failed");
+                        let _ = targets.layers.update(cx, |layers, cx| {
+                            layers.show_toast(
+                                not_found,
+                                &style::widgets::DEFAULT_TOAST,
+                                TOAST_DURATION,
+                                cx,
+                            );
+                        });
+                    }
+                })
+                .detach();
+        }
+        Link::Profile(user) => {
+            crate::info::show(targets.clone(), model::ChatId(user.0), window, cx)
         }
         Link::User(user) => {
             let task = targets.store.read(cx).session().create_private_chat(user);
-            open_chat_when(spawn(task, cx), targets, None, cx);
+            open_chat_when(spawn(task, cx), targets, cx);
         }
         // Spoilers reveal in the message itself; phones, cards and dates
         // open their menus there, and code copies there.
@@ -69,15 +92,13 @@ fn confirm_hidden(url: String, layers: &Entity<Layers>, window: &mut Window, cx:
     confirm(layers, args, window, cx);
 }
 
-/// Opens the chat `task` finds; `not_found` is the toast when it finds none.
+/// Opens the chat returned by TDLib.
 fn open_chat_when(
     task: gpui::Task<Result<model::ChatId, model::RequestError>>,
     targets: &Targets,
-    not_found: Option<gpui::SharedString>,
     cx: &mut App,
 ) {
     let dialogs = targets.dialogs.downgrade();
-    let layers = targets.layers.downgrade();
     cx.spawn(async move |cx| match task.await {
         // The views are gone once the user signed out meanwhile.
         Ok(chat) => {
@@ -85,11 +106,6 @@ fn open_chat_when(
         }
         Err(error) => {
             tracing::warn!(%error, "opening a mentioned chat failed");
-            if let Some(text) = not_found {
-                let _ = layers.update(cx, |layers, cx| {
-                    layers.show_toast(text, &style::widgets::DEFAULT_TOAST, TOAST_DURATION, cx);
-                });
-            }
         }
     })
     .detach();

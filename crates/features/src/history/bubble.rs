@@ -51,6 +51,7 @@ pub(super) struct Author {
     pub color_index: i32,
     /// None in channels, which show the name only (`displayFromPhoto`).
     pub userpic: Option<UserpicSource>,
+    pub sender: model::message::Sender,
 }
 
 /// A history item's content, ready to draw.
@@ -70,8 +71,9 @@ pub(super) struct Item<'a> {
     pub emoji: super::inline_emoji::Pictures,
     pub reply: Option<Reply>,
     pub on_reply: Option<OnClick>,
+    pub on_author: Option<OnClick>,
     /// "Forwarded from ..." for forwarded messages.
-    pub forward: Option<String>,
+    pub forward: Option<headers::ForwardHeader>,
     /// "via @bot" for messages sent through an inline bot.
     pub via: Option<String>,
     pub has_unread_bar: bool,
@@ -285,9 +287,16 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
         .and_then(|author| author.userpic.clone())
         .map(|userpic| {
             div()
+                .id("message-author-avatar")
                 .absolute()
                 .left(px_of(HISTORY_PHOTO_LEFT))
                 .bottom(px_of(MSG_MARGIN.bottom))
+                .when_some(item.on_author.clone(), |div, click| {
+                    div.cursor_pointer().on_click(move |event, window, cx| {
+                        cx.stop_propagation();
+                        click(event, window, cx);
+                    })
+                })
                 .child(Userpic::new(px_of(MSG_PHOTO_SIZE), userpic))
         });
     let overlay = (item.is_selected || item.is_highlighted).then(|| {
@@ -511,6 +520,13 @@ pub(super) fn name_line(item: &Item<'_>, out: bool, cx: &App) -> Option<Div> {
             .line_height(font_height(MSG_NAME_FONT))
             .children(author.map(|author| {
                 div()
+                    .id("message-author-name")
+                    .when_some(item.on_author.clone(), |div, click| {
+                        div.cursor_pointer().on_click(move |event, window, cx| {
+                            cx.stop_propagation();
+                            click(event, window, cx);
+                        })
+                    })
                     .truncate()
                     .text_color(color(cx, palette(name_color(author.color_index))))
                     .child(author.name.clone())

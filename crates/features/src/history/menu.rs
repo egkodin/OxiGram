@@ -94,6 +94,7 @@ impl LinkCopy {
             Link::Username(name) => Self::Mention(format!("@{name}")),
             Link::Hashtag(tag) => Self::Hashtag(tag.clone()),
             Link::User(_)
+            | Link::Profile(_)
             | Link::Phone(_)
             | Link::BankCard(_)
             | Link::Date(_)

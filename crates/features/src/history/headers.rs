@@ -9,13 +9,13 @@ use gpui::{
 use i18n::{Strings, key};
 use model::UserId;
 use model::chats::Chats;
-use model::message::{External, Forward, Message, Origin, ReplyTo};
+use model::message::{External, Forward, Message, Origin, ReplyTo, Sender};
 use style::basic::NORMAL_FONT;
 use style::chat::{
     HISTORY_REPLY_BOTTOM, HISTORY_REPLY_PADDING, HISTORY_REPLY_TOP, MSG_SERVICE_NAME_FONT,
 };
 use style::{ColorRef, Font, Margins};
-use ui::{color, font, font_height};
+use ui::{Userpic, UserpicSource, color, font, font_height};
 
 use super::bubble::OnClick;
 use super::service::{from, user_name};
@@ -181,6 +181,14 @@ pub(super) fn forwarded(strings: &Strings, chats: &Chats, forward: &Forward) -> 
     i18n::fill(strings.text(key), &[("user", &name), ("channel", &name)])
 }
 
+pub(super) fn forward_sender(origin: &Origin) -> Option<Sender> {
+    match origin {
+        Origin::User(user) => Some(Sender::User(*user)),
+        Origin::Chat { chat, .. } | Origin::Channel { chat, .. } => Some(Sender::Chat(*chat)),
+        Origin::HiddenUser(_) => None,
+    }
+}
+
 pub(super) fn line(text: SharedString, line_font: Font, fg: gpui::Hsla) -> AnyElement {
     div()
         .truncate()
@@ -243,9 +251,43 @@ pub(super) fn quote_frame(
         )
 }
 
-/// The forward line in the service color of the bubble.
-pub(super) fn forward_element(text: String, fg: ColorRef, cx: &App) -> AnyElement {
-    line(text.into(), NORMAL_FONT, color(cx, fg))
+#[derive(Clone)]
+pub(super) struct ForwardHeader {
+    pub text: String,
+    pub hidden: Option<SharedString>,
+    pub avatar: Option<UserpicSource>,
+    pub on_click: Option<OnClick>,
+}
+
+pub(super) fn forward_element(header: ForwardHeader, fg: ColorRef, cx: &App) -> AnyElement {
+    let fg = color(cx, fg);
+    let origin = div()
+        .id("message-forward-origin")
+        .flex()
+        .items_center()
+        .gap(gpui::px(4.0))
+        .when_some(header.on_click, |div, click| {
+            div.cursor_pointer().on_click(move |event, window, cx| {
+                cx.stop_propagation();
+                click(event, window, cx);
+            })
+        })
+        .children(
+            header
+                .avatar
+                .map(|avatar| Userpic::new(gpui::px(16.0), avatar)),
+        )
+        .child(line(header.text.into(), NORMAL_FONT, fg));
+    div()
+        .child(origin)
+        .children(header.hidden.map(|hidden| {
+            div()
+                .font(font(NORMAL_FONT))
+                .text_size(px_of(NORMAL_FONT.size))
+                .text_color(fg)
+                .child(hidden)
+        }))
+        .into_any_element()
 }
 
 #[cfg(test)]
@@ -276,6 +318,11 @@ mod tests {
                 &forward(Origin::HiddenUser("Ann".to_owned()))
             ),
             "Forwarded from Ann"
+        );
+        assert_eq!(forward_sender(&Origin::HiddenUser("Ann".to_owned())), None);
+        assert_eq!(
+            forward_sender(&Origin::User(UserId(7))),
+            Some(Sender::User(UserId(7)))
         );
         assert_eq!(
             forwarded(

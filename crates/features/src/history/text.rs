@@ -32,6 +32,7 @@ pub(crate) enum Link {
     Email(String),
     Username(String),
     User(UserId),
+    Profile(UserId),
     Hashtag(String),
     /// Opens a menu to copy the number or reach whoever has it.
     Phone(String),
@@ -243,7 +244,7 @@ pub(super) fn links(
                 EntityKind::TextUrl { url } => Link::HiddenUrl(url.clone()),
                 EntityKind::EmailAddress => Link::Email(shown.to_owned()),
                 EntityKind::Mention => Link::Username(shown.trim_start_matches('@').to_owned()),
-                EntityKind::MentionName { user } => Link::User(*user),
+                EntityKind::MentionName { user } => Link::Profile(*user),
                 EntityKind::Hashtag => Link::Hashtag(shown.to_owned()),
                 EntityKind::PhoneNumber => Link::Phone(shown.to_owned()),
                 EntityKind::BankCardNumber => Link::BankCard(shown.to_owned()),

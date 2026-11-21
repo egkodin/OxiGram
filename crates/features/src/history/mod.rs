@@ -488,6 +488,9 @@ impl HistoryView {
         };
         let state = self.store.read(cx).state();
         let author = self.author(state, &message);
+        let on_author = author
+            .as_ref()
+            .map(|(author, _)| self.on_sender(author.sender, false, cx));
         let is_read = state
             .chats
             .chat(self.chat)
@@ -505,10 +508,7 @@ impl HistoryView {
                 sender_color(state, replied)
             })
         });
-        let forward = message
-            .forward
-            .as_ref()
-            .map(|forward| headers::forwarded(strings(cx), &state.chats, forward));
+        let forward = self.forward_header(&message, state, cx);
         let via = message
             .via_bot
             .and_then(|bot| headers::via(strings(cx), &state.chats, bot));
@@ -529,6 +529,9 @@ impl HistoryView {
             let file = *file;
             self.request_file(file, cx);
         }
+        if let Some((_, Some(file))) = &forward {
+            self.request_file(*file, cx);
+        }
         bubble::element(
             Item {
                 message: &message,
@@ -543,7 +546,8 @@ impl HistoryView {
                 emoji,
                 reply,
                 on_reply: self.on_reply(&message, cx),
-                forward,
+                on_author,
+                forward: forward.map(|(header, _)| header),
                 via,
                 has_unread_bar,
                 is_selected: self.selection.is_message_selected(message.id),

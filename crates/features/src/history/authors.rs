@@ -7,9 +7,13 @@ use model::State;
 use model::chat::ChatKind;
 use model::message::{Message, Sender};
 
-use super::HistoryView;
-use super::bubble::Author;
+use super::bubble::{Author, OnClick};
+use super::headers::{self, ForwardHeader};
+use super::{HistoryEvent, HistoryView};
 use crate::dialogs::photo_userpic;
+use crate::lang::strings;
+use gpui::Context;
+use std::rc::Rc;
 
 impl HistoryView {
     /// The author of an incoming message in a group, with the userpic file
@@ -53,6 +57,56 @@ impl HistoryView {
                 name: name.into(),
                 color_index,
                 userpic,
+                sender: message.sender,
+            },
+            file,
+        ))
+    }
+
+    pub(super) fn on_sender(
+        &self,
+        sender: Sender,
+        open_channel: bool,
+        cx: &Context<Self>,
+    ) -> OnClick {
+        let weak = cx.weak_entity();
+        Rc::new(move |_, _, cx| {
+            let _ = weak.update(cx, |_, cx| match sender {
+                Sender::User(user) => cx.emit(HistoryEvent::OpenProfile(model::ChatId(user.0))),
+                Sender::Chat(chat) if open_channel => cx.emit(HistoryEvent::OpenChat(chat)),
+                Sender::Chat(chat) => cx.emit(HistoryEvent::OpenProfile(chat)),
+            });
+        })
+    }
+
+    pub(super) fn forward_header(
+        &self,
+        message: &Message,
+        state: &State,
+        cx: &Context<Self>,
+    ) -> Option<(ForwardHeader, Option<FileId>)> {
+        let forward = message.forward.as_ref()?;
+        let sender = headers::forward_sender(&forward.origin);
+        let face = sender.and_then(|sender| sender_face(&state.chats, sender));
+        let (avatar, file) =
+            face.map_or((None, None), |(_, _, (avatar, file))| (Some(avatar), file));
+        Some((
+            ForwardHeader {
+                text: headers::forwarded(strings(cx), &state.chats, forward),
+                hidden: sender.is_none().then(|| {
+                    strings(cx)
+                        .text(i18n::key::lng_forwarded_hidden)
+                        .to_owned()
+                        .into()
+                }),
+                avatar,
+                on_click: sender.map(|sender| {
+                    self.on_sender(
+                        sender,
+                        matches!(forward.origin, model::message::Origin::Channel { .. }),
+                        cx,
+                    )
+                }),
             },
             file,
         ))
