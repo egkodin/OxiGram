@@ -2,9 +2,9 @@
 //! title and the description in a box tinted like a reply.
 
 use gpui::{
-    AnyElement, App, ElementId, Hsla, InteractiveElement as _, IntoElement, ParentElement,
+    AnyElement, App, Corners, ElementId, Hsla, InteractiveElement as _, IntoElement, ParentElement,
     SharedString, StatefulInteractiveElement as _, Styled, StyledText, TextRun, div,
-    prelude::FluentBuilder as _,
+    prelude::FluentBuilder as _, px,
 };
 use model::message::LinkPreview;
 use style::basic::SEMIBOLD_FONT;
@@ -40,6 +40,7 @@ pub(super) struct WebPage<'a> {
     pub room: Option<String>,
     pub on_link: OnLink,
     pub ad: Option<AdParts>,
+    pub photo: Option<super::photo::Photo>,
 }
 
 /// What an ad's box adds (`SponsoredData`): the "what's this?" pill after
@@ -71,7 +72,20 @@ pub(super) fn element(page: WebPage<'_>, cx: &App) -> AnyElement {
         room,
         on_link,
         ad,
+        photo,
     } = page;
+    let picture = photo.map(|photo| {
+        div()
+            .mt(px(4.0))
+            .child(super::photo::picture(photo, Corners::all(px(4.0)), cx))
+    });
+    let has_picture = picture.is_some();
+    let picture_above = preview.show_media_above_description && preview.show_large_media;
+    let (above, below) = if picture_above {
+        (picture, None)
+    } else {
+        (None, picture)
+    };
     let text_fg = color(cx, text_fg);
     let name_fg = color(cx, name_fg);
     let mut parts: Vec<(String, Font, Hsla, usize)> = Vec::new();
@@ -110,8 +124,11 @@ pub(super) fn element(page: WebPage<'_>, cx: &App) -> AnyElement {
         .when(!is_last_in_bubble, |this| {
             this.mb(px_of(HISTORY_REPLY_BOTTOM))
         })
+        .children(above)
         .children(parts.into_iter().enumerate().map(|(index, part)| {
-            let room = (index == last).then(|| room.clone()).flatten();
+            let room = (index == last && !has_picture)
+                .then(|| room.clone())
+                .flatten();
             let is_site = index == 0 && !preview.site_name.is_empty();
             match ad.as_ref().filter(|_| is_site) {
                 Some(ad) => div()
@@ -123,6 +140,10 @@ pub(super) fn element(page: WebPage<'_>, cx: &App) -> AnyElement {
                 None => line(part, room),
             }
         }))
+        .children(below)
+        .when(has_picture && is_last_in_bubble, |frame| {
+            frame.child(div().h(font_height(style::chat::MSG_DATE_FONT)))
+        })
         .children(
             ad.and_then(|ad| ad.button)
                 .map(|button| ad_button(button, name_fg)),

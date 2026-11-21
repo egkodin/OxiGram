@@ -176,6 +176,7 @@ impl HistoryView {
             description: ad.text.clone(),
             is_above_text: false,
             is_url_in_text: true,
+            ..LinkPreview::default()
         };
         let tint = style::ColorRef::Palette(bubble::name_color(ad.accent_color));
         let (weak, hint_weak) = (cx.weak_entity(), cx.weak_entity());
@@ -205,6 +206,7 @@ impl HistoryView {
                     style::ColorRef::Palette(ColorId::HistoryTextInFg),
                 ],
                 room: None,
+                photo: None,
                 on_link,
                 ad: Some(AdParts {
                     // tdesktop offers it only for ads that can be reported.

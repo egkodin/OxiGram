@@ -525,6 +525,19 @@ impl HistoryView {
         };
         let emoji = self.emoji_pictures(text, cx);
         let (file, photo) = self.media(album, &message, cx);
+        let preview_photo = match &message.content {
+            Content::Text {
+                preview: Some(preview),
+                ..
+            } => preview.image.as_ref().map(|image| {
+                let mut photo = self.still(image.file.as_ref(), image, cx);
+                if !preview.show_large_media {
+                    (photo.width, photo.height) = (72, 72);
+                }
+                photo
+            }),
+            _ => None,
+        };
         if let Some((_, Some(file))) = &author {
             let file = *file;
             self.request_file(file, cx);
@@ -558,6 +571,7 @@ impl HistoryView {
                 reactions,
                 file,
                 photo,
+                preview_photo,
                 special: self.special(&message, cx),
                 after: self.thread_divider(index, cx),
             },

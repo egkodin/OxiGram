@@ -90,6 +90,7 @@ pub(super) struct Item<'a> {
     pub file: Option<super::file_row::FileRow>,
     /// A photo's, video's or album's pictures, once sent.
     pub photo: Option<super::album::Pictures>,
+    pub preview_photo: Option<super::photo::Photo>,
     /// A contact card or a poll, in place of the text.
     pub special: Option<super::special::Special>,
     /// What follows the message in its row, as a thread's divider.
@@ -592,7 +593,7 @@ fn link_preview<'a>(item: &Item<'a>) -> Option<&'a LinkPreview> {
 
 /// The link preview, when it goes at `placement`; below the text it holds
 /// the room for the time.
-fn web_page(item: &Item<'_>, out: bool, placement: Placement, cx: &App) -> Option<AnyElement> {
+fn web_page(item: &mut Item<'_>, out: bool, placement: Placement, cx: &App) -> Option<AnyElement> {
     let preview = link_preview(item)?;
     let is_above = placement == Placement::AboveText;
     if preview.is_above_text != is_above {
@@ -616,6 +617,7 @@ fn web_page(item: &Item<'_>, out: bool, placement: Placement, cx: &App) -> Optio
             room: (!is_above && item.reactions.is_empty()).then(|| time_room(item, out, cx)),
             on_link: item.on_link.clone(),
             ad: None,
+            photo: item.preview_photo.take(),
         },
         cx,
     ))

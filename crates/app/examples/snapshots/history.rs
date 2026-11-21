@@ -256,6 +256,7 @@ fn ann() -> Vec<Message> {
                 ),
                 is_above_text: false,
                 is_url_in_text: true,
+                ..LinkPreview::default()
             },
         ),
         unsupported,
@@ -268,6 +269,7 @@ fn ann() -> Vec<Message> {
                 description: FormattedText::plain("Sunny, 18 degrees"),
                 is_above_text: true,
                 is_url_in_text: false,
+                ..LinkPreview::default()
             },
         ),
         channel_post,

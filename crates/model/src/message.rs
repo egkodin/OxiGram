@@ -1,9 +1,9 @@
 //! Messages as the chat list previews them and the history shows them.
 
 use td_api::enums::{
-    CallDiscardReason, DiceStickers, MessageContent, MessageOrigin, MessageReplyTo,
-    MessageSchedulingState, MessageSelfDestructType, MessageSender, MessageSendingState,
-    MessageTopic,
+    CallDiscardReason, DiceStickers, LinkPreviewAlbumMedia, LinkPreviewType, MessageContent,
+    MessageOrigin, MessageReplyTo, MessageSchedulingState, MessageSelfDestructType, MessageSender,
+    MessageSendingState, MessageTopic,
 };
 
 use crate::file::{Dimensions, File, Minithumbnail};
@@ -306,13 +306,16 @@ impl SharedContact {
 
 /// The page a text message links to, as its preview shows it
 /// (`linkPreview`).
-// shortcut: no photo, video or type-specific button yet; media come with M5.
+// shortcut: video and animation previews show their stills; add playback with embedded media.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct LinkPreview {
     pub url: String,
     pub site_name: String,
     pub title: String,
     pub description: FormattedText,
+    pub image: Option<Box<Media>>,
+    pub show_large_media: bool,
+    pub show_media_above_description: bool,
     /// Shown above the message text instead of below it.
     pub is_above_text: bool,
     /// The text shows the URL, so opening it asks nothing.
@@ -326,9 +329,127 @@ impl From<td_api::types::LinkPreview> for LinkPreview {
             site_name: preview.site_name,
             title: preview.title,
             description: FormattedText::from(*preview.description),
+            image: preview_image(*preview.r#type).map(Box::new),
+            show_large_media: preview.show_large_media,
+            show_media_above_description: preview.show_media_above_description,
             is_above_text: preview.show_above_text,
             is_url_in_text: preview.skip_confirmation,
         }
+    }
+}
+
+fn preview_image(kind: LinkPreviewType) -> Option<Media> {
+    use td_api::types::{Minithumbnail as TdMini, Photo, Thumbnail};
+
+    fn photo_image(mut photo: Photo) -> Option<Media> {
+        let size = photo.sizes.pop();
+        let dimensions = size
+            .as_ref()
+            .and_then(|size| Dimensions::new(size.width, size.height));
+        let file = size.map(|size| File::from(*size.photo));
+        image(file, dimensions, photo.minithumbnail)
+    }
+
+    fn still_image(still: Option<Box<Thumbnail>>, mini: Option<Box<TdMini>>) -> Option<Media> {
+        let dimensions = still
+            .as_ref()
+            .and_then(|still| Dimensions::new(still.width, still.height));
+        image(convert::still(still), dimensions, mini)
+    }
+
+    fn image(
+        file: Option<File>,
+        dimensions: Option<Dimensions>,
+        mini: Option<Box<TdMini>>,
+    ) -> Option<Media> {
+        let thumbnail = mini.and_then(|mini| Minithumbnail::from_td(*mini));
+        (file.is_some() || thumbnail.is_some()).then_some(Media {
+            file,
+            dimensions,
+            thumbnail,
+            ..Media::default()
+        })
+    }
+
+    match kind {
+        LinkPreviewType::Article(article) => article.photo.and_then(|photo| photo_image(*photo)),
+        LinkPreviewType::Photo(photo) => photo_image(*photo.photo),
+        LinkPreviewType::App(app) => photo_image(*app.photo),
+        LinkPreviewType::Album(album) => album.media.into_iter().find_map(|media| match media {
+            LinkPreviewAlbumMedia::Photo(photo) => photo_image(*photo.photo),
+            LinkPreviewAlbumMedia::Video(video) => {
+                still_image(video.video.thumbnail, video.video.minithumbnail)
+            }
+        }),
+        LinkPreviewType::Animation(animation) => still_image(
+            animation.animation.thumbnail,
+            animation.animation.minithumbnail,
+        ),
+        LinkPreviewType::Video(video) => video
+            .cover
+            .and_then(|cover| photo_image(*cover))
+            .or_else(|| still_image(video.video.thumbnail, video.video.minithumbnail)),
+        LinkPreviewType::Document(document) => {
+            still_image(document.document.thumbnail, document.document.minithumbnail)
+        }
+        LinkPreviewType::EmbeddedAnimationPlayer(player) => player
+            .thumbnail
+            .and_then(|photo| photo_image(*photo))
+            .or_else(|| {
+                player
+                    .animation
+                    .and_then(|animation| still_image(animation.thumbnail, animation.minithumbnail))
+            }),
+        LinkPreviewType::EmbeddedVideoPlayer(player) => player
+            .thumbnail
+            .and_then(|photo| photo_image(*photo))
+            .or_else(|| {
+                player
+                    .video
+                    .and_then(|video| still_image(video.thumbnail, video.minithumbnail))
+            }),
+        LinkPreviewType::EmbeddedAudioPlayer(player) => {
+            player.thumbnail.and_then(|photo| photo_image(*photo))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod preview_tests {
+    use super::*;
+    use td_api::types::{LinkPreviewTypeArticle, Photo, PhotoSize};
+
+    #[test]
+    fn an_article_keeps_its_photo_and_dimensions() {
+        let file =
+            |id| {
+                Box::new(serde_json::from_value(serde_json::json!({
+            "id": id, "size": 0, "expected_size": 0,
+            "local": {"path": "", "can_be_downloaded": true, "can_be_deleted": false,
+                "is_downloading_active": false, "is_downloading_completed": false,
+                "download_offset": 0, "downloaded_prefix_size": 0, "downloaded_size": 0},
+            "remote": {"id": "", "unique_id": "", "is_uploading_active": false,
+                "is_uploading_completed": false, "uploaded_size": 0}
+        })).unwrap())
+            };
+        let size = |id, side| PhotoSize {
+            r#type: "x".into(),
+            photo: file(id),
+            width: side,
+            height: side,
+            progressive_sizes: vec![],
+        };
+        let article = |photo| LinkPreviewType::Article(LinkPreviewTypeArticle { photo });
+        assert!(preview_image(article(None)).is_none());
+        let image = preview_image(article(Some(Box::new(Photo {
+            has_stickers: false,
+            minithumbnail: None,
+            sizes: vec![size(1, 40), size(2, 800)],
+        }))))
+        .unwrap();
+        assert_eq!(image.file.unwrap().id, crate::FileId(2));
+        assert_eq!(image.dimensions, Dimensions::new(800, 800));
     }
 }
 
