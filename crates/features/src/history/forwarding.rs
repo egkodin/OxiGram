@@ -136,7 +136,14 @@ impl HistoryView {
             Some(FieldBar::Edit { .. }) | None => (None, None),
         };
         let field = self.compose.field.clone();
-        let emoji = std::mem::take(&mut self.compose.custom_emoji);
+        let tags = field.read(cx).tags().to_vec();
+        let emoji: Vec<_> = tags
+            .iter()
+            .map(|(range, id)| model::send::CustomEmojiSpan {
+                range: range.clone(),
+                id: model::CustomEmojiId(*id),
+            })
+            .collect();
         if has_text {
             self.compose.draft.sent();
             field.update(cx, |field, cx| field.set_text("", cx));
@@ -174,7 +181,7 @@ impl HistoryView {
                 match failed {
                     Failed::Text if field.read(cx).text().is_empty() => {
                         this.compose.bar = bar;
-                        field.update(cx, |field, cx| field.set_text(&text, cx));
+                        field.update(cx, |field, cx| field.set_tagged_text(&text, tags, cx));
                     }
                     Failed::Text => {}
                     Failed::Forward => {

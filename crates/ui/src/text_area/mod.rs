@@ -71,6 +71,7 @@ pub struct TextArea {
     metrics: Metrics,
     placeholder: SharedString,
     buffer: TextBuffer,
+    tags: Vec<(Range<usize>, i64)>,
     submit: SubmitKey,
     focused: bool,
     is_selecting: bool,
@@ -136,6 +137,7 @@ impl TextArea {
             },
             placeholder: placeholder.into(),
             buffer: TextBuffer::default(),
+            tags: Vec::new(),
             submit: SubmitKey::default(),
             focused: false,
             is_selecting: false,
@@ -180,9 +182,30 @@ impl TextArea {
         cx.notify();
     }
 
+    /// Byte ranges tagged by the caller, in text order.
+    #[must_use]
+    pub fn tags(&self) -> &[(Range<usize>, i64)] {
+        &self.tags
+    }
+
     /// Replaces the text and puts the cursor at its end.
     pub fn set_text(&mut self, text: &str, cx: &mut Context<Self>) {
+        self.set_tagged_text(text, Vec::new(), cx);
+    }
+
+    /// Restores tagged text previously read from this field.
+    pub fn set_tagged_text(
+        &mut self,
+        text: &str,
+        tags: Vec<(Range<usize>, i64)>,
+        cx: &mut Context<Self>,
+    ) {
         self.buffer.text = normalize_newlines(text);
+        self.tags = if self.buffer.text == text {
+            tags
+        } else {
+            Vec::new()
+        };
         self.buffer.move_to(self.buffer.text.len());
         self.buffer.marked = None;
         self.after_edit(cx);
@@ -191,8 +214,26 @@ impl TextArea {
     /// Types `text` over the selection, as pasting would.
     pub fn insert(&mut self, text: &str, cx: &mut Context<Self>) {
         let range = self.buffer.edited_range();
-        self.buffer.replace(range, &normalize_newlines(text));
+        self.replace(range, &normalize_newlines(text));
         self.after_edit(cx);
+    }
+
+    /// Inserts a range whose identity survives edits to the surrounding text.
+    pub fn insert_tagged(&mut self, text: &str, id: i64, cx: &mut Context<Self>) {
+        let range = self.buffer.edited_range();
+        let text = normalize_newlines(text);
+        let start = range.start;
+        self.replace(range, &text);
+        if !text.is_empty() {
+            let index = self.tags.partition_point(|(range, _)| range.start < start);
+            self.tags.insert(index, (start..start + text.len(), id));
+        }
+        self.after_edit(cx);
+    }
+
+    fn replace(&mut self, range: Range<usize>, text: &str) {
+        shift_tags(&mut self.tags, &range, text.len());
+        self.buffer.replace(range, text);
     }
 
     pub fn focus(&self, window: &mut Window, cx: &mut App) {
@@ -473,7 +514,7 @@ impl EntityInputHandler for TextArea {
         let range = range
             .map(|range| self.buffer.range_from_utf16(&range))
             .unwrap_or_else(|| self.buffer.edited_range());
-        self.buffer.replace(range, new_text);
+        self.replace(range, new_text);
         self.restart_blink(window, cx);
         self.after_edit(cx);
     }
@@ -489,7 +530,7 @@ impl EntityInputHandler for TextArea {
         let range = range
             .map(|range| self.buffer.range_from_utf16(&range))
             .unwrap_or_else(|| self.buffer.edited_range());
-        self.buffer.replace(range.clone(), new_text);
+        self.replace(range.clone(), new_text);
         self.buffer.marked =
             (!new_text.is_empty()).then(|| range.start..range.start + new_text.len());
         if let Some(selected) = new_selected {
@@ -580,6 +621,23 @@ impl Render for TextArea {
     }
 }
 
+fn shift_tags(tags: &mut Vec<(Range<usize>, i64)>, replaced: &Range<usize>, inserted: usize) {
+    if replaced.is_empty() && inserted == 0 {
+        return;
+    }
+    tags.retain_mut(|(range, _)| {
+        if range.end <= replaced.start {
+            return true;
+        }
+        if range.start < replaced.end {
+            return false;
+        }
+        let shift = |offset| offset - replaced.len() + inserted;
+        *range = shift(range.start)..shift(range.end);
+        true
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -590,6 +648,21 @@ mod tests {
         assert!(!submits(SubmitKey::Enter, EnterPress::Control));
         assert!(submits(SubmitKey::CtrlEnter, EnterPress::Control));
         assert!(!submits(SubmitKey::CtrlEnter, EnterPress::Plain));
+    }
+
+    #[test]
+    fn edits_move_later_tags_and_remove_only_overlapping_tags() {
+        let mut tags = vec![(4..8, 1), (12..16, 2)];
+        shift_tags(&mut tags, &(4..4), 4);
+        assert_eq!(tags, [(8..12, 1), (16..20, 2)]);
+        shift_tags(&mut tags, &(8..12), 4);
+        assert_eq!(tags, [(16..20, 2)]);
+        shift_tags(&mut tags, &(0..7), 0);
+        assert_eq!(tags, [(9..13, 2)]);
+        shift_tags(&mut tags, &(10..10), 0);
+        assert_eq!(tags, [(9..13, 2)]);
+        shift_tags(&mut tags, &(10..10), 1);
+        assert!(tags.is_empty());
     }
 
     #[test]

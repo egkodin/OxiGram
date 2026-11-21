@@ -3,6 +3,7 @@
 //! failed, through updates the history already applies.
 
 use std::future::Future;
+use std::ops::Range;
 
 use td_api::enums::{
     DraftMessageContent, InputMessageContent, InputMessageReplyTo, MessageSchedulingState,
@@ -25,6 +26,13 @@ use crate::session::{RequestError, Session};
 /// The longest text one message takes, in UTF-16 units (`MaxMessageSize`).
 // shortcut: the default limit; read the `message_text_length_max` option once options reach the model.
 pub const MAX_MESSAGE_LENGTH: usize = 4096;
+
+/// An emoji picked in the composer, identified by its UTF-8 byte range.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CustomEmojiSpan {
+    pub range: Range<usize>,
+    pub id: CustomEmojiId,
+}
 
 /// Whether the recipients hear the message arrive.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -197,11 +205,10 @@ impl Session {
         chat: ChatId,
         topic: Option<Topic>,
         reply_to: Option<MessageId>,
-        (text, emoji): (&str, &[(String, CustomEmojiId)]),
+        (text, emoji): (&str, &[CustomEmojiSpan]),
         options: SendOptions,
     ) -> impl Future<Output = Result<(), RequestError>> + Send + use<> {
-        let mut unused = emoji.to_vec();
-        let requests: Vec<_> = split_for_sending(text, MAX_MESSAGE_LENGTH)
+        let requests: Vec<_> = split_for_sending(text, MAX_MESSAGE_LENGTH, emoji)
             .into_iter()
             .enumerate()
             .map(|(index, part)| {
@@ -213,7 +220,7 @@ impl Session {
                     reply_markup: None,
                     // The draft goes with the first part.
                     input_message_content: Box::new(input_text(
-                        custom_emoji(part, &mut unused),
+                        custom_emoji(text, part, emoji),
                         index == 0,
                     )),
                 })
@@ -241,34 +248,29 @@ pub(crate) fn reply(message: Option<MessageId>) -> Option<Box<InputMessageReplyT
     })
 }
 
-/// `text` with the custom emoji the field holds: each occurrence of a
-/// picked emoji's glyph, in text order, takes the first unused pick with
-/// that glyph.
-// shortcut: glyphs typed by hand that match a pick become that emoji; tdesktop tags the picks in the field, which comes with entities in the field.
-fn custom_emoji(text: String, unused: &mut Vec<(String, CustomEmojiId)>) -> FormattedText {
-    let mut entities = Vec::new();
-    let mut at = 0;
-    while at < text.len() {
-        let rest = &text[at..];
-        let found = unused
-            .iter()
-            .position(|(glyph, _)| !glyph.is_empty() && rest.starts_with(glyph.as_str()));
-        let Some(index) = found else {
-            at += rest.chars().next().map_or(1, char::len_utf8);
-            continue;
-        };
-        let (glyph, id) = unused.remove(index);
-        let offset = text[..at].encode_utf16().count();
-        entities.push(TextEntity {
-            offset: i32::try_from(offset).unwrap_or(i32::MAX),
-            length: i32::try_from(glyph.encode_utf16().count()).unwrap_or(i32::MAX),
-            r#type: Box::new(TextEntityType::CustomEmoji(TextEntityTypeCustomEmoji {
-                custom_emoji_id: id.0,
-            })),
-        });
-        at += glyph.len();
+fn custom_emoji(text: &str, part: Range<usize>, emoji: &[CustomEmojiSpan]) -> FormattedText {
+    let entities = emoji
+        .iter()
+        .filter_map(|span| {
+            let range = &span.range;
+            if range.start < part.start || range.end > part.end || range.is_empty() {
+                return None;
+            }
+            let offset = text.get(part.start..range.start)?.encode_utf16().count();
+            let length = text.get(range.clone())?.encode_utf16().count();
+            Some(TextEntity {
+                offset: i32::try_from(offset).ok()?,
+                length: i32::try_from(length).ok()?,
+                r#type: Box::new(TextEntityType::CustomEmoji(TextEntityTypeCustomEmoji {
+                    custom_emoji_id: span.id.0,
+                })),
+            })
+        })
+        .collect();
+    FormattedText {
+        text: text[part].to_owned(),
+        entities,
     }
-    FormattedText { text, entities }
 }
 
 fn input_text(text: FormattedText, clear_draft: bool) -> InputMessageContent {
@@ -279,17 +281,18 @@ fn input_text(text: FormattedText, clear_draft: bool) -> InputMessageContent {
     })
 }
 
-/// `text` trimmed and cut into parts of at most `max` UTF-16 units, each
-/// at the last line break, else the last space, before the limit
-/// (`TextUtilities::CutPart`).
-#[must_use]
-pub fn split_for_sending(text: &str, max: usize) -> Vec<String> {
+/// Cuts at the last line break or space before the UTF-16 limit.
+fn split_for_sending(text: &str, max: usize, emoji: &[CustomEmojiSpan]) -> Vec<Range<usize>> {
     let mut parts = Vec::new();
     let mut rest = text.trim();
+    if rest.is_empty() || max < 2 {
+        return parts;
+    }
+    let mut start = text.len() - text.trim_start().len();
     while !rest.is_empty() {
         let limit = utf16_prefix(rest, max);
         if limit == rest.len() {
-            parts.push(rest.to_owned());
+            parts.push(start..start + rest.len());
             break;
         }
         let head = &rest[..limit];
@@ -298,8 +301,22 @@ pub fn split_for_sending(text: &str, max: usize) -> Vec<String> {
             .or_else(|| head.rfind(char::is_whitespace))
             .filter(|cut| *cut > 0)
             .unwrap_or(limit);
-        parts.push(rest[..cut].trim_end().to_owned());
-        rest = rest[cut..].trim_start();
+        let cut = emoji
+            .iter()
+            .filter_map(|span| {
+                let range = &span.range;
+                (start < range.start
+                    && range.start < start + cut
+                    && range.end > start + cut
+                    && text.is_char_boundary(range.start))
+                .then(|| range.start - start)
+            })
+            .min()
+            .unwrap_or(cut);
+        parts.push(start..start + rest[..cut].trim_end().len());
+        let next = rest[cut..].trim_start();
+        start += rest.len() - next.len();
+        rest = next;
     }
     parts
 }
@@ -322,15 +339,54 @@ mod tests {
     use super::*;
 
     #[test]
-    fn picked_emoji_become_entities_in_text_order() {
-        let mut unused = vec![
-            ("😀".to_owned(), CustomEmojiId(2)),
-            ("😀".to_owned(), CustomEmojiId(1)),
+    fn only_tagged_emoji_become_entities_even_after_trimming_and_splitting() {
+        let text = "  😀a😀 b😀";
+        let emoji = [
+            CustomEmojiSpan {
+                range: 7..11,
+                id: CustomEmojiId(2),
+            },
+            CustomEmojiSpan {
+                range: 13..17,
+                id: CustomEmojiId(1),
+            },
         ];
-        let text = custom_emoji("a😀b😀c😀".to_owned(), &mut unused);
-        let found: Vec<(i32, i32)> = text.entities.iter().map(|e| (e.offset, e.length)).collect();
-        assert_eq!(found, [(1, 2), (4, 2)]);
-        assert!(unused.is_empty());
+        let parts = split_for_sending(text, 5, &emoji);
+        let first = custom_emoji(text, parts[0].clone(), &emoji);
+        let second = custom_emoji(text, parts[1].clone(), &emoji);
+        assert_eq!(
+            (first.text.as_str(), second.text.as_str()),
+            ("😀a😀", "b😀")
+        );
+        assert_eq!(first.entities.len(), 1);
+        assert_eq!((first.entities[0].offset, first.entities[0].length), (3, 2));
+        assert_eq!(second.entities.len(), 1);
+        assert_eq!(
+            (second.entities[0].offset, second.entities[0].length),
+            (1, 2)
+        );
+    }
+
+    #[test]
+    fn a_valid_custom_emoji_is_kept_whole_at_a_message_boundary() {
+        let text = "aaaa👍🏾x";
+        let emoji = [CustomEmojiSpan {
+            range: 4..12,
+            id: CustomEmojiId(42),
+        }];
+        let parts = split_for_sending(text, 6, &emoji);
+        assert_eq!(parts, [0..4, 4..13]);
+        assert_eq!(
+            custom_emoji(text, parts[1].clone(), &emoji).entities[0].length,
+            4
+        );
+    }
+
+    fn split(text: &str, max: usize) -> Vec<&str> {
+        split_for_sending(text, max, &[])
+            .into_iter()
+            .map(|range| &text[range])
+            .collect()
     }
 
     #[test]
@@ -362,30 +418,24 @@ mod tests {
 
     #[test]
     fn blank_text_sends_nothing() {
-        assert!(split_for_sending(" \n\t ", 10).is_empty());
+        assert!(split(" \n\t ", 10).is_empty());
     }
 
     #[test]
     fn short_text_is_one_trimmed_message() {
-        assert_eq!(split_for_sending("  hi there \n", 4096), ["hi there"]);
+        assert_eq!(split("  hi there \n", 4096), ["hi there"]);
     }
 
     #[test]
     fn long_text_breaks_at_lines_then_spaces() {
-        assert_eq!(
-            split_for_sending("one two\nthree four", 12),
-            ["one two", "three four"]
-        );
-        assert_eq!(
-            split_for_sending("alpha beta gamma", 12),
-            ["alpha beta", "gamma"]
-        );
-        assert_eq!(split_for_sending("abcdefgh", 3), ["abc", "def", "gh"]);
+        assert_eq!(split("one two\nthree four", 12), ["one two", "three four"]);
+        assert_eq!(split("alpha beta gamma", 12), ["alpha beta", "gamma"]);
+        assert_eq!(split("abcdefgh", 3), ["abc", "def", "gh"]);
     }
 
     #[test]
     fn the_limit_counts_utf16_units() {
         // Each emoji is two units.
-        assert_eq!(split_for_sending("😀😀😀", 4), ["😀😀", "😀"]);
+        assert_eq!(split("😀😀😀", 4), ["😀😀", "😀"]);
     }
 }

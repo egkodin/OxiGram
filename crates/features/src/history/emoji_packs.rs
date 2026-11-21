@@ -121,11 +121,9 @@ impl HistoryView {
             });
             return;
         }
-        let glyph = sticker.emoji.clone();
-        self.compose.custom_emoji.push((glyph.clone(), id));
-        self.compose
-            .field
-            .update(cx, |field, cx| field.insert(&glyph, cx));
+        self.compose.field.update(cx, |field, cx| {
+            field.insert_tagged(&sticker.emoji, id.0, cx);
+        });
         self.focus_field(window, cx);
     }
 
