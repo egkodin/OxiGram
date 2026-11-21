@@ -119,8 +119,9 @@ impl HistoryView {
             })
             .unwrap_or_default();
         Rc::new(Playlist {
-            chat: self.chat,
+            key: self.chat.into(),
             session: store.session().clone(),
+            voice_store: None,
             items: songs,
         })
     }

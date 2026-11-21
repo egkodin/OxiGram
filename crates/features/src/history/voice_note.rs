@@ -12,7 +12,7 @@ use gpui::{App, Context, Window};
 use i18n::key;
 use model::MessageId;
 use model::chats::Chats;
-use model::message::{Content, Message, Sender};
+use model::message::{Content, Message, SelfDestruct, Sender, VoiceNote};
 
 use super::HistoryView;
 use super::documents::{CLICKED_PRIORITY, current};
@@ -70,6 +70,32 @@ impl Origin {
                 }
             });
         Track::Voice { name, date }
+    }
+}
+
+pub(crate) fn queue_voice(message: &Message, chats: &Chats, cx: &App) -> Option<QueueItem> {
+    let note = queueable_voice(
+        &message.content,
+        message.self_destruct,
+        message.sending.is_some(),
+    )?;
+    Some(QueueItem {
+        message: message.id,
+        file: note.file.id,
+        track: Origin::of(message).track(chats, cx),
+        duration: note.duration,
+        unread_voice: !message.is_outgoing && !note.is_listened,
+    })
+}
+
+fn queueable_voice(
+    content: &Content,
+    self_destruct: Option<SelfDestruct>,
+    is_sending: bool,
+) -> Option<&VoiceNote> {
+    match content {
+        Content::Voice { note, .. } if self_destruct.is_none() && !is_sending => Some(note),
+        _ => None,
     }
 }
 
@@ -159,10 +185,10 @@ impl HistoryView {
         }
         self.player.update(cx, |player, cx| player.stop(cx));
         let track = origin.track(&self.store.read(cx).state().chats, cx);
-        let playlist = self.voice_playlist(cx);
+        let playlist = self.voice_playlist(message, cx);
         let Some(path) = file.path().map(Path::to_path_buf) else {
             if let Some(player) = self.stream(&file, 100) {
-                self.play(message, (track, Some(playlist)), Sound::Music(player), cx);
+                self.play(message, (track, playlist), Sound::Music(player), cx);
             }
             return;
         };
@@ -185,7 +211,7 @@ impl HistoryView {
                     // MP3 and M4A voices stream as music do.
                     .or_else(|| this.stream(&file, 100).map(Sound::Music));
                 match player {
-                    Some(player) => this.play(message, (track, Some(playlist)), player, cx),
+                    Some(player) => this.play(message, (track, playlist), player, cx),
                     None => this.open_file(&path, window, cx),
                 }
             });
@@ -193,35 +219,23 @@ impl HistoryView {
         .detach();
     }
 
-    // shortcut: loaded voice notes only, widen within the thread when voice and round-video queues share a transport.
-    fn voice_playlist(&self, cx: &Context<Self>) -> Rc<Playlist> {
+    fn voice_playlist(&self, anchor: MessageId, cx: &Context<Self>) -> Option<Rc<Playlist>> {
         let store = self.store.read(cx);
         let state = store.state();
-        let items = state
-            .history(self.key())
-            .map(|history| {
-                history
-                    .messages()
-                    .iter()
-                    .filter_map(|message| {
-                        let Content::Voice { note, .. } = &message.content else {
-                            return None;
-                        };
-                        Some(QueueItem {
-                            message: message.id,
-                            file: note.file.id,
-                            track: Origin::of(message).track(&state.chats, cx),
-                            duration: note.duration,
-                            unread_voice: !message.is_outgoing && !note.is_listened,
-                        })
-                    })
-                    .collect()
+        let key = self.key();
+        let items: Vec<_> = state
+            .history(key)?
+            .messages()
+            .iter()
+            .filter_map(|message| queue_voice(message, &state.chats, cx))
+            .collect();
+        items.iter().any(|item| item.message == anchor).then(|| {
+            Rc::new(Playlist {
+                key,
+                session: store.session().clone(),
+                voice_store: Some(self.store.downgrade()),
+                items,
             })
-            .unwrap_or_default();
-        Rc::new(Playlist {
-            chat: self.chat,
-            session: store.session().clone(),
-            items,
         })
     }
 
@@ -251,5 +265,36 @@ impl HistoryView {
         self.player.update(cx, |player, cx| {
             player.play((chat, message), track, sound, playlist, cx)
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_regular_sent_voices_enter_the_queue() {
+        let content = Content::Voice {
+            caption: Default::default(),
+            note: Box::new(VoiceNote {
+                duration: 1,
+                waveform: vec![],
+                file: model::file::File {
+                    id: model::FileId(1),
+                    path: None,
+                    is_downloading: false,
+                    downloaded: 0,
+                    size: 10,
+                    uploaded: 10,
+                    is_uploading: false,
+                    prefix: Default::default(),
+                },
+                is_listened: false,
+            }),
+        };
+        assert!(queueable_voice(&content, None, false).is_some());
+        assert!(queueable_voice(&content, Some(SelfDestruct::Immediately), false).is_none());
+        assert!(queueable_voice(&content, Some(SelfDestruct::Timer(5)), false).is_none());
+        assert!(queueable_voice(&content, None, true).is_none());
     }
 }

@@ -18,6 +18,7 @@ use crate::file::File;
 use crate::message::Message;
 use crate::rights::MemberStatus;
 use crate::text::FormattedText;
+use crate::thread::Key;
 use crate::{BasicGroupId, ChatId, MessageId, RequestError, Session, SupergroupId, UserId};
 
 /// How many shared media, members or groups one request brings.
@@ -264,44 +265,45 @@ impl Session {
         chat: ChatId,
         media: SharedMedia,
     ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
-        self.search_media(chat, media, MessageId(0), 0, PAGE)
+        self.search_media(chat.into(), media, MessageId(0), 0, PAGE)
     }
 
     /// Up to `limit` messages of the list around `around`, half of them
     /// newer, newest first (`Memento::setAroundId`).
     pub fn shared_media_around(
         &self,
-        chat: ChatId,
+        key: Key,
         media: SharedMedia,
         around: MessageId,
         limit: i32,
     ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
         // A negative offset adds that many newer messages to the older ones.
-        self.search_media(chat, media, around, -(limit / 2), limit)
+        self.search_media(key, media, around, -(limit / 2), limit)
     }
 
     fn search_media(
         &self,
-        chat: ChatId,
+        key: Key,
         media: SharedMedia,
         from: MessageId,
         offset: i32,
         limit: i32,
     ) -> impl Future<Output = Result<Vec<Message>, RequestError>> + Send + use<> {
         self.client()
-            .request(&SearchChatMessages {
-                chat_id: chat.0,
-                topic_id: None,
-                query: String::new(),
-                sender_id: None,
-                from_message_id: from.0,
-                offset,
-                limit,
-                filter: Some(Box::new(media.filter())),
-            })
-            .map(|result| {
+            .request(&media_search(key, media, from, offset, limit))
+            .map(move |result| {
                 result
-                    .map(|found| found.messages.into_iter().map(Message::from).collect())
+                    .map(|found| {
+                        found
+                            .messages
+                            .into_iter()
+                            .map(Message::from)
+                            .filter(|message| {
+                                message.chat == key.chat
+                                    && key.topic.is_none_or(|topic| message.topic == Some(topic))
+                            })
+                            .collect()
+                    })
                     .map_err(RequestError::from)
             })
     }
@@ -502,6 +504,25 @@ impl Session {
     }
 }
 
+fn media_search(
+    key: Key,
+    media: SharedMedia,
+    from: MessageId,
+    offset: i32,
+    limit: i32,
+) -> SearchChatMessages {
+    SearchChatMessages {
+        chat_id: key.chat.0,
+        topic_id: key.topic.map(|topic| Box::new(topic.to_td())),
+        query: String::new(),
+        sender_id: None,
+        from_message_id: from.0,
+        offset,
+        limit,
+        filter: Some(Box::new(media.filter())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -515,5 +536,20 @@ mod tests {
         };
         assert_eq!(birthday(date(0)).year, None);
         assert_eq!(birthday(date(1990)).year, Some(1990));
+    }
+
+    #[test]
+    fn a_voice_search_keeps_the_requested_topic() {
+        use crate::message::Topic;
+        let key = Key {
+            chat: ChatId(-100),
+            topic: Some(Topic::Thread(MessageId(10))),
+        };
+        let request = media_search(key, SharedMedia::Voice, MessageId(20), -16, 32);
+        assert_eq!(request.chat_id, -100);
+        assert!(matches!(
+            request.topic_id.as_deref(),
+            Some(td_api::enums::MessageTopic::Thread(topic)) if topic.message_thread_id == 10
+        ));
     }
 }

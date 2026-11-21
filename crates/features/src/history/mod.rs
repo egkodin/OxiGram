@@ -80,6 +80,7 @@ mod video;
 mod view_once;
 mod voice;
 mod voice_note;
+pub(crate) use voice_note::queue_voice;
 mod waveform;
 
 pub use menu::preset_message_abilities;

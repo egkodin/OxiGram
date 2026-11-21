@@ -4,10 +4,13 @@
 
 use std::hash::{BuildHasher as _, RandomState};
 
+use gpui::{App, WeakEntity};
 use model::message::{Content, Message};
-use model::{ChatId, FileId, MessageId, Session};
+use model::thread::Key;
+use model::{FileId, MessageId, Session};
 
 use super::Track;
+use crate::store::Store;
 
 /// An audio message the player can move to.
 #[derive(Debug, Clone)]
@@ -127,11 +130,12 @@ impl Shuffle {
     }
 }
 
-/// The loaded audio queue, widened with shared media for songs.
+/// The loaded audio queue, widened with shared media.
 #[derive(Debug)]
 pub(crate) struct Playlist {
-    pub chat: ChatId,
+    pub key: Key,
     pub session: Session,
+    pub voice_store: Option<WeakEntity<Store>>,
     /// Oldest first.
     pub items: Vec<QueueItem>,
 }
@@ -156,6 +160,47 @@ impl Playlist {
     ) -> Option<&QueueItem> {
         after_end(&self.items, message, repeat, order)
     }
+
+    pub(super) fn items_from_search(
+        &self,
+        found: Vec<Message>,
+        anchor: MessageId,
+        cx: &App,
+    ) -> Option<Vec<QueueItem>> {
+        let Some(store) = &self.voice_store else {
+            return Some(found.iter().rev().filter_map(QueueItem::song).collect());
+        };
+        let store = store.upgrade()?;
+        let store = store.read(cx);
+        if store.session().client_id() != self.session.client_id() {
+            return None;
+        }
+        let voices = found
+            .iter()
+            .filter_map(|message| crate::history::queue_voice(message, &store.state().chats, cx))
+            .collect();
+        Some(merge_voice_items(voices, &self.items, anchor))
+    }
+}
+
+/// Prefer updated search results for duplicate voice notes and keep known
+/// neighbours outside TDLib's possibly short search page.
+fn merge_voice_items(
+    mut found: Vec<QueueItem>,
+    loaded: &[QueueItem],
+    anchor: MessageId,
+) -> Vec<QueueItem> {
+    found.extend_from_slice(loaded);
+    found.sort_by_key(|item| item.message);
+    found.dedup_by_key(|item| item.message);
+    let keep = loaded.len().max(64);
+    if found.len() > keep {
+        let index = found.partition_point(|item| item.message < anchor);
+        let start = index.saturating_sub(keep / 2).min(found.len() - keep);
+        found.truncate(start + keep);
+        found.drain(..start);
+    }
+    found
 }
 
 fn after_end<'a>(
@@ -353,5 +398,27 @@ mod tests {
             Some(MessageId(10))
         );
         assert!(after_end(&voices, MessageId(30), repeat, order).is_none());
+    }
+
+    #[test]
+    fn voice_search_merges_neighbours_and_refreshes_duplicates() {
+        let mut loaded = songs(&[10, 20]);
+        loaded[1].unread_voice = true;
+        let merged = merge_voice_items(songs(&[30, 20]), &loaded, MessageId(20));
+        assert_eq!(
+            merged.iter().map(|item| item.message.0).collect::<Vec<_>>(),
+            [10, 20, 30]
+        );
+        assert!(!merged[1].unread_voice);
+    }
+
+    #[test]
+    fn voice_search_keeps_a_bounded_window_around_the_current_note() {
+        let older = songs(&(1..=40).collect::<Vec<_>>());
+        let newer = songs(&(41..=80).collect::<Vec<_>>());
+        let merged = merge_voice_items(newer, &older, MessageId(40));
+        assert_eq!(merged.len(), 64);
+        assert_eq!(at(&merged, 40, Step::Previous), Some(39));
+        assert_eq!(at(&merged, 40, Step::Next), Some(41));
     }
 }

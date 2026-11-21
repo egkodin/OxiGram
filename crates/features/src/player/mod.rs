@@ -10,6 +10,7 @@ mod sound;
 use std::rc::Rc;
 use std::time::Duration;
 
+use futures::future::{Either, select};
 use gpui::{App, AppContext as _, Context, Entity, Global, Task};
 use i18n::key;
 use model::profile::SharedMedia;
@@ -24,6 +25,7 @@ use crate::streaming::Playable;
 /// How many songs around the one playing the playlist asks for
 /// (`kPlaylistIdsLimit`).
 const PLAYLIST_LIMIT: i32 = 32;
+const VOICE_LOOKUP_TIMEOUT: Duration = Duration::from_secs(4);
 
 /// How often the rows and the bar move while something plays.
 const TICK: Duration = Duration::from_millis(50);
@@ -222,7 +224,7 @@ impl Player {
             this.update(cx, |this, cx| {
                 this.skipping = None;
                 if let Some(sound) = sound {
-                    let key = (playlist.chat, item.message);
+                    let key = (playlist.key.chat, item.message);
                     this.begin(
                         key,
                         item.track,
@@ -289,6 +291,7 @@ impl Player {
                         .playing
                         .as_ref()
                         .is_none_or(|playing| playing.sound.is_finished());
+                    let is_over = is_over && !this.waiting_for_next_voice(cx);
                     if is_over {
                         this.finish(cx);
                     }
@@ -313,6 +316,20 @@ impl Player {
         cx.notify();
     }
 
+    fn waiting_for_next_voice(&self, cx: &App) -> bool {
+        self.widening.is_some()
+            && self.skipping.is_none()
+            && self.playing.as_ref().is_some_and(|playing| {
+                matches!(playing.track, Track::Voice { .. })
+                    && match &playing.sound {
+                        Sound::Music(audio) => audio.reached_end(),
+                        Sound::Voice(_) => true,
+                        Sound::Round(_) => false,
+                    }
+            })
+            && !self.can_step(Step::Next, cx)
+    }
+
     fn report_started_voice(&mut self, cx: &mut Context<Self>) {
         let Some(playing) = self.playing.as_mut() else {
             return;
@@ -335,46 +352,67 @@ impl Player {
         .detach();
     }
 
-    /// Swaps the history's songs for the chat's shared music around the
-    /// one playing (`Panel::refreshList`).
+    /// Looks up the shared media around the playing item.
     fn widen(&mut self, cx: &mut Context<Self>) {
+        self.widening = None;
         let Some(playing) = &self.playing else {
             return;
         };
-        if !matches!(playing.track, Track::Song { .. }) {
-            return;
-        }
         let Some(playlist) = playing.playlist.clone() else {
             return;
         };
         let message = playing.message;
-        let around = playlist.session.shared_media_around(
-            playlist.chat,
-            SharedMedia::Music,
-            message,
-            PLAYLIST_LIMIT,
-        );
+        let is_voice = playlist.voice_store.is_some();
+        let media = if is_voice {
+            SharedMedia::Voice
+        } else {
+            SharedMedia::Music
+        };
+        let around =
+            playlist
+                .session
+                .shared_media_around(playlist.key, media, message, PLAYLIST_LIMIT);
         self.widening = Some(cx.spawn(async move |this, cx| {
-            let found = match around.await {
-                Ok(found) => found,
-                Err(error) => {
-                    tracing::warn!(%error, "loading the playlist failed");
-                    return;
+            let found = if is_voice {
+                let timeout = cx.background_executor().timer(VOICE_LOOKUP_TIMEOUT);
+                match select(std::pin::pin!(around), timeout).await {
+                    Either::Left((result, _)) => Some(result),
+                    Either::Right(_) => None,
                 }
+            } else {
+                Some(around.await)
             };
-            // Newest first from TDLib; the playlist is oldest first.
-            let songs: Vec<QueueItem> = found.iter().rev().filter_map(QueueItem::song).collect();
-            if !songs.iter().any(|song| song.message == message) {
-                return;
-            }
+            let found = match found {
+                Some(Ok(found)) => Some(found),
+                Some(Err(error)) => {
+                    tracing::warn!(%error, "loading the playlist failed");
+                    None
+                }
+                None => None,
+            };
             this.update(cx, |this, cx| {
-                let Some(playing) = this.playing.as_mut().filter(|p| p.message == message) else {
+                this.widening = None;
+                let Some(playing) = this.playing.as_mut().filter(|p| {
+                    p.message == message
+                        && p.playlist
+                            .as_ref()
+                            .is_some_and(|current| Rc::ptr_eq(current, &playlist))
+                }) else {
                     return;
                 };
+                let Some(items) =
+                    found.and_then(|found| playlist.items_from_search(found, message, cx))
+                else {
+                    return;
+                };
+                if !items.iter().any(|item| item.message == message) {
+                    return;
+                }
                 playing.playlist = Some(Rc::new(Playlist {
-                    chat: playlist.chat,
+                    key: playlist.key,
                     session: playlist.session.clone(),
-                    items: songs,
+                    voice_store: playlist.voice_store.clone(),
+                    items,
                 }));
                 cx.notify();
             })

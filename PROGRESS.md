@@ -1,5 +1,19 @@
 # Progress
 
+## M5 continuation: scoped voice search
+
+- The voice queue now searches around the current note using TDLib's
+  chat and topic. It merges results with the loaded queue, keeps an
+  ordered window, and lets a finished note wait for its pending search
+  at the edge for up to four seconds from the request. Search errors
+  leave the local queue usable.
+- View-once, timed and unsent notes are excluded from automatic playback.
+  A replaced session cannot use search results to build a new queue.
+  Rounds still need their video playback integrated with the queue.
+- All 430 workspace tests, formatting and strict Clippy passed offline.
+  Tests cover the TDLib topic selector, queue merging, the window bound
+  and the exclusions. Live search and receipt delivery remain open.
+
 ## M5 continuation: voice queue
 
 - Starting a voice note queues the voice notes already loaded in the
@@ -635,8 +649,7 @@ Next, in this order (see the shortcut comments in
 
 ### Next steps (M5, offline), in the owner's order
 
-- Extend the loaded voice queue to rounds and to notes outside the
-  loaded history.
+- Extend the voice queue to rounds.
 - Sticker and GIF panels in the emoji panel.
 
 ### Live test list (M5)
