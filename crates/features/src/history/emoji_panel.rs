@@ -23,6 +23,7 @@ use style::{ColorId, ColorRef, Icon};
 use ui::{IconButton, color, font, font_height};
 
 use super::HistoryView;
+use super::emoji_packs::{PACK_STRIP_HEIGHT, PackNav, pack_strip};
 use crate::lang::tr;
 use crate::px_of;
 use crate::ranked::Limits;
@@ -125,6 +126,7 @@ pub(super) struct EmojiPanel {
     pub(super) hovered: Option<(usize, usize)>,
     /// The section the list's top is in, lit in the footer.
     active: usize,
+    pack_page: usize,
     bottom_height: Pixels,
     hiding: Option<Task<()>>,
     /// The user's custom emoji packs, after the categories.
@@ -147,6 +149,7 @@ impl EmojiPanel {
             over_panel: false,
             hovered: None,
             active: 0,
+            pack_page: 0,
             bottom_height: px(0.0),
             hiding: None,
             packs: Rc::default(),
@@ -604,11 +607,36 @@ impl HistoryView {
         let height = content_height(bottom);
         let tabs_height = px(36.0);
         let tab = self.emoji.tab;
+        let emoji_packs = if tab == Tab::Emoji {
+            pack_strip(
+                &self.emoji.packs,
+                &self.store,
+                (
+                    self.emoji.pack_page,
+                    self.emoji.active.checked_sub(SECTION_COUNT),
+                ),
+                cx,
+                |this, action, cx| match action {
+                    PackNav::Select(pack) => this.scroll_emoji_to(SECTION_COUNT + pack, cx),
+                    PackNav::Page(page) => {
+                        this.emoji.pack_page = page;
+                        cx.notify();
+                    }
+                },
+            )
+        } else {
+            None
+        };
         let body = match tab {
             Tab::Gifs => self.saved_gifs(cx),
             Tab::Stickers => self.installed_stickers(cx),
             Tab::Emoji => {
-                self.sync_emoji_bottom(height - px_of(st.footer) - tabs_height);
+                let pack_height = if emoji_packs.is_some() {
+                    PACK_STRIP_HEIGHT
+                } else {
+                    px(0.0)
+                };
+                self.sync_emoji_bottom(height - px_of(st.footer) - tabs_height - pack_height);
                 let weak = cx.weak_entity();
                 div()
                     .flex_1()
@@ -711,7 +739,8 @@ impl HistoryView {
                         }])
                         .child(tabs)
                         .children((tab == Tab::Emoji).then(|| self.emoji_categories(cx)))
-                        .child(body),
+                        .child(body)
+                        .children(emoji_packs),
                 )
                 .into_any_element(),
         )

@@ -8,7 +8,8 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Context, Entity, ImageSource, InteractiveElement as _, IntoElement as _,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, Window, div, img,
+    ObjectFit, ParentElement as _, StatefulInteractiveElement as _, Styled as _, StyledImage as _,
+    Window, div, img, px,
 };
 use i18n::key;
 use model::sticker::{StickerKind, StickerPicture};
@@ -16,6 +17,7 @@ use model::sticker_set::{SetKind, SetSticker, StickerSet};
 use model::{RequestError, Session};
 use style::chat_helpers::{DEFAULT_EMOJI_PAN, EMOJI_PAN_AREA, EMOJI_PAN_RADIUS};
 use style::widgets::DEFAULT_TOAST;
+use style::{ColorId, ColorRef};
 use ui::color;
 
 use super::HistoryView;
@@ -33,6 +35,115 @@ const EMOJI_SIDE: f32 = 24.0;
 
 /// A pack with the emoji it holds.
 pub(super) type Packs = Rc<Vec<StickerSet>>;
+
+pub(super) const PACK_STRIP_HEIGHT: gpui::Pixels = px(38.0);
+const PACKS_PER_PAGE: usize = 8;
+
+pub(super) enum PackNav {
+    Select(usize),
+    Page(usize),
+}
+
+pub(super) fn pack_strip(
+    packs: &[StickerSet],
+    store: &Entity<Store>,
+    (page, active): (usize, Option<usize>),
+    cx: &mut Context<HistoryView>,
+    navigate: impl Fn(&mut HistoryView, PackNav, &mut Context<HistoryView>) + Copy + 'static,
+) -> Option<AnyElement> {
+    let packs: Vec<_> = packs
+        .iter()
+        .enumerate()
+        .filter_map(|(index, pack)| Some((index, pack, pack.stickers.first()?)))
+        .collect();
+    let last = packs.len().checked_sub(1)? / PACKS_PER_PAGE;
+    let page = page.min(last);
+    let background = color(cx, ColorRef::Palette(ColorId::WindowBgOver));
+    let hovered = color(cx, ColorRef::Palette(ColorId::WindowBgActive));
+    let arrow = |symbol, next| {
+        div()
+            .id(("installed-packs-page", next))
+            .flex_none()
+            .size(px(25.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(6.0))
+            .cursor_pointer()
+            .hover(move |button| button.bg(hovered))
+            .child(symbol)
+            .on_click(cx.listener(move |this, _, _, cx| navigate(this, PackNav::Page(next), cx)))
+    };
+    let previous = (page > 0).then(|| arrow("‹", page - 1));
+    let next = (page < last).then(|| arrow("›", page + 1));
+    Some(
+        div()
+            .id("installed-pack-strip")
+            .h(PACK_STRIP_HEIGHT)
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap(px(2.0))
+            .px(px(5.0))
+            .border_t_1()
+            .border_color(color(cx, ColorRef::Palette(ColorId::ShadowFg)))
+            .children(previous)
+            .children(
+                packs
+                    .into_iter()
+                    .skip(page * PACKS_PER_PAGE)
+                    .take(PACKS_PER_PAGE)
+                    .map(|(index, pack, first)| {
+                        let image = match &pack.cover {
+                            Some(file) => file_picture(store, file, cx),
+                            None => still(store, &first.picture, cx),
+                        };
+                        div()
+                            .id(("installed-pack-icon", pack.id.0.cast_unsigned()))
+                            .aria_label(pack.title.clone())
+                            .flex_none()
+                            .size(px(32.0))
+                            .rounded(px(7.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .bg(if active == Some(index) {
+                                background
+                            } else {
+                                gpui::transparent_black()
+                            })
+                            .hover(move |button| button.bg(hovered))
+                            .cursor_pointer()
+                            .child(image.map_or_else(
+                                || {
+                                    div()
+                                        .child(if first.emoji.is_empty() {
+                                            pack.title
+                                                .chars()
+                                                .next()
+                                                .map_or_else(String::new, |ch| ch.to_string())
+                                        } else {
+                                            first.emoji.clone()
+                                        })
+                                        .into_any_element()
+                                },
+                                |path| {
+                                    super::picture_cache::bounded(img(path), cx)
+                                        .size(px(26.0))
+                                        .object_fit(ObjectFit::Contain)
+                                        .rounded(px(4.0))
+                                        .into_any_element()
+                                },
+                            ))
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                navigate(this, PackNav::Select(index), cx)
+                            }))
+                    }),
+            )
+            .children(next)
+            .into_any_element(),
+    )
+}
 
 pub(super) async fn installed_packs(
     session: &Session,
@@ -55,7 +166,10 @@ pub(super) fn still(
     cx: &mut App,
 ) -> Option<PathBuf> {
     let own = (sticker.kind == StickerKind::Still).then_some(&sticker.file);
-    let file = own.or(sticker.still.as_ref())?;
+    file_picture(store, own.or(sticker.still.as_ref())?, cx)
+}
+
+fn file_picture(store: &Entity<Store>, file: &model::file::File, cx: &mut App) -> Option<PathBuf> {
     let known = store.read(cx).state().chats.file(file.id).unwrap_or(file);
     if let Some(path) = &known.path {
         return Some(PathBuf::from(path));

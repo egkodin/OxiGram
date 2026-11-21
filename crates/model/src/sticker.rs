@@ -44,13 +44,9 @@ impl From<td_api::types::Sticker> for StickerPicture {
             StickerFormat::Tgs(_) => StickerKind::Animated,
             StickerFormat::Webm(_) => StickerKind::Video,
         };
-        let still = sticker.thumbnail.and_then(|thumbnail| {
-            matches!(
-                *thumbnail.format,
-                ThumbnailFormat::Webp(_) | ThumbnailFormat::Png(_) | ThumbnailFormat::Jpeg(_)
-            )
-            .then(|| File::from(*thumbnail.file))
-        });
+        let still = sticker
+            .thumbnail
+            .and_then(|thumbnail| still_thumbnail(*thumbnail));
         let premium_effect = match *sticker.full_type {
             StickerFullType::Regular(regular) => {
                 regular.premium_animation.map(|file| File::from(*file))
@@ -67,6 +63,14 @@ impl From<td_api::types::Sticker> for StickerPicture {
             skin_tone: None,
         }
     }
+}
+
+pub(crate) fn still_thumbnail(thumbnail: td_api::types::Thumbnail) -> Option<File> {
+    matches!(
+        *thumbnail.format,
+        ThumbnailFormat::Webp(_) | ThumbnailFormat::Png(_) | ThumbnailFormat::Jpeg(_)
+    )
+    .then(|| File::from(*thumbnail.file))
 }
 
 impl crate::session::Session {

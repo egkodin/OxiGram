@@ -1,5 +1,17 @@
 # Progress
 
+## Installed pack artwork shortcuts (2026-11-21)
+
+- The Emoji and Stickers tabs each show installed packs in a fixed
+  footer. The footer uses the pack cover or first item's artwork, with a
+  glyph while artwork is unavailable. Clicking a cover jumps to that
+  pack. Arrows page through sets of eight and only the visible covers
+  request images.
+- Rebuilt and launched the signed local test build at
+  `target/pack-check-2026-11-21/OxiGram.app`. Computer Use verified both
+  footers, clicking a cover in each tab and reaching the next emoji
+  page. All 440 workspace tests, formatting and strict Clippy passed.
+
 ## History and picker interaction fixes (2026-11-21)
 
 - Reproduced an oversized preview image and outgoing bubbles beyond the

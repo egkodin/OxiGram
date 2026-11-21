@@ -4,8 +4,9 @@ use std::rc::Rc;
 
 use gpui::{
     AnyElement, App, Context, ImageSource, InteractiveElement as _, IntoElement as _,
-    ListAlignment, ListState, ObjectFit, ParentElement as _, StatefulInteractiveElement as _,
-    Styled as _, StyledImage as _, div, img, list, prelude::FluentBuilder as _, px,
+    ListAlignment, ListOffset, ListState, ObjectFit, ParentElement as _,
+    StatefulInteractiveElement as _, Styled as _, StyledImage as _, div, img, list,
+    prelude::FluentBuilder as _, px,
 };
 use i18n::key;
 use model::rights::Writing;
@@ -15,7 +16,7 @@ use model::{ClientId, FileId};
 use style::{ColorId, ColorRef};
 
 use super::HistoryView;
-use super::emoji_packs::{self, Packs};
+use super::emoji_packs::{self, PackNav, Packs};
 use super::field_bar::FieldBar;
 use crate::lang::tr;
 use crate::power_saving::{Flag, plays};
@@ -38,6 +39,7 @@ pub(super) struct StickerPanel {
     rows: Vec<(usize, Option<usize>)>,
     list: ListState,
     owner: Option<ClientId>,
+    pack_page: usize,
     hovered: Option<FileId>,
     sending: bool,
     send_failed: bool,
@@ -50,6 +52,7 @@ impl StickerPanel {
             rows: Vec::new(),
             list: ListState::new(0, ListAlignment::Top, px(0.0)),
             owner: None,
+            pack_page: 0,
             hovered: None,
             sending: false,
             send_failed: false,
@@ -140,7 +143,7 @@ impl HistoryView {
             PacksState::Ready(_) if panel.rows.is_empty() => {
                 center(tr(cx, key::lng_stickers_not_found)).into_any_element()
             }
-            PacksState::Ready(_) => {
+            PacksState::Ready(ref packs) => {
                 let weak = cx.weak_entity();
                 div()
                     .flex_1()
@@ -160,6 +163,35 @@ impl HistoryView {
                         .flex_1()
                         .min_h_0(),
                     )
+                    .children(emoji_packs::pack_strip(
+                        packs,
+                        &self.store,
+                        (
+                            panel.pack_page,
+                            panel
+                                .rows
+                                .get(panel.list.logical_scroll_top().item_ix)
+                                .map(|row| row.0),
+                        ),
+                        cx,
+                        |this, action, cx| {
+                            let panel = &mut this.emoji.stickers;
+                            match action {
+                                PackNav::Select(pack) => {
+                                    if let Some(item_ix) =
+                                        panel.rows.iter().position(|row| *row == (pack, None))
+                                    {
+                                        panel.list.scroll_to(ListOffset {
+                                            item_ix,
+                                            offset_in_item: px(0.0),
+                                        });
+                                    }
+                                }
+                                PackNav::Page(page) => panel.pack_page = page,
+                            }
+                            cx.notify();
+                        },
+                    ))
                     .into_any_element()
             }
         }

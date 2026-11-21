@@ -8,9 +8,10 @@ use td_api::enums::{InputFile, InputMessageContent, StickerFullType, StickerType
 use td_api::functions::{ChangeStickerSet, GetInstalledStickerSets, GetStickerSet, SendMessage};
 use td_api::types as td;
 
+use crate::file::File;
 use crate::ids::{CustomEmojiId, StickerSetId};
 use crate::session::{RequestError, Session};
-use crate::sticker::StickerPicture;
+use crate::sticker::{StickerPicture, still_thumbnail};
 use crate::{MessageId, thread::Key};
 
 /// What a set holds (`StickersType`).
@@ -31,6 +32,7 @@ pub struct StickerSet {
     pub is_installed: bool,
     pub is_archived: bool,
     pub is_official: bool,
+    pub cover: Option<File>,
     pub stickers: Vec<SetSticker>,
 }
 
@@ -80,6 +82,9 @@ impl From<td_api::types::StickerSet> for StickerSet {
             is_installed: set.is_installed,
             is_archived: set.is_archived,
             is_official: set.is_official,
+            cover: set
+                .thumbnail
+                .and_then(|thumbnail| still_thumbnail(*thumbnail)),
             stickers: set.stickers.into_iter().map(SetSticker::from).collect(),
         }
     }
