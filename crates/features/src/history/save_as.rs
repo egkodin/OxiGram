@@ -106,13 +106,15 @@ fn save_copy(source: &Path, target: &Path) -> io::Result<()> {
         target.to_owned()
     };
     let dir = destination.parent().unwrap_or_else(|| Path::new("."));
-    let mut staging = tempfile::Builder::new();
     #[cfg(unix)]
-    {
+    let staging = {
         use std::os::unix::fs::PermissionsExt as _;
-        staging.permissions(std::fs::Permissions::from_mode(0o700));
-    }
-    let staging = staging.tempdir_in(dir)?;
+        tempfile::Builder::new()
+            .permissions(std::fs::Permissions::from_mode(0o700))
+            .tempdir_in(dir)?
+    };
+    #[cfg(not(unix))]
+    let staging = tempfile::tempdir_in(dir)?;
     let copy = staging.path().join("download");
     // fs::copy also preserves platform metadata such as macOS quarantine.
     std::fs::copy(source, &copy)?;
