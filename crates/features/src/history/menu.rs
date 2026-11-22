@@ -242,7 +242,7 @@ pub(super) fn preset_reactions(cx: &App) -> Option<Vec<ReactionKind>> {
     cx.try_global::<PresetAbilities>()
         .and_then(|preset| preset.0)
         .map(|_| {
-            ["👍", "❤", "🔥", "🥰", "👏", "😁", "🤔"]
+            ["👍", "❤", "🔥", "🥰", "👏", "😁", "🤔", "🎉"]
                 .map(|emoji| ReactionKind::Emoji(emoji.to_owned()))
                 .to_vec()
         })

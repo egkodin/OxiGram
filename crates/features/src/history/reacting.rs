@@ -33,6 +33,14 @@ const EXPANDED_ROWS: f32 = 6.5;
 /// The user's own reactions sit on this faint fill.
 const CHOSEN_OPACITY: f32 = 0.15;
 
+fn strip_layout(count: usize, expanded: bool) -> (usize, bool) {
+    if expanded || count <= STRIP_COUNT {
+        (count, false)
+    } else {
+        (STRIP_COUNT - 1, true)
+    }
+}
+
 /// The strip over a message's menu.
 pub(super) struct Strip {
     message: MessageId,
@@ -142,11 +150,7 @@ impl HistoryView {
     /// The strip's row of reactions, or every one once expanded; a pick
     /// closes the menu.
     pub(super) fn strip_element(&mut self, strip: &Strip, cx: &mut Context<Self>) -> AnyElement {
-        let shown = if strip.is_expanded {
-            strip.kinds.len()
-        } else {
-            STRIP_COUNT - 1
-        };
+        let (shown, show_expand) = strip_layout(strip.kinds.len(), strip.is_expanded);
         let mut buttons: Vec<AnyElement> = strip
             .kinds
             .iter()
@@ -158,7 +162,7 @@ impl HistoryView {
         if strip.is_expanded {
             let cell = px_of(REACT_STRIP_SIZE);
             #[expect(clippy::cast_precision_loss, reason = "a few columns")]
-            let width = cell * EXPANDED_COLUMNS as f32 + px_of(REACT_STRIP_SKIP);
+            let width = cell * shown.min(EXPANDED_COLUMNS) as f32 + px_of(REACT_STRIP_SKIP);
             return div()
                 .id("reaction-list")
                 .w(width)
@@ -174,7 +178,9 @@ impl HistoryView {
                 .children(buttons)
                 .into_any_element();
         }
-        buttons.push(self.expand_button(cx));
+        if show_expand {
+            buttons.push(self.expand_button(cx));
+        }
         div()
             .flex()
             .items_center()
@@ -291,5 +297,18 @@ mod tests {
         assert_eq!(quick(&[fire.clone(), heart.clone()]), Some(heart));
         assert_eq!(quick(std::slice::from_ref(&fire)), Some(fire));
         assert_eq!(quick(&[]), None);
+    }
+}
+
+#[cfg(test)]
+mod strip_layout_tests {
+    use super::*;
+
+    #[test]
+    fn only_offers_to_expand_when_there_are_hidden_reactions() {
+        assert_eq!(strip_layout(4, false), (4, false));
+        assert_eq!(strip_layout(7, false), (7, false));
+        assert_eq!(strip_layout(8, false), (6, true));
+        assert_eq!(strip_layout(8, true), (8, false));
     }
 }
