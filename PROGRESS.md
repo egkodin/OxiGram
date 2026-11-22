@@ -1,5 +1,15 @@
 # Progress
 
+## Automated release command (2026-11-22)
+
+- `scripts/build-release.sh` finds the checkout, loads the existing local
+  credentials, and packages a release in `target/dist/`. The macOS build
+  completed without manual credential entry and passed the packaged
+  configuration and signature checks. Temporary Cargo output was removed.
+- Shell fixtures covered the Linux and Windows command paths, missing
+  credentials and explicit overrides. Native release verification runs
+  through the manual GitHub Actions workflow.
+
 ## macOS preview with built-in Telegram configuration (2026-11-22)
 
 - Published [Preview 2](https://github.com/egkodin/OxiGram/releases/tag/v0.1.0-preview.2)
@@ -11,7 +21,7 @@
   Telegram QR sign-in screen. No account was used. The uploaded ZIP's
   SHA-256 matches the local archive.
 - The Mac preview is ad-hoc signed. Notarization and Windows and Linux
-  downloads remain open. The repository is private.
+  downloads remain open.
 
 ## Release sign-in configuration (2026-11-22)
 
