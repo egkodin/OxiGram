@@ -1,16 +1,27 @@
-# OxiGram
+<h1 align="center">
+  <img src="docs/images/oxigram-logo.png" width="96" height="96" alt=""><br>
+  OxiGram
+</h1>
 
 OxiGram is an unofficial Telegram desktop client for **Linux, Windows and
 macOS**, built in Rust with GPUI and TDLib. It follows Telegram Desktop's
 interaction patterns and aims to use less memory and start faster.
 
+![OxiGram group chat with chat folders, a pinned message, and an inline reply](docs/images/oxigram-group-chat.webp)
+
+*Screenshots captured on macOS with sample chats.*
+
 | Platform | Development target | Verification |
 | --- | --- | --- |
-| Linux | Ubuntu 24.04 | CI target configured. Build and runtime verification pending. |
-| Windows | Windows x64 with MSVC | CI target configured. Build and runtime verification pending. |
-| macOS | Apple silicon | Build and offline tests verified. Local app packaging available. |
+| Linux | Ubuntu 24.04 x64 | CI built and smoke-tested the release archive. Desktop sign-in remains unverified. |
+| Windows | Windows x64 with MSVC | Native release verification in progress. |
+| macOS | Apple silicon | Preview available. The packaged app reached Telegram's QR sign-in screen on a clean profile. |
 
 [CI matrix](.github/workflows/ci.yml) · [Verification notes](PROGRESS.md)
+
+Get the current preview from [GitHub Releases](https://github.com/egkodin/OxiGram/releases).
+Release packages include OxiGram's Telegram API configuration. Open the app
+and sign in with Telegram.
 
 ## What you can try
 
@@ -22,6 +33,8 @@ interaction patterns and aims to use less memory and start faster.
   swipe to reply or go back.
 - Open recent Calls from the main menu. Signed-in call-history pagination
   remains unverified.
+
+![OxiGram’s emoji picker with tabs for stickers and GIFs open beside a conversation](docs/images/oxigram-emoji-picker.webp)
 
 ## Build from source
 
@@ -82,7 +95,17 @@ For a local `.app`, install the Metal Toolchain with
 existing `target/OxiGram.app` before packaging. Linux and Windows installers
 are planned.
 
-## Run OxiGram
+## Package a release
+
+Maintainers can select **Actions → CI → Run workflow** to build release
+archives on all three platforms. CI loads the application's credentials
+from repository secrets and verifies each package before uploading it.
+
+For a local build, run `bash scripts/build-release.sh` on the target system.
+The script loads an existing git-ignored `.env`, verifies the configuration,
+and writes the package to `target/dist/`.
+
+## Run from source
 
 Obtain an API ID and hash from [Telegram's developer portal](https://my.telegram.org/).
 Put these assignments in a local `.env` at the repository root and replace
