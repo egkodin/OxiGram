@@ -145,7 +145,7 @@ impl Drop for Runtime {
 pub struct Stopper(Arc<Shared>);
 
 impl Stopper {
-    /// Blocks for up to [`RECEIVE_TIMEOUT`] while `td_receive` returns; later
+    /// Blocks for up to one second while `td_receive` returns; later
     /// calls return at once. Requests still waiting fail with
     /// [`TdError::Closed`].
     pub fn stop(&self) {
