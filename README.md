@@ -23,6 +23,13 @@ Get the current preview from [GitHub Releases](https://github.com/egkodin/OxiGra
 Release packages include OxiGram's Telegram API configuration. Open the app
 and sign in with Telegram.
 
+Update-enabled packages check GitHub Releases about 20 seconds after launch
+and once a day while running. When an update is available, confirm
+**Update and Restart**. The app verifies the archive before replacing its
+package. Portable Linux and Windows installations should keep the app in
+its own folder. Linux uses the system `curl` command for HTTPS.
+Set `OXIGRAM_DISABLE_UPDATES=1` to turn off these checks.
+
 ## What you can try
 
 - Browse chats, switch accounts, organize chats with folders and the Archive,
@@ -100,6 +107,10 @@ are planned.
 Maintainers can select **Actions → CI → Run workflow** to build release
 archives on all three platforms. CI loads the application's credentials
 from repository secrets and verifies each package before uploading it.
+For an update, publish the CI archives on a GitHub release whose tag
+matches the package version, such as `v0.2.0`. A preview tag must match a
+preview version in `Cargo.toml`. Clients follow stable releases unless
+they are running a preview build.
 
 For a local build, run `bash scripts/build-release.sh` on the target system.
 The script loads an existing git-ignored `.env`, verifies the configuration,

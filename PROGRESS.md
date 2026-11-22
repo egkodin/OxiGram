@@ -1,5 +1,21 @@
 # Progress
 
+## Release updater (2026-11-23)
+
+- Packaged builds check GitHub Releases on a background timer. The prompt
+  offers a verified archive for the running platform and release channel.
+- Downloads go to disk. The installer checks the GitHub SHA-256, rejects
+  unsafe archive entries and checks the staged app before closing TDLib.
+  The portable package inventory protects files added by the user.
+- On macOS, 456 workspace tests passed and four opt-in tests were skipped.
+  Formatting, strict Clippy, ZIP/TAR fixtures, offline Unix installation
+  and rollback, and the signed macOS package marker passed. Cargo Audit
+  reported seven existing maintenance warnings. Cargo Deny still reports
+  the existing Chrono advisory.
+- A live update from a published release and native Windows installation
+  remain unverified. The first update-enabled package must be installed
+  from GitHub Releases.
+
 ## OxiGram naming and QR branding (2026-11-22)
 
 - The checkout, build settings, cache paths and language keys use the OxiGram

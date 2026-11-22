@@ -8234,10 +8234,16 @@ pub mod key {
     pub const oxigram_intro_premium_required: Key = Key(8224);
     pub const oxigram_payment_form_later: Key = Key(8225);
     pub const oxigram_settings_title: Key = Key(8226);
+    pub const oxigram_update_available: Key = Key(8227);
+    pub const oxigram_update_detail: Key = Key(8228);
+    pub const oxigram_update_failed: Key = Key(8229);
+    pub const oxigram_update_failed_detail: Key = Key(8230);
+    pub const oxigram_update_install: Key = Key(8231);
+    pub const oxigram_update_release_page: Key = Key(8232);
 }
 
 /// Key names in key order (sorted), for language packs.
-pub(crate) static NAMES: [&str; 8227] = [
+pub(crate) static NAMES: [&str; 8233] = [
     "lng_about_done",
     "lng_about_psa_default",
     "lng_about_random",
@@ -16465,10 +16471,16 @@ pub(crate) static NAMES: [&str; 8227] = [
     "oxigram_intro_premium_required",
     "oxigram_payment_form_later",
     "oxigram_settings_title",
+    "oxigram_update_available",
+    "oxigram_update_detail",
+    "oxigram_update_failed",
+    "oxigram_update_failed_detail",
+    "oxigram_update_install",
+    "oxigram_update_release_page",
 ];
 
 /// The English strings in key order.
-pub(crate) static ENGLISH: [Value<&str>; 8227] = [
+pub(crate) static ENGLISH: [Value<&str>; 8233] = [
     Value::Text("Done"),
     Value::Text(
         "This message provides you with a public service announcement. To remove it from your chat list, right click it and select **Hide**.",
@@ -29693,4 +29705,10 @@ pub(crate) static ENGLISH: [Value<&str>; 8227] = [
     ),
     Value::Text("Checkout isn't in OxiGram yet. Buy it in another Telegram app."),
     Value::Text("OxiGram settings"),
+    Value::Text("OxiGram {version} is available"),
+    Value::Text("OxiGram will download the update and restart when it is ready."),
+    Value::Text("OxiGram could not install the update"),
+    Value::Text("You can keep using this version or download the new release manually."),
+    Value::Text("Update and Restart"),
+    Value::Text("Open Release Page"),
 ];

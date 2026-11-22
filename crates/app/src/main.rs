@@ -5,6 +5,7 @@ mod credentials;
 mod device;
 mod paths;
 mod shutdown;
+mod updates;
 
 use anyhow::Context as _;
 use features::{Accounts, Root};
@@ -58,6 +59,7 @@ fn main() -> anyhow::Result<()> {
     let data =
         paths::data_dir(environment).map_err(|error| SharedString::from(format!("{error:#}")));
     let settings = data.as_ref().ok().map(|dir| dir.join(SETTINGS_FILE));
+    let profile = data.as_ref().ok().cloned();
     let connection = credentials::from_env()
         .map_err(|error| SharedString::from(error.to_string()))
         .and_then(|credentials| {
@@ -104,6 +106,7 @@ fn main() -> anyhow::Result<()> {
             return;
         }
         cx.activate(true);
+        updates::schedule(cx, profile);
     });
     Ok(())
 }

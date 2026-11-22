@@ -14,13 +14,21 @@ runtime-shaders = ["gpui_platform/runtime_shaders"]
 [dependencies]
 anyhow.workspace = true
 features.workspace = true
+flate2.workspace = true
 futures.workspace = true
 gpui.workspace = true
+zip = { version = "9.8.1", default-features = false, features = ["deflate-flate2"] }
 gpui_platform.workspace = true
 i18n.workspace = true
 # `silence_output` for OXIGRAM_SILENT and the snapshots.
 media.workspace = true
 model.workspace = true
+semver = "1.0.28"
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10.9"
+tar = { version = "0.4.46", default-features = false }
+tempfile.workspace = true
 style.workspace = true
 td-api.workspace = true
 # Direct dependency so build.rs receives DEP_TDJSON_RUNTIME_DIR.
@@ -34,6 +42,9 @@ ui.workspace = true
 [target.'cfg(target_os = "macos")'.dependencies]
 # Its interface zoom (`set_interface_zoom`, ADR 0005), patched to vendor/gpui_macos.
 gpui_macos = { git = "https://github.com/zed-industries/zed", rev = "876c1b0c5fb0ed7c15703a1955ef4b3580bd73fa" }
+
+[target.'cfg(windows)'.dependencies]
+base64.workspace = true
 
 [dev-dependencies]
 # `Window::render_to_image` for examples/snapshots.rs; dev-only, so release

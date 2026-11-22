@@ -16,3 +16,10 @@
 
 // Buttons that would pay stop at TDLib's payment form until checkout lands.
 "oxigram_payment_form_later" = "Checkout isn't in OxiGram yet. Buy it in another Telegram app.";
+
+"oxigram_update_available" = "OxiGram {version} is available";
+"oxigram_update_detail" = "OxiGram will download the update and restart when it is ready.";
+"oxigram_update_install" = "Update and Restart";
+"oxigram_update_failed" = "OxiGram could not install the update";
+"oxigram_update_failed_detail" = "You can keep using this version or download the new release manually.";
+"oxigram_update_release_page" = "Open Release Page";
