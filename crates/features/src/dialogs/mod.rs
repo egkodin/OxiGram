@@ -404,6 +404,7 @@ impl Dialogs {
             chat_of(key).filter(|chat| self.search.is_none() && self.pinned(cx).contains(chat));
         div()
             .id(key.element_id())
+            .cursor_pointer()
             .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
                 this.track_hover(key, *hovered, cx);
             }))
