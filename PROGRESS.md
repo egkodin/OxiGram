@@ -1,5 +1,22 @@
 # Progress
 
+## Release sign-in configuration (2026-11-22)
+
+- Release builds take OxiGram's app credentials from GitHub Actions secrets.
+  Packaging runs a native loader and bundled-configuration check with the
+  developer's Telegram and library environment overrides removed.
+- The macOS archive contains a single app bundle. It includes its TDLib
+  library, icon and license notices. Packaging requires a release icon and
+  drops the setup text and AppleDouble files from the archive.
+- Five credential tests, strict app Clippy and formatting passed. An offline
+  macOS packaging probe used synthetic credentials and the local icon.
+  The extracted bundle passed signature and configuration checks. A build
+  without bundled credentials failed the check as expected.
+- Cargo Audit reported seven maintenance warnings against its cached
+  advisory database. Cargo Deny still reports RUSTSEC-2026-0543 for Chrono.
+  Public icon, notarization, Linux and Windows packaging, and live sign-in
+  still need verification. The published prerelease remains unchanged.
+
 ## Calls, interaction fixes and release preparation (2026-11-22)
 
 - Chat-list rows show the pointer cursor. Small sets of allowed reactions

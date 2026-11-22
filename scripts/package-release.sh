@@ -16,22 +16,23 @@ version="$(awk -F'"' '/^version = "/ {print $2; exit}' Cargo.toml)"
 arch="$(uname -m)"
 if [[ "$arch" == aarch64 ]]; then arch=arm64; fi
 
-cat > "$stage/START.txt" <<'TEXT'
-Get a Telegram API ID and hash at https://my.telegram.org/.
-Set RGRAM_API_ID and RGRAM_API_HASH in the environment before launching.
-Linux and Windows: run oxigram or oxigram.exe from the extracted directory.
-macOS: run OxiGram.app/Contents/MacOS/OxiGram from Terminal.
-Linux builds target Ubuntu 24.04. See the repository README for system libraries.
-
-Source and dependency build recipes:
-https://github.com/egkodin/OxiGram
-TEXT
+smoke_test() {
+    env -u RGRAM_API_ID -u RGRAM_API_HASH -u DYLD_LIBRARY_PATH -u LD_LIBRARY_PATH \
+        "$1" --check-release-configuration
+}
 
 case "$(uname -s)" in
     Darwin)
-        app="$stage/OxiGram.app"
-        mkdir -p "$app/Contents/MacOS"
+        app="$work/OxiGram.app"
+        icon="${OXIGRAM_RELEASE_ICON:-resources/release/OxiGram.icns}"
+        if [[ ! -f "$icon" ]]; then
+            echo "A public OxiGram icon is required at $icon." >&2
+            exit 1
+        fi
+        mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
         cp "$build_dir/oxigram" "$app/Contents/MacOS/OxiGram"
+        cp "$icon" "$app/Contents/Resources/OxiGram.icns"
+        mv "$stage/LICENSE" "$stage/NOTICE.md" "$app/Contents/Resources/"
         dylib="libtdjson.$tdlib_version.dylib"
         cp "$build_dir/$dylib" "$app/Contents/MacOS/"
         cat > "$app/Contents/Info.plist" <<PLIST
@@ -40,6 +41,7 @@ case "$(uname -s)" in
 <plist version="1.0"><dict>
 <key>CFBundleName</key><string>OxiGram</string>
 <key>CFBundleIdentifier</key><string>org.oxigram.client</string>
+<key>CFBundleIconFile</key><string>OxiGram.icns</string>
 <key>CFBundleExecutable</key><string>OxiGram</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>$version</string>
@@ -52,12 +54,12 @@ PLIST
         codesign --force --sign - "$app/Contents/MacOS/$dylib"
         codesign --force --sign - "$app"
         codesign --verify --deep --strict "$app"
-        "$app/Contents/MacOS/OxiGram" --version
-        ditto -c -k --keepParent "$stage" "$out/OxiGram-$version-macos-$arch.zip"
+        smoke_test "$app/Contents/MacOS/OxiGram"
+        ditto -c -k --norsrc --keepParent "$app" "$out/OxiGram-$version-macos-$arch.zip"
         ;;
     Linux)
         cp "$build_dir/oxigram" "$build_dir/libtdjson.so.$tdlib_version" "$stage/"
-        "$stage/oxigram" --version
+        smoke_test "$stage/oxigram"
         tar -czf "$out/OxiGram-$version-linux-$arch.tar.gz" -C "$work" OxiGram
         ;;
     MINGW*|MSYS*|CYGWIN*)
@@ -69,7 +71,7 @@ PLIST
             library="$(basename "$(dirname "$copyright")")"
             cp "$copyright" "$stage/licenses/$library.txt"
         done
-        PATH="/c/Windows/System32:/c/Windows" "$stage/oxigram.exe" --version
+        PATH="/usr/bin:/c/Windows/System32:/c/Windows" smoke_test "$stage/oxigram.exe"
         STAGE="$(cygpath -w "$stage")" ARCHIVE="$(cygpath -w "$out/OxiGram-$version-windows-x86_64.zip")" \
             pwsh -NoProfile -Command 'Compress-Archive -LiteralPath $env:STAGE -DestinationPath $env:ARCHIVE'
         ;;

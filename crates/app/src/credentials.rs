@@ -1,5 +1,5 @@
-//! Telegram API credentials (ADR 0004): every build brings its own `api_id` and
-//! `api_hash` from <https://my.telegram.org>; none are stored in the code.
+//! Telegram API credentials (ADR 0004). Release builds supply OxiGram's
+//! credentials at compile time. Source builds can supply their own at runtime.
 
 use std::env;
 use std::fmt;
@@ -39,12 +39,36 @@ pub(crate) enum CredentialsError {
     InvalidHash,
 }
 
-/// Reads the credentials from `RGRAM_API_ID` and `RGRAM_API_HASH`.
+/// Reads a runtime override or uses the bundled app credentials.
 pub(crate) fn from_env() -> Result<ApiCredentials, CredentialsError> {
-    parse(
-        env::var(API_ID_VAR).ok().as_deref(),
-        env::var(API_HASH_VAR).ok().as_deref(),
+    resolve(
+        (
+            env::var(API_ID_VAR).ok().as_deref(),
+            env::var(API_HASH_VAR).ok().as_deref(),
+        ),
+        RELEASE_DEFAULTS,
     )
+}
+
+const RELEASE_DEFAULTS: (Option<&str>, Option<&str>) = (
+    option_env!("OXIGRAM_RELEASE_API_ID"),
+    option_env!("OXIGRAM_RELEASE_API_HASH"),
+);
+
+pub(crate) fn check_release_configuration() -> Result<(), CredentialsError> {
+    parse(RELEASE_DEFAULTS.0, RELEASE_DEFAULTS.1).map(|_| ())
+}
+
+fn resolve(
+    runtime: (Option<&str>, Option<&str>),
+    release: (Option<&str>, Option<&str>),
+) -> Result<ApiCredentials, CredentialsError> {
+    let (id, hash) = if runtime == (None, None) {
+        release
+    } else {
+        runtime
+    };
+    parse(id, hash)
 }
 
 fn parse(id: Option<&str>, hash: Option<&str>) -> Result<ApiCredentials, CredentialsError> {
@@ -75,6 +99,24 @@ mod tests {
     use super::*;
 
     const HASH: &str = "0123456789abcdef0123456789ABCDEF";
+
+    #[test]
+    fn release_defaults_apply_only_without_a_runtime_override() {
+        let defaults = (Some("12345"), Some(HASH));
+        assert_eq!(resolve((None, None), defaults).unwrap().id, 12345);
+        assert_eq!(
+            resolve((Some("67890"), Some(HASH)), defaults).unwrap().id,
+            67890
+        );
+        assert_eq!(
+            resolve((Some("67890"), None), defaults),
+            Err(CredentialsError::Missing)
+        );
+        assert_eq!(
+            resolve((None, None), (None, None)),
+            Err(CredentialsError::Missing)
+        );
+    }
 
     #[test]
     fn accepts_valid_credentials() {

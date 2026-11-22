@@ -116,21 +116,32 @@ jobs:
         run: echo "FEATURES=--features oxigram/runtime-shaders" >> "$GITHUB_ENV"
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name != 'workflow_dispatch' }}
       # `--all-features` includes `runtime-shaders`, so macOS runners need no
       # Metal toolchain.
       - run: cargo clippy --locked --workspace --all-targets $FEATURES -- -D warnings
       - run: cargo test --locked --workspace $FEATURES
       - if: github.event_name != 'workflow_dispatch'
         run: cargo build --locked --workspace $FEATURES
-      - name: Build and smoke-test the release archive
+      - name: Build with OxiGram application credentials
         if: github.event_name == 'workflow_dispatch'
+        env:
+          OXIGRAM_RELEASE_API_ID: ${{ secrets.OXIGRAM_RELEASE_API_ID }}
+          OXIGRAM_RELEASE_API_HASH: ${{ secrets.OXIGRAM_RELEASE_API_HASH }}
         run: |
+          if [[ ! "$OXIGRAM_RELEASE_API_ID" =~ ^[1-9][0-9]*$ || ! "$OXIGRAM_RELEASE_API_HASH" =~ ^[0-9a-fA-F]{32}$ ]]; then
+            echo "Configure the OxiGram release API ID and hash in GitHub Actions secrets." >&2
+            exit 1
+          fi
           if [[ "$RUNNER_OS" == Windows ]]; then
             cargo build --locked --release -p oxigram --features runtime-shaders
           else
             cargo build --locked --release -p oxigram --features runtime-shaders,media/static-ffmpeg
           fi
-          bash scripts/package-release.sh target/release dist
+      - name: Package and smoke-test the release archive
+        if: github.event_name == 'workflow_dispatch'
+        run: bash scripts/package-release.sh target/release dist
       - uses: actions/upload-artifact@v4
         if: github.event_name == 'workflow_dispatch'
         with:
