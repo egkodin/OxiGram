@@ -3,8 +3,7 @@
 ## Start here
 
 - Check `git status --short` and read the relevant entries in [PROGRESS.md](PROGRESS.md). Preserve existing work and keep the diff scoped to the request.
-- Use Codebase Memory MCP for symbols and call paths. Index the checkout if needed. Use `rg` for text, configuration, and files outside the index.
-- Follow Beautiful Rust and `ub-mode` for Rust changes. Read the relevant [ADRs](docs/adr/) before changing a crate boundary, native dependency, or upstream pin.
+- Read the relevant [ADRs](docs/adr/) before changing a crate boundary, native dependency, or upstream pin.
 
 ## Write maintainable Rust
 
