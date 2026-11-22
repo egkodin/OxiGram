@@ -218,6 +218,26 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             abilities: None,
             others: Vec::new(),
             setup: chats::events(),
+            clicks: vec![
+                ("calls-menu", MouseButton::Left, MENU_BUTTON),
+                (
+                    "calls-open",
+                    MouseButton::Left,
+                    (100.0, CONTACTS_ROW.1 + 38.0),
+                ),
+            ],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: Vec::new(),
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("calls-list", auth(State::Ready))],
+        },
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
             // Collapses the archive and expands it again for the later windows.
             clicks: vec![
                 ("21-archive-menu", MouseButton::Right, ARCHIVE_ROW),

@@ -8,8 +8,8 @@ use td_api::enums::TopChatCategory;
 use td_api::functions::{
     AddRecentlyFoundChat, ClearRecentlyFoundChats, CreatePrivateChat, GetContacts,
     GetRecommendedChats, GetSupportUser, GetTopChats, RemoveRecentlyFoundChat, RemoveTopChat,
-    SearchChats, SearchChatsOnServer, SearchMessages, SearchPublicChat, SearchPublicChats,
-    SearchRecentlyFoundChats,
+    SearchCallMessages, SearchChats, SearchChatsOnServer, SearchMessages, SearchPublicChat,
+    SearchPublicChats, SearchRecentlyFoundChats,
 };
 use td_api::types::{TopChatCategoryUsers, TopChatCategoryWebAppBots};
 
@@ -27,6 +27,16 @@ pub struct FoundMessages {
     pub messages: Vec<Message>,
     /// Passed back to get the next page; `None` once nothing is left.
     pub next_offset: Option<String>,
+}
+
+impl From<td_api::types::FoundMessages> for FoundMessages {
+    fn from(found: td_api::types::FoundMessages) -> Self {
+        Self {
+            total_count: found.total_count,
+            messages: found.messages.into_iter().map(Message::from).collect(),
+            next_offset: (!found.next_offset.is_empty()).then_some(found.next_offset),
+        }
+    }
 }
 
 /// Which kind of chat found messages come from (`ChatTypeFilter`).
@@ -250,15 +260,22 @@ impl Session {
                 min_date: 0,
                 max_date: 0,
             })
-            .map(|result| {
-                result
-                    .map(|found| FoundMessages {
-                        total_count: found.total_count,
-                        messages: found.messages.into_iter().map(Message::from).collect(),
-                        next_offset: (!found.next_offset.is_empty()).then_some(found.next_offset),
-                    })
-                    .map_err(RequestError::from)
+            .map(|result| result.map(FoundMessages::from).map_err(RequestError::from))
+    }
+
+    /// Returns the next page of the account's call history.
+    pub fn search_calls(
+        &self,
+        offset: &str,
+        limit: i32,
+    ) -> impl Future<Output = Result<FoundMessages, RequestError>> + Send + use<> {
+        self.client()
+            .request(&SearchCallMessages {
+                offset: offset.to_owned(),
+                limit,
+                only_missed: false,
             })
+            .map(|result| result.map(FoundMessages::from).map_err(RequestError::from))
     }
 
     /// The public chat with `username`, for an @mention.

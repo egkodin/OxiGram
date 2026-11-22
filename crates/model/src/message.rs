@@ -273,7 +273,9 @@ pub enum Content {
     Story,
     Call {
         is_video: bool,
+        is_group: bool,
         is_missed: bool,
+        duration: i32,
     },
     /// A service message ("X joined the group").
     Service(Service),

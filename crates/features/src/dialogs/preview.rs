@@ -197,6 +197,7 @@ pub(crate) fn content<'a>(
         Content::Call {
             is_video,
             is_missed,
+            ..
         } => typed(call_key(*is_video, *is_missed), &empty),
         Content::Unsupported => Preview::of_text(&unsupported_text(strings)),
         // Rows build service texts with the chat at hand (`preview::service`).

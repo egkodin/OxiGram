@@ -36,12 +36,12 @@ const USERPIC_SIZE: f32 = 48.0;
 /// A menu button the main view acts on; the menu closes first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MenuAction {
-    /// A button whose screen is not there yet.
     Close,
     Archive,
     /// Puts the archive back at the top of the chat list.
     ArchiveToList,
     Contacts,
+    Calls,
     MyProfile,
     NewGroup,
     NewChannel,
@@ -137,18 +137,14 @@ impl MainMenu {
         id: &'static str,
         text: SharedString,
         icon: style::Icon,
-        action: Option<MenuAction>,
+        action: MenuAction,
         cx: &mut Context<Self>,
     ) -> SettingsButton {
         let entity = cx.entity();
-        // shortcut: buttons without an action only close the menu until their screens land (profile M6, groups and channels M6, contacts M2, calls M10).
         SettingsButton::new(id, &MAIN_MENU_BUTTON, text)
             .icon(icon)
             .on_click(move |_, _, cx| {
-                entity.update(cx, |_, cx| match action {
-                    Some(action) => cx.emit(action),
-                    None => cx.emit(MenuAction::Close),
-                });
+                entity.update(cx, |_, cx| cx.emit(action));
             })
     }
 
@@ -238,7 +234,7 @@ impl Render for MainMenu {
                     "archive",
                     tr(cx, key::lng_archived_name),
                     MENU_ICON_ARCHIVE_OPEN,
-                    Some(MenuAction::Archive),
+                    MenuAction::Archive,
                     cx,
                 ))
                 .on_mouse_down(MouseButton::Right, move |_, _, cx| {
@@ -266,7 +262,7 @@ impl Render for MainMenu {
                         "my-profile",
                         tr(cx, key::lng_menu_my_profile),
                         MENU_ICON_PROFILE,
-                        Some(MenuAction::MyProfile),
+                        MenuAction::MyProfile,
                         cx,
                     ))
                     .child(separator())
@@ -274,42 +270,42 @@ impl Render for MainMenu {
                         "new-group",
                         tr(cx, key::lng_create_group_title),
                         MENU_ICON_GROUPS,
-                        Some(MenuAction::NewGroup),
+                        MenuAction::NewGroup,
                         cx,
                     ))
                     .child(self.button(
                         "new-channel",
                         tr(cx, key::lng_create_channel_title),
                         MENU_ICON_CHANNEL,
-                        Some(MenuAction::NewChannel),
+                        MenuAction::NewChannel,
                         cx,
                     ))
                     .child(self.button(
                         "contacts",
                         tr(cx, key::lng_menu_contacts),
                         MENU_ICON_USER_SHOW,
-                        Some(MenuAction::Contacts),
+                        MenuAction::Contacts,
                         cx,
                     ))
                     .child(self.button(
                         "calls",
                         tr(cx, key::lng_menu_calls),
                         MENU_ICON_PHONE,
-                        None,
+                        MenuAction::Calls,
                         cx,
                     ))
                     .child(self.button(
                         "saved-messages",
                         tr(cx, key::lng_saved_messages),
                         MENU_ICON_SAVED_MESSAGES,
-                        Some(MenuAction::SavedMessages),
+                        MenuAction::SavedMessages,
                         cx,
                     ))
                     .child(self.button(
                         "settings",
                         tr(cx, key::lng_menu_settings),
                         MENU_ICON_SETTINGS,
-                        Some(MenuAction::Settings),
+                        MenuAction::Settings,
                         cx,
                     ))
                     .child(

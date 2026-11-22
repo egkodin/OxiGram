@@ -375,6 +375,15 @@ impl MainView {
                     .update(cx, |dialogs, cx| dialogs.open_list(ChatList::Archive, cx)),
                 MenuAction::ArchiveToList => crate::settings::set_archive_in_main_menu(false, cx),
                 MenuAction::Contacts => this.show_contacts(window, cx),
+                MenuAction::Calls => {
+                    let weak = cx.weak_entity();
+                    let open = Rc::new(move |chat, message, window: &mut Window, cx: &mut App| {
+                        let _ = weak.update(cx, |this, cx| {
+                            this.open_message(chat, message, window, cx);
+                        });
+                    });
+                    crate::call_history::show(&this.store, &this.layers, open, window, cx);
+                }
                 MenuAction::NewGroup => {
                     crate::create_chat::show(
                         crate::create_chat::Kind::Group,

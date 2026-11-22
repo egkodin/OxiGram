@@ -3,6 +3,7 @@
 
 pub mod accounts;
 pub mod boxes;
+mod call_history;
 mod columns;
 mod connecting;
 mod contacts_box;

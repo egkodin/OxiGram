@@ -549,7 +549,7 @@ is the definition of done: rgram is finished when every row is `done`, or
 | calls | Active call top bar, mute, devices menu | M12 | todo | |
 | calls | Screen sharing with source picker | M12 | todo | |
 | calls | Call rating after the call | M12 | todo | |
-| calls | Recent calls list | M12 | todo | |
+| calls | Recent calls list | M12 | in progress | Calls opens from the main menu and pages through TDLib call messages. Rows show the call type, local date and duration and open the original message. Signed-in pagination remains unverified. |
 | group-calls | Video chats in groups and channels: join, leave, mute, raise hand | M12 | todo | |
 | group-calls | Members list with speaking indicators and volume per member | M12 | todo | |
 | group-calls | Video grid and screen sharing in group calls | M12 | todo | |

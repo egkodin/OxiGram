@@ -295,10 +295,46 @@ impl From<MessageContent> for Content {
             MessageContent::MessageStory(_) => Self::Story,
             MessageContent::MessageCall(call) => Self::Call {
                 is_video: call.is_video,
+                is_group: false,
                 is_missed: matches!(*call.discard_reason, CallDiscardReason::Missed(_)),
+                duration: call.duration,
+            },
+            MessageContent::MessageGroupCall(call) => Self::Call {
+                is_video: call.is_video,
+                is_group: true,
+                is_missed: call.was_missed,
+                duration: call.duration,
             },
             MessageContent::MessageUnsupported(_) => Self::Unsupported,
             other => Self::Service(Service::from_td(other).unwrap_or(Service::Other)),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_group_call_history_metadata() {
+        let content = Content::from(MessageContent::MessageGroupCall(
+            td_api::types::MessageGroupCall {
+                unique_id: 42,
+                is_active: false,
+                was_missed: true,
+                is_video: true,
+                duration: 0,
+                other_participant_ids: Vec::new(),
+            },
+        ));
+        assert!(matches!(
+            content,
+            Content::Call {
+                is_video: true,
+                is_group: true,
+                is_missed: true,
+                duration: 0,
+            }
+        ));
     }
 }
