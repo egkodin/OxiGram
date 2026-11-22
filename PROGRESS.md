@@ -1,5 +1,13 @@
 # Progress
 
+## Photo and video captions (2026-11-22)
+
+- The media viewer scrolls long captions in a panel below the photo or
+  video. Media is clipped to the area above the caption and playback
+  controls while zooming or panning.
+- Offline macOS renders showed the final line of a long caption on both a
+  photo and a playing video. The zoomed photo stayed above the caption.
+
 ## Installed pack artwork shortcuts (2026-11-21)
 
 - The Emoji and Stickers tabs each show installed packs in a fixed

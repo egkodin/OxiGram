@@ -1,5 +1,4 @@
-//! What the viewer draws over the picture: the arrows, the footer, the
-//! save button and the caption.
+//! The viewer’s arrows, footer, save button and caption.
 
 use super::*;
 
@@ -121,8 +120,6 @@ pub(super) fn save_button(message: MessageId, cx: &mut Context<MediaView>) -> im
         )
 }
 
-/// The caption over the bottom, in its rounded box (`_captionRect`).
-// shortcut: plain text without links or entities, never cut to a quarter of the height; with rich text in the viewer.
 /// The caption's width: 60% of the window, less its padding.
 fn caption_width(window: &Window) -> Pixels {
     let padding = MEDIAVIEW_CAPTION_PADDING;
@@ -165,9 +162,9 @@ pub(super) fn caption_text_height(text: &str, window: &Window) -> Pixels {
     line * rows
 }
 
-pub(super) fn caption(text: String, lift: Pixels, window: &Window, cx: &App) -> impl IntoElement {
+// shortcut: the viewer shows plain text; add entities when it shares the chat’s rich text renderer.
+pub(super) fn caption(entry: &Entry, lift: Pixels, height: Pixels, cx: &App) -> impl IntoElement {
     let padding = MEDIAVIEW_CAPTION_PADDING;
-    let height = caption_text_height(&text, window);
     div()
         .absolute()
         .left_0()
@@ -177,11 +174,14 @@ pub(super) fn caption(text: String, lift: Pixels, window: &Window, cx: &App) -> 
         .justify_center()
         .child(
             div()
+                .id(("media-view-caption", entry.message.0.cast_unsigned()))
                 .max_w(gpui::relative(CAPTION_SHARE))
                 .max_h(height + px_of(padding.top) + px_of(padding.bottom))
-                .overflow_hidden()
+                .overflow_x_hidden()
+                .overflow_y_scroll()
                 .px(px_of(padding.left))
-                .py(px_of(padding.top))
+                .pt(px_of(padding.top))
+                .pb(px_of(padding.bottom))
                 .rounded(px_of(MEDIAVIEW_CAPTION_RADIUS))
                 .bg(color(cx, ColorRef::Palette(ColorId::MediaviewCaptionBg)))
                 .font(font(NORMAL_FONT))
@@ -189,6 +189,6 @@ pub(super) fn caption(text: String, lift: Pixels, window: &Window, cx: &App) -> 
                 .line_height(font_height(NORMAL_FONT))
                 .text_color(color(cx, ColorRef::Palette(ColorId::MediaviewCaptionFg)))
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                .child(text),
+                .child(entry.caption.clone()),
         )
 }

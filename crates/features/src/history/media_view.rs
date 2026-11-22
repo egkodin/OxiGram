@@ -371,21 +371,21 @@ impl MediaView {
 
     /// The photo's size, a point per pixel as tdesktop shows it, and the
     /// level that fits the window.
-    fn size(&self, window: &Window) -> Option<((f32, f32), f32)> {
+    fn size(&self, window: &Window, bottom_skip: Pixels) -> Option<((f32, f32), f32)> {
         let dimensions = self.entries.get(self.index)?.dimensions?;
         #[expect(clippy::cast_precision_loss, reason = "photo sides")]
         let size = (dimensions.width as f32, dimensions.height as f32);
         let viewport = window.viewport_size();
         let room = (
             f32::from(viewport.width),
-            f32::from(viewport.height - self.bottom_skip(window)),
+            f32::from((viewport.height - bottom_skip).max(px(1.0))),
         );
         Some((size, fit_level(size, room)))
     }
 
     /// What the controller and the caption take at the bottom, so the
     /// media fits above them (`recountSkipTop`), not under the caption.
-    fn bottom_skip(&self, window: &Window) -> Pixels {
+    fn bottom_skip(&self, caption_height: Pixels) -> Pixels {
         let Some(entry) = self.entries.get(self.index) else {
             return px(0.0);
         };
@@ -403,13 +403,20 @@ impl MediaView {
         controller
             + px_of(MEDIAVIEW_CAPTION_MARGIN.height)
             + px_of(MEDIAVIEW_TEXT_TOP)
-            + caption_text_height(&entry.caption, window)
+            + caption_height
             + px_of(padding.top)
             + px_of(padding.bottom)
     }
 
+    fn caption_height(&self, window: &Window) -> Pixels {
+        self.entries
+            .get(self.index)
+            .filter(|entry| !entry.caption.is_empty())
+            .map_or(px(0.0), |entry| caption_text_height(&entry.caption, window))
+    }
+
     fn zoom(&mut self, change: fn(Zoom, f32) -> Zoom, window: &Window, cx: &mut Context<Self>) {
-        if let Some((_, full)) = self.size(window) {
+        if let Some((_, full)) = self.size(window, self.bottom_skip(self.caption_height(window))) {
             self.zoom = change(self.zoom, full);
             cx.notify();
         }
@@ -431,7 +438,10 @@ impl MediaView {
 impl Render for MediaView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let viewport = window.viewport_size();
-        let video_box = self.size(window).map(|(size, full)| {
+        let caption_height = self.caption_height(window);
+        let bottom_skip = self.bottom_skip(caption_height);
+        let media_size = self.size(window, bottom_skip);
+        let video_box = media_size.map(|(size, full)| {
             let scale = scale(match self.zoom.resolve(full) {
                 #[expect(clippy::cast_precision_loss, reason = "zoom levels are small")]
                 Zoom::Level(level) => level as f32,
@@ -440,7 +450,7 @@ impl Render for MediaView {
             (size.0 * scale, size.1 * scale)
         });
         let playback = video_box.and_then(|size| self.playback(size, window, cx));
-        let photo = self.size(window).map(|(size, full)| {
+        let photo = media_size.map(|(size, full)| {
             let level = match self.zoom.resolve(full) {
                 #[expect(clippy::cast_precision_loss, reason = "zoom levels are small")]
                 Zoom::Level(level) => level as f32,
@@ -449,7 +459,7 @@ impl Render for MediaView {
             let scale = scale(level);
             let (width, height) = (px(size.0 * scale), px(size.1 * scale));
             let left = (viewport.width - width) / 2.0 + self.offset.x;
-            let room = viewport.height - self.bottom_skip(window);
+            let room = (viewport.height - bottom_skip).max(px(1.0));
             let top = (room - height) / 2.0 + self.offset.y;
             div()
                 .id("media-view-photo")
@@ -519,7 +529,14 @@ impl Render for MediaView {
                 MouseButton::Left,
                 cx.listener(|this, _, _, _| this.drag = None),
             )
-            .children(photo)
+            .child(
+                div()
+                    .absolute()
+                    .inset_0()
+                    .bottom(bottom_skip)
+                    .overflow_hidden()
+                    .children(photo),
+            )
             .children((self.index > 0).then(|| nav(Side::Left, cx)))
             .children((self.index + 1 < self.entries.len()).then(|| nav(Side::Right, cx)))
             .children(entry.map(|entry| footer(entry, self.index, self.entries.len(), fg, cx)))
@@ -531,7 +548,7 @@ impl Render for MediaView {
             .children(
                 entry
                     .filter(|entry| !entry.caption.is_empty())
-                    .map(|entry| caption(entry.caption.clone(), caption_lift, window, cx)),
+                    .map(|entry| caption(entry, caption_lift, caption_height, cx)),
             )
             .children(controller)
     }
