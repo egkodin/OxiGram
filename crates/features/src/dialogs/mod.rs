@@ -29,8 +29,9 @@ use std::ops::Range;
 use chrono::{DateTime, Local};
 use gpui::{
     AnyElement, App, Context, DragMoveEvent, ElementId, Entity, EventEmitter, FocusHandle,
-    IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, SharedString,
-    Styled, Subscription, UniformListScrollHandle, Window, div, prelude::*, uniform_list,
+    IntoElement, MouseButton, MouseDownEvent, ParentElement, Pixels, Point, Render, ScrollEvent,
+    SharedString, Styled, Subscription, UniformListScrollHandle, Window, div, prelude::*,
+    uniform_list,
 };
 use i18n::{Key, Strings, key};
 use model::chat::{Chat, ChatKind, ChatList};
@@ -55,6 +56,7 @@ use self::suggestions::Suggestions;
 use crate::Store;
 use crate::lang::strings;
 use crate::layers::Layers;
+use crate::swipe::{Direction, Feedback, Scroll, Swipe};
 use crate::{columns, settings};
 
 /// Chats asked from TDLib at a time.
@@ -141,6 +143,8 @@ pub(crate) struct Dialogs {
     /// Takes focus from the search field once a suggestion is chosen.
     main_focus: FocusHandle,
     list: ChatList,
+    swipe: Swipe,
+    swipe_feedback: Feedback,
     scroll: UniformListScrollHandle,
     loading: Loading,
     search: Option<Search>,
@@ -176,6 +180,8 @@ impl Dialogs {
             layers,
             main_focus,
             list: ChatList::Main,
+            swipe: Swipe::default(),
+            swipe_feedback: Feedback::default(),
             scroll: UniformListScrollHandle::new(),
             loading: Loading::Idle,
             search: None,
@@ -202,6 +208,8 @@ impl Dialogs {
             return;
         }
         self.list = list;
+        self.swipe = Swipe::default();
+        self.swipe_feedback = Feedback::default();
         self.loading = Loading::Idle;
         self.hovered = None;
         self.scroll = UniformListScrollHandle::new();
@@ -458,18 +466,59 @@ impl Render for Dialogs {
             settings::dialogs_width_ratio(cx),
         );
         self.narrow = layout == columns::Layout::Narrow;
+        self.swipe_feedback.animate(window);
         div()
             .size_full()
             .flex()
             .flex_col()
             .children(self.tabs_strip(window, cx))
-            .child(div().flex_1().min_h_0().child(self.body(cx)))
+            .child(
+                div()
+                    .relative()
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_hidden()
+                    .on_scroll(cx.listener(Self::on_list_scroll))
+                    .child(self.body(cx))
+                    .children(crate::swipe::back_badge(self.swipe_feedback.value(), cx)),
+            )
             .children(self.download_bar(cx))
             .children(self.menu_overlay())
     }
 }
 
 impl Dialogs {
+    fn on_list_scroll(&mut self, event: &ScrollEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if self.list == ChatList::Main
+            || self.search.is_some()
+            || self.suggestions.is_some()
+            || self.menu.is_some()
+        {
+            self.swipe = Swipe::default();
+            if self.swipe_feedback.finish() {
+                cx.notify();
+            }
+            return;
+        }
+        let action = self.swipe.scroll(event);
+        let progress = self.swipe.progress();
+        if action == Scroll::Released(Direction::Right) {
+            let last_progress = self.swipe_feedback.value();
+            self.open_list(ChatList::Main, cx);
+            self.swipe_feedback.set(last_progress);
+            self.swipe_feedback.finish();
+            return;
+        }
+        let changed = if progress > 0.0 {
+            self.swipe_feedback.set(progress)
+        } else {
+            self.swipe_feedback.finish()
+        };
+        if changed {
+            cx.notify();
+        }
+    }
+
     fn body(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let count = self.row_count(self.store.read(cx).state(), cx);
         let background = color(cx, ColorRef::Palette(ColorId::DialogsBg));

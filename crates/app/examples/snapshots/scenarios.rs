@@ -184,6 +184,40 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             abilities: None,
             others: Vec::new(),
             setup: chats::events(),
+            clicks: Vec::new(),
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                ("list-swipe-archive", vec![Input::Click(ARCHIVE_ROW)]),
+                (
+                    "list-swipe-archive-held",
+                    vec![
+                        Input::SwipePhase((150.0, 300.0), gpui::TouchPhase::Started, 0.0),
+                        Input::SwipePhase((150.0, 300.0), gpui::TouchPhase::Moved, 36.0),
+                    ],
+                ),
+                (
+                    "list-swipe-archive-back",
+                    vec![
+                        Input::SwipePhase((150.0, 300.0), gpui::TouchPhase::Moved, 30.0),
+                        Input::SwipePhase((150.0, 300.0), gpui::TouchPhase::Ended, 0.0),
+                    ],
+                ),
+                ("list-swipe-folder", vec![Input::Click(WORK_TAB)]),
+                (
+                    "list-swipe-folder-back",
+                    vec![Input::Swipe((150.0, 300.0), 65.0)],
+                ),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: Vec::new(),
+            steps: vec![("list-swipe-main", auth(State::Ready))],
+        },
+        Scenario {
+            abilities: None,
+            others: Vec::new(),
+            setup: chats::events(),
             // Collapses the archive and expands it again for the later windows.
             clicks: vec![
                 ("21-archive-menu", MouseButton::Right, ARCHIVE_ROW),

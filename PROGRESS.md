@@ -1,5 +1,19 @@
 # Progress
 
+## Swipe feedback and chat-list navigation (2026-11-22)
+
+- During a reply swipe, the message slides with the gesture and reveals a
+  reply arrow. A right swipe reveals a back arrow at the edge of the pane.
+  Cancelling retracts the cue without opening the reply composer.
+- Swiping right over the Archive or a folder returns that pane to All Chats.
+- Offline macOS snapshots with `SNAPSHOTS_ONLY=list-swipe,media-captions`
+  showed both cues before release, the reply cue clearing on cancellation,
+  and successful navigation from a chat, the Archive and a folder.
+  Physical trackpad input remains unverified.
+- All 443 workspace tests passed, with three opt-in tests skipped.
+  Formatting and strict Clippy passed. Cargo Audit reported seven
+  maintenance warnings. Cargo Deny still flags Chrono RUSTSEC-2026-0543.
+
 ## Trackpad gestures (2026-11-22)
 
 - Swipe left over a message to open its reply in the composer when TDLib
