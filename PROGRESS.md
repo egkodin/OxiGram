@@ -1,5 +1,43 @@
 # Progress
 
+## Calls, interaction fixes and release preparation (2026-11-22)
+
+- Chat-list rows show the pointer cursor. Small sets of allowed reactions
+  fit the strip directly. Larger sets still open the scrollable picker.
+- Calls opens from the main menu and requests paged TDLib call history for
+  the active account. Rows open their original chat message. An offline
+  macOS run verified opening Calls and showing a retry on a request error.
+  Unit tests cover call metadata and label selection. Signed-in pagination
+  and call history content remain unverified.
+- The macOS device lookup uses one subprocess and took 3.80 ms median in
+  the offline probe, down from 16.08 ms. Quitting after the last TDLib
+  client closed joined the receiver in 0.16 ms, down from 950.90 ms in
+  the offline probe. Startup with invalid credentials skips creating a
+  TDLib client. [Methods and scope](docs/perf.md)
+- Removed 6,372 MB of unused OxiGram temporary build and snapshot files,
+  and 350 MB of generated Rust documentation. Project `target/` was
+  4,515 MB after cleanup. The temporary verification directory reached
+  11,584 MB and was removed. The original app bundle passed signature
+  verification. Local credentials remain ignored and have mode 0600.
+- The working-tree and reachable Git history credential-pattern scan
+  found the README placeholder. A fresh Cargo Audit found
+  [RUSTSEC-2026-0592](https://github.com/RustSec/advisory-db/blob/main/crates/url/RUSTSEC-2026-0592.md);
+  updating `url` to 2.5.9 cleared it. Cargo Audit now reports zero known
+  Rust dependency vulnerabilities and seven maintenance warnings. Cargo
+  Deny passes bans, licenses and sources. Its advisory check still
+  reports the unmaintained Chrono dependency (RUSTSEC-2026-0543).
+- macOS workspace tests passed with system FFmpeg and with every Cargo
+  feature enabled using freshly built static FFmpeg. In both runs, 447
+  tests passed and four opt-in tests were skipped. The shutdown probe ran
+  separately. The older default static cache lacked GIF decoding and
+  VP9 alpha support. Rebuilding the pinned recipe in scratch passed
+  both media regressions. Formatting, strict Clippy, shell syntax and
+  TDLib schema checks passed. The all-features workspace build and the
+  binary's version check passed. The macOS linker warned that it ignored
+  the legacy QTKit framework stub on arm64.
+- Linux and Windows builds remain unverified on this macOS host. The
+  CI workflow documents their toolchains and dependencies.
+
 ## Swipe feedback and chat-list navigation (2026-11-22)
 
 - During a reply swipe, the message slides with the gesture and reveals a

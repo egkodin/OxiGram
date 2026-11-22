@@ -1,5 +1,24 @@
 # Performance and memory
 
+## Offline startup and shutdown measurements (2026-11-22)
+
+On the arm64 macOS development machine, the two subprocesses used to read
+device details took a median 16.08 ms (p90 29.95 ms). One `sysctl` invocation
+took a median 3.80 ms (p90 6.14 ms). Each path ran 32 times in alternating
+order using a monotonic clock and captured subprocess output. This measures
+the device lookup during startup. Paths with unusable credentials also skip
+creating a TDLib runtime and client.
+
+`cargo test --locked --offline -p tg close_last_client_then_stop_receiver -- --ignored --nocapture`
+creates and closes two successive TDLib clients without credentials or a
+database. After the final update stream ends, the probe waits 50 ms and
+times the receiver join. One run took 950.90 ms before and 0.16 ms after
+the receiver began waiting for new clients between sessions. The test also
+checks that a second client can open and close after the first.
+
+Signed-in window startup, database close time and forced OS shutdown were
+outside these measurements.
+
 ## Release samples, 2026-11-20
 
 The installed macOS release bundle was sampled on a signed-in account

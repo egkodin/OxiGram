@@ -551,7 +551,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 </details>
 
 <details>
-<summary><b>Calls</b>: 0 of 16 done</summary>
+<summary><b>Calls</b>: 0 of 16 done, 1 in progress</summary>
 
 - [ ] One-to-one voice call with an official client (M12)
 - [ ] One-to-one video call, camera switch (M12)
@@ -560,7 +560,7 @@ live yet. Regenerate the list with `scripts/readme-todo.sh`.
 - [ ] Active call top bar, mute, devices menu (M12)
 - [ ] Screen sharing with source picker (M12)
 - [ ] Call rating after the call (M12)
-- [ ] Recent calls list (M12)
+- [ ] Recent calls list (M12) *(in progress)*
 - [ ] Video chats in groups and channels: join, leave, mute, raise hand (M12)
 - [ ] Members list with speaking indicators and volume per member (M12)
 - [ ] Video grid and screen sharing in group calls (M12)
@@ -699,6 +699,16 @@ export RGRAM_API_ID=123456
 export RGRAM_API_HASH=0123456789abcdef0123456789abcdef
 ```
 
+## Source layout
+
+- `crates/app` starts the application. `crates/features`, `crates/ui` and
+  `crates/style` contain the desktop interface.
+- `crates/model` contains account state and requests. `crates/tg`,
+  `crates/td-api` and `crates/td-sys` connect it to TDLib.
+- `crates/media` contains playback and decoding. `scripts` builds native
+  dependencies and packages the macOS app. `docs` records design decisions
+  and verification.
+
 ## Building TDLib
 
 rgram links the shared `tdjson` library built from the TDLib commit pinned in
@@ -715,15 +725,23 @@ clone; the checkout is only read. macOS needs `cmake`, `ninja`, `gperf` and
 
 ## Building and running
 
-With TDLib built:
+With TDLib built and the FFmpeg development libraries visible to
+`pkg-config`:
 
 ```bash
 cargo run -p oxigram
 cargo test --workspace
 ```
 
-On macOS the build needs Xcode's Metal Toolchain (`scripts/check-metal.sh`
-checks it; install it with `xcodebuild -downloadComponent MetalToolchain`).
+The [CI workflow](.github/workflows/ci.yml) lists the native packages and
+build commands for macOS, Linux and Windows. Windows uses the MSVC toolchain
+and vcpkg for TDLib. Linux and Windows installers are still pending.
+
+On macOS the precompiled-shader build needs Xcode's Metal Toolchain.
+`scripts/check-metal.sh` checks it and
+`xcodebuild -downloadComponent MetalToolchain` installs it. For a local
+source run, `cargo run --locked -p oxigram --features runtime-shaders`
+compiles the shaders at runtime.
 `cargo run` and `cargo test` find `libtdjson` on their own. `RGRAM_LOG` sets the
 log filter (default `info`), for example `RGRAM_LOG=tg=debug`.
 

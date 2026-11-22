@@ -6,6 +6,8 @@
 
 # Local secrets (API credentials); never commit.
 .env
+.env.*
+!.env.example
 
 # The owner's app icon, kept out of the repository (ADR 0001).
 /resources/*.icns
