@@ -25,6 +25,7 @@ mod emoji_panel;
 mod field_bar;
 mod file_row;
 mod forwarding;
+mod gestures;
 mod gif_panel;
 mod grouped_layout;
 mod headers;
@@ -203,6 +204,7 @@ pub(crate) struct HistoryView {
     section: pinned_section::Section,
     search: Option<chat_search::ChatSearch>,
     pull: pull_next::Pull,
+    gestures: gestures::ChatGestures,
     /// Set in a post's comments.
     thread: Option<thread_section::ThreadHead>,
     /// The ad after the last post, its item after the messages.
@@ -312,6 +314,7 @@ impl HistoryView {
             section: pinned_section::Section::Chat,
             search: None,
             pull: pull_next::Pull::default(),
+            gestures: gestures::ChatGestures::default(),
             thread: None,
             ad: sponsored::Ad::default(),
             compose,
@@ -546,6 +549,7 @@ impl HistoryView {
         if let Some((_, Some(file))) = &forward {
             self.request_file(*file, cx);
         }
+        let id = message.id;
         bubble::element(
             Item {
                 message: &message,
@@ -578,6 +582,15 @@ impl HistoryView {
             },
             cx,
         )
+        .on_scroll({
+            let weak = cx.weak_entity();
+            move |event, _, cx| {
+                if event.touch_phase == gpui::TouchPhase::Started {
+                    let _ = weak.update(cx, |this, _| this.begin_row_swipe(id));
+                }
+            }
+        })
+        .into_any_element()
     }
 
     fn on_pointer_at(&self, index: usize, cx: &Context<Self>) -> selection::OnPointer {
@@ -780,12 +793,7 @@ impl Render for HistoryView {
                     .relative()
                     .flex_1()
                     .min_h_0()
-                    .on_scroll({
-                        let weak = cx.weak_entity();
-                        move |event, _, cx| {
-                            let _ = weak.update(cx, |this, cx| this.on_pull_scroll(event, cx));
-                        }
-                    })
+                    .on_scroll(cx.listener(Self::on_history_scroll))
                     .child(
                         list(self.list.clone(), move |index, _, cx: &mut App| {
                             weak.update(cx, |this, cx| this.item(index, cx))

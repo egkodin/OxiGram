@@ -292,6 +292,42 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
             histories: vec![(ChatId(ME), playable(&photo))],
             steps: vec![("202-video-list", auth(State::Ready))],
         },
+        Scenario {
+            abilities: Some(model::message_actions::Abilities {
+                can_be_replied: true,
+                ..Default::default()
+            }),
+            others: Vec::new(),
+            setup: chats::events(),
+            clicks: vec![("media-captions-chat", MouseButton::Left, SAVED_ROW)],
+            drags: Vec::new(),
+            drops: Vec::new(),
+            scrolls: Vec::new(),
+            keys: vec![
+                ("media-video-open", vec![Input::Click((569.0, 69.0))]),
+                (
+                    "media-video-caption-end",
+                    vec![Input::Scroll((400.0, 402.0), -700.0)],
+                ),
+                ("media-photo-open", vec![Input::Swipe((400.0, 200.0), 65.0)]),
+                (
+                    "media-photo-zoomed-caption-end",
+                    vec![
+                        Input::Pinch((400.0, 200.0), 0.75),
+                        Input::Scroll((400.0, 495.0), -700.0),
+                    ],
+                ),
+                ("media-viewer-closed", vec![Input::Key("escape")]),
+                (
+                    "media-swipe-reply",
+                    vec![Input::Swipe((550.0, 245.0), -65.0)],
+                ),
+                ("media-swipe-back", vec![Input::Swipe((550.0, 245.0), 65.0)]),
+            ],
+            folders: FoldersPlacement::Top,
+            histories: vec![(ChatId(ME), long_captions(&photo))],
+            steps: vec![("media-captions-list", auth(State::Ready))],
+        },
         // A GIF and a WebM sticker on disk play by themselves, the sticker
         // clear around its square; a click on the round plays it in its
         // circle with the played part around the edge.
@@ -965,6 +1001,31 @@ fn playable(still: &Path) -> Vec<Message> {
         [file(1201, Some(still)), file(1202, Some(Path::new(CLIP)))],
     );
     vec![message]
+}
+
+fn long_captions(still: &Path) -> Vec<Message> {
+    let caption = |kind| {
+        format!(
+            "{kind} caption starts here\n{}End of the {kind} caption",
+            "Clouds lifted over the valley as the sun rose.\n".repeat(17)
+        )
+    };
+    vec![
+        photo(
+            1,
+            2 * HOUR,
+            &caption("Photo"),
+            (640, 427),
+            file(1301, Some(still)),
+        ),
+        video(
+            2,
+            HOUR,
+            &caption("Video"),
+            Some(1),
+            [file(1302, Some(still)), file(1303, Some(Path::new(CLIP)))],
+        ),
+    ]
 }
 
 /// A tagged song on disk and an untagged one on the server.

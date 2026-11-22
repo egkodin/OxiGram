@@ -1,0 +1,12 @@
+diff --git a/src/events.rs b/src/events.rs
+index f037553..2fbc9ec 100644
+--- a/src/events.rs
++++ b/src/events.rs
+@@ -237,2 +237,3 @@ pub(crate) unsafe fn platform_input_from_native(
+                     NSEventPhase::Ended => TouchPhase::Ended,
++                    NSEventPhase::Cancelled => TouchPhase::Cancelled,
+                     _ => TouchPhase::Moved,
+@@ -253,2 +254,3 @@ pub(crate) unsafe fn platform_input_from_native(
+                     NSEventPhase::Ended => TouchPhase::Ended,
++                    NSEventPhase::Cancelled => TouchPhase::Cancelled,
+                     _ => TouchPhase::Moved,

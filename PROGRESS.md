@@ -1,5 +1,20 @@
 # Progress
 
+## Trackpad gestures (2026-11-22)
+
+- Swipe left over a message to open its reply in the composer when TDLib
+  allows it. Swipe right to go back. The media viewer uses horizontal
+  swipes to page through media and pinch gestures to zoom.
+- The offline macOS `snapshots` example, with
+  `SNAPSHOTS_ONLY=media-captions`, dispatched phased gesture events and
+  rendered the reply bar, back navigation, media paging, pinch zoom and
+  the end of both long captions. Physical trackpad input and a signed-in
+  session were outside this run.
+- Workspace tests passed with 442 tests and 3 opt-in tests skipped.
+  Formatting and strict Clippy passed. Cargo Audit reported seven
+  unmaintained dependencies. Cargo Deny passed bans, licenses and
+  sources. The Chrono advisory RUSTSEC-2026-0543 remains open.
+
 ## Photo and video captions (2026-11-22)
 
 - The media viewer scrolls long captions in a panel below the photo or

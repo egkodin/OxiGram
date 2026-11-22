@@ -235,6 +235,7 @@ pub(crate) unsafe fn platform_input_from_native(
                 let phase = match native_event.phase() {
                     NSEventPhase::MayBegin | NSEventPhase::Began => TouchPhase::Started,
                     NSEventPhase::Ended => TouchPhase::Ended,
+                    NSEventPhase::Cancelled => TouchPhase::Cancelled,
                     _ => TouchPhase::Moved,
                 };
 
@@ -251,6 +252,7 @@ pub(crate) unsafe fn platform_input_from_native(
                 let phase = match native_event.phase() {
                     NSEventPhase::MayBegin | NSEventPhase::Began => TouchPhase::Started,
                     NSEventPhase::Ended => TouchPhase::Ended,
+                    NSEventPhase::Cancelled => TouchPhase::Cancelled,
                     _ => TouchPhase::Moved,
                 };
 

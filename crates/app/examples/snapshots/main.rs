@@ -29,8 +29,8 @@ use features::{AccountId, Accounts, Root, Store};
 use gpui::{
     AnyWindowHandle, App, AppContext as _, AsyncApp, Bounds, Entity, ExternalPaths, FileDropEvent,
     InputEvent as _, Keystroke, Modifiers, MouseButton, MouseDownEvent, MouseMoveEvent,
-    MouseUpEvent, Pixels, PlatformInput, Point, ScrollDelta, ScrollEvent, Window, WindowBounds,
-    WindowOptions, point, px, size,
+    MouseUpEvent, PinchEvent, Pixels, PlatformInput, Point, ScrollDelta, ScrollEvent, TouchPhase,
+    Window, WindowBounds, WindowOptions, point, px, size,
 };
 use model::auth::State;
 use model::{Environment, Event, Session};
@@ -75,14 +75,17 @@ struct Scenario {
     abilities: Option<model::message_actions::Abilities>,
 }
 
-/// Keyboard input for a step.
+/// Input for a step.
 enum Input {
     /// Each character as a key press, as a keyboard types it.
     Type(&'static str),
     /// One key press, such as `shift-enter`.
     Key(&'static str),
     /// A left click, for a row only reachable after a scroll.
-    Click((f32, f32)),
+    Click(WindowPoint),
+    Scroll(WindowPoint, f32),
+    Swipe(WindowPoint, f32),
+    Pinch(WindowPoint, f32),
 }
 
 fn main() -> anyhow::Result<()> {
@@ -233,12 +236,11 @@ async fn run(session: Session, out: &Path, cx: &mut AsyncApp) -> anyhow::Result<
         }
         for (name, (x, y), by) in scenario.scrolls {
             window.update(cx, |_, window, cx| {
-                window.dispatch_event(
-                    PlatformInput::Scroll(ScrollEvent {
-                        position: point(px(x), px(y)),
-                        delta: ScrollDelta::Pixels(point(px(0.0), px(by))),
-                        ..ScrollEvent::default()
-                    }),
+                scroll(
+                    point(px(x), px(y)),
+                    point(px(0.0), px(by)),
+                    TouchPhase::Moved,
+                    window,
                     cx,
                 );
             })?;
@@ -304,8 +306,61 @@ fn press(input: &Input, window: &mut Window, cx: &mut App) -> anyhow::Result<()>
             window.draw(cx).clear(cx);
         }
         Input::Click((x, y)) => click(MouseButton::Left, point(px(*x), px(*y)), window, cx),
+        Input::Scroll((x, y), by) => scroll(
+            point(px(*x), px(*y)),
+            point(px(0.0), px(*by)),
+            TouchPhase::Moved,
+            window,
+            cx,
+        ),
+        Input::Swipe((x, y), by) => {
+            let position = point(px(*x), px(*y));
+            for (phase, delta) in [
+                (TouchPhase::Started, 0.0),
+                (TouchPhase::Moved, *by),
+                (TouchPhase::Ended, 0.0),
+            ] {
+                scroll(position, point(px(delta), px(0.0)), phase, window, cx);
+            }
+        }
+        Input::Pinch((x, y), by) => {
+            let position = point(px(*x), px(*y));
+            for (phase, delta) in [
+                (TouchPhase::Started, 0.0),
+                (TouchPhase::Moved, *by),
+                (TouchPhase::Ended, 0.0),
+            ] {
+                window.dispatch_event(
+                    PlatformInput::Pinch(PinchEvent {
+                        position,
+                        delta,
+                        phase,
+                        ..Default::default()
+                    }),
+                    cx,
+                );
+            }
+        }
     }
     Ok(())
+}
+
+fn scroll(
+    position: Point<Pixels>,
+    delta: Point<Pixels>,
+    touch_phase: TouchPhase,
+    window: &mut Window,
+    cx: &mut App,
+) {
+    window.dispatch_event(
+        PlatformInput::Scroll(ScrollEvent {
+            position,
+            delta: ScrollDelta::Pixels(delta),
+            touch_phase,
+            ..ScrollEvent::default()
+        }),
+        cx,
+    );
 }
 
 fn click(button: MouseButton, position: Point<Pixels>, window: &mut Window, cx: &mut App) {

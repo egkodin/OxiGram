@@ -13,9 +13,9 @@ use chrono::{DateTime, Days, Local};
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     App, AppContext as _, Context, Entity, EventEmitter, FocusHandle, Focusable, ImageSource,
-    InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _, Pixels,
-    Point, Render, ScrollEvent, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Subscription, Window, actions, div, img, px,
+    InteractiveElement as _, IntoElement, KeyBinding, MouseButton, ParentElement as _, PinchEvent,
+    Pixels, Point, Render, ScrollEvent, SharedString, StatefulInteractiveElement as _, Styled as _,
+    Subscription, TouchPhase, Window, actions, div, img, px,
 };
 use i18n::key;
 use model::file::{Dimensions, File};
@@ -33,6 +33,7 @@ use ui::{color, font, font_height, icon};
 
 use super::HistoryView;
 use super::bubble::OnClick;
+use super::gestures::{Direction, Scroll, Swipe};
 use super::layout;
 use super::media_video::{Ending, VideoPlayback};
 use super::menu::Item;
@@ -223,6 +224,8 @@ pub(crate) struct MediaView {
     offset: Point<Pixels>,
     /// Where the drag started, and the offset then.
     drag: Option<(Point<Pixels>, Point<Pixels>)>,
+    swipe: Swipe,
+    magnification: f32,
     requested: HashSet<FileId>,
     /// The video on screen once its file is on disk.
     playback: Option<Entity<VideoPlayback>>,
@@ -253,6 +256,8 @@ impl MediaView {
             zoom: Zoom::Default,
             offset: Point::default(),
             drag: None,
+            swipe: Swipe::default(),
+            magnification: 0.0,
             requested: HashSet::new(),
             playback: None,
             focus: cx.focus_handle(),
@@ -422,6 +427,32 @@ impl MediaView {
         }
     }
 
+    fn on_media_scroll(&mut self, event: &ScrollEvent, _: &mut Window, cx: &mut Context<Self>) {
+        if let Scroll::Released(direction) = self.swipe.scroll(event) {
+            self.page(direction == Direction::Left, cx);
+        }
+    }
+
+    fn on_pinch(&mut self, event: &PinchEvent, window: &mut Window, cx: &mut Context<Self>) {
+        const ZOOM_STEP: f32 = 0.25;
+        match event.phase {
+            TouchPhase::Started => self.magnification = event.delta,
+            TouchPhase::Moved => self.magnification += event.delta,
+            TouchPhase::Ended | TouchPhase::Cancelled => {
+                self.magnification = 0.0;
+                return;
+            }
+        }
+        while self.magnification >= ZOOM_STEP {
+            self.magnification -= ZOOM_STEP;
+            self.zoom(zoom_in, window, cx);
+        }
+        while self.magnification <= -ZOOM_STEP {
+            self.magnification += ZOOM_STEP;
+            self.zoom(zoom_out, window, cx);
+        }
+    }
+
     fn on_scroll(&mut self, event: &ScrollEvent, window: &mut Window, cx: &mut Context<Self>) {
         if !event.modifiers.secondary(cx) {
             return;
@@ -535,6 +566,8 @@ impl Render for MediaView {
                     .inset_0()
                     .bottom(bottom_skip)
                     .overflow_hidden()
+                    .on_scroll(cx.listener(Self::on_media_scroll))
+                    .on_pinch(cx.listener(Self::on_pinch))
                     .children(photo),
             )
             .children((self.index > 0).then(|| nav(Side::Left, cx)))

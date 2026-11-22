@@ -121,7 +121,7 @@ pub(super) fn palette(id: ColorId) -> ColorRef {
     ColorRef::Palette(id)
 }
 
-pub(super) fn element(mut item: Item<'_>, cx: &App) -> AnyElement {
+pub(super) fn element(mut item: Item<'_>, cx: &App) -> gpui::Stateful<Div> {
     let after = item.after.take();
     div()
         .id(("history-message", item.message.id.0.cast_unsigned()))
@@ -134,7 +134,6 @@ pub(super) fn element(mut item: Item<'_>, cx: &App) -> AnyElement {
         .when(item.has_unread_bar, |this| this.child(unread::bar(cx)))
         .child(with_pointer(message_row(&mut item, cx), &item.on_pointer))
         .children(after)
-        .into_any_element()
 }
 
 /// Presses, drags and releases over the row that the text did not take.
