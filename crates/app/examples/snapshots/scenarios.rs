@@ -51,12 +51,24 @@ pub(super) fn scenarios() -> Vec<Scenario> {
             keys: Vec::new(),
             folders: FoldersPlacement::Sidebar,
             histories: Vec::new(),
-            steps: vec![(
-                "02-qr",
-                auth(State::WaitQrScan {
-                    link: Secret::new("tg://login?token=c25hcHNob3Qtb25seQ".to_owned()),
-                }),
-            )],
+            steps: [
+                ("02-qr", "tg://login?token=c25hcHNob3Qtb25seQ"),
+                ("02-qr-profile-payload", "https://t.me/oxigram_demo"),
+                (
+                    "02-qr-dense",
+                    "https://example.org/abcdefghijklmnopqrstuvwxyzabcdefghijklmnop",
+                ),
+            ]
+            .into_iter()
+            .map(|(name, link)| {
+                (
+                    name,
+                    auth(State::WaitQrScan {
+                        link: Secret::new(link.to_owned()),
+                    }),
+                )
+            })
+            .collect(),
         },
         Scenario {
             abilities: None,
@@ -285,7 +297,11 @@ pub(super) fn scenarios() -> Vec<Scenario> {
                 ("143-settings-chat", MouseButton::Left, SAVED_ROW),
                 ("144-settings-menu", MouseButton::Left, MENU_BUTTON),
                 ("145-settings-box", MouseButton::Left, SETTINGS_ROW),
-                ("145-settings-rgram", MouseButton::Left, RGRAM_SETTINGS_ROW),
+                (
+                    "145-settings-oxigram",
+                    MouseButton::Left,
+                    OXIGRAM_SETTINGS_ROW,
+                ),
                 (
                     "146-settings-cmd-enter",
                     MouseButton::Left,
@@ -1216,9 +1232,9 @@ const SECOND_MENU_ITEM: (f32, f32) = (200.0, 178.0);
 const FIRST_MAIN_MENU_ROW: (f32, f32) = (100.0, 154.0);
 /// The main menu's Settings row.
 const SETTINGS_ROW: (f32, f32) = (100.0, 407.0);
-/// Settings' "rgram settings" row, then its Cmd+Enter choice and the
+/// Settings' "oxigram settings" row, then its Cmd+Enter choice and the
 /// layer's close button.
-const RGRAM_SETTINGS_ROW: (f32, f32) = (300.0, 566.0);
+const OXIGRAM_SETTINGS_ROW: (f32, f32) = (300.0, 566.0);
 const SEND_BY_CTRL_ENTER: (f32, f32) = (330.0, 326.0);
 const SETTINGS_CLOSE: (f32, f32) = (568.0, 48.0);
 /// The settings layer's search button and the cover's QR button.
@@ -1366,7 +1382,7 @@ fn write_restrictions() -> Vec<Event> {
 
 /// A photo and a text file to drop, written where the system clears them.
 pub(crate) fn fixture_files() -> (PathBuf, PathBuf) {
-    let folder = std::env::temp_dir().join("rgram-snapshots");
+    let folder = std::env::temp_dir().join("oxigram-snapshots");
     let photo = folder.join("summit.png");
     let notes = folder.join("trail-notes.txt");
     let written = std::fs::create_dir_all(&folder)

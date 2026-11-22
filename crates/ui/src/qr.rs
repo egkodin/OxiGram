@@ -5,8 +5,8 @@
 use std::sync::Arc;
 
 use gpui::{
-    App, Bounds, ElementId, FontWeight, IntoElement, Pixels, RenderOnce, SharedString, Styled,
-    TextAlign, TextRun, Window, canvas, fill, point, px, size,
+    App, Bounds, ElementId, IntoElement, Pixels, RenderOnce, Styled, Window, canvas, fill, point,
+    px, size,
 };
 use style::Color;
 use style::basic::{FADE_WRAP_DURATION, RADIAL_LINE};
@@ -17,12 +17,12 @@ use style::intro::{
 use style::widgets::DEFAULT_INFINITE_RADIAL_ANIMATION;
 
 use crate::anim::{Easing, Simple};
-use crate::font::FONT_FAMILY;
+use crate::brand::paint_brand_logo;
 use crate::radial::{InfiniteRadial, paint_arc};
-use crate::theme::{Theme, hsla};
+use crate::theme::hsla;
 
-/// Modules of a typical login link's code, used to size the empty square.
-const USUAL_SIZE: i32 = 41;
+const QUIET_ZONE_MODULES: usize = 4;
+const FOOTER_HEIGHT: f32 = 30.0;
 
 /// The code could not be encoded, for example because the text is too long.
 #[derive(Debug, thiserror::Error)]
@@ -34,17 +34,22 @@ pub struct QrError(#[source] qrcode::types::QrError);
 pub struct QrData {
     size: usize,
     dark: Vec<bool>,
+    badge_modules: Option<usize>,
 }
 
 impl QrData {
-    /// Encodes `text` with the quartile redundancy tdesktop uses.
+    /// Encodes `text` with high error correction for the center badge.
     ///
     /// # Errors
     ///
     /// Fails when `text` does not fit in a QR code.
     pub fn encode(text: &str) -> Result<Self, QrError> {
-        let code = qrcode::QrCode::with_error_correction_level(text, qrcode::EcLevel::Q)
+        let code = qrcode::QrCode::with_error_correction_level(text, qrcode::EcLevel::H)
+            .or_else(|_| qrcode::QrCode::with_error_correction_level(text, qrcode::EcLevel::Q))
             .map_err(QrError)?;
+        let badge_modules = (code.error_correction_level() == qrcode::EcLevel::H)
+            .then(|| badge_modules(&code))
+            .flatten();
         let dark = code
             .to_colors()
             .into_iter()
@@ -53,12 +58,24 @@ impl QrData {
         Ok(Self {
             size: code.width(),
             dark,
+            badge_modules,
         })
     }
 
     fn is_dark(&self, x: usize, y: usize) -> bool {
         self.dark.get(y * self.size + x).copied().unwrap_or(false)
     }
+}
+
+/// Keep the white badge within a fifth of the symbol and off functional modules.
+fn badge_modules(code: &qrcode::QrCode) -> Option<usize> {
+    let width = code.width();
+    let radius = (width / 5).min(9).saturating_sub(1) / 2;
+    let center = width / 2;
+    let span = center - radius..=center + radius;
+    span.clone()
+        .all(|y| span.clone().all(|x| !code.is_functional(x, y)))
+        .then_some(2 * radius + 1)
 }
 
 /// The code to show; `None` while waiting for the first one.
@@ -92,7 +109,6 @@ impl std::fmt::Debug for QrCode {
     }
 }
 
-#[derive(Clone)]
 struct QrState {
     current: Option<Arc<QrData>>,
     previous: Option<Arc<QrData>>,
@@ -118,8 +134,7 @@ impl RenderOnce for QrCode {
         canvas(
             |_, _, _| {},
             move |bounds, (), window, cx| {
-                let state = state.read(cx).clone();
-                paint(&state, bounds, window, cx);
+                paint(state.read(cx), bounds, window);
             },
         )
         .w(side)
@@ -151,76 +166,89 @@ fn update(state: &mut QrState, data: Option<Arc<QrData>>) {
     }
 }
 
-fn paint(state: &QrState, bounds: Bounds<Pixels>, window: &mut Window, cx: &mut App) {
-    let shown = if state.current.is_some() {
-        state.shown.value_in(window, 1.0)
-    } else {
-        0.0
-    };
-    let modules = state.current.as_ref().map_or(USUAL_SIZE, |data| {
-        i32::try_from(data.size).unwrap_or(USUAL_SIZE)
-    });
-    let pixel = module_pixel(modules, state.current.is_some());
-    let qr_side = px_of(modules * pixel);
-    let qr = Bounds::new(
-        point(
-            bounds.left() + (bounds.size.width - qr_side) / 2.0,
-            bounds.top() + (bounds.size.height - qr_side) / 2.0,
-        ),
-        size(qr_side, qr_side),
-    );
-    let skip = px_of(INTRO_QR_BACKGROUND_SKIP.0);
-    window.paint_quad(
-        fill(qr.dilate(skip), gpui::white()).corner_radii(px_of(INTRO_QR_BACKGROUND_RADIUS.0)),
-    );
+fn paint(state: &QrState, bounds: Bounds<Pixels>, window: &mut Window) {
+    window
+        .paint_quad(fill(bounds, gpui::white()).corner_radii(px_of(INTRO_QR_BACKGROUND_RADIUS.0)));
     if let Some(current) = &state.current {
+        let shown = state.shown.value_in(window, 1.0);
+        let (qr, logo) = layout(bounds, current);
         if shown < 1.0
             && let Some(previous) = &state.previous
         {
             paint_modules(previous, qr, 1.0, window);
         }
         paint_modules(current, qr, shown, window);
+        paint_logo(logo, window);
+        return;
     }
 
-    let center_side = px_of(INTRO_QR_CENTER_SIZE.0);
-    let center = Bounds::new(
-        point(
-            bounds.left() + (bounds.size.width - center_side) / 2.0,
-            bounds.top() + (bounds.size.height - center_side) / 2.0,
-        ),
-        size(center_side, center_side),
-    );
-    let active = hsla(QR_ACTIVE);
-    paint_mark(center, active, window, cx);
+    let center = centered_square(bounds, px_of(INTRO_QR_CENTER_SIZE.0));
+    paint_logo(center, window);
     if let Some(radial) = state.waiting.state_in(window) {
         let line = px_of(RADIAL_LINE.0);
-        let mut color = active;
-        color.a *= radial.shown * (1.0 - shown);
+        let mut color = hsla(QR_ACTIVE);
+        color.a *= radial.shown;
         paint_arc(window, center.dilate(line), radial, line, color);
     }
 }
 
-/// tdesktop's `QrActiveColor`: the default theme's `windowBgActive`, kept
-/// in every theme so the code stays readable.
-const QR_ACTIVE: Color = Color::rgba(0x40, 0xa7, 0xe3, 0xff);
-
-/// The module size `TelegramQr` picks; the empty square uses the usual size.
-fn module_pixel(modules: i32, has_code: bool) -> i32 {
-    let max = INTRO_QR_MAX_SIZE.0;
-    let pixel = INTRO_QR_PIXEL.0;
-    if has_code {
-        if modules * pixel > max {
-            (max / modules.max(1)).max(1)
-        } else {
-            pixel
-        }
-    } else {
-        (max / USUAL_SIZE).clamp(1, pixel)
-    }
+fn centered_square(bounds: Bounds<Pixels>, side: Pixels) -> Bounds<Pixels> {
+    Bounds::new(
+        point(
+            bounds.left() + (bounds.size.width - side) / 2.0,
+            bounds.top() + (bounds.size.height - side) / 2.0,
+        ),
+        size(side, side),
+    )
 }
 
-// shortcut: square modules; tdesktop's lib_qr rounds module corners, match it
-// when its source is available for comparison.
+fn layout(bounds: Bounds<Pixels>, data: &QrData) -> (Bounds<Pixels>, Bounds<Pixels>) {
+    let has_footer = data.badge_modules.is_none();
+    let footer_height = if has_footer {
+        px(FOOTER_HEIGHT)
+    } else {
+        px(0.0)
+    };
+    let mut code_area = bounds;
+    code_area.size.height -= footer_height;
+    let module = module_pixel(data.size, code_area.size.width.min(code_area.size.height));
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "QR codes have at most 177 modules"
+    )]
+    let qr = centered_square(code_area, module * data.size as f32);
+    let logo = data.badge_modules.map_or_else(
+        || {
+            let footer = Bounds::new(
+                point(bounds.left(), code_area.bottom()),
+                size(bounds.size.width, footer_height),
+            );
+            centered_square(footer, footer_height)
+        },
+        |modules| {
+            #[expect(
+                clippy::cast_precision_loss,
+                reason = "the badge spans at most nine modules"
+            )]
+            let modules = modules as f32;
+            centered_square(qr, module * modules)
+        },
+    );
+    (qr, logo)
+}
+
+const QR_ACTIVE: Color = Color::rgba(0xfc, 0x65, 0x12, 0xff);
+
+fn module_pixel(modules: usize, available: Pixels) -> Pixels {
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "QR codes have at most 177 modules"
+    )]
+    let limit = f32::from(available) / (modules + 2 * QUIET_ZONE_MODULES) as f32;
+    let pixel = if limit >= 1.0 { limit.floor() } else { limit };
+    px(pixel).min(px_of(INTRO_QR_PIXEL.0))
+}
+
 fn paint_modules(data: &QrData, qr: Bounds<Pixels>, opacity: f32, window: &mut Window) {
     #[expect(
         clippy::cast_precision_loss,
@@ -257,34 +285,9 @@ fn paint_modules(data: &QrData, qr: Bounds<Pixels>, opacity: f32, window: &mut W
     }
 }
 
-/// rgram's mark: a lowercase "r" on the active circle, in place of
-/// Telegram's plane.
-fn paint_mark(center: Bounds<Pixels>, color: gpui::Hsla, window: &mut Window, cx: &mut App) {
-    window.paint_quad(fill(center, color).corner_radii(center.size.width / 2.0));
-    let text: SharedString = "r".into();
-    let font_size = center.size.height * 0.62;
-    let run = TextRun {
-        len: text.len(),
-        font: gpui::Font {
-            weight: FontWeight::BOLD,
-            ..gpui::font(FONT_FAMILY)
-        },
-        color: hsla(cx.global::<Theme>().palette.active_button_fg),
-        background_color: None,
-        underline: None,
-        strikethrough: None,
-    };
-    let line = window
-        .text_system()
-        .shape_line(text, font_size, &[run], None);
-    let line_height = font_size * 1.2;
-    let origin = point(
-        center.left() + (center.size.width - line.width) / 2.0,
-        center.top() + (center.size.height - line_height) / 2.0 - center.size.height * 0.03,
-    );
-    if let Err(error) = line.paint(origin, line_height, TextAlign::Left, None, window, cx) {
-        tracing::warn!(%error, "cannot paint the QR mark");
-    }
+fn paint_logo(badge: Bounds<Pixels>, window: &mut Window) {
+    window.paint_quad(fill(badge, gpui::white()));
+    paint_brand_logo(badge.dilate(px(-2.0)), window);
 }
 
 fn px_of(value: i32) -> Pixels {
@@ -307,9 +310,26 @@ mod tests {
     }
 
     #[test]
-    fn picks_the_module_size_like_tdesktop() {
-        assert_eq!(module_pixel(41, true), 4);
-        assert_eq!(module_pixel(3, true), 50);
-        assert_eq!(module_pixel(0, false), 4);
+    fn reserves_four_white_modules_even_for_dense_codes() {
+        for modules in [21, 41, 177] {
+            let module = f32::from(module_pixel(modules, px(174.0)));
+            #[expect(clippy::cast_precision_loss, reason = "the test uses small QR sizes")]
+            let with_margin = (modules + 8) as f32 * module;
+            assert!(with_margin <= 174.0 + f32::EPSILON);
+        }
+    }
+
+    #[test]
+    fn puts_the_badge_in_a_footer_when_an_alignment_pattern_is_in_the_center() {
+        use qrcode::{EcLevel, Version};
+
+        let short =
+            qrcode::QrCode::with_version("https://t.me/oxigram", Version::Normal(3), EcLevel::H)
+                .expect("the link fits");
+        let dense =
+            qrcode::QrCode::with_version("https://t.me/oxigram", Version::Normal(7), EcLevel::H)
+                .expect("the link fits");
+        assert_eq!(badge_modules(&short), Some(5));
+        assert_eq!(badge_modules(&dense), None);
     }
 }

@@ -1,7 +1,8 @@
-//! rgram's widgets. Each one follows a lib_ui widget of Telegram Desktop and
+//! oxigram's widgets. Each one follows a lib_ui widget of Telegram Desktop and
 //! takes its sizes and colors from the matching `style` struct.
 
 pub mod anim;
+mod brand;
 mod button;
 mod checkbox;
 mod font;
@@ -25,6 +26,7 @@ use std::borrow::Cow;
 
 use gpui::App;
 
+pub use brand::brand_logo;
 pub use button::{CrossButton, IconButton, LinkButton, RoundButton};
 pub use checkbox::{Checkbox, Checked};
 pub use font::{FONT_FAMILY, font, font_height, text_style};

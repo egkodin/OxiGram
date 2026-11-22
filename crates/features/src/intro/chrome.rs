@@ -505,8 +505,7 @@ fn header_labels(g: Geometry, header: &Header, content_top: Pixels, alpha: f32) 
 }
 
 /// The cover (`Step::paintCover`) with its top at `top`, negative while it
-/// slides away. rgram draws its own mark where tdesktop draws Telegram's
-/// plane, which is the official logo.
+/// slides away.
 fn cover(g: Geometry, top: Pixels, cx: &App) -> gpui::Div {
     let cover_height = top + px_of(INTRO_COVER_HEIGHT);
     let left_size = icon_size(INTRO_COVER_LEFT);
@@ -568,16 +567,6 @@ fn cover(g: Geometry, top: Pixels, cx: &App) -> gpui::Div {
                 .absolute()
                 .left((g.width - mark_size) / 2.0)
                 .top(top + px_of(INTRO_COVER_ICON_TOP))
-                .size(mark_size)
-                .rounded_full()
-                .bg(ui::hsla(palette.intro_cover_plane_inner))
-                .flex()
-                .items_center()
-                .justify_center()
-                .text_size(px(44.0))
-                .font_weight(gpui::FontWeight::SEMIBOLD)
-                .font_family(ui::FONT_FAMILY)
-                .text_color(ui::hsla(palette.intro_cover_top_bg))
-                .child("r"),
+                .child(ui::brand_logo(mark_size)),
         )
 }
