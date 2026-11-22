@@ -9,5 +9,5 @@
 .env.*
 !.env.example
 
-# The owner's app icon, kept out of the repository (ADR 0001).
 /resources/*.icns
+!/resources/OxiGram.icns

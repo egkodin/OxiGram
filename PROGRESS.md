@@ -3,8 +3,8 @@
 ## macOS preview with built-in Telegram configuration (2026-11-22)
 
 - Published [Preview 2](https://github.com/egkodin/OxiGram/releases/tag/v0.1.0-preview.2)
-  for Apple silicon. The ZIP contains one OxiGram app with the public icon,
-  TDLib and FFmpeg. The archive is 27.55 MB, the complete app is 65.39 MB,
+  for Apple silicon. The ZIP contains one OxiGram app with the project's
+  `resources/OxiGram.icns`, TDLib and FFmpeg. The archive is 28.57 MB, the complete app is 66.36 MB,
   and its executable is 36.24 MB, measured by summing file lengths in bytes.
 - The extracted app passed signature and bundled-configuration checks.
   A fresh profile with the API environment variables unset opened the

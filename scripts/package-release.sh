@@ -24,23 +24,9 @@ smoke_test() {
 case "$(uname -s)" in
     Darwin)
         app="$work/OxiGram.app"
-        icon="${OXIGRAM_RELEASE_ICON:-}"
-        if [[ -z "$icon" ]]; then
-            iconset="$work/OxiGram.iconset"
-            mkdir "$iconset"
-            for size in 16 32 128 256 512; do
-                name="icon_${size}x${size}"
-                sips -z "$size" "$size" resources/release/OxiGram.png \
-                    --out "$iconset/$name.png" >/dev/null
-                sips -z "$((size * 2))" "$((size * 2))" resources/release/OxiGram.png \
-                    --out "$iconset/$name@2x.png" >/dev/null
-            done
-            icon="$work/OxiGram.icns"
-            iconutil -c icns "$iconset" -o "$icon"
-        fi
         mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
         cp "$build_dir/oxigram" "$app/Contents/MacOS/OxiGram"
-        cp "$icon" "$app/Contents/Resources/OxiGram.icns"
+        cp resources/OxiGram.icns "$app/Contents/Resources/OxiGram.icns"
         mv "$stage/LICENSE" "$stage/NOTICE.md" "$app/Contents/Resources/"
         dylib="libtdjson.$tdlib_version.dylib"
         cp "$build_dir/$dylib" "$app/Contents/MacOS/"
