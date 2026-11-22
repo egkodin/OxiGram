@@ -121,7 +121,7 @@ pub(super) fn palette(id: ColorId) -> ColorRef {
     ColorRef::Palette(id)
 }
 
-pub(super) fn element(mut item: Item<'_>, cx: &App) -> gpui::Stateful<Div> {
+pub(super) fn element(mut item: Item<'_>, swipe: f32, cx: &App) -> gpui::Stateful<Div> {
     let after = item.after.take();
     div()
         .id(("history-message", item.message.id.0.cast_unsigned()))
@@ -132,7 +132,10 @@ pub(super) fn element(mut item: Item<'_>, cx: &App) -> gpui::Stateful<Div> {
             this.child(date_pill(badge, cx))
         })
         .when(item.has_unread_bar, |this| this.child(unread::bar(cx)))
-        .child(with_pointer(message_row(&mut item, cx), &item.on_pointer))
+        .child(with_pointer(
+            message_row(&mut item, swipe, cx),
+            &item.on_pointer,
+        ))
         .children(after)
 }
 
@@ -260,7 +263,7 @@ fn is_out(message: &Message) -> bool {
 /// The bubble with the margins of its run, the author's userpic under the
 /// last one.
 // shortcut: no wide mode; tdesktop centers a column of left-aligned messages in wide windows (`ElementChatMode::Wide`).
-fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
+fn message_row(item: &mut Item<'_>, swipe: f32, cx: &App) -> Div {
     let out = is_out(item.message);
     let top = if item.run.is_attached_to_previous {
         MSG_MARGIN_TOP_ATTACHED
@@ -318,7 +321,10 @@ fn message_row(item: &mut Item<'_>, cx: &App) -> Div {
         .pl(left)
         .pr(right)
         .children(userpic)
-        .child(bubble(item, out, cx))
+        .when(swipe > 0.0, |row| row.left(px(-36.0 * swipe)))
+        .child(bubble(item, out, cx).when(swipe > 0.0, |bubble| {
+            bubble.child(crate::swipe::reply_badge(out, swipe, cx))
+        }))
 }
 
 /// What ends a bubble on its own side at the bottom.

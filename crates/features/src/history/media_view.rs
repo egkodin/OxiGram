@@ -33,7 +33,6 @@ use ui::{color, font, font_height, icon};
 
 use super::HistoryView;
 use super::bubble::OnClick;
-use super::gestures::{Direction, Scroll, Swipe};
 use super::layout;
 use super::media_video::{Ending, VideoPlayback};
 use super::menu::Item;
@@ -42,6 +41,7 @@ use crate::peer_menu::send;
 use crate::px_of;
 use crate::store::Store;
 use crate::streaming::Playable;
+use crate::swipe::{Direction, Scroll, Swipe};
 
 actions!(
     media_view,

@@ -580,6 +580,7 @@ impl HistoryView {
                 special: self.special(&message, cx),
                 after: self.thread_divider(index, cx),
             },
+            self.gestures.reply_progress(id),
             cx,
         )
         .on_scroll({
@@ -701,6 +702,7 @@ impl HistoryView {
 
 impl Render for HistoryView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        self.gestures.feedback.animate(window);
         self.tick_voice(window, cx);
         self.tick_inline(window, cx);
         if std::mem::take(&mut self.needs_preload_check) {
@@ -793,6 +795,7 @@ impl Render for HistoryView {
                     .relative()
                     .flex_1()
                     .min_h_0()
+                    .overflow_hidden()
                     .on_scroll(cx.listener(Self::on_history_scroll))
                     .child(
                         list(self.list.clone(), move |index, _, cx: &mut App| {
@@ -802,6 +805,7 @@ impl Render for HistoryView {
                         .size_full()
                         .pb(crate::px_of(style::chat::HISTORY_PADDING_BOTTOM) + self.pull_shift()),
                     )
+                    .children(crate::swipe::back_badge(self.gestures.feedback.value(), cx))
                     .children(self.pull_indicator(window, cx))
                     .children(self.floating_date(cx))
                     .children(self.round_float(cx))

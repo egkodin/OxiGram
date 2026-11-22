@@ -319,10 +319,38 @@ pub(crate) fn scenarios() -> Vec<Scenario> {
                 ),
                 ("media-viewer-closed", vec![Input::Key("escape")]),
                 (
+                    "media-swipe-reply-held",
+                    vec![
+                        Input::SwipePhase((550.0, 245.0), gpui::TouchPhase::Started, 0.0),
+                        Input::SwipePhase((550.0, 245.0), gpui::TouchPhase::Moved, -32.0),
+                    ],
+                ),
+                (
+                    "media-swipe-reply-cancelled",
+                    vec![Input::SwipePhase(
+                        (550.0, 245.0),
+                        gpui::TouchPhase::Cancelled,
+                        0.0,
+                    )],
+                ),
+                (
                     "media-swipe-reply",
                     vec![Input::Swipe((550.0, 245.0), -65.0)],
                 ),
-                ("media-swipe-back", vec![Input::Swipe((550.0, 245.0), 65.0)]),
+                (
+                    "media-swipe-back-held",
+                    vec![
+                        Input::SwipePhase((550.0, 245.0), gpui::TouchPhase::Started, 0.0),
+                        Input::SwipePhase((550.0, 245.0), gpui::TouchPhase::Moved, 36.0),
+                    ],
+                ),
+                (
+                    "media-swipe-back",
+                    vec![
+                        Input::SwipePhase((550.0, 245.0), gpui::TouchPhase::Moved, 30.0),
+                        Input::SwipePhase((550.0, 245.0), gpui::TouchPhase::Ended, 0.0),
+                    ],
+                ),
             ],
             folders: FoldersPlacement::Top,
             histories: vec![(ChatId(ME), long_captions(&photo))],

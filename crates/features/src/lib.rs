@@ -37,6 +37,7 @@ mod speed;
 mod status;
 pub mod store;
 mod streaming;
+mod swipe;
 pub mod title_bar;
 
 /// What the app calls itself in its title bar and menu footer.

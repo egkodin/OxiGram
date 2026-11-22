@@ -85,6 +85,7 @@ enum Input {
     Click(WindowPoint),
     Scroll(WindowPoint, f32),
     Swipe(WindowPoint, f32),
+    SwipePhase(WindowPoint, TouchPhase, f32),
     Pinch(WindowPoint, f32),
 }
 
@@ -323,6 +324,13 @@ fn press(input: &Input, window: &mut Window, cx: &mut App) -> anyhow::Result<()>
                 scroll(position, point(px(delta), px(0.0)), phase, window, cx);
             }
         }
+        Input::SwipePhase((x, y), phase, by) => scroll(
+            point(px(*x), px(*y)),
+            point(px(*by), px(0.0)),
+            *phase,
+            window,
+            cx,
+        ),
         Input::Pinch((x, y), by) => {
             let position = point(px(*x), px(*y));
             for (phase, delta) in [
