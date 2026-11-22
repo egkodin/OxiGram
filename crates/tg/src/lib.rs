@@ -17,7 +17,7 @@ use std::ffi::CString;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Condvar, Mutex};
 use std::task::{Context, Poll};
 use std::thread;
 use std::time::Duration;
@@ -84,13 +84,14 @@ impl Runtime {
             next_extra: AtomicU64::new(1),
             pending: Mutex::new(HashMap::new()),
             clients: Mutex::new(HashMap::new()),
+            clients_changed: Condvar::new(),
             thread: Mutex::new(None),
         });
         let thread_shared = Arc::clone(&shared);
         let thread = thread::Builder::new()
             .name("tdlib-receive".to_owned())
             .spawn(move || {
-                while thread_shared.running.load(Ordering::Acquire) {
+                while thread_shared.wait_for_clients() {
                     if let Some(object) = receiver.receive(RECEIVE_TIMEOUT) {
                         thread_shared.dispatch(object);
                     }
@@ -116,6 +117,7 @@ impl Runtime {
         let id = td_sys::create_client_id();
         let (sender, receiver) = mpsc::unbounded();
         self.shared.lock_clients().insert(id, sender);
+        self.shared.clients_changed.notify_one();
         let client = Client {
             id,
             shared: Arc::clone(&self.shared),
@@ -132,7 +134,7 @@ impl Runtime {
 
 impl Drop for Runtime {
     fn drop(&mut self) {
-        self.shared.running.store(false, Ordering::Release);
+        self.shared.request_stop();
     }
 }
 
@@ -147,7 +149,7 @@ impl Stopper {
     /// calls return at once. Requests still waiting fail with
     /// [`TdError::Closed`].
     pub fn stop(&self) {
-        self.0.running.store(false, Ordering::Release);
+        self.0.request_stop();
         let Some(thread) = self.0.lock_thread().take() else {
             return;
         };
@@ -238,6 +240,7 @@ struct Shared {
     pending: Mutex<HashMap<u64, Pending>>,
     /// Open clients; a client is removed once TDLib reports it closed.
     clients: Mutex<HashMap<ClientId, mpsc::UnboundedSender<Update>>>,
+    clients_changed: Condvar,
     /// The receive thread, until a [`Stopper`] joins it.
     thread: Mutex<Option<thread::JoinHandle<()>>>,
 }
@@ -249,6 +252,24 @@ struct Pending {
 }
 
 impl Shared {
+    fn request_stop(&self) {
+        // Serialize with the receiver entering the condition wait.
+        let _clients = self.lock_clients();
+        self.running.store(false, Ordering::Release);
+        self.clients_changed.notify_one();
+    }
+
+    fn wait_for_clients(&self) -> bool {
+        // TDLib's final Closed update arrives after the native client is released.
+        let _clients = self
+            .clients_changed
+            .wait_while(self.lock_clients(), |clients| {
+                clients.is_empty() && self.running.load(Ordering::Acquire)
+            })
+            .expect("client lock poisoned");
+        self.running.load(Ordering::Acquire)
+    }
+
     fn lock_thread(&self) -> std::sync::MutexGuard<'_, Option<thread::JoinHandle<()>>> {
         self.thread.lock().expect("receive-thread lock poisoned")
     }
@@ -371,6 +392,26 @@ mod tests {
     use td_api::enums::OptionValue;
 
     #[test]
+    #[ignore = "offline shutdown timing probe"]
+    fn close_last_client_then_stop_receiver() {
+        let runtime = Runtime::start().expect("receive runtime");
+        for _ in 0..2 {
+            let (client, mut updates) = runtime.create_client();
+            futures::executor::block_on(async {
+                client
+                    .request(&td_api::functions::Close {})
+                    .await
+                    .expect("close client");
+                while updates.next().await.is_some() {}
+            });
+        }
+        thread::sleep(Duration::from_millis(50));
+        let start = std::time::Instant::now();
+        runtime.stopper().stop();
+        println!("last client closed to receiver stop: {:?}", start.elapsed());
+    }
+
+    #[test]
     fn stalled_account_keeps_order_without_delaying_another_reply_or_close() {
         let (done, finished) = std::sync::mpsc::channel();
         thread::spawn(move || {
@@ -407,6 +448,7 @@ mod tests {
                 ),
             ])),
             clients: Mutex::new(HashMap::from([(ClientId(1), slow), (ClientId(2), other)])),
+            clients_changed: Condvar::new(),
             thread: Mutex::new(None),
         };
         let close = |client| {
