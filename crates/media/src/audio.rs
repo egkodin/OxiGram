@@ -697,16 +697,20 @@ mod tests {
     }
 
     #[test]
-    fn a_fast_player_moves_faster() {
-        let player = silent(TONE, Duration::ZERO);
+    fn a_fast_player_advances_twice_as_far_for_the_same_output() {
+        let player = AudioPlayer {
+            shared: Arc::new(Shared::new(10, 1, Duration::ZERO, 100)),
+            signal: None,
+            _sink: Sink::Clock,
+        };
+        player.shared.buffer().extend([0.25; 12]);
+        let mut output = [0.0; 2];
+        player.shared.pull(&mut output);
+        assert_eq!(player.position(), Duration::from_millis(200));
+
         player.set_speed(2.0);
-        let start = Instant::now();
-        wait_until("the end", || player.is_finished());
-        assert!(
-            start.elapsed() < Duration::from_millis(800),
-            "{:?}",
-            start.elapsed()
-        );
+        player.shared.pull(&mut output);
+        assert_eq!(player.position(), Duration::from_millis(600));
     }
 
     #[test]
