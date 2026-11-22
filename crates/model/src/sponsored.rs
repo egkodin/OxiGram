@@ -97,7 +97,7 @@ impl From<enums::ReportSponsoredResult> for ReportResult {
 }
 
 impl Session {
-    /// The ads to show in a channel, those rgram can draw.
+    /// The ads to show in a channel, those oxigram can draw.
     pub fn sponsored_messages(
         &self,
         chat: ChatId,

@@ -247,7 +247,7 @@ mod tests {
         assert_eq!(initials("ann marie lee"), "AL");
         // tdesktop keeps looking past a hyphen only for a new word.
         assert_eq!(initials("Jean-Luc"), "J");
-        assert_eq!(initials("  rgram"), "R");
+        assert_eq!(initials("  oxigram"), "O");
         assert_eq!(initials("😀 Club"), "C");
         assert_eq!(initials(""), "");
     }

@@ -77,7 +77,7 @@ jobs:
         id: tdlib-cache
         uses: actions/cache/restore@v4
         with:
-          path: ~/.cache/rgram
+          path: ~/.cache/oxigram
           key: tdlib-${{ runner.os }}-${{ hashFiles('tdlib/COMMIT', 'scripts/build-tdlib.sh') }}
       - name: Build TDLib
         if: steps.tdlib-cache.outputs.cache-hit != 'true'
@@ -87,7 +87,7 @@ jobs:
         if: steps.tdlib-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~/.cache/rgram
+          path: ~/.cache/oxigram
           key: ${{ steps.tdlib-cache.outputs.cache-primary-key }}
 
       # The minimal static FFmpeg that `--all-features` links (media/static-ffmpeg).
@@ -97,20 +97,20 @@ jobs:
         id: ffmpeg-cache
         uses: actions/cache/restore@v4
         with:
-          path: ~/.cache/rgram-ffmpeg
+          path: ~/.cache/oxigram-ffmpeg
           key: ffmpeg-${{ runner.os }}-${{ hashFiles('ffmpeg/SOURCES', 'scripts/build-ffmpeg.sh') }}
       - name: Build FFmpeg
         if: runner.os != 'Windows' && steps.ffmpeg-cache.outputs.cache-hit != 'true'
-        run: FFMPEG_BUILD_JOBS=4 scripts/build-ffmpeg.sh ~/.cache/rgram-ffmpeg
+        run: FFMPEG_BUILD_JOBS=4 scripts/build-ffmpeg.sh ~/.cache/oxigram-ffmpeg
       - name: Save FFmpeg
         if: runner.os != 'Windows' && steps.ffmpeg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
-          path: ~/.cache/rgram-ffmpeg
+          path: ~/.cache/oxigram-ffmpeg
           key: ${{ steps.ffmpeg-cache.outputs.cache-primary-key }}
       - if: runner.os != 'Windows'
         run: |
-          echo "PKG_CONFIG_PATH=$HOME/.cache/rgram-ffmpeg/lib/pkgconfig" >> "$GITHUB_ENV"
+          echo "PKG_CONFIG_PATH=$HOME/.cache/oxigram-ffmpeg/lib/pkgconfig" >> "$GITHUB_ENV"
           echo "FEATURES=--all-features" >> "$GITHUB_ENV"
       - if: runner.os == 'Windows'
         run: echo "FEATURES=--features oxigram/runtime-shaders" >> "$GITHUB_ENV"

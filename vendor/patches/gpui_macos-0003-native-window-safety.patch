@@ -83,7 +83,7 @@
      if !layer.is_null() {
 +        // SAFETY: the locked renderer owns the CALayer during this main-thread geometry update.
          unsafe {
-             // rgram patch (ADR 0005): the layer keeps the screen's own scale.
+             // oxigram patch (ADR 0005): the layer keeps the screen's own scale.
              let _: () = msg_send![
                  layer,
 -                setContentsScale: get_scale_factor(lock.native_window) as f64
@@ -92,7 +92,7 @@
          }
 @@ -3400,5 +3400,5 @@
 
-     // rgram patch (ADR 0005): `new_size` is in points, so the screen's scale.
+     // oxigram patch (ADR 0005): `new_size` is in points, so the screen's scale.
 -    let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window));
 +    let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window()));
      lock.renderer.update_drawable_size(drawable_size);

@@ -1,7 +1,7 @@
 //! Quitting: every account's TDLib client closes its database before the
 //! process exits.
 //!
-//! rgram's own ways out (the Quit menu item, its shortcut, closing the last
+//! oxigram's own ways out (the Quit menu item, its shortcut, closing the last
 //! window) hide the windows, send `close`, and quit once the update streams
 //! end after `authorizationStateClosed`. When the OS ends the app instead (logout,
 //! the Dock's Quit), only gpui's `on_app_quit` hook runs, within gpui's 200 ms
@@ -16,7 +16,7 @@ use futures::future::{self, Either, Shared};
 use gpui::{App, Global, KeyBinding, Menu, MenuItem, actions};
 use td_api::functions::Close;
 
-actions!(rgram, [Quit]);
+actions!(oxigram, [Quit]);
 
 const APP_NAME: &str = "OxiGram";
 
@@ -44,7 +44,7 @@ struct Shutdown {
     clients: Vec<Running>,
     stopper: Option<tg::Stopper>,
     is_quitting: bool,
-    /// Start rgram again once TDLib has closed (`Core::Restart`).
+    /// Start oxigram again once TDLib has closed (`Core::Restart`).
     is_restarting: bool,
 }
 
@@ -196,7 +196,7 @@ fn start_again() {
             .spawn()
     });
     if let Err(error) = started {
-        tracing::error!(%error, "starting rgram again failed");
+        tracing::error!(%error, "starting oxigram again failed");
     }
 }
 

@@ -191,7 +191,7 @@ impl HistoryView {
     }
 
     /// Hides the bar until a newer message is pinned.
-    // shortcut: hidden until rgram restarts; tdesktop keeps it in the session settings, which come with M7.
+    // shortcut: hidden until oxigram restarts; tdesktop keeps it in the session settings, which come with M7.
     pub(super) fn hide_pinned_bar(&mut self, cx: &mut Context<Self>) {
         let history = self.store.read(cx).state().history(self.key());
         self.pins.hidden = history.and_then(|history| history.pinned().last().copied());

@@ -57,7 +57,7 @@ fn banned_help_url(phone: &str) -> String {
     let subject = format!("Banned phone number: {phone}");
     let body = format!(
         "I'm trying to use my mobile phone number: {phone}\nBut Telegram says it's banned. \
-         Please help.\n\nApp version: rgram {}\nOS version: {}",
+         Please help.\n\nApp version: OxiGram {}\nOS version: {}",
         env!("CARGO_PKG_VERSION"),
         std::env::consts::OS,
     );
@@ -92,7 +92,7 @@ pub(crate) fn premium_required(
 ) {
     let text = tr_with(
         cx,
-        key::rgram_intro_premium_required,
+        key::oxigram_intro_premium_required,
         &[("email", support_email)],
     );
     boxes::inform(layers, Markup::plain(text), None, window, cx);

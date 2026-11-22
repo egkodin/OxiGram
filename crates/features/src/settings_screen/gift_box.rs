@@ -1,6 +1,6 @@
 //! "Send a Gift" (`ChooseStarGiftRecipient`, `ShowStarGiftBox`): a contact
 //! to gift, then the Premium periods with their prices; a period goes on to
-//! the payment form, where rgram stops.
+//! the payment form, where oxigram stops.
 // shortcut: no Star gifts (they are paid from the balance at once, with no form to stop at), no cover with the userpic and mini stars, no gift stickers or discount badges on the periods, no birthdays on top of the chooser; with M13.
 
 use std::rc::Rc;

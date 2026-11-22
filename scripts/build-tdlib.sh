@@ -3,7 +3,7 @@
 # and installs it into a prefix that crates/td-sys links against.
 #
 # Usage: scripts/build-tdlib.sh [prefix]
-#   prefix          install dir (default: $RGRAM_TDLIB_DIR or ~/.cache/rgram/tdlib-<short commit>)
+#   prefix          install dir (default: $OXIGRAM_TDLIB_DIR or ~/.cache/oxigram/tdlib-<short commit>)
 #   TD_SOURCE       optional path to an existing tdlib/td git checkout; it is only read
 #                   (`git archive`), never modified. Without it the script clones tdlib/td.
 #   TD_BUILD_JOBS   parallel compile jobs (default 6; td_api.cpp needs ~3 GB per job)
@@ -12,10 +12,10 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 commit="$(tr -d '[:space:]' < "$repo_root/tdlib/COMMIT")"
 short="${commit:0:9}"
-prefix="${1:-${RGRAM_TDLIB_DIR:-$HOME/.cache/rgram/tdlib-$short}}"
+prefix="${1:-${OXIGRAM_TDLIB_DIR:-$HOME/.cache/oxigram/tdlib-$short}}"
 jobs="${TD_BUILD_JOBS:-6}"
 
-if [[ -f "$prefix/.rgram-tdlib-commit" ]] && [[ "$(cat "$prefix/.rgram-tdlib-commit")" == "$commit" ]]; then
+if [[ -f "$prefix/.oxigram-tdlib-commit" ]] && [[ "$(cat "$prefix/.oxigram-tdlib-commit")" == "$commit" ]]; then
   echo "TDLib $short already installed in $prefix"
   exit 0
 fi
@@ -72,5 +72,5 @@ case "$(uname -s)" in
     ;;
 esac
 
-echo "$commit" > "$prefix/.rgram-tdlib-commit"
+echo "$commit" > "$prefix/.oxigram-tdlib-commit"
 echo "TDLib $short installed in $prefix"

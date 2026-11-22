@@ -116,7 +116,7 @@ impl Preview {
 }
 
 /// Where the unsupported notice sends the user (`UnsupportedMessageText`).
-// shortcut: tdesktop's own download page, as tdesktop links it; an rgram releases page once releases are published (owner's call).
+// shortcut: tdesktop's own download page, as tdesktop links it; an oxigram releases page once releases are published (owner's call).
 const UNSUPPORTED_LINK: &str = "https://desktop.telegram.org";
 
 /// The notice in place of a message TDLib cannot show: italic, with the

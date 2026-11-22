@@ -369,7 +369,8 @@ mod tests {
 
     /// A file of its own in the temp folder with `bytes`.
     fn scratch_file(name: &str, bytes: &[u8]) -> PathBuf {
-        let path = std::env::temp_dir().join(format!("rgram-round-{}-{name}", std::process::id()));
+        let path =
+            std::env::temp_dir().join(format!("oxigram-round-{}-{name}", std::process::id()));
         std::fs::write(&path, bytes).expect("the temp folder is writable");
         path
     }

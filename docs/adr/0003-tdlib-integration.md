@@ -5,7 +5,7 @@
 
 ## Context
 
-rgram uses TDLib for MTProto, encryption, sync, the local database and files
+oxigram uses TDLib for MTProto, encryption, sync, the local database and files
 (writing our own MTProto is slow and a security risk). TDLib's source is pinned in
 `tdlib/COMMIT` (`ea3f69ce1`, version 1.8.69).
 
@@ -52,7 +52,7 @@ tests), and the version mismatch alone rules out using its generated types.
 
 - `scripts/build-tdlib.sh` builds the shared `tdjson` library from the pinned
   commit (from a `git archive` copy, so the source checkout is never written to)
-  into `$RGRAM_TDLIB_DIR` (default `~/.cache/rgram/tdlib-<short commit>`).
+  into `$OXIGRAM_TDLIB_DIR` (default `~/.cache/oxigram/tdlib-<short commit>`).
   macOS uses `@rpath` install names; Windows uses vcpkg for OpenSSL, zlib and gperf.
 - `crates/td-sys` holds the four `extern "C"` declarations (`td_create_client_id`,
   `td_send`, `td_receive`, `td_execute`) and a safe wrapper: receive/execute copy
@@ -65,7 +65,7 @@ tests), and the version mismatch alone rules out using its generated types.
   other place, an `#![expect(unsafe_code)]` module for FFmpeg's hardware
   device API (`av_hwdevice_ctx_create`, `av_hwframe_transfer_data`), which
   ffmpeg-next does not wrap; same `// SAFETY:` rule.
-- `td-sys/build.rs` links `tdjson` from `$RGRAM_TDLIB_DIR` (or the script's
+- `td-sys/build.rs` links `tdjson` from `$OXIGRAM_TDLIB_DIR` (or the script's
   default), checks that the install was built from `tdlib/COMMIT`, and copies the
   runtime library into `OUT_DIR`, which Cargo puts on the dynamic library path
   for `cargo run` and `cargo test`. Running the binary from `target/` directly
@@ -111,7 +111,7 @@ tests), and the version mismatch alone rules out using its generated types.
 
 - `setTdlibParameters`: `use_message_database`, `use_file_database`,
   `use_chat_info_database` and `use_secret_chats` are `true`, so history and files
-  live on disk inside TDLib, not in rgram's memory. Database and files go to the
+  live on disk inside TDLib, not in oxigram's memory. Database and files go to the
   platform data directory per account. `api_id`/`api_hash` come from the
   environment or user config (ADR 0004).
 - Memory: `closeChat` when a chat leaves the screen; the

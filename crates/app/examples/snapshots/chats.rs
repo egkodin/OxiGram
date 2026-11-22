@@ -509,7 +509,9 @@ fn ann_minithumbnail() -> Option<model::file::Minithumbnail> {
 /// Ann's userpic: a 160 px JPEG as TDLib downloads small photos, with
 /// stripes that alias when scaled down roughly.
 fn ann_photo() -> Option<File> {
-    let path = std::env::temp_dir().join("rgram-snapshots").join("ann.jpg");
+    let path = std::env::temp_dir()
+        .join("oxigram-snapshots")
+        .join("ann.jpg");
     let image = image::RgbImage::from_fn(160, 160, |x, y| {
         let stripe = u8::try_from((x + y) / 12 % 2 * 60).unwrap_or(0);
         image::Rgb([230 - stripe, 170, 120 + stripe])

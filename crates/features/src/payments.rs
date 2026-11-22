@@ -1,4 +1,4 @@
-//! Where rgram's buy buttons stop until checkout lands (M13): an invoice
+//! Where oxigram's buy buttons stop until checkout lands (M13): an invoice
 //! or a Stars package gets its payment form from TDLib and nothing is
 //! paid; a bot link is not followed, as starting the bot sends it a
 //! message.
@@ -34,7 +34,7 @@ pub(crate) fn open(link: PaymentLink, targets: &Targets, window: &mut Window, cx
 }
 
 fn later(targets: &Targets, cx: &mut App) {
-    let text = tr(cx, key::rgram_payment_form_later).to_string();
+    let text = tr(cx, key::oxigram_payment_form_later).to_string();
     toast(targets, text, cx);
 }
 

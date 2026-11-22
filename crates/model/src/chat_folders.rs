@@ -42,7 +42,7 @@ impl ChatType {
     pub const EXCLUDED: [Self; 3] = [Self::Muted, Self::Read, Self::Archived];
 }
 
-/// A folder as TDLib stores it; edits keep what rgram does not show yet
+/// A folder as TDLib stores it; edits keep what oxigram does not show yet
 /// (the icon, color, custom emoji in the name).
 #[derive(Debug, Clone, PartialEq)]
 pub struct FolderRules {

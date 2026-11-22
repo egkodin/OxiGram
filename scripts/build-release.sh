@@ -10,15 +10,15 @@ if [[ -z "${OXIGRAM_RELEASE_API_ID:-}" && -z "${OXIGRAM_RELEASE_API_HASH:-}" ]];
         source ./.env
     fi
     if [[ -z "${OXIGRAM_RELEASE_API_ID:-}" && -z "${OXIGRAM_RELEASE_API_HASH:-}" ]]; then
-        OXIGRAM_RELEASE_API_ID="${RGRAM_API_ID:-}"
-        OXIGRAM_RELEASE_API_HASH="${RGRAM_API_HASH:-}"
+        OXIGRAM_RELEASE_API_ID="${OXIGRAM_API_ID:-}"
+        OXIGRAM_RELEASE_API_HASH="${OXIGRAM_API_HASH:-}"
     fi
 fi
 if [[ ! "${OXIGRAM_RELEASE_API_ID:-}" =~ ^[1-9][0-9]*$ || ! "${OXIGRAM_RELEASE_API_HASH:-}" =~ ^[[:xdigit:]]{32}$ ]]; then
     printf '%s\n' 'Release credentials are missing or invalid. Check the repository .env or the OXIGRAM_RELEASE_API environment variables.' >&2
     exit 1
 fi
-export -n OXIGRAM_RELEASE_API_ID OXIGRAM_RELEASE_API_HASH RGRAM_API_ID RGRAM_API_HASH
+export -n OXIGRAM_RELEASE_API_ID OXIGRAM_RELEASE_API_HASH OXIGRAM_API_ID OXIGRAM_API_HASH
 
 work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
@@ -31,7 +31,7 @@ unset FFMPEG_DIR
 case "$(uname -s)" in
     Darwin|Linux)
         bash scripts/build-tdlib.sh
-        ffmpeg_dir="${RGRAM_FFMPEG_DIR:-$PWD/target/release-ffmpeg}"
+        ffmpeg_dir="${OXIGRAM_FFMPEG_DIR:-$PWD/target/release-ffmpeg}"
         bash scripts/build-ffmpeg.sh "$ffmpeg_dir"
         export PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig"
         features=runtime-shaders,media/static-ffmpeg

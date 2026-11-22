@@ -15,7 +15,7 @@ const MAX_ACCOUNTS: usize = 3;
 pub(crate) const PREMIUM_MAX_ACCOUNTS: usize = 6;
 
 /// An account's data directory number. The first account's, 0, is the
-/// directory rgram used before it had accounts.
+/// directory oxigram used before it had accounts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct AccountId(pub u32);
 

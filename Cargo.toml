@@ -60,7 +60,7 @@ tlottie = { git = "https://github.com/dkaraush/tlottie", rev = "758c7cb74444f1c3
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 
-# Zed's macOS backend with rgram's idle-CPU patch (ADR 0005). Regenerate it with
+# Zed's macOS backend with oxigram's idle-CPU patch (ADR 0005). Regenerate it with
 # scripts/vendor-gpui-macos.sh whenever the rev above moves.
 [patch."https://github.com/zed-industries/zed"]
 gpui_macos = { path = "vendor/gpui_macos" }

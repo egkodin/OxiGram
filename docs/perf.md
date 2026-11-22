@@ -276,7 +276,7 @@ visible window even when nothing redraws, so the app wakes on every refresh
 
 Mac mini, Apple M4, macOS 27.2, Xcode 27.2 (2026-11-03). gpui either embeds
 a metallib built by `xcrun metal` (the default) or, with
-`--features rgram/runtime-shaders`, embeds the 66 KB stitched source and
+`--features oxigram/runtime-shaders`, embeds the 66 KB stitched source and
 compiles it in `MetalRenderer::new` when the first window opens.
 
 | Case | Shader library ready in |
@@ -539,7 +539,7 @@ over the others so the display link draws it as in the app. One run each;
 
 Click to first frame on a video not in the cache, measured from the
 viewer's player opening to the "first video frame" info log
-(`history/media_video.rs`), with `RGRAM_SILENT=1` on the production DC,
+(`history/media_video.rs`), with `OXIGRAM_SILENT=1` on the production DC,
 2026-11-06, release app bundle on this Mac. The click itself goes through
 computer use, about 0.2 s before the viewer opens (not counted).
 

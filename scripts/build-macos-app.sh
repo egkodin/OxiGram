@@ -5,7 +5,7 @@ root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 [[ "$(uname -s)" == Darwin ]] || { echo "macOS is required" >&2; exit 1; }
 ffmpeg_version="$(awk '$1 == "ffmpeg" { print $2 }' ffmpeg/SOURCES)"
-ffmpeg_dir="${RGRAM_FFMPEG_DIR:-$HOME/.cache/rgram/ffmpeg-$ffmpeg_version}"
+ffmpeg_dir="${OXIGRAM_FFMPEG_DIR:-$HOME/.cache/oxigram/ffmpeg-$ffmpeg_version}"
 if [[ ! -f "$ffmpeg_dir/lib/libvpx.a" ]] || ! grep -Eq '(^|[[:space:]])-lvpx([[:space:]]|$)' "$ffmpeg_dir/lib/pkgconfig/libavcodec.pc"; then
     echo "Rebuild static FFmpeg with scripts/build-ffmpeg.sh for VP9 alpha support" >&2
     exit 1
@@ -53,13 +53,13 @@ if [[ -f "$project_env" ]]; then
     source "$project_env"
     set +a
 fi
-if [[ -z "${RGRAM_API_ID:-}" ]]; then
-    RGRAM_API_ID="$(security find-generic-password -a rgram -s rgram.api_id -w 2>/dev/null || true)"
+if [[ -z "${OXIGRAM_API_ID:-}" ]]; then
+    OXIGRAM_API_ID="$(security find-generic-password -a oxigram -s oxigram.api_id -w 2>/dev/null || true)"
 fi
-if [[ -z "${RGRAM_API_HASH:-}" ]]; then
-    RGRAM_API_HASH="$(security find-generic-password -a rgram -s rgram.api_hash -w 2>/dev/null || true)"
+if [[ -z "${OXIGRAM_API_HASH:-}" ]]; then
+    OXIGRAM_API_HASH="$(security find-generic-password -a oxigram -s oxigram.api_hash -w 2>/dev/null || true)"
 fi
-export RGRAM_API_ID RGRAM_API_HASH
+export OXIGRAM_API_ID OXIGRAM_API_HASH
 exec "$(dirname "$0")/oxigram-bin" "$@"
 LAUNCHER
 chmod +x "$launcher"

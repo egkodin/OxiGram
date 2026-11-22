@@ -4,8 +4,8 @@
 use std::env;
 use std::fmt;
 
-pub(crate) const API_ID_VAR: &str = "RGRAM_API_ID";
-pub(crate) const API_HASH_VAR: &str = "RGRAM_API_HASH";
+pub(crate) const API_ID_VAR: &str = "OXIGRAM_API_ID";
+pub(crate) const API_HASH_VAR: &str = "OXIGRAM_API_HASH";
 
 /// A validated `api_id` and `api_hash`.
 #[derive(Clone, PartialEq, Eq)]
@@ -28,7 +28,7 @@ impl fmt::Debug for ApiCredentials {
 pub(crate) enum CredentialsError {
     #[error(
         "Telegram API credentials are missing. Get an api_id and api_hash at \
-         https://my.telegram.org, set {API_ID_VAR} and {API_HASH_VAR}, and start rgram again."
+         https://my.telegram.org, set {API_ID_VAR} and {API_HASH_VAR}, and restart OxiGram."
     )]
     Missing,
     #[error("{API_ID_VAR} must be the positive number shown at https://my.telegram.org.")]

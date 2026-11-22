@@ -30,7 +30,7 @@ const SAMPLE_EVERY: Duration = Duration::from_secs(15);
 
 /// A 160 px JPEG per chat, as TDLib downloads small userpics.
 fn userpics() -> anyhow::Result<Vec<PathBuf>> {
-    let folder = std::env::temp_dir().join("rgram-soak");
+    let folder = std::env::temp_dir().join("oxigram-soak");
     std::fs::create_dir_all(&folder).context("creating the soak folder")?;
     (0..CHATS)
         .map(|index| {

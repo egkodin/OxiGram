@@ -20,7 +20,7 @@ pub enum PlayError {
     NoDevice,
     #[error("audio output")]
     Device(#[from] cpal::Error),
-    #[error("the audio output takes {0} samples, which rgram does not write")]
+    #[error("the audio output takes {0} samples, which oxigram does not write")]
     SampleFormat(cpal::SampleFormat),
 }
 

@@ -266,21 +266,21 @@ const HELP: &[(Entry, Action)] = &[
     ),
 ];
 
-/// rgram's own options, where tdesktop forks put theirs.
-const RGRAM: &[(Entry, Action)] = &[(
+/// oxigram's own options, where tdesktop forks put theirs.
+const OXIGRAM: &[(Entry, Action)] = &[(
     entry(
-        "main/rgram",
-        key::rgram_settings_title,
-        &["rgram", "send", "enter"],
-        Target::Page(PageId::Rgram),
+        "main/oxigram",
+        key::oxigram_settings_title,
+        &["oxigram", "send", "enter"],
+        Target::Page(PageId::Oxigram),
         MENU_ICON_SETTINGS,
     ),
-    Action::Open(PageId::Rgram),
+    Action::Open(PageId::Oxigram),
 )];
 
 /// Every row of the page, for the search.
 pub(super) fn entries() -> impl Iterator<Item = &'static Entry> {
-    [SECTIONS, RGRAM, PREMIUM, HELP]
+    [SECTIONS, OXIGRAM, PREMIUM, HELP]
         .into_iter()
         .flatten()
         .map(|(entry, _)| entry)
@@ -532,7 +532,7 @@ impl Render for MainPage {
         column.push(rows::divider(cx));
         column.push(rows::skip());
         column.extend(self.group(SECTIONS, cx));
-        column.extend(self.group(RGRAM, cx));
+        column.extend(self.group(OXIGRAM, cx));
         column.push(rows::skip());
         column.push(rows::divider(cx));
         column.push(rows::skip());

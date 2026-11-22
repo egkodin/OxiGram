@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(local_check("abc"), Local::TooShort);
         assert_eq!(local_check("ab-cd_e"), Local::BadSymbols);
         assert_eq!(local_check("a@bcdef"), Local::BadSymbols);
-        assert_eq!(local_check("rgram_test"), Local::Check);
-        assert_eq!(clean(" @rgram_test "), "rgram_test");
+        assert_eq!(local_check("oxigram_test"), Local::Check);
+        assert_eq!(clean(" @oxigram_test "), "oxigram_test");
     }
 }

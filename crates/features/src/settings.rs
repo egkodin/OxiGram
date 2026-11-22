@@ -736,7 +736,7 @@ mod tests {
 
     #[test]
     fn saves_and_reads_back_the_values() {
-        let dir = std::env::temp_dir().join(format!("rgram-settings-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("oxigram-settings-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("the temp dir is writable");
         let path = dir.join("settings.json");
         let values = Values {

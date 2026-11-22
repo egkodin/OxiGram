@@ -82,7 +82,7 @@ impl Feature {
 }
 
 /// Where a purchase goes on: an invoice TDLib can open, a Stars package,
-/// or a link (a bot start) rgram does not follow, as it would message the
+/// or a link (a bot start) oxigram does not follow, as it would message the
 /// bot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PaymentLink {

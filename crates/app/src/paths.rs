@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use model::Environment;
 
 /// Overrides the data directory, for test profiles.
-const DATA_DIR_VAR: &str = "RGRAM_DATA_DIR";
+const DATA_DIR_VAR: &str = "OXIGRAM_DATA_DIR";
 const APP_DIR: &str = "OxiGram";
 /// The directory before the rename to OxiGram, moved on first start.
 const LEGACY_APP_DIR: &str = "rgram";
@@ -34,8 +34,7 @@ pub(crate) fn data_dir(environment: Environment) -> anyhow::Result<PathBuf> {
     })
 }
 
-/// Moves the data the app kept as rgram to `current`, once; an existing
-/// `current` is left alone, so nothing is ever overwritten.
+/// Moves a legacy profile once, when the current profile does not exist.
 fn adopt_legacy_dir(legacy: &Path, current: &Path) -> anyhow::Result<()> {
     if current.exists() || !legacy.is_dir() {
         return Ok(());
@@ -52,7 +51,7 @@ fn adopt_legacy_dir(legacy: &Path, current: &Path) -> anyhow::Result<()> {
 }
 
 /// Account `id`'s directory: the data directory itself for the first one,
-/// which had it before rgram had accounts, `account-<id>` in it for others.
+/// which had it before oxigram had accounts, `account-<id>` in it for others.
 pub(crate) fn account_dir(data: &Path, id: u32) -> PathBuf {
     match id {
         0 => data.to_path_buf(),
@@ -119,7 +118,7 @@ mod tests {
     #[test]
     fn the_legacy_directory_moves_once_and_never_over_data() {
         let root = std::env::temp_dir().join(format!("oxigram-paths-{}", std::process::id()));
-        let (legacy, current) = (root.join("rgram"), root.join("OxiGram"));
+        let (legacy, current) = (root.join(LEGACY_APP_DIR), root.join("OxiGram"));
         std::fs::create_dir_all(legacy.join("tdata")).expect("temp dir is writable");
         adopt_legacy_dir(&legacy, &current).expect("moving within one temp dir works");
         assert!(current.join("tdata").is_dir() && !legacy.exists());

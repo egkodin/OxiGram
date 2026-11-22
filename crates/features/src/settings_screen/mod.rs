@@ -26,13 +26,13 @@ mod personal_channel;
 mod power_box;
 mod premium;
 pub use premium::preset_premium_offer;
+mod oxigram_page;
 mod premium_options;
 mod privacy;
 mod privacy_box;
 mod proxies_box;
 mod proxy_box;
 mod qr_box;
-mod rgram_page;
 mod rows;
 mod scale;
 mod search;
@@ -96,7 +96,7 @@ pub(crate) enum PageId {
     Premium,
     Credits,
     Business,
-    Rgram,
+    Oxigram,
 }
 
 impl PageId {
@@ -117,7 +117,7 @@ impl PageId {
             Self::Calls => key::lng_settings_section_devices,
             Self::Premium | Self::Business => key::lng_premium_summary_title,
             Self::Credits => key::lng_credits_summary_title,
-            Self::Rgram => key::rgram_settings_title,
+            Self::Oxigram => key::oxigram_settings_title,
         }
     }
 
@@ -247,7 +247,7 @@ impl SettingsLayer {
             PageId::Premium => cx.new(|cx| premium::PremiumPage::new(env, cx)).into(),
             PageId::Credits => cx.new(|cx| stars::StarsPage::new(env, cx)).into(),
             PageId::Business => cx.new(|cx| business::BusinessPage::new(env, cx)).into(),
-            PageId::Rgram => cx.new(|_| rgram_page::RgramPage).into(),
+            PageId::Oxigram => cx.new(|_| oxigram_page::OxigramPage).into(),
         };
         self.stack.push(Page { id, view });
         cx.notify();

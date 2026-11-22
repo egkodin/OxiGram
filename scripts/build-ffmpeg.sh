@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Builds the minimal static FFmpeg rgram links in release builds: only the
+# Builds the minimal static FFmpeg oxigram links in release builds: only the
 # decoders, demuxers and parsers it plays, with the platform's hardware
 # decoders, dav1d for software AV1 and libvpx for VP9 with alpha (WebM
 # stickers). Sources and hashes: ffmpeg/SOURCES.
 #
 # Usage: scripts/build-ffmpeg.sh [prefix]
-#   prefix            install dir (default: $RGRAM_FFMPEG_DIR or ~/.cache/rgram/ffmpeg-<version>)
+#   prefix            install dir (default: $OXIGRAM_FFMPEG_DIR or ~/.cache/oxigram/ffmpeg-<version>)
 #   FFMPEG_BUILD_JOBS parallel jobs (default: all cores)
 #   FFMPEG_DOWNLOADS  optional dir that already holds the tarballs
 #
 # Needs: a C compiler, make, pkg-config, meson and ninja (dav1d), nasm on x86
 # (dav1d, libvpx and FFmpeg).
-# Then build rgram with PKG_CONFIG_PATH=<prefix>/lib/pkgconfig and
+# Then build oxigram with PKG_CONFIG_PATH=<prefix>/lib/pkgconfig and
 # `--features media/static-ffmpeg`; leave FFMPEG_DIR unset, or ffmpeg-sys-next
 # skips pkg-config and does not link dav1d.
 set -euo pipefail
@@ -20,11 +20,11 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 sources="$repo_root/ffmpeg/SOURCES"
 field() { awk -v name="$1" -v column="$2" '$1 == name { print $column }' "$sources"; }
 ffmpeg_version="$(field ffmpeg 2)"
-prefix="${1:-${RGRAM_FFMPEG_DIR:-$HOME/.cache/rgram/ffmpeg-$ffmpeg_version}}"
+prefix="${1:-${OXIGRAM_FFMPEG_DIR:-$HOME/.cache/oxigram/ffmpeg-$ffmpeg_version}}"
 stamp="$(shasum -a 256 "$sources" "${BASH_SOURCE[0]}" | shasum -a 256 | cut -c1-16)"
 jobs="${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 
-if [[ -f "$prefix/.rgram-ffmpeg" ]] && [[ "$(cat "$prefix/.rgram-ffmpeg")" == "$stamp" ]]; then
+if [[ -f "$prefix/.oxigram-ffmpeg" ]] && [[ "$(cat "$prefix/.oxigram-ffmpeg")" == "$stamp" ]]; then
   echo "FFmpeg $ffmpeg_version already built in $prefix"
   exit 0
 fi
@@ -93,7 +93,7 @@ ninja -C "$work/dav1d-build" install
   make install
 )
 
-# Everything off, then exactly what rgram plays: Telegram's videos, round
+# Everything off, then exactly what oxigram plays: Telegram's videos, round
 # videos, animations (H.264 MP4 and GIF) and WebM stickers; voice and music.
 configure=(
   --prefix="$prefix"
@@ -115,6 +115,6 @@ configure=(
   make install
 )
 
-echo "$stamp" > "$prefix/.rgram-ffmpeg"
+echo "$stamp" > "$prefix/.oxigram-ffmpeg"
 echo "FFmpeg $ffmpeg_version installed in $prefix"
 du -sh "$prefix/lib"/*.a

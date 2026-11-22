@@ -1,0 +1,18 @@
+// Strings oxigram uses in place of tdesktop's, because tdesktop's describe the
+// official app (ADR 0004). Same format as tdesktop's lang.strings; lang-gen
+// merges them into the English table.
+
+"oxigram_intro_about" = "Welcome to OxiGram, an unofficial\nTelegram desktop client.";
+"oxigram_app_name" = "OxiGram";
+
+// TDLib states tdesktop has no screen for.
+"oxigram_intro_premium_required" = "Signing in to this number from a new device requires Telegram Premium, which only Telegram's mobile apps can sell. Buy it there, then sign in here again.\n\nSupport: {email}";
+"oxigram_intro_email_reset" = "Reset login email";
+"oxigram_intro_email_reset_about" = "Resetting the login email takes {when}. After that, the code goes to your phone number.";
+"oxigram_intro_email_reset_pending" = "The login email will be reset in {when}.";
+
+// Settings: the app's own options, where tdesktop forks put theirs.
+"oxigram_settings_title" = "OxiGram settings";
+
+// Buttons that would pay stop at TDLib's payment form until checkout lands.
+"oxigram_payment_form_later" = "Checkout isn't in OxiGram yet. Buy it in another Telegram app.";

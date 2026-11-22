@@ -82,7 +82,7 @@ impl Proxy {
         }
     }
 
-    /// None for kinds rgram does not edit (web proxies).
+    /// None for kinds oxigram does not edit (web proxies).
     fn from_td(proxy: td::Proxy) -> Option<Self> {
         let kind = match *proxy.r#type {
             ProxyType::Mtproto(kind) => ProxyKind::Mtproto {

@@ -1,5 +1,5 @@
 //! "Top Up Balance" (`FillCreditOptions`): Telegram's Stars packages with
-//! their prices; a package goes on to the payment form, where rgram stops.
+//! their prices; a package goes on to the payment form, where oxigram stops.
 // shortcut: one star glyph in place of tdesktop's growing stacks of stars (`GenerateStars`); with M13.
 
 use gpui::{

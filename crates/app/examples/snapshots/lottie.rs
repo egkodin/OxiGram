@@ -51,7 +51,7 @@ fn json(variant: usize) -> String {
 
 /// The fixture's path for `variant`, written once per run.
 pub(crate) fn tgs(variant: usize) -> Option<PathBuf> {
-    let folder = std::env::temp_dir().join("rgram-snapshots");
+    let folder = std::env::temp_dir().join("oxigram-snapshots");
     let path = folder.join(format!("face-{variant}.tgs"));
     std::fs::create_dir_all(&folder)
         .and_then(|()| std::fs::write(&path, json(variant)))

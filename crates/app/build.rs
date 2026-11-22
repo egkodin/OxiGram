@@ -1,4 +1,4 @@
-//! Puts the TDLib runtime libraries next to the rgram executable and points the
+//! Puts the TDLib runtime libraries next to the oxigram executable and points the
 //! executable's rpath at its own directory, so a built binary starts without
 //! `cargo run`. Windows looks for DLLs next to the executable on its own.
 
@@ -14,7 +14,7 @@ fn main() {
 
 fn run() -> Result<(), String> {
     let runtime_dir = PathBuf::from(var("DEP_TDJSON_RUNTIME_DIR")?);
-    // OUT_DIR is <target>[/<triple>]/<profile>/build/rgram-<hash>/out.
+    // OUT_DIR is <target>[/<triple>]/<profile>/build/oxigram-<hash>/out.
     let out_dir = PathBuf::from(var("OUT_DIR")?);
     let exe_dir = out_dir
         .ancestors()

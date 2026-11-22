@@ -21,7 +21,7 @@ use super::photo::Photo;
 use crate::px_of;
 
 /// A flame in the place of tdesktop's `gui/ttl/video_message_icon.svg`,
-/// drawn for rgram: ADR 0001 keeps tdesktop's `Resources/art/` out.
+/// drawn for oxigram: ADR 0001 keeps tdesktop's `Resources/art/` out.
 const FIRE: &str = r##"<svg viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg"><path d="M36 5C44 19 58 29 58 46C58 58 48 67 36 67C24 67 14 58 14 46C14 36 19 29 24 25C25 33 28 37 32 39C30 29 32 17 36 5Z" fill="#fff"/></svg>"##;
 
 fn fire_image() -> Arc<Image> {

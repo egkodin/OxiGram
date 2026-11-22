@@ -1,4 +1,4 @@
-//! "rgram settings": the app's own options, where tdesktop forks keep
+//! "oxigram settings": the app's own options, where tdesktop forks keep
 //! theirs. How messages send is also in Chat Settings, as tdesktop has it.
 
 use gpui::{Context, IntoElement, ParentElement, Render, Styled, Window, div};
@@ -12,7 +12,7 @@ use crate::lang::tr;
 use crate::px_of;
 use crate::settings::{self, SendBy};
 
-pub(super) struct RgramPage;
+pub(super) struct OxigramPage;
 
 /// One of the send-by radios (`SetupMessages`).
 pub(super) fn send_by_choice<V: 'static>(send_by: SendBy, cx: &mut Context<V>) -> impl IntoElement {
@@ -52,7 +52,7 @@ pub(super) fn send_by_choice<V: 'static>(send_by: SendBy, cx: &mut Context<V>) -
         )
 }
 
-impl Render for RgramPage {
+impl Render for OxigramPage {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()

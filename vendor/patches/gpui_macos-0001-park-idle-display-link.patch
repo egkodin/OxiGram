@@ -1,7 +1,7 @@
 --- a/src/window.rs
 +++ b/src/window.rs
 @@ -1,3 +1,4 @@
-+// Modified by rgram: the display link parks while idle; see "rgram patch" below and ADR 0005.
++// Modified by oxigram: the display link parks while idle; see "oxigram patch" below and ADR 0005.
  use crate::{
      BoolExt, MacDisplay, NSRange, NSStringExt, TISCopyCurrentKeyboardInputSource,
      TISGetInputSourceProperty, WindowFrameSource, events::platform_input_from_native,
@@ -9,7 +9,7 @@
      accesskit_adapter: Option<accesskit_macos::SubclassingAdapter>,
      // The parent window if this window is a sheet (Dialog kind)
      sheet_parent: Option<*mut AnyObject>,
-+    // rgram patch (ADR 0005): the display link is parked after
++    // oxigram patch (ADR 0005): the display link is parked after
 +    // IDLE_FRAMES_BEFORE_PARKING frame requests that drew nothing, and the
 +    // frame waker restarts it when gpui has a frame to draw.
 +    drew_since_step: bool,
@@ -17,7 +17,7 @@
 +    display_link_parked: bool,
  }
 +
-+/// rgram patch (ADR 0005): about a quarter second at 120 Hz, so a pause
++/// oxigram patch (ADR 0005): about a quarter second at 120 Hz, so a pause
 +/// between keystrokes does not unsubscribe and resubscribe the display link.
 +const IDLE_FRAMES_BEFORE_PARKING: u32 = 30;
  
@@ -36,7 +36,7 @@
          }
      }
  
-+    /// rgram patch (ADR 0005): runs after each display-link frame request.
++    /// oxigram patch (ADR 0005): runs after each display-link frame request.
 +    fn park_display_link_if_idle(&mut self) {
 +        if std::mem::take(&mut self.drew_since_step) {
 +            self.frames_without_draw = 0;
@@ -50,7 +50,7 @@
 +        }
 +    }
 +
-+    /// rgram patch (ADR 0005): called by the frame waker on new frame demand.
++    /// oxigram patch (ADR 0005): called by the frame waker on new frame demand.
 +    fn unpark_display_link(&mut self) {
 +        self.frames_without_draw = 0;
 +        if self.display_link_parked {
@@ -80,7 +80,7 @@
 +    }
 +
 +    fn frame_waker(&self) -> Option<Rc<dyn Fn()>> {
-+        // rgram patch (ADR 0005): restarts a display link parked while idle.
++        // oxigram patch (ADR 0005): restarts a display link parked while idle.
 +        let state = Arc::downgrade(&self.0);
 +        let (executor, closed) = {
 +            let this = self.0.lock();

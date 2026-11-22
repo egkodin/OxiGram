@@ -1,4 +1,4 @@
-//! The welcome screen (`intro_start.cpp`) with its cover. rgram names
+//! The welcome screen (`intro_start.cpp`) with its cover. oxigram names
 //! itself here, not Telegram Desktop.
 
 use gpui::{
@@ -40,8 +40,8 @@ impl Focusable for StartStep {
 impl StepView for StartStep {
     fn header(&self, cx: &App) -> Header {
         Header {
-            title: tr(cx, key::rgram_app_name),
-            description: Markup::plain(tr(cx, key::rgram_intro_about).to_string()),
+            title: tr(cx, key::oxigram_app_name),
+            description: Markup::plain(tr(cx, key::oxigram_intro_about).to_string()),
             has_cover: true,
             has_back: false,
             next: Some(tr(cx, key::lng_start_msgs)),

@@ -11,7 +11,7 @@ unmaintained = "workspace"
 ignore = []
 
 [licenses]
-# Everything rgram links must be compatible with GPL-3.0-or-later (ADR 0001).
+# Everything oxigram links must be compatible with GPL-3.0-or-later (ADR 0001).
 allow = [
     "0BSD",
     "Apache-2.0",
@@ -37,7 +37,7 @@ exceptions = [
 ]
 
 [licenses.private]
-# rgram's own crates are GPL-3.0-or-later and never published.
+# oxigram's own crates are GPL-3.0-or-later and never published.
 ignore = true
 
 [bans]

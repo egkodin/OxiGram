@@ -18,7 +18,7 @@ futures.workspace = true
 gpui.workspace = true
 gpui_platform.workspace = true
 i18n.workspace = true
-# `silence_output` for RGRAM_SILENT and the snapshots.
+# `silence_output` for OXIGRAM_SILENT and the snapshots.
 media.workspace = true
 model.workspace = true
 style.workspace = true

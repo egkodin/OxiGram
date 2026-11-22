@@ -518,7 +518,7 @@ fn rounds(still: &Path) -> Vec<Message> {
 /// A round face on a clear background, as a sticker's picture.
 fn sticker_file() -> Option<std::path::PathBuf> {
     let path = std::env::temp_dir()
-        .join("rgram-snapshots")
+        .join("oxigram-snapshots")
         .join("sticker.png");
     let image = image::RgbaImage::from_fn(512, 512, |x, y| {
         let distance = |cx: f32, cy: f32| {

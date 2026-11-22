@@ -7,7 +7,7 @@
 
 Voice messages must reach other clients as OGG Opus, mono (TDLib's
 `inputVoiceNote`). tdesktop records with OpenAL and encodes with FFmpeg's
-libopus at 48 kHz, 32 kbit/s. rgram had no audio stack yet.
+libopus at 48 kHz, 32 kbit/s. oxigram had no audio stack yet.
 
 Options:
 
@@ -123,7 +123,7 @@ Known gaps:
   build with no FFmpeg or libvpx dylib in the binary).
 - The FFmpeg tarball's hash is checked against Homebrew's formula, not its
   GPG signature (no gpg on this machine).
-- The build is LGPL (no `--enable-gpl`), compatible with rgram's GPLv3.
+- The build is LGPL (no `--enable-gpl`), compatible with oxigram's GPLv3.
 
 Linking, checked 2026-10-28: `media/static-ffmpeg` turns on ffmpeg-next's
 `static`; with `PKG_CONFIG_PATH=<prefix>/lib/pkgconfig` and `FFMPEG_DIR`
@@ -132,7 +132,7 @@ which brings dav1d, libvpx and the system frameworks in order (with `FFMPEG_DIR`
 skips pkg-config and dav1d is missing). The `media` tests pass on that
 build, and the test binary depends on no FFmpeg or Homebrew library. Its
 fixed macOS framework list names QTKit, which the linker warns about and
-ignores. CI builds the archives into `~/.cache/rgram-ffmpeg`, cached by
+ignores. CI builds the archives into `~/.cache/oxigram-ffmpeg`, cached by
 `ffmpeg/SOURCES` and the script. Development builds without the feature
 use the system FFmpeg (Homebrew 9.0.2 here); ffmpeg-next 9 needs FFmpeg 9.
 

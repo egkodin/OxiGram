@@ -1,4 +1,4 @@
-// Modified by rgram: the display link parks while idle, and the interface zoom; see "rgram patch" below and ADR 0005.
+// Modified by oxigram: the display link parks while idle, and the interface zoom; see "oxigram patch" below and ADR 0005.
 use crate::{
     BoolExt, MacDisplay, NSRange, NSStringExt, TISCopyCurrentKeyboardInputSource,
     TISGetInputSourceProperty, WindowFrameSource, events::platform_input_from_native,
@@ -362,11 +362,11 @@ extern "C" fn window_state_unarchiver_restoration_options(
     }
 }
 
-/// rgram patch (ADR 0005): the interface zoom (Settings, "Default interface
+/// oxigram patch (ADR 0005): the interface zoom (Settings, "Default interface
 /// scale"), how many points one gpui pixel takes; set before windows open.
 static INTERFACE_ZOOM: AtomicU32 = AtomicU32::new(1.0f32.to_bits());
 
-/// rgram patch (ADR 0005): windows opened from now on draw gpui's pixels
+/// oxigram patch (ADR 0005): windows opened from now on draw gpui's pixels
 /// `zoom` times larger, from 50 % to 300 %.
 pub fn set_interface_zoom(zoom: f32) {
     INTERFACE_ZOOM.store(zoom.clamp(0.5, 3.0).to_bits(), Ordering::Relaxed);
@@ -710,7 +710,7 @@ struct MacWindowState {
     accesskit_adapter: Option<accesskit_macos::SubclassingAdapter>,
     // The parent window if this window is a sheet (Dialog kind)
     sheet_parent: Option<*mut AnyObject>,
-    // rgram patch (ADR 0005): the display link is parked after
+    // oxigram patch (ADR 0005): the display link is parked after
     // IDLE_FRAMES_BEFORE_PARKING frame requests that drew nothing, and the
     // frame waker restarts it when gpui has a frame to draw.
     drew_since_step: bool,
@@ -718,7 +718,7 @@ struct MacWindowState {
     display_link_parked: bool,
 }
 
-/// rgram patch (ADR 0005): about a quarter second at 120 Hz, so a pause
+/// oxigram patch (ADR 0005): about a quarter second at 120 Hz, so a pause
 /// between keystrokes does not unsubscribe and resubscribe the display link.
 const IDLE_FRAMES_BEFORE_PARKING: u32 = 30;
 
@@ -870,7 +870,7 @@ impl MacWindowState {
         }
     }
 
-    /// rgram patch (ADR 0005): runs after each display-link frame request.
+    /// oxigram patch (ADR 0005): runs after each display-link frame request.
     fn park_display_link_if_idle(&mut self) {
         if std::mem::take(&mut self.drew_since_step) {
             self.frames_without_draw = 0;
@@ -884,7 +884,7 @@ impl MacWindowState {
         }
     }
 
-    /// rgram patch (ADR 0005): called by the frame waker on new frame demand.
+    /// oxigram patch (ADR 0005): called by the frame waker on new frame demand.
     fn unpark_display_link(&mut self) {
         self.frames_without_draw = 0;
         if self.display_link_parked {
@@ -965,7 +965,7 @@ impl MacWindowState {
             .native_window()
             .contentView()
             .map_or_default(|view| view.frame().size);
-        // rgram patch (ADR 0005): gpui's size is the zoomed one.
+        // oxigram patch (ADR 0005): gpui's size is the zoomed one.
         let zoom = interface_zoom();
         size(px(width as f32 / zoom), px(height as f32 / zoom))
     }
@@ -2163,7 +2163,7 @@ impl PlatformWindow for MacWindow {
     }
 
     fn frame_waker(&self) -> Option<Rc<dyn Fn()>> {
-        // rgram patch (ADR 0005): restarts a display link parked while idle.
+        // oxigram patch (ADR 0005): restarts a display link parked while idle.
         let state = Arc::downgrade(&self.0);
         let (executor, closed) = {
             let this = self.0.lock();
@@ -3192,7 +3192,7 @@ fn update_window_scale_factor(window_state: &Arc<Mutex<MacWindowState>>) {
     if !layer.is_null() {
         // SAFETY: the locked renderer owns the CALayer during this main-thread geometry update.
         unsafe {
-            // rgram patch (ADR 0005): the layer keeps the screen's own scale.
+            // oxigram patch (ADR 0005): the layer keeps the screen's own scale.
             let _: () = msg_send![
                 layer,
                 setContentsScale: get_scale_factor(lock.native_window()) as f64
@@ -3398,7 +3398,7 @@ extern "C" fn set_frame_size(this: &AnyObject, _: Sel, size: NSSize) {
         let _: () = msg_send![super(this, class!(NSView)), setFrameSize: size];
     }
 
-    // rgram patch (ADR 0005): `new_size` is in points, so the screen's scale.
+    // oxigram patch (ADR 0005): `new_size` is in points, so the screen's scale.
     let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window()));
     lock.renderer.update_drawable_size(drawable_size);
 

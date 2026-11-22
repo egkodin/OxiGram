@@ -1,6 +1,6 @@
 [package]
 name = "ui"
-description = "rgram's widgets, drawn to tdesktop's styles"
+description = "oxigram's widgets, drawn to tdesktop's styles"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

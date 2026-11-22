@@ -1,6 +1,6 @@
 //! Regenerates `crates/i18n` from a Telegram Desktop checkout: the English
-//! strings of `Telegram/Resources/langs/lang.strings` plus rgram's own
-//! `crates/i18n/rgram.strings`, and the plural rules of
+//! strings of `Telegram/Resources/langs/lang.strings` plus oxigram's own
+//! `crates/i18n/oxigram.strings`, and the plural rules of
 //! `Telegram/SourceFiles/lang/lang_tag.cpp`, translated to Rust.
 //!
 //! Usage: `cargo run -p lang-gen [-- <tdesktop dir>]`. The default directory is
@@ -28,11 +28,11 @@ fn main() -> anyhow::Result<()> {
     let provenance = format!("tdesktop {}", git_head(&tdesktop)?);
 
     let tdesktop_strings = read(&tdesktop.join(STRINGS_SOURCE))?;
-    let rgram_strings = read(&i18n.join("rgram.strings"))?;
+    let oxigram_strings = read(&i18n.join("oxigram.strings"))?;
     let code = strings::generate(
         &[
             (STRINGS_SOURCE, tdesktop_strings.as_str()),
-            ("crates/i18n/rgram.strings", rgram_strings.as_str()),
+            ("crates/i18n/oxigram.strings", oxigram_strings.as_str()),
         ],
         &provenance,
     )?;

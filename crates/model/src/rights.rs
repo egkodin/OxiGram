@@ -59,7 +59,7 @@ impl From<ChatMemberStatus> for MemberStatus {
 }
 
 /// What every member of a group may send (`chatPermissions`), the part
-/// rgram uses so far.
+/// oxigram uses so far.
 // shortcut: text only; the media permissions come with attachments (M4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Permissions {

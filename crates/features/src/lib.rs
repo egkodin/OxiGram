@@ -1,4 +1,4 @@
-//! rgram's screens. Each follows a Telegram Desktop screen and reads the
+//! oxigram's screens. Each follows a Telegram Desktop screen and reads the
 //! model through the [`Store`]; none of them sees a TDLib type.
 
 pub mod accounts;
@@ -57,9 +57,9 @@ pub use settings_screen::preset_premium_offer;
 pub use store::{Store, StoreEvent};
 
 gpui::actions!(
-    rgram,
+    oxigram,
     [
-        /// Quits as the Quit item does, then starts rgram again (`Core::Restart`).
+        /// Quits as the Quit item does, then starts oxigram again (`Core::Restart`).
         RestartApp
     ]
 );

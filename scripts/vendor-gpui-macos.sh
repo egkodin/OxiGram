@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Re-creates vendor/gpui_macos from the Zed commit pinned in Cargo.toml and applies
-# rgram's patches from vendor/patches/ (ADR 0005). Run it after moving the gpui pin.
+# oxigram's patches from vendor/patches/ (ADR 0005). Run it after moving the gpui pin.
 #
 # Usage: scripts/vendor-gpui-macos.sh
 #   Needs the pinned Zed checkout in ~/.cargo/git (any `cargo fetch` provides it) and

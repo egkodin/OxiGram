@@ -21,17 +21,17 @@ fn run() -> Result<(), String> {
     let commit = read_trimmed(&pin_dir.join("COMMIT"))?;
     let version = read_trimmed(&pin_dir.join("VERSION"))?;
 
-    println!("cargo::rerun-if-env-changed=RGRAM_TDLIB_DIR");
-    let install_dir = match env::var_os("RGRAM_TDLIB_DIR") {
+    println!("cargo::rerun-if-env-changed=OXIGRAM_TDLIB_DIR");
+    let install_dir = match env::var_os("OXIGRAM_TDLIB_DIR") {
         Some(dir) => PathBuf::from(dir),
         None => default_install_dir(&commit)?,
     };
 
-    let marker = install_dir.join(".rgram-tdlib-commit");
+    let marker = install_dir.join(".oxigram-tdlib-commit");
     println!("cargo::rerun-if-changed={}", marker.display());
     let built_commit = read_trimmed(&marker).map_err(|_| {
         format!(
-            "TDLib not found in {}; run scripts/build-tdlib.sh (or set RGRAM_TDLIB_DIR)",
+            "TDLib not found in {}; run scripts/build-tdlib.sh (or set OXIGRAM_TDLIB_DIR)",
             install_dir.display()
         )
     })?;
@@ -94,14 +94,14 @@ fn runtime_files(install_dir: &Path, version: &str) -> Result<Vec<PathBuf>, Stri
 }
 
 fn default_install_dir(commit: &str) -> Result<PathBuf, String> {
-    // Same default as scripts/build-tdlib.sh: $HOME/.cache/rgram/tdlib-<short commit>.
+    // Same default as scripts/build-tdlib.sh: $HOME/.cache/oxigram/tdlib-<short commit>.
     let home = env::var_os("HOME")
         .or_else(|| env::var_os("USERPROFILE"))
-        .ok_or("neither HOME nor USERPROFILE is set; set RGRAM_TDLIB_DIR")?;
+        .ok_or("neither HOME nor USERPROFILE is set; set OXIGRAM_TDLIB_DIR")?;
     let short = commit
         .get(..9)
         .ok_or("tdlib/COMMIT is shorter than 9 characters")?;
-    Ok(PathBuf::from(home).join(format!(".cache/rgram/tdlib-{short}")))
+    Ok(PathBuf::from(home).join(format!(".cache/oxigram/tdlib-{short}")))
 }
 
 fn link_or_copy(from: &Path, to: &Path) -> Result<(), String> {

@@ -53,7 +53,7 @@ sudo apt install build-essential clang libclang-dev cmake ninja-build gperf \
   libva-dev libvulkan1 libwayland-dev libx11-xcb-dev libxkbcommon-x11-dev \
   libzstd-dev meson nasm pkg-config curl
 bash scripts/build-tdlib.sh
-ffmpeg_dir="$HOME/.cache/rgram-ffmpeg"
+ffmpeg_dir="$HOME/.cache/oxigram-ffmpeg"
 bash scripts/build-ffmpeg.sh "$ffmpeg_dir"
 export PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig"
 ```
@@ -68,9 +68,9 @@ from the x64 Visual Studio developer environment with the MSVC tools on
 ```bash
 export VCPKG_ROOT="<path to vcpkg>"
 "$VCPKG_ROOT/vcpkg.exe" install gperf:x64-windows openssl:x64-windows zlib:x64-windows
-export RGRAM_TDLIB_DIR="$(cygpath -m "$HOME/.cache/oxigram-tdlib")"
-bash scripts/build-tdlib.sh "$RGRAM_TDLIB_DIR"
-ffmpeg_dir="$(cygpath -m "$HOME/.cache/rgram-ffmpeg")"
+export OXIGRAM_TDLIB_DIR="$(cygpath -m "$HOME/.cache/oxigram-tdlib")"
+bash scripts/build-tdlib.sh "$OXIGRAM_TDLIB_DIR"
+ffmpeg_dir="$(cygpath -m "$HOME/.cache/oxigram-ffmpeg")"
 bash scripts/build-ffmpeg.sh "$ffmpeg_dir"
 export PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig"
 ```
@@ -84,14 +84,14 @@ the native dependencies:
 xcode-select --install
 brew install cmake ninja gperf openssl@3 meson pkgconf
 bash scripts/build-tdlib.sh
-ffmpeg_dir="$HOME/.cache/rgram-ffmpeg"
+ffmpeg_dir="$HOME/.cache/oxigram-ffmpeg"
 bash scripts/build-ffmpeg.sh "$ffmpeg_dir"
 export PKG_CONFIG_PATH="$ffmpeg_dir/lib/pkgconfig"
 ```
 
 For a local `.app`, install the Metal Toolchain with
 `xcodebuild -downloadComponent MetalToolchain` and run
-`RGRAM_FFMPEG_DIR="$ffmpeg_dir" bash scripts/build-macos-app.sh`. Move any
+`OXIGRAM_FFMPEG_DIR="$ffmpeg_dir" bash scripts/build-macos-app.sh`. Move any
 existing `target/OxiGram.app` before packaging. Linux and Windows installers
 are planned.
 
@@ -112,8 +112,8 @@ Put these assignments in a local `.env` at the repository root and replace
 the placeholders. Git ignores this file.
 
 ```dotenv
-RGRAM_API_ID=your_numeric_api_id
-RGRAM_API_HASH=your_api_hash
+OXIGRAM_API_ID=your_numeric_api_id
+OXIGRAM_API_HASH=your_api_hash
 ```
 
 In the same shell you used to set up the native dependencies, load the

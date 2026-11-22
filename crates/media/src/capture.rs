@@ -21,7 +21,7 @@ pub enum RecordError {
     NoDevice,
     #[error("microphone")]
     Device(#[from] cpal::Error),
-    #[error("the microphone gives {0} samples, which rgram does not read")]
+    #[error("the microphone gives {0} samples, which oxigram does not read")]
     SampleFormat(cpal::SampleFormat),
     #[error("encoding the voice message")]
     Encode(#[from] EncodeError),
@@ -303,7 +303,7 @@ mod tests {
     }
 
     fn temp(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("rgram-media-{}-{name}.ogg", std::process::id()))
+        std::env::temp_dir().join(format!("oxigram-media-{}-{name}.ogg", std::process::id()))
     }
 
     #[test]

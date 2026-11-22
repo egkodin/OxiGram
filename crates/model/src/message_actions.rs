@@ -16,7 +16,7 @@ use crate::ids::{ChatId, MessageId, UserId};
 use crate::session::{RequestError, Session};
 
 /// What the user may do with one message (`messageProperties`), the part
-/// rgram offers so far.
+/// oxigram offers so far.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[expect(
     clippy::struct_excessive_bools,

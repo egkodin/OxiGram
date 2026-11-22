@@ -299,11 +299,12 @@ impl CodeStep {
                     .then(|| (tr(cx, key::lng_code_no_telegram), Link::Resend))
             }
             Some(Mode::Email(code)) => match code.reset? {
-                EmailReset::Available { wait } => {
-                    Some((tr(cx, key::rgram_intro_email_reset), Link::ResetEmail(wait)))
-                }
+                EmailReset::Available { wait } => Some((
+                    tr(cx, key::oxigram_intro_email_reset),
+                    Link::ResetEmail(wait),
+                )),
                 EmailReset::Pending { remaining } if remaining.is_zero() => Some((
-                    tr(cx, key::rgram_intro_email_reset),
+                    tr(cx, key::oxigram_intro_email_reset),
                     Link::ResetEmail(Duration::ZERO),
                 )),
                 EmailReset::Pending { .. } => None,
@@ -319,7 +320,7 @@ impl CodeStep {
                 ..
             })) if !remaining.is_zero() => Some(tr_with(
                 cx,
-                key::rgram_intro_email_reset_pending,
+                key::oxigram_intro_email_reset_pending,
                 &[("when", &errors::duration_text(*remaining, cx))],
             )),
             _ => None,
@@ -333,11 +334,11 @@ impl CodeStep {
             Link::ResetEmail(wait) => {
                 let text = tr_with(
                     cx,
-                    key::rgram_intro_email_reset_about,
+                    key::oxigram_intro_email_reset_about,
                     &[("when", &errors::duration_text(wait, cx))],
                 );
                 let mut args = ConfirmArgs::new(Markup::plain(text));
-                args.confirm_text = Some(tr(cx, key::rgram_intro_email_reset));
+                args.confirm_text = Some(tr(cx, key::oxigram_intro_email_reset));
                 args.cancel_text = Some(tr(cx, key::lng_cancel));
                 let this = cx.entity().downgrade();
                 args.confirmed = Some(Rc::new(move |_, cx| {

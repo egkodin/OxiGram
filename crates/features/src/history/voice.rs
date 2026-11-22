@@ -156,7 +156,7 @@ fn button_offset() -> Point<Pixels> {
 
 fn voice_path() -> std::io::Result<PathBuf> {
     // shortcut: recordings stay in the temp folder for the system to clear; tdesktop uploads them from memory.
-    let folder = std::env::temp_dir().join("rgram-voice");
+    let folder = std::env::temp_dir().join("oxigram-voice");
     std::fs::create_dir_all(&folder)?;
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

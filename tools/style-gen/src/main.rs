@@ -40,7 +40,7 @@ const THEMES: [(&str, &str, &str); 3] = [
 ];
 const THEME_COLORS: &str = "colors.tdesktop-theme";
 
-/// The style modules rgram uses; their `using` includes come along.
+/// The style modules oxigram uses; their `using` includes come along.
 const STYLE_ROOTS: &[&str] = &[
     "boxes/connection_box.style",
     "boxes/polls.style",
@@ -63,8 +63,8 @@ const STYLE_ROOTS: &[&str] = &[
     "window/window_main_menu.style",
 ];
 
-/// Telegram's paper-plane logo; rgram may not use it (ADR 0004), so these masks
-/// stay unembedded and the UI draws rgram's own mark in their place.
+/// Telegram's paper-plane logo; oxigram may not use it (ADR 0004), so these masks
+/// stay unembedded and the UI draws oxigram's own mark in their place.
 const LOGO_ICONS: &[&str] = &[
     "intro_plane_inner",
     "intro_plane_outer",
@@ -74,7 +74,7 @@ const LOGO_ICONS: &[&str] = &[
 ];
 
 /// Icons tdesktop draws from code or Lottie rather than a style, which
-/// rgram draws as masks: the send button's microphone (`paintRecord`) and
+/// oxigram draws as masks: the send button's microphone (`paintRecord`) and
 /// the Premium page's star (`Ui::Premium::ColorizedSvg`).
 const CODE_ICONS: &[&str] = &["chat/input_record", "settings/star"];
 

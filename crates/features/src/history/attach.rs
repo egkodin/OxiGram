@@ -137,7 +137,7 @@ fn image_extension(format: ImageFormat) -> &'static str {
 /// Writes a pasted image where TDLib can upload it from.
 // shortcut: the files stay in the temp folder for the system to clear; tdesktop uploads from memory.
 fn save_pasted(bytes: &[u8], extension: &str) -> std::io::Result<PathBuf> {
-    let folder = std::env::temp_dir().join("rgram-pasted");
+    let folder = std::env::temp_dir().join("oxigram-pasted");
     std::fs::create_dir_all(&folder)?;
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn files_are_read_with_their_kind() {
-        let dir = std::env::temp_dir().join(format!("rgram-attach-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("oxigram-attach-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("the temp dir is writable");
         let photo = dir.join("a.PNG");
         image::RgbImage::new(4, 3)

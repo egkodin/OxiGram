@@ -1,6 +1,6 @@
 [package]
 name = "features"
-description = "rgram's screens: sign-in, and the rest as they land"
+description = "oxigram's screens: sign-in, and the rest as they land"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

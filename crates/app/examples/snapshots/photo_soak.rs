@@ -27,7 +27,7 @@ const SAMPLE_EVERY: Duration = Duration::from_secs(10);
 
 /// A JPEG per message, each with its own pattern.
 fn photos() -> anyhow::Result<Vec<PathBuf>> {
-    let folder = std::env::temp_dir().join("rgram-photo-soak");
+    let folder = std::env::temp_dir().join("oxigram-photo-soak");
     std::fs::create_dir_all(&folder).context("creating the photo soak folder")?;
     (0..PHOTOS)
         .map(|index| {

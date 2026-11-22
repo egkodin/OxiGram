@@ -2,7 +2,7 @@
 //! renderer, and with `runtime-shaders` the shader compile) and to its first
 //! frame, then quits. Compare the shader modes (docs/perf.md):
 //! `cargo run -q -p oxigram --example cold-start` and the same with
-//! `--features rgram/runtime-shaders`.
+//! `--features oxigram/runtime-shaders`.
 
 use std::time::{Duration, Instant};
 

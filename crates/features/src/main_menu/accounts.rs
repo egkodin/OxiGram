@@ -233,7 +233,7 @@ impl MainMenu {
     }
 
     /// `MakeAccountButton`'s context menu.
-    // shortcut: no "Open in new window": rgram has one window.
+    // shortcut: no "Open in new window": oxigram has one window.
     fn show_account_menu(
         &mut self,
         id: AccountId,

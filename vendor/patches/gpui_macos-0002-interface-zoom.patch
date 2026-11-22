@@ -1,7 +1,7 @@
 --- a/src/events.rs
 +++ b/src/events.rs
 @@ -1,3 +1,4 @@
-+// Modified by rgram: positions and scrolling follow the interface zoom; see ADR 0005.
++// Modified by oxigram: positions and scrolling follow the interface zoom; see ADR 0005.
  use gpui::{
      Capslock, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
      MouseDownEvent, MouseExitEvent, MouseMoveEvent, MousePressureEvent, MouseUpEvent,
@@ -71,7 +71,7 @@
  
                  let delta = if native_event.hasPreciseScrollingDeltas() {
 -                    ScrollDelta::Pixels(raw_data.map(px))
-+                    // rgram patch (ADR 0005): scrolls the same distance on screen.
++                    // oxigram patch (ADR 0005): scrolls the same distance on screen.
 +                    ScrollDelta::Pixels(raw_data.map(|value| px(value / crate::interface_zoom())))
                  } else {
                      ScrollDelta::Lines(raw_data)
@@ -126,7 +126,7 @@
  pub(crate) use window::*;
  
  pub use platform::MacPlatform;
-+// rgram patch (ADR 0005): Settings' "Default interface scale".
++// oxigram patch (ADR 0005): Settings' "Default interface scale".
 +pub use window::set_interface_zoom;
  
  trait BoolExt {
@@ -134,8 +134,8 @@
 --- a/src/window.rs
 +++ b/src/window.rs
 @@ -1,4 +1,4 @@
--// Modified by rgram: the display link parks while idle; see "rgram patch" below and ADR 0005.
-+// Modified by rgram: the display link parks while idle, and the interface zoom; see "rgram patch" below and ADR 0005.
+-// Modified by oxigram: the display link parks while idle; see "oxigram patch" below and ADR 0005.
++// Modified by oxigram: the display link parks while idle, and the interface zoom; see "oxigram patch" below and ADR 0005.
  use crate::{
      BoolExt, MacDisplay, NSRange, NSStringExt, TISCopyCurrentKeyboardInputSource,
      TISGetInputSourceProperty, WindowFrameSource, events::platform_input_from_native,
@@ -152,11 +152,11 @@
      }
  }
  
-+/// rgram patch (ADR 0005): the interface zoom (Settings, "Default interface
++/// oxigram patch (ADR 0005): the interface zoom (Settings, "Default interface
 +/// scale"), how many points one gpui pixel takes; set before windows open.
 +static INTERFACE_ZOOM: AtomicU32 = AtomicU32::new(1.0f32.to_bits());
 +
-+/// rgram patch (ADR 0005): windows opened from now on draw gpui's pixels
++/// oxigram patch (ADR 0005): windows opened from now on draw gpui's pixels
 +/// `zoom` times larger, from 50 % to 300 %.
 +pub fn set_interface_zoom(zoom: f32) {
 +    INTERFACE_ZOOM.store(zoom.clamp(0.5, 3.0).to_bits(), Ordering::Relaxed);
@@ -182,7 +182,7 @@
              .contentView()
              .map_or_default(|view| view.frame().size);
 -        size(px(width as f32), px(height as f32))
-+        // rgram patch (ADR 0005): gpui's size is the zoomed one.
++        // oxigram patch (ADR 0005): gpui's size is the zoomed one.
 +        let zoom = interface_zoom();
 +        size(px(width as f32 / zoom), px(height as f32 / zoom))
      }
@@ -223,7 +223,7 @@
      let layer = lock.renderer.layer_ptr().cast::<AnyObject>();
      if !layer.is_null() {
          unsafe {
-+            // rgram patch (ADR 0005): the layer keeps the screen's own scale.
++            // oxigram patch (ADR 0005): the layer keeps the screen's own scale.
              let _: () = msg_send![
                  layer,
 -                setContentsScale: scale_factor as f64
@@ -237,7 +237,7 @@
  
 -    let scale_factor = lock.scale_factor();
 -    let drawable_size = new_size.to_device_pixels(scale_factor);
-+    // rgram patch (ADR 0005): `new_size` is in points, so the screen's scale.
++    // oxigram patch (ADR 0005): `new_size` is in points, so the screen's scale.
 +    let drawable_size = new_size.to_device_pixels(get_scale_factor(lock.native_window));
      lock.renderer.update_drawable_size(drawable_size);
  

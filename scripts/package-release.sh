@@ -17,7 +17,7 @@ arch="$(uname -m)"
 if [[ "$arch" == aarch64 ]]; then arch=arm64; fi
 
 smoke_test() {
-    env -u RGRAM_API_ID -u RGRAM_API_HASH -u DYLD_LIBRARY_PATH -u LD_LIBRARY_PATH \
+    env -u OXIGRAM_API_ID -u OXIGRAM_API_HASH -u DYLD_LIBRARY_PATH -u LD_LIBRARY_PATH \
         "$1" --check-release-configuration
 }
 

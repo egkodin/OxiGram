@@ -1,4 +1,4 @@
-// Modified by rgram: positions and scrolling follow the interface zoom; see ADR 0005.
+// Modified by oxigram: positions and scrolling follow the interface zoom; see ADR 0005.
 use gpui::{
     Capslock, KeyDownEvent, KeyUpEvent, Keystroke, Modifiers, ModifiersChangedEvent, MouseButton,
     MouseDownEvent, MouseExitEvent, MouseMoveEvent, MousePressureEvent, MouseUpEvent,
@@ -262,7 +262,7 @@ pub(crate) unsafe fn platform_input_from_native(
                 );
 
                 let delta = if native_event.hasPreciseScrollingDeltas() {
-                    // rgram patch (ADR 0005): scrolls the same distance on screen.
+                    // oxigram patch (ADR 0005): scrolls the same distance on screen.
                     ScrollDelta::Pixels(raw_data.map(|value| px(value / crate::interface_zoom())))
                 } else {
                     ScrollDelta::Lines(raw_data)

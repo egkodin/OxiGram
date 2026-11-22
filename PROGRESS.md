@@ -1,5 +1,18 @@
 # Progress
 
+## OxiGram naming and QR branding (2026-11-22)
+
+- The checkout, build settings, cache paths and language keys use the OxiGram
+  name. Runtime configuration uses `OXIGRAM_*`. Existing account storage
+  stays in `OxiGram`, with migration retained for early installations.
+- The welcome screen and QR widget use the supplied `OxiGram.icns` artwork.
+  The QR preserves its quiet zone and uses a footer badge when a center
+  overlay would cover a functional pattern.
+- Workspace tests, formatting, strict Clippy and shell syntax checks passed
+  on macOS. Apple Vision decoded three rendered fixture codes exactly. Cargo
+  Audit reported seven maintenance warnings from its cached database. Cargo
+  Deny still reports the Chrono advisory.
+
 ## Automated release command (2026-11-22)
 
 - `scripts/build-release.sh` finds the checkout, loads the existing local
@@ -431,7 +444,7 @@ verification. Git metadata occupied about
   (2026-11-03). Turn `debug = true` on only to debug, then back off.
 - Snapshots, soak frames and live-run logs stay under target/ and are
   overwritten; delete an old app bundle before building a new one.
-- TDLib and FFmpeg builds live in ~/.cache/rgram, one version each.
+- TDLib and FFmpeg builds live in ~/.cache/oxigram, one version each.
 - Every milestone report gives the sizes of target/ and .git.
 
 ## Rounds, speed, reactions and sticker sets (2026-11-09)
@@ -460,7 +473,7 @@ verification. Git metadata occupied about
   ranges at priority 32); every player streams. Live numbers in
   docs/perf.md "M5: video streaming"; parity row "Streaming playback
   while downloading".
-- `RGRAM_SILENT=1` silences the players for live runs.
+- `OXIGRAM_SILENT=1` silences the players for live runs.
 - Open: tdesktop's time on the same video, the buffering spinner live
   (the data never ran late), a song in the player bar, Save As after a
   full load. The account in the app is `account-1`; the root data dir is
@@ -470,15 +483,10 @@ verification. Git metadata occupied about
 
 The owner asked for ten things at once; state of each:
 
-1. Renamed to OxiGram: the `oxigram` package and binary, window title,
-   strings, `OxiGram.app` (bundle id `org.oxigram.client`). The data
-   directory moves from `rgram` to `OxiGram` on first start when only
-   the old one exists; the `RGRAM_*` variables and the `rgram.api_id` /
-   `rgram.api_hash` Keychain items keep their names.
-2. Icon: the owner's `Telegram_Orange.icns` is copied to
-   `resources/OxiGram.icns`, git-ignored, and goes into local bundles
-   only: it is Telegram's logo (ADR 0004 §2.4); a build for anyone else
-   needs OxiGram's own icon.
+1. Renamed the package, binary, window title and app bundle. The bundle
+   identifier is `org.oxigram.client`. Existing data directories continue
+   to migrate to `OxiGram` on first start.
+2. The app uses the owner's `resources/OxiGram.icns`.
 3. Pull to the next channel needs a scroll that starts after a pause and
    moves at half speed; the card animates.
 4. Blurry userpics: stopped downloads are asked again (store).
@@ -528,7 +536,7 @@ Live tests (read-only unless they say Saved Messages):
 60. Hide the window (minimize) while stickers play and back: they pause
     and go on; idle CPU with the chat open (`ps -o time=` over 10 s).
 
-Live run 2026-11-06 (release OxiGram.app, `RGRAM_WITHHOLD_VIEWS=1`,
+Live run 2026-11-06 (release OxiGram.app, `OXIGRAM_WITHHOLD_VIEWS=1`,
 reading only):
 - 51: passed for the Dock, menu bar and window title (OxiGram), the old
   chats and the dark title bar. Dragging and double-clicking the title
@@ -544,9 +552,9 @@ reading only):
   never loaded older ones. `scroll_to_end` anchors gpui's list past the
   last row, so every row read as above the viewport. The preload now
   loads older pages while the rows fit, and falls back to newer pages
-  when the oldest is in. `RGRAM_LOG=features::history=debug` logs each
+  when the oldest is in. `OXIGRAM_LOG=features::history=debug` logs each
   preload and page. Три ебалая now fills on open.
-- Found: the cached FFmpeg (`~/.cache/rgram/ffmpeg-9.0.2`) was built
+- Found: the cached FFmpeg (`~/.cache/oxigram/ffmpeg-9.0.2`) was built
   before `build-ffmpeg.sh` added libvpx. It has no `libvpx.a`, so WebM
   stickers lose their alpha ("no libvpx" in the log) and decode on
   FFmpeg's own VP9. Rebuild that cache with `scripts/build-ffmpeg.sh`.
@@ -559,7 +567,7 @@ reading only):
 
 The owner asked for tdesktop's whole Settings section, sections in order,
 without stopping. Done so far, each committed with parity rows and a live
-test (31-40): main page, rgram settings, My Account, Notifications and
+test (31-40): main page, oxigram settings, My Account, Notifications and
 Sounds, Privacy and Security (all rows with state, privacy rule box),
 Blocked users, Active sessions (info box, rename, "If inactive for"),
 Connected websites, Auto-Delete Messages, the messages privacy, clear
@@ -587,7 +595,7 @@ Next, in this order (see the shortcut comments in
    only the local cache, ask the owner before the live test), Downloads
    (the existing downloads view). Auto-download, download path, window
    title, tray/Dock, spellchecker, export and updates have nothing in
-   rgram to control yet: leave them out and list them in parity.
+   oxigram to control yet: leave them out and list them in parity.
    Speakers and Camera done (devices, accept calls, system settings),
    Battery and Animations done (Power Usage box), Language done
    (Language box), Default interface scale done (main page switch and
@@ -664,7 +672,7 @@ Next, in this order (see the shortcut comments in
   the line along the bottom. Snapshots 195-196.
 - Minimal static FFmpeg (`scripts/build-ffmpeg.sh`, `ffmpeg/SOURCES`, ADR
   0006 "Revisited in M5"): FFmpeg 9.0.2 and dav1d 1.5.4 from checked
-  tarballs, only rgram's decoders, demuxers and parsers, VideoToolbox /
+  tarballs, only oxigram's decoders, demuxers and parsers, VideoToolbox /
   VAAPI / D3D11VA. Built and linked here: 34 MB of archives, 6.2 MB in a
   stripped probe that decodes H.264.
 - Download bar (`dialogs/download_bar.rs`, `model::downloads`): downloads
@@ -768,8 +776,8 @@ Next, in this order (see the shortcut comments in
 - Live tests 28 and 29 run 2026-11-04 (release bundle, views withheld):
   profiles of a channel, a group, a member and one's own; the big photo
   sharpens, photos page in the viewer, the media lists load, the bio edit
-  saved and was put back. "rgram test group" (no members, no photo) and
-  "rgram test channel" (private) were created, opened and deleted from
+  saved and was put back. "oxigram test group" (no members, no photo) and
+  "oxigram test channel" (private) were created, opened and deleted from
   their profiles. Fixed from the run: night colors that copy another
   color (`boxDividerBg: windowBgOver` and 12 more) now follow the night
   theme as tdesktop's `palette::compute` does (the dividers were white);
@@ -837,7 +845,7 @@ Next, in this order (see the shortcut comments in
 - Download bar: a still ring, no grow or fade when done, no thumbnail in
   the circle; voice notes still download outside the list; the section
   has only the newest 100, no search, delete, pause, menu or selection; the static FFmpeg
-  is not in CI yet and rgram does not link it yet.
+  is not in CI yet and oxigram does not link it yet.
 
 - Online presence (owner's go-ahead 2026-11-04): `Session::set_presence`
   sets TDLib's `online` option from the main view, online while the
@@ -956,7 +964,7 @@ Next, in this order (see the shortcut comments in
     the controller; Space pauses and resumes; click and drag on the seek
     bar; at the end the button shows Play and a click starts again; a
     720p or 1080p H.264 video decodes on VideoToolbox (Activity Monitor:
-    low CPU for rgram while it plays); a link with a start time starts
+    low CPU for oxigram while it plays); a link with a start time starts
     there.
 20. Round videos and GIFs, read only: in a chat with round videos,
     download one and click Play: it plays in the circle with its sound
@@ -984,10 +992,10 @@ Next, in this order (see the shortcut comments in
     bar's name: the playlist opens under it with the chat's songs, newest
     on top, the playing one scrolled into view with "played / length";
     click another song: it plays; move the pointer away: it closes.
-24. Quit (Cmd-Q, then once with the Dock's Quit): rgram closes within a
+24. Quit (Cmd-Q, then once with the Dock's Quit): oxigram closes within a
     couple of seconds with no "quit unexpectedly" dialog and no new
-    `rgram-*.ips` in ~/Library/Logs/DiagnosticReports.
-25. Userpics after a restart: quit rgram, start it again: the chat list,
+    `oxigram-*.ips` in ~/Library/Logs/DiagnosticReports.
+25. Userpics after a restart: quit oxigram, start it again: the chat list,
     group senders, top bar and main menu show sharp photos at once (no
     blurry previews that stay); compare a few with Telegram on a phone.
 26. Delete box, without deleting outside Saved Messages: right-click your
@@ -1013,13 +1021,13 @@ Next, in this order (see the shortcut comments in
     Do not press Block, Report, Delete or Leave. My Profile (main menu):
     edit the bio, then put it back; the same for the birthday if you like.
 29. New Group and New Channel (they change your account: only after you
-    say yes, and both get deleted afterwards). New Group: name "rgram test
+    say yes, and both get deleted afterwards). New Group: name "oxigram test
     group", a photo, Next, pick one contact you agree to add, Create: the
-    group opens with its photo. New Channel: name "rgram test channel",
+    group opens with its photo. New Channel: name "oxigram test channel",
     Create, Private shows the invite link; Save, Skip the subscribers: the
     channel opens. Then delete both from their profiles: Delete group,
     Delete channel (owners only, confirmed).
-30. Online presence: bring rgram's window to the front; your own profile
+30. Online presence: bring oxigram's window to the front; your own profile
     (and your account seen from another device) shows "online". Switch to
     another app: within a minute it reads "last seen just now". Leave the
     window in front untouched for 30 s: it reads "last seen just now";
@@ -1032,7 +1040,7 @@ Next, in this order (see the shortcut comments in
     then Settings. The QR button: a code shows with your username; scan it
     with the phone's camera: it opens your profile; do not press copy or
     share. The menu: Add Account, Edit info and Log Out show (press none).
-    "rgram settings": the send-by choice matches Chat Settings (do not
+    "oxigram settings": the send-by choice matches Chat Settings (do not
     change it). Escape goes back a page, then closes.
 32. My Account, read-only unless you agree: Settings, menu, Edit info:
     your photo, name, "online", bio, name, phone, @username, personal
@@ -1060,7 +1068,7 @@ Next, in this order (see the shortcut comments in
     "bot". Do not press Block user or Unblock unless you agree; if you
     unblock someone to test, block them again the same way.
 36. Active sessions, read-only: Privacy and Security, Active sessions.
-    "This device" shows this Mac with rgram's app line; the other devices
+    "This device" shows this Mac with oxigram's app line; the other devices
     match the phone, each with its device icon, app, place and last
     activity. Open "If inactive for...": the ticked choice matches the
     phone; Cancel. Press no terminate button. Also open "If away for..."
@@ -1095,7 +1103,7 @@ Next, in this order (see the shortcut comments in
     "Default (TCP used)" (or the proxy the phone app does not share);
     open it: the IPv6 tick and the proxy list match what tdesktop showed
     on this Mac, pings come in; Close without changes. Open "Manage local
-    storage": the sizes look like rgram's cache; press no Clear unless
+    storage": the sizes look like oxigram's cache; press no Clear unless
     you agree (it deletes only local copies). "Downloads" opens the
     downloads list.
 42. Speakers and Camera: Settings, Speakers and Camera. Both devices
@@ -1115,12 +1123,12 @@ Next, in this order (see the shortcut comments in
     only German stays; pick it: the interface switches to German at
     once (the main page row reads "Deutsch"); pick English back, OK.
 45. Interface scale: Settings, main page. "Default interface scale" is
-    on at 100 %; drag the slider to 125 %, release, "Restart now": rgram
+    on at 100 %; drag the slider to 125 %, release, "Restart now": oxigram
     starts again with everything larger, clicks land where drawn; turn
     "Default interface scale" back on, "Restart now": back to 100 %.
 46. Premium, read-only: Settings, Telegram Premium. The periods and
     prices match the phone's; "Subscribe for ... per month" shows the
-    toast "Checkout isn't in rgram yet..." and nothing is paid. With
+    toast "Checkout isn't in oxigram yet..." and nothing is paid. With
     Premium: "You are all set!" with the renewal date, no button.
 47. My Stars, read-only: Settings, My Stars. The balance matches the
     phone's; the tabs list the same transactions; "Top Up Balance" lists
@@ -1329,7 +1337,7 @@ Sending only in Saved Messages:
    shows the restriction text.
 7. Drafts in Saved Messages: type, switch chats, come back: the text is
    there and the list shows "Draft:". Type on the phone in Saved Messages
-   while rgram has it open: the field follows. Send: the draft goes.
+   while oxigram has it open: the field follows. Send: the draft goes.
 8. In Saved Messages: reply to a message from the menu and with Cmd+Up,
    send; edit the last message with Up, change it, Enter; Escape while
    editing gives the field back. Forward a message from another chat to
@@ -1501,11 +1509,11 @@ Sending only in Saved Messages:
 ### Live run setup
 
 - Credentials: git-ignored `.env` at the project root (mode 600), with a
-  copy in the login Keychain (`rgram.api_id`, `rgram.api_hash`).
+  copy in the login Keychain (`oxigram.api_id`, `oxigram.api_hash`).
 - Start with `scripts/run-live.sh` (release build, production DC, log in
-  `target/run-live.log`). It sets `RGRAM_WITHHOLD_VIEWS=1`, so browsing
+  `target/run-live.log`). It sets `OXIGRAM_WITHHOLD_VIEWS=1`, so browsing
   real chats reads nothing; reading is checked in Saved Messages only, with
-  `RGRAM_WITHHOLD_VIEWS=0`.
+  `OXIGRAM_WITHHOLD_VIEWS=0`.
 - The owner signs in at the Mac (phone, code, 2FA password, or QR); the
   codes are never asked for in chat. Run M1-M3 first, then M4.
 
@@ -1572,7 +1580,7 @@ M3, history:
   dependency) with tdesktop's token colors.
 - Permission to download Telegram Desktop for screenshot comparison.
 - The unsupported message notice links to desktop.telegram.org as tdesktop
-  does; an rgram releases page could replace it once releases exist.
+  does; an oxigram releases page could replace it once releases exist.
 
 ## M2: Chat list (in progress; checkpoint committed)
 
@@ -1639,7 +1647,7 @@ M3, history:
   the search suggestions and focused-field looks have no snapshot; the
   suggestions were checked by eye once with seeded data.
 
-- Everything live: `RGRAM_API_ID` / `RGRAM_API_HASH` are still not set.
+- Everything live: `OXIGRAM_API_ID` / `OXIGRAM_API_HASH` are still not set.
   Context-menu actions modify the account; they will only run in Saved
   Messages or on the test DC, with the owner's say-so.
 - Perf numbers for a real list (needs an account).
@@ -1658,7 +1666,7 @@ M3, history:
   terms updates, suggested language, `Session` requests; `Secret` keeps phone
   numbers, codes and passwords out of `Debug` and logs.
 - `i18n`: English strings generated from tdesktop's `lang.strings` by
-  `tools/lang-gen`, plurals, rgram's own strings; `features::lang` loads and
+  `tools/lang-gen`, plurals, oxigram's own strings; `features::lang` loads and
   switches TDLib language packs.
 - `style`: tdesktop `.style` files exported by `tools/style-gen` (basic,
   widgets, intro, window, layers, boxes and more) and their icons.
@@ -1669,8 +1677,8 @@ M3, history:
   error boxes (banned number, Premium required, flood), the box layer, the
   connecting pill, a signed-in placeholder with log out, terms updates after
   sign-in, and `Root` choosing the screen by authorization state.
-- `app`: per-OS data directory (`RGRAM_DATA_DIR` overrides it, test DC gets
-  its own), `RGRAM_TEST_DC=1`, TDLib parameters on request, language pack on
+- `app`: per-OS data directory (`OXIGRAM_DATA_DIR` overrides it, test DC gets
+  its own), `OXIGRAM_TEST_DC=1`, TDLib parameters on request, language pack on
   start, a new client after `authorizationStateClosed` (log out, QR to phone),
   close TDLib before quitting, localized Quit menu.
 - `cargo run -p oxigram --example snapshots`: renders each sign-in screen with a
@@ -1698,7 +1706,7 @@ M3, history:
 ### Not verified
 
 - Every live sign-in flow, staying signed in, log out and terms updates:
-  `RGRAM_API_ID` / `RGRAM_API_HASH` are not set. Rows in `docs/parity.md` say
+  `OXIGRAM_API_ID` / `OXIGRAM_API_HASH` are not set. Rows in `docs/parity.md` say
   which ones only have snapshots.
 - The country box, the sign-up terms box, the banned-number and reset boxes,
   and animations: the snapshot example does not open them yet.
@@ -1735,7 +1743,7 @@ M3, history:
   (missing `font-kit`); all three candidates were re-measured and the ADR holds
   the corrected numbers. Spike code deleted.
 - TDLib: [ADR 0003](docs/adr/0003-tdlib-integration.md). `scripts/build-tdlib.sh`
-  builds `libtdjson` 1.8.69 (`ea3f69ce1`) into `~/.cache/rgram`;
+  builds `libtdjson` 1.8.69 (`ea3f69ce1`) into `~/.cache/oxigram`;
   `scripts/check-td-schema.sh` checks the vendored `td_api.tl` against it.
 - Workspace: edition 2024, Rust 1.99.1, workspace lints, release profile
   (`lto = "fat"`, `codegen-units = 1`, `panic = "abort"`, `strip`), `Cargo.lock`.
@@ -1748,7 +1756,7 @@ M3, history:
     per client, close and shutdown semantics, content-free decode errors.
   - `style` and `tools/style-gen`: the palette exported from `colors.palette`
     (586 colors), with a snapshot test.
-  - `app` (`rgram`): credentials from `RGRAM_API_ID`/`RGRAM_API_HASH` with a
+  - `app` (`oxigram`): credentials from `OXIGRAM_API_ID`/`OXIGRAM_API_HASH` with a
     clear error in the window, `tracing` logging, the empty main window, TDLib
     version check at startup.
 - CI workflow: fmt, schema check, `cargo deny`, `cargo audit`,
