@@ -7,31 +7,36 @@ use std::process::Command;
 /// What a device shows as when the system does not say.
 const FALLBACK_MODEL: &str = "Desktop";
 
-// shortcut: the raw model id ("Mac16,10"); tdesktop maps ids to names like "MacBook Pro", worth doing with the M7 OS integration.
-pub(crate) fn model() -> String {
+pub(crate) fn describe() -> (String, String) {
     if cfg!(target_os = "macos") {
-        return output("sysctl", &["-n", "hw.model"]).unwrap_or_else(|| FALLBACK_MODEL.to_owned());
+        // sysctl can return one value even when the other key is unavailable.
+        let output = Command::new("/usr/sbin/sysctl")
+            .args(["hw.model", "kern.osproductversion"])
+            .output()
+            .ok();
+        return mac_description(
+            output
+                .as_ref()
+                .map_or(&[], |output| output.stdout.as_slice()),
+        );
     }
-    FALLBACK_MODEL.to_owned()
+    (FALLBACK_MODEL.to_owned(), std::env::consts::OS.to_owned())
 }
 
-pub(crate) fn system_version() -> String {
-    if cfg!(target_os = "macos") {
-        return output("sw_vers", &["-productVersion"])
-            .map_or_else(|| "macOS".to_owned(), |version| format!("macOS {version}"));
-    }
-    std::env::consts::OS.to_owned()
-}
-
-/// A command's trimmed output, `None` if it fails or prints nothing.
-fn output(program: &str, args: &[&str]) -> Option<String> {
-    let output = Command::new(program).args(args).output().ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let text = String::from_utf8(output.stdout).ok()?;
-    let text = text.trim();
-    (!text.is_empty()).then(|| text.to_owned())
+fn mac_description(output: &[u8]) -> (String, String) {
+    let output = String::from_utf8_lossy(output);
+    let value = |key: &str| {
+        output
+            .lines()
+            .filter_map(|line| line.split_once(':'))
+            .find(|(name, _)| *name == key)
+            .map(|(_, value)| value.trim())
+            .filter(|value| !value.is_empty())
+    };
+    let model = value("hw.model").unwrap_or(FALLBACK_MODEL).to_owned();
+    let version = value("kern.osproductversion")
+        .map_or_else(|| "macOS".to_owned(), |version| format!("macOS {version}"));
+    (model, version)
 }
 
 #[cfg(test)]
@@ -40,7 +45,20 @@ mod tests {
 
     #[test]
     fn device_and_system_are_never_empty() {
-        assert!(!model().is_empty());
-        assert!(!system_version().is_empty());
+        let (model, system) = describe();
+        assert!(!model.is_empty());
+        assert!(!system.is_empty());
+    }
+
+    #[test]
+    fn mac_properties_are_independent() {
+        assert_eq!(
+            mac_description(b"hw.model: Mac16,10\nkern.osproductversion: 26.1\n"),
+            ("Mac16,10".into(), "macOS 26.1".into()),
+        );
+        assert_eq!(
+            mac_description(b"kern.osproductversion: 26.1\n"),
+            ("Desktop".into(), "macOS 26.1".into()),
+        );
     }
 }

@@ -56,7 +56,7 @@ pub(crate) fn start(
     data: PathBuf,
     cx: &mut App,
 ) -> Entity<Accounts> {
-    shutdown::init(cx, runtime.stopper());
+    shutdown::init(cx, Some(runtime.stopper()));
     let connection = Rc::new(Connection {
         runtime,
         parameters,

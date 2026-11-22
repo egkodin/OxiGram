@@ -8,7 +8,6 @@ mod shutdown;
 
 use anyhow::Context as _;
 use features::{Accounts, Root};
-use futures::StreamExt as _;
 use gpui::{
     App, AppContext as _, Bounds, Context, Entity, IntoElement, ParentElement, Render,
     SharedString, Styled, TitlebarOptions, Window, WindowBounds, WindowOptions, div, px, size,
@@ -51,22 +50,23 @@ fn main() -> anyhow::Result<()> {
         media::silence_output();
     }
     let environment = environment();
-    let parameters = credentials::from_env()
-        .map_err(|error| SharedString::from(error.to_string()))
-        .and_then(|credentials| {
-            parameters(credentials, environment)
-                .map_err(|error| SharedString::from(format!("{error:#}")))
-        });
-    if parameters.is_err() {
-        tracing::error!(
-            "cannot start: Telegram API credentials or the data directory are unusable"
-        );
-    }
-
     let data =
         paths::data_dir(environment).map_err(|error| SharedString::from(format!("{error:#}")));
-    let settings = data.clone().map(|dir| dir.join(SETTINGS_FILE));
-    let runtime = tg::Runtime::start().context("starting TDLib")?;
+    let settings = data.as_ref().ok().map(|dir| dir.join(SETTINGS_FILE));
+    let connection = credentials::from_env()
+        .map_err(|error| SharedString::from(error.to_string()))
+        .and_then(|credentials| {
+            let data = data?;
+            let parameters = parameters(credentials, environment, &data)
+                .map_err(|error| SharedString::from(format!("{error:#}")))?;
+            let runtime = tg::Runtime::start()
+                .context("starting TDLib")
+                .map_err(|error| SharedString::from(format!("{error:#}")))?;
+            Ok((runtime, parameters, data))
+        });
+    if connection.is_err() {
+        tracing::error!("cannot start a Telegram connection");
+    }
     gpui_platform::application().run(move |cx: &mut App| {
         if let Err(error) = ui::init(cx) {
             tracing::error!("{error:#}");
@@ -75,29 +75,21 @@ fn main() -> anyhow::Result<()> {
         }
         features::init(cx);
         match settings {
-            Ok(path) => features::settings::load(path, cx),
-            Err(_) => tracing::warn!("settings unavailable because the data directory is unusable"),
+            Some(path) => features::settings::load(path, cx),
+            None => tracing::warn!("settings unavailable because the data directory is unusable"),
         }
         // Before the window opens: windows read the zoom as they are made.
         #[cfg(target_os = "macos")]
         gpui_macos::set_interface_zoom(features::settings::interface_zoom(cx));
-        let parameters = parameters.map(
-            |parameters| match features::settings::custom_device_model(cx) {
-                Some(device_model) => Parameters {
-                    device_model,
-                    ..parameters
-                },
-                None => parameters,
-            },
-        );
-        let content = match (parameters, data) {
-            (Ok(parameters), Ok(data)) => {
+        let content = match connection {
+            Ok((runtime, mut parameters, data)) => {
+                if let Some(device_model) = features::settings::custom_device_model(cx) {
+                    parameters.device_model = device_model;
+                }
                 Content::Signed(client::start(runtime, parameters, data, cx))
             }
-            (Err(notice), _) | (_, Err(notice)) => {
-                start_idle_client(&runtime, cx);
-                // The idle client only has to close; TDLib's threads stop with the process.
-                std::mem::forget(runtime);
+            Err(notice) => {
+                shutdown::init(cx, None);
                 Content::Notice(notice)
             }
         };
@@ -122,11 +114,12 @@ fn environment() -> Environment {
 fn parameters(
     credentials: credentials::ApiCredentials,
     environment: Environment,
+    data: &std::path::Path,
 ) -> anyhow::Result<Parameters> {
-    let data = paths::data_dir(environment)?;
-    std::fs::create_dir_all(&data)
+    std::fs::create_dir_all(data)
         .with_context(|| format!("creating the data directory {}", data.display()))?;
     let path = |name: &str| data.join(name).to_string_lossy().into_owned();
+    let (device_model, system_version) = device::describe();
     Ok(Parameters {
         environment,
         database_directory: path(paths::DATABASE_DIR),
@@ -135,29 +128,14 @@ fn parameters(
         api_id: credentials.id,
         api_hash: Secret::new(credentials.hash),
         system_language: paths::system_language(),
-        device_model: device::model(),
-        system_version: device::system_version(),
+        device_model,
+        system_version,
         application_version: env!("CARGO_PKG_VERSION").to_owned(),
         views: match std::env::var(WITHHOLD_VIEWS_VAR).as_deref() {
             Ok("1" | "true") => model::Views::Withhold,
             _ => model::Views::Report,
         },
     })
-}
-
-/// Without credentials the client never signs in; it runs only so quitting
-/// follows the same path.
-fn start_idle_client(runtime: &tg::Runtime, cx: &mut App) {
-    let (client, mut updates) = runtime.create_client();
-    let (closed_sender, closed) = shutdown::closed_signal();
-    cx.background_executor()
-        .spawn(async move {
-            while updates.next().await.is_some() {}
-            closed_sender.send(()).ok();
-        })
-        .detach();
-    shutdown::init(cx, runtime.stopper());
-    shutdown::set_client(cx, 0, client, closed);
 }
 
 /// Prints the rgram and TDLib versions; launching the binary directly checks

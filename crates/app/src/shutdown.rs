@@ -42,7 +42,7 @@ struct Running {
 
 struct Shutdown {
     clients: Vec<Running>,
-    stopper: tg::Stopper,
+    stopper: Option<tg::Stopper>,
     is_quitting: bool,
     /// Start rgram again once TDLib has closed (`Core::Restart`).
     is_restarting: bool,
@@ -72,7 +72,7 @@ impl Shutdown {
 impl Global for Shutdown {}
 
 /// Installs the Quit action, its menu item and shortcut, and the quit hooks.
-pub(crate) fn init(cx: &mut App, stopper: tg::Stopper) {
+pub(crate) fn init(cx: &mut App, stopper: Option<tg::Stopper>) {
     cx.set_global(Shutdown {
         clients: Vec::new(),
         stopper,
@@ -95,16 +95,15 @@ pub(crate) fn init(cx: &mut App, stopper: tg::Stopper) {
     .detach();
     cx.on_app_quit(|cx| {
         let shutdown = cx.global::<Shutdown>();
-        // After a graceful quit the requests fail at once with `Closed`, and
-        // the clients have closed already.
-        let closed = shutdown.close_all();
         let stopper = shutdown.stopper.clone();
+        let closed = stopper.as_ref().map(|_| shutdown.close_all());
         let executor = cx.background_executor().clone();
         async move {
-            closed.await;
-            tracing::info!("TDLib closed");
-            // shortcut: up to a second on the receive timeout, past gpui's 200 ms; wake td_receive if the OS-quit path still crashes.
-            executor.spawn(async move { stopper.stop() }).await;
+            if let (Some(closed), Some(stopper)) = (closed, stopper) {
+                closed.await;
+                tracing::info!("TDLib closed");
+                executor.spawn(async move { stopper.stop() }).await;
+            }
         }
     })
     .detach();
@@ -171,11 +170,15 @@ pub(crate) fn quit(cx: &mut App) {
                 tracing::warn!(timeout = ?CLOSE_TIMEOUT, "TDLib did not close in time");
             }
         }
-        cx.background_executor()
-            .spawn(async move { stopper.stop() })
-            .await;
+        if let Some(stopper) = stopper {
+            cx.background_executor()
+                .spawn(async move { stopper.stop() })
+                .await;
+        }
         cx.update(|cx| {
-            if cx.global::<Shutdown>().is_restarting {
+            let shutdown = cx.global_mut::<Shutdown>();
+            shutdown.stopper = None;
+            if shutdown.is_restarting {
                 start_again();
             }
             cx.quit();
