@@ -1631,7 +1631,7 @@ dependencies = [
 
 [[package]]
 name = "features"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "chrono",
  "futures",
@@ -2582,7 +2582,7 @@ dependencies = [
 
 [[package]]
 name = "i18n"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 
 [[package]]
 name = "iana-time-zone"
@@ -2955,7 +2955,7 @@ dependencies = [
 
 [[package]]
 name = "lang-gen"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "anyhow",
 ]
@@ -3204,7 +3204,7 @@ dependencies = [
 
 [[package]]
 name = "media"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "cpal",
  "ffmpeg-next",
@@ -3285,7 +3285,7 @@ dependencies = [
 
 [[package]]
 name = "model"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "base64",
  "futures",
@@ -4058,7 +4058,7 @@ dependencies = [
 
 [[package]]
 name = "oxigram"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "anyhow",
  "base64",
@@ -5414,11 +5414,11 @@ dependencies = [
 
 [[package]]
 name = "style"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 
 [[package]]
 name = "style-gen"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "anyhow",
  "insta",
@@ -5571,7 +5571,7 @@ dependencies = [
 
 [[package]]
 name = "td-api"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5580,7 +5580,7 @@ dependencies = [
 
 [[package]]
 name = "td-api-gen"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "tdlib-rs-parser",
  "thiserror 2.0.21",
@@ -5588,7 +5588,7 @@ dependencies = [
 
 [[package]]
 name = "td-sys"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 
 [[package]]
 name = "tdlib-rs-parser"
@@ -5620,7 +5620,7 @@ dependencies = [
 
 [[package]]
 name = "tg"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "futures",
  "futures-channel",
@@ -5968,7 +5968,7 @@ dependencies = [
 
 [[package]]
 name = "ui"
-version = "0.1.0"
+version = "0.1.1-preview.1"
 dependencies = [
  "gpui",
  "image",
