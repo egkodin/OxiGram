@@ -4064,7 +4064,6 @@ dependencies = [
  "base64",
  "chrono",
  "features",
- "flate2",
  "futures",
  "gpui",
  "gpui_macos",
@@ -4073,12 +4072,12 @@ dependencies = [
  "image",
  "media",
  "model",
+ "oxigram-package",
  "semver",
  "serde",
  "serde_json",
  "sha2",
  "style",
- "tar",
  "td-api",
  "td-sys",
  "tempfile",
@@ -4087,6 +4086,16 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ui",
+]
+
+[[package]]
+name = "oxigram-package"
+version = "0.1.1-preview.1"
+dependencies = [
+ "anyhow",
+ "flate2",
+ "tar",
+ "tempfile",
  "zip",
 ]
 

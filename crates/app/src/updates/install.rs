@@ -8,9 +8,10 @@ use std::process::Stdio;
 
 use anyhow::{Context as _, ensure};
 use semver::Version;
+use sha2::{Digest as _, Sha256};
 use tempfile::TempDir;
 
-use super::{archive, quiet_command, releases::Update};
+use super::{quiet_command, releases::Update};
 
 const MARKER_MAGIC: &str = "OxiGram package 1";
 const MAX_MARKER: u64 = 256_000;
@@ -63,9 +64,28 @@ impl Layout {
 }
 
 #[derive(Clone)]
+struct Launcher {
+    path: PathBuf,
+    pid: u32,
+}
+
+impl Launcher {
+    fn current() -> Option<Self> {
+        let path = PathBuf::from(std::env::var_os(oxigram_package::LAUNCHER_PATH)?);
+        let pid = std::env::var(oxigram_package::LAUNCHER_PID)
+            .ok()?
+            .parse()
+            .ok()?;
+        let file = fs::symlink_metadata(&path).ok()?;
+        (path.is_absolute() && file.is_file() && pid != 0).then_some(Self { path, pid })
+    }
+}
+
+#[derive(Clone)]
 pub(super) struct Package {
     root: PathBuf,
     layout: Layout,
+    launcher: Option<Launcher>,
     pub(super) version: Version,
 }
 
@@ -82,6 +102,7 @@ impl Package {
         (marker.lines().nth(1)? == version.to_string()).then_some(Self {
             root: root.to_owned(),
             layout,
+            launcher: Launcher::current(),
             version,
         })
     }
@@ -91,6 +112,13 @@ impl Package {
             "aarch64" => "arm64",
             arch => arch,
         };
+        if self.launcher.is_some() {
+            return match self.layout {
+                Layout::Mac => format!("macos-{arch}"),
+                Layout::Linux => format!("linux-{arch}"),
+                Layout::Windows => format!("windows-{arch}.exe"),
+            };
+        }
         match self.layout {
             Layout::Mac => format!("macos-{arch}.zip"),
             Layout::Linux => format!("linux-{arch}.tar.gz"),
@@ -103,7 +131,22 @@ impl Package {
         update: &Update,
         profile: Option<&Path>,
     ) -> anyhow::Result<Prepared> {
-        validate(self.layout, &self.root, &self.version)?;
+        let replaced = self
+            .launcher
+            .as_ref()
+            .map_or(self.root.as_path(), |launcher| &launcher.path);
+        let fingerprint = if self.launcher.is_some() {
+            ensure!(
+                fs::symlink_metadata(replaced)?.is_file(),
+                "the installed executable was moved"
+            );
+            let mut hash = Sha256::new();
+            std::io::copy(&mut fs::File::open(replaced)?, &mut hash)?;
+            Some(format!("{:x}", hash.finalize()))
+        } else {
+            validate(self.layout, &self.root, &self.version)?;
+            None
+        };
         if let Some(profile) = profile {
             let profile = profile
                 .canonicalize()
@@ -113,8 +156,7 @@ impl Package {
                 "the account profile is inside the application folder"
             );
         }
-        let parent = self
-            .root
+        let parent = replaced
             .parent()
             .context("the installation has no parent directory")?;
         let temporary = tempfile::Builder::new()
@@ -122,17 +164,35 @@ impl Package {
             .tempdir_in(parent)
             .context("creating a staging folder beside OxiGram")?;
         let staging = temporary.path();
-        let archive_path = staging.join("download");
-        let compressed = update.download(&archive_path)?;
-        archive::unpack(
-            compressed,
-            staging,
-            self.layout.archive_root(),
-            !matches!(self.layout, Layout::Linux),
-        )?;
-        fs::remove_file(archive_path)?;
-        let incoming = staging.join(self.layout.archive_root());
-        validate(self.layout, &incoming, &update.version)?;
+        let (incoming, executable) = if self.launcher.is_some() {
+            let path = staging.join(if cfg!(windows) {
+                "incoming.exe"
+            } else {
+                "incoming"
+            });
+            drop(update.download(&path)?);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt as _;
+
+                fs::set_permissions(&path, fs::Permissions::from_mode(0o755))?;
+            }
+            (path.clone(), path)
+        } else {
+            let archive_path = staging.join("download");
+            let compressed = update.download(&archive_path)?;
+            oxigram_package::unpack(
+                compressed,
+                staging,
+                self.layout.archive_root(),
+                !matches!(self.layout, Layout::Linux),
+            )?;
+            fs::remove_file(archive_path)?;
+            let incoming = staging.join(self.layout.archive_root());
+            validate(self.layout, &incoming, &update.version)?;
+            let executable = incoming.join(self.layout.executable());
+            (incoming, executable)
+        };
 
         #[cfg(target_os = "macos")]
         ensure!(
@@ -147,13 +207,14 @@ impl Package {
         );
 
         ensure!(
-            quiet_command(incoming.join(self.layout.executable()))
-                .current_dir(&incoming)
+            quiet_command(executable)
+                .current_dir(staging)
                 .env_remove("OXIGRAM_API_ID")
                 .env_remove("OXIGRAM_API_HASH")
                 .env_remove("DYLD_LIBRARY_PATH")
                 .env_remove("LD_LIBRARY_PATH")
                 .arg("--check-release-configuration")
+                .arg(update.version.to_string())
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status()?
@@ -164,6 +225,7 @@ impl Package {
             temporary,
             incoming,
             package: self.clone(),
+            fingerprint,
         })
     }
 }
@@ -172,13 +234,28 @@ pub(super) struct Prepared {
     temporary: TempDir,
     incoming: PathBuf,
     package: Package,
+    fingerprint: Option<String>,
 }
 
 impl Prepared {
     pub(super) fn launch(self) -> anyhow::Result<()> {
         let stage = self.temporary.path();
-        let root = &self.package.root;
         let mut installer = installer_command();
+        let (root, exe) = if let Some(launcher) = &self.package.launcher {
+            installer
+                .env("OXIGRAM_UPDATE_LAUNCHER_PID", launcher.pid.to_string())
+                .env(
+                    "OXIGRAM_UPDATE_FINGERPRINT",
+                    self.fingerprint.as_deref().unwrap_or_default(),
+                );
+            (launcher.path.as_path(), launcher.path.as_path())
+        } else {
+            installer.env_remove("OXIGRAM_UPDATE_LAUNCHER_PID");
+            (
+                &*self.package.root,
+                Path::new(self.package.layout.executable()),
+            )
+        };
         installer
             .current_dir(root.parent().context("the installation has no parent")?)
             .env("OXIGRAM_UPDATE_PID", std::process::id().to_string())
@@ -187,7 +264,7 @@ impl Prepared {
             .env("OXIGRAM_UPDATE_STAGE", stage)
             .env("OXIGRAM_UPDATE_MARKER", self.package.layout.marker())
             .env("OXIGRAM_UPDATE_FROM", self.package.version.to_string())
-            .env("OXIGRAM_UPDATE_EXE", self.package.layout.executable())
+            .env("OXIGRAM_UPDATE_EXE", exe)
             .env("OXIGRAM_UPDATE_WORKDIR", std::env::current_dir()?)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
@@ -276,7 +353,7 @@ fn inventory(root: &Path, dir: &Path, paths: &mut BTreeSet<String>) -> anyhow::R
             "unexpected package entry"
         );
         ensure!(
-            paths.len() < archive::MAX_ENTRIES,
+            paths.len() < oxigram_package::MAX_ENTRIES,
             "too many entries in the package"
         );
         let relative = path
@@ -309,5 +386,57 @@ mod tests {
         fs::write(temp.path().join("personal.txt"), "preserve me").unwrap();
         assert!(validate(Layout::Linux, temp.path(), &version).is_err());
         assert!(temp.path().join("personal.txt").is_file());
+    }
+    #[cfg(unix)]
+    #[test]
+    fn standalone_update_preserves_neighbors_and_rolls_back_on_launch_failure() {
+        use std::os::unix::fs::PermissionsExt as _;
+        use std::process::Command;
+
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("OxiGram with spaces");
+        let neighbor = directory.path().join("personal.txt");
+        let previous = b"#!/bin/sh\nexit 0\n";
+        let updated = b"#!/bin/sh\nsleep 0.7\n: > \"$OXIGRAM_UPDATE_READY\"\nsleep 1\n";
+        fs::write(&neighbor, "keep").unwrap();
+
+        for (candidate, fingerprint, expected) in [
+            (&b"#!/bin/sh\nexit 1\n"[..], true, &previous[..]),
+            (&updated[..], false, &previous[..]),
+            (&updated[..], true, &updated[..]),
+        ] {
+            fs::write(&root, previous).unwrap();
+            fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
+            let stage = directory.path().join("stage");
+            fs::create_dir(&stage).unwrap();
+            let incoming = stage.join("incoming");
+            fs::write(&incoming, candidate).unwrap();
+            fs::set_permissions(&incoming, fs::Permissions::from_mode(0o755)).unwrap();
+
+            let mut exited = Command::new("true").spawn().unwrap();
+            assert!(exited.wait().unwrap().success());
+            let pid = exited.id().to_string();
+            let fingerprint = if fingerprint {
+                format!("{:x}", Sha256::digest(previous))
+            } else {
+                String::new()
+            };
+            let status = installer_command()
+                .env("OXIGRAM_UPDATE_ROOT", &root)
+                .env("OXIGRAM_UPDATE_EXE", &root)
+                .env("OXIGRAM_UPDATE_STAGE", &stage)
+                .env("OXIGRAM_UPDATE_INCOMING", &incoming)
+                .env("OXIGRAM_UPDATE_PID", &pid)
+                .env("OXIGRAM_UPDATE_LAUNCHER_PID", &pid)
+                .env("OXIGRAM_UPDATE_FINGERPRINT", &fingerprint)
+                .env("OXIGRAM_UPDATE_WORKDIR", directory.path())
+                .env("OXIGRAM_UPDATE_MARKER", "OxiGram.package")
+                .status()
+                .unwrap();
+            assert_eq!(status.success(), fingerprint.len() == 64);
+            assert_eq!(fs::read(&root).unwrap(), expected);
+            assert_eq!(fs::read_to_string(&neighbor).unwrap(), "keep");
+            assert!(!stage.exists());
+        }
     }
 }

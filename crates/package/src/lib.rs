@@ -1,17 +1,24 @@
-//! Streams verified release archives into a private staging directory.
+//! Streams OxiGram release payloads into a private staging directory.
 
-use std::fs::{self, File, OpenOptions};
+use std::fs::{self, OpenOptions};
 use std::io::{self, Read as _};
 use std::path::{Component, Path, PathBuf};
 
 use anyhow::{Context as _, ensure};
 use flate2::read::GzDecoder;
 
-pub(super) const MAX_ENTRIES: usize = 4096;
+/// Maximum entry count of an OxiGram package.
+pub const MAX_ENTRIES: usize = 4096;
 const MAX_EXPANDED: u64 = 400_000_000;
 
-pub(super) fn unpack(
-    archive: File,
+/// Installed executable path passed by the standalone launcher.
+pub const LAUNCHER_PATH: &str = "OXIGRAM_LAUNCHER_PATH";
+/// Launcher process to wait for before replacing the installed executable.
+pub const LAUNCHER_PID: &str = "OXIGRAM_LAUNCHER_PID";
+
+/// Unpacks a ZIP or compressed TAR rooted at the given folder name.
+pub fn unpack(
+    archive: impl io::Read + io::Seek,
     staging: &Path,
     root: &str,
     is_zip: bool,
@@ -119,6 +126,7 @@ fn write_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs::File;
 
     #[test]
     fn restricts_extraction_to_the_managed_root() {

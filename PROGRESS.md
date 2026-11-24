@@ -1,5 +1,25 @@
 # Progress
 
+## Standalone release executables (2026-11-24)
+
+- The release workflow builds and uploads one executable for Linux x86-64,
+  Windows x86-64 and Apple silicon. GitHub Actions uploads the files directly.
+  The launcher includes native libraries and releases its temporary files
+  after the app exits. The macOS payload retains the original icon and bundle
+  metadata.
+- Standalone updates verify the download and bundled version, wait for
+  both processes to exit and replace the installed executable in place.
+  The Unix regression checks successful replacement, rejection of a changed
+  executable, rollback after startup failure and preservation of nearby files.
+- On macOS, the offline packaging check passed with synthetic Telegram
+  configuration, including signature verification, command forwarding,
+  mismatched-version rejection and cleanup. 457 workspace tests passed,
+  four were skipped, and formatting and strict Clippy passed. Cargo Audit
+  reported seven maintenance warnings. Cargo Deny still reports
+  RUSTSEC-2026-0543 for Chrono.
+- Linux and Windows standalone runs and the macOS GUI launch of a
+  downloaded executable remain unverified. No new release was published.
+
 ## Release updater (2026-11-23)
 
 - Packaged builds check GitHub Releases on a background timer. The prompt

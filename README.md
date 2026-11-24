@@ -20,14 +20,14 @@ interaction patterns and aims to use less memory and start faster.
 [CI matrix](.github/workflows/ci.yml) · [Verification notes](PROGRESS.md)
 
 Get the current preview from [GitHub Releases](https://github.com/egkodin/OxiGram/releases).
-Release packages include OxiGram's Telegram API configuration. Open the app
+Release executables include OxiGram's Telegram API configuration. Open the app
 and sign in with Telegram.
 
 Update-enabled packages check GitHub Releases about 20 seconds after launch
 and once a day while running. When an update is available, confirm
-**Update and Restart**. The app verifies the archive before replacing its
-package. Portable Linux and Windows installations should keep the app in
-its own folder. Linux uses the system `curl` command for HTTPS.
+**Update and Restart**. Standalone builds verify the new executable and replace
+the downloaded file in place. Keep the file in a folder you can write to.
+Linux uses the system `curl` command for HTTPS.
 Set `OXIGRAM_DISABLE_UPDATES=1` to turn off these checks.
 
 ## What you can try
@@ -104,17 +104,29 @@ are planned.
 
 ## Package a release
 
-Maintainers can select **Actions → CI → Run workflow** to build release
-archives on all three platforms. CI loads the application's credentials
-from repository secrets and verifies each package before uploading it.
-For an update, publish the CI archives on a GitHub release whose tag
-matches the package version, such as `v0.2.0`. A preview tag must match a
-preview version in `Cargo.toml`. Clients follow stable releases unless
-they are running a preview build.
+Maintainers can select **Actions → CI → Run workflow** to build one
+executable per platform. CI loads the app's Telegram configuration from
+repository secrets and runs an offline launch check before uploading each file.
 
-For a local build, run `bash scripts/build-release.sh` on the target system.
-The script loads an existing git-ignored `.env`, verifies the configuration,
-and writes the package to `target/dist/`.
+| Platform | Release file |
+| --- | --- |
+| Linux x86-64 | `OxiGram-<version>-linux-x86_64` |
+| Windows x86-64 | `OxiGram-<version>-windows-x86_64.exe` |
+| macOS Apple silicon | `OxiGram-<version>-macos-arm64` |
+
+Attach the three executables directly to the GitHub release. Its tag must
+match the version in `Cargo.toml`, including any preview suffix. After download,
+macOS and Linux require `chmod +x` on the file. Run it from a terminal with
+`./` followed by its filename. macOS builds are ad-hoc signed.
+The executable unpacks bundled libraries to a private temporary folder
+and removes them when the app exits normally. The macOS payload uses
+the original OxiGram icon. Users moving from an earlier archive build
+can download the standalone executable from GitHub Releases and keep
+their existing OxiGram profile.
+
+For a local build on the target OS, run `bash scripts/build-release.sh`.
+The script uses the existing git-ignored `.env` and writes the executable to
+`target/dist/`.
 
 ## Run from source
 

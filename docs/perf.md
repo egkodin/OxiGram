@@ -1,5 +1,19 @@
 # Performance and memory
 
+## Standalone executable offline probe (2026-11-24)
+
+On Apple silicon, the signed standalone test file measured 50.01 MB. It
+included a 193.87 MB development executable, TDLib, the icon and bundle
+resources, with FFmpeg linked into the development executable. This is
+an offline development build with synthetic Telegram configuration.
+
+The median time to run and exit with `--check-release-configuration` was
+13.82 ms directly, 1,501.74 ms through the initial launcher and 1,421.35 ms
+with its zlib-rs decoder. Each path ran six times in alternating order,
+with the first run omitted. The launcher measurement includes extraction,
+verification and cleanup. Release GUI startup and signed-in RSS remain
+unmeasured for this format.
+
 ## Offline startup and shutdown measurements (2026-11-22)
 
 On the arm64 macOS development machine, the two subprocesses used to read

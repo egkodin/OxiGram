@@ -14,20 +14,18 @@ runtime-shaders = ["gpui_platform/runtime_shaders"]
 [dependencies]
 anyhow.workspace = true
 features.workspace = true
-flate2.workspace = true
 futures.workspace = true
 gpui.workspace = true
-zip = { version = "9.8.1", default-features = false, features = ["deflate-flate2"] }
 gpui_platform.workspace = true
 i18n.workspace = true
 # `silence_output` for OXIGRAM_SILENT and the snapshots.
 media.workspace = true
 model.workspace = true
+oxigram-package = { path = "../package" }
 semver = "1.0.28"
 serde.workspace = true
 serde_json.workspace = true
 sha2 = "0.10.9"
-tar = { version = "0.4.46", default-features = false }
 tempfile.workspace = true
 style.workspace = true
 td-api.workspace = true

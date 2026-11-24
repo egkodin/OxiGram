@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Package a release built on the current platform.
+# Produce one standalone executable from a native release build.
 set -euo pipefail
 
 build_dir="${1:?release build directory required}"
@@ -19,7 +19,7 @@ if [[ "$arch" == aarch64 ]]; then arch=arm64; fi
 
 smoke_test() {
     env -u OXIGRAM_API_ID -u OXIGRAM_API_HASH -u DYLD_LIBRARY_PATH -u LD_LIBRARY_PATH \
-        "$1" --check-release-configuration
+        "$1" --check-release-configuration "$version"
 }
 
 write_update_marker() {
@@ -62,14 +62,16 @@ PLIST
         codesign --force --sign - "$app/Contents/MacOS/$dylib"
         codesign --force --sign - "$app"
         codesign --verify --deep --strict "$app"
-        smoke_test "$app/Contents/MacOS/OxiGram"
-        ditto -c -k --norsrc --keepParent "$app" "$out/OxiGram-$version-macos-$arch.zip"
+        payload_root=OxiGram.app
+        name="OxiGram-$version-macos-$arch"
+        launcher=oxigram-launcher
         ;;
     Linux)
         cp "$build_dir/oxigram" "$build_dir/libtdjson.so.$tdlib_version" "$stage/"
         write_update_marker "$stage" OxiGram.package
-        smoke_test "$stage/oxigram"
-        tar -czf "$out/OxiGram-$version-linux-$arch.tar.gz" -C "$work" OxiGram
+        payload_root=OxiGram
+        name="OxiGram-$version-linux-$arch"
+        launcher=oxigram-launcher
         ;;
     MINGW*|MSYS*|CYGWIN*)
         cp "$build_dir/oxigram.exe" "$build_dir/"*.dll "$stage/"
@@ -81,12 +83,48 @@ PLIST
             cp "$copyright" "$stage/licenses/$library.txt"
         done
         write_update_marker "$stage" OxiGram.package
-        PATH="/usr/bin:/c/Windows/System32:/c/Windows" smoke_test "$stage/oxigram.exe"
-        STAGE="$(cygpath -w "$stage")" ARCHIVE="$(cygpath -w "$out/OxiGram-$version-windows-x86_64.zip")" \
-            pwsh -NoProfile -Command 'Compress-Archive -LiteralPath $env:STAGE -DestinationPath $env:ARCHIVE'
+        payload_root=OxiGram
+        name="OxiGram-$version-windows-x86_64.exe"
+        launcher=oxigram-launcher.exe
         ;;
     *)
         echo "Unsupported packaging platform: $(uname -s)" >&2
         exit 1
         ;;
 esac
+
+payload="$work/payload.tar.gz"
+launcher_target="$work/launcher"
+COPYFILE_DISABLE=1 tar -czf "$payload" -C "$work" "$payload_root"
+if [[ "$launcher" == *.exe ]]; then
+    payload="$(cygpath -m "$payload")"
+    launcher_target="$(cygpath -m "$launcher_target")"
+fi
+OXIGRAM_PAYLOAD="$payload" cargo build --locked --release --target-dir "$launcher_target" \
+    -p oxigram-package --bin oxigram-launcher
+
+candidate="$work/$name"
+cp "$launcher_target/release/$launcher" "$candidate"
+if [[ "$payload_root" == OxiGram.app ]]; then
+    codesign --force --sign - "$candidate"
+    codesign --verify --strict "$candidate"
+fi
+
+# Exercise the published entry point with no developer credentials or DLL search paths.
+mkdir "$work/smoke"
+(
+    cd "$work/smoke"
+    if [[ "$launcher" == *.exe ]]; then
+        export PATH="/usr/bin:/c/Windows/System32:/c/Windows"
+        export TMP="$(cygpath -m "$PWD")" TEMP="$(cygpath -m "$PWD")"
+    else
+        export TMPDIR="$PWD"
+    fi
+    smoke_test "$candidate"
+    if [[ -n "$(find . -mindepth 1 -print -quit)" ]]; then
+        echo "OxiGram left temporary files after the release check" >&2
+        exit 1
+    fi
+)
+mv -f -- "$candidate" "$out/$name"
+printf 'Standalone release: %s\n' "$out/$name"

@@ -1,6 +1,5 @@
 //! Optional release updates, entirely independent of the Telegram account.
 
-mod archive;
 mod install;
 mod releases;
 

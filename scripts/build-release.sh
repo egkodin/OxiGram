@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds and verifies a release on the current host. Archives go in target/dist.
+# Builds and verifies a release on the current host. The standalone executable goes in target/dist.
 set +x
 set -euo pipefail
 
@@ -57,4 +57,4 @@ OXIGRAM_RELEASE_API_ID="$OXIGRAM_RELEASE_API_ID" OXIGRAM_RELEASE_API_HASH="$OXIG
 bash scripts/package-release.sh "$work/cargo/release" "$work/dist"
 mkdir -p target/dist
 mv -f -- "$work/dist/"* target/dist/
-printf 'Release archive saved in %s/target/dist\n' "$PWD"
+printf 'Release executable saved in %s/target/dist\n' "$PWD"

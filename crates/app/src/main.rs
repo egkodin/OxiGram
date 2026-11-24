@@ -43,9 +43,16 @@ fn main() -> anyhow::Result<()> {
         log_stream: Box::new(LogStream::Empty(LogStreamEmpty {})),
     })
     .context("disabling TDLib's native log")?;
-    match std::env::args().nth(1).as_deref() {
+    let mut args = std::env::args().skip(1);
+    match args.next().as_deref() {
         Some("--version") => return print_version(),
         Some("--check-release-configuration") => {
+            if let Some(expected) = args.next() {
+                anyhow::ensure!(
+                    expected == env!("CARGO_PKG_VERSION"),
+                    "unexpected packaged version"
+                );
+            }
             return credentials::check_release_configuration()
                 .map_err(|_| anyhow::anyhow!("Missing or invalid bundled Telegram configuration"));
         }

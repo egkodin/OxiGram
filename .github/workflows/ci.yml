@@ -139,14 +139,19 @@ jobs:
           else
             cargo build --locked --release -p oxigram --features runtime-shaders,media/static-ffmpeg
           fi
-      - name: Package and smoke-test the release archive
+      - name: Package and smoke-test the standalone executable
         if: github.event_name == 'workflow_dispatch'
-        run: bash scripts/package-release.sh target/release dist
-      - uses: actions/upload-artifact@v4
+        id: package
+        run: |
+          bash scripts/package-release.sh target/release dist
+          files=(dist/*)
+          [[ ${#files[@]} -eq 1 && -f "${files[0]}" ]]
+          printf 'executable=%s\n' "${files[0]}" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
         if: github.event_name == 'workflow_dispatch'
         with:
-          name: oxigram-${{ matrix.os }}
-          path: dist/*
+          path: ${{ steps.package.outputs.executable }}
+          archive: false
           if-no-files-found: error
       - run: cargo doc --locked --workspace $FEATURES --no-deps
         env:

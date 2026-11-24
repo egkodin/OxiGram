@@ -190,7 +190,11 @@ pub(crate) fn quit(cx: &mut App) {
 /// Starts this binary again with the same arguments; TDLib's database is
 /// closed by now, so the new process can open it.
 fn start_again() {
-    let started = std::env::current_exe().and_then(|path| {
+    let executable = std::env::var_os(oxigram_package::LAUNCHER_PATH)
+        .map(std::path::PathBuf::from)
+        .filter(|path| path.is_absolute() && path.is_file())
+        .map_or_else(std::env::current_exe, Ok);
+    let started = executable.and_then(|path| {
         std::process::Command::new(path)
             .args(std::env::args_os().skip(1))
             .spawn()
